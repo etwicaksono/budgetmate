@@ -1,0 +1,116 @@
+/* 
+ * Main application styles
+ * Following the design principles from the PRD
+ */
+
+:root {
+  --primary-color: #4A90E2;
+  --income-color: #7ED321;
+  --expense-color: #D0021B;
+  --neutral-gray: #F5F5F5;
+  --light-gray: #e9ecef;
+  --dark-gray: #6c757d;
+}
+
+body {
+  font-family: 'Inter', 'Lato', sans-serif;
+  background-color: var(--neutral-gray);
+}
+
+/* Custom styles for account cards */
+.account-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  height: 100%;
+}
+
+.account-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.account-card .account-balance {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.add-account-card {
+  border: 2px dashed var(--dark-gray);
+  background-color: rgba(0,0,0,0.03);
+}
+
+.add-account-card:hover {
+  border: 2px dashed var(--primary-color);
+  background-color: rgba(74, 144, 226, 0.05);
+  cursor: pointer;
+}
+
+/* Budget card customizations */
+.budget-card {
+  height: 100%;
+}
+
+/* Transaction table enhancements */
+.transaction-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.transaction-item {
+  padding: 10px 0;
+}
+
+/* Custom divider */
+.divider hr {
+  border-top: 1px solid #e0e0e0;
+}
+
+/* Main container */
+.main-container {
+  padding-top: 20px;
+  padding-bottom: 40px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .main-container {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  
+  h1 {
+    font-size: 1.8rem;
+  }
+}
+
+/* Income and expense color schemes */
+.text-income {
+  color: var(--income-color);
+}
+
+.text-expense {
+  color: var(--expense-color);
+}
+
+/* Progress bar customizations */
+.progress {
+  height: 10px;
+}
+
+/* Custom buttons */
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: #3a7bc8;
+  border-color: #3a7bc8;
+}
+
+/* Card header styling */
+.card-header {
+  font-weight: 600;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
