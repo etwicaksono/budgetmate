@@ -3,7 +3,6 @@
    display: flex;
    align-items: center;
    justify-content: center;
-   background-color: #00a86b;
    padding: 2rem;
 }
 
@@ -208,8 +207,8 @@
 }
 
 /* Hide default validation feedback to prevent duplication */
-.password-input-container .form-control.is-valid + .valid-feedback,
-.password-input-container .form-control.is-invalid + .invalid-feedback {
+.password-input-container .form-control.is-valid+.valid-feedback,
+.password-input-container .form-control.is-invalid+.invalid-feedback {
    display: none;
 }
 
@@ -245,6 +244,7 @@
    from {
       transform: scale(0);
    }
+
    to {
       transform: scale(1);
    }
