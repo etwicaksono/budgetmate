@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 
 const Reports = () => {
   const [timeRange, setTimeRange] = useState('monthly');
-  
+
   // Sample expense data for different time ranges
   const expenseData = {
     monthly: [
@@ -66,11 +66,11 @@ const Reports = () => {
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B'];
 
   return (
-    <Container fluid>
+    <Container >
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h1>Reports & Analytics</h1>
-        <Form.Select 
-          value={timeRange} 
+        <Form.Select
+          value={timeRange}
           onChange={(e) => setTimeRange(e.target.value)}
           style={{ width: '200px' }}
         >
@@ -165,7 +165,7 @@ const Reports = () => {
             </Card.Body>
           </Card>
         </Col>
-        
+
         <Col md={4} className="mb-4">
           <Card className="text-center bg-danger text-white">
             <Card.Body>
@@ -175,7 +175,7 @@ const Reports = () => {
             </Card.Body>
           </Card>
         </Col>
-        
+
         <Col md={4} className="mb-4">
           <Card className="text-center bg-success text-white">
             <Card.Body>

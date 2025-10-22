@@ -36,7 +36,7 @@ const Budgets = () => {
         spent: 0, // New budgets start with $0 spent
         budgeted: parseFloat(currentBudget.budgeted)
       };
-      
+
       setBudgets([...budgets, newBudget]);
       setShowModal(false);
     }
@@ -62,7 +62,7 @@ const Budgets = () => {
   };
 
   return (
-    <Container fluid>
+    <Container >
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h1>Budgets</h1>
         <Button variant="primary" onClick={handleAddBudget}>
@@ -74,7 +74,7 @@ const Budgets = () => {
         {budgets.map(budget => {
           const percentage = calculatePercentage(budget.spent, budget.budgeted);
           const statusVariant = getStatusVariant(percentage);
-          
+
           return (
             <Col key={budget.id} xs={12} md={6} lg={4} className="mb-4">
               <Card className={`budget-card border-${statusVariant}`}>
@@ -101,20 +101,20 @@ const Budgets = () => {
                   </div>
 
                   <div className="progress mb-2" style={{ height: '8px' }}>
-                    <div 
-                      className={`progress-bar bg-${statusVariant}`} 
-                      role="progressbar" 
+                    <div
+                      className={`progress-bar bg-${statusVariant}`}
+                      role="progressbar"
                       style={{ width: `${percentage}%` }}
                       aria-valuenow={percentage}
-                      aria-valuemin="0" 
+                      aria-valuemin="0"
                       aria-valuemax="100"
                     ></div>
                   </div>
 
                   <div className="d-flex justify-content-between">
                     <span className="text-muted small">
-                      {budget.budgeted - budget.spent > 0 
-                        ? `$${(budget.budgeted - budget.spent).toFixed(2)} left` 
+                      {budget.budgeted - budget.spent > 0
+                        ? `$${(budget.budgeted - budget.spent).toFixed(2)} left`
                         : 'Over budget'}
                     </span>
                     <span className="text-muted small">

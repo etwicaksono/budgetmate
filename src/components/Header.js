@@ -1,28 +1,193 @@
-import React from 'react';
-import { Navbar, Nav, Container } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Button, Container, Dropdown, Offcanvas } from 'react-bootstrap';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { FaBars, FaBug, FaChevronDown, FaCog, FaPlus, FaQuestionCircle, FaSignOutAlt } from 'react-icons/fa';
+import { useTransactionModal } from '../context/TransactionModalContext';
+import { useAuth } from '../context/AuthContext';
+import logo from '../images/logo.svg';
 
 const Header = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [showSidebar, setShowSidebar] = useState(false);
+  const { openTransactionModal } = useTransactionModal();
+  const { logout } = useAuth();
+
+  const handleClose = () => setShowSidebar(false);
+  const handleShow = () => setShowSidebar(true);
+
+  const navigationLinks = useMemo(
+    () => [
+      { to: '/', label: 'Dashboard', exact: true },
+      { to: '/accounts', label: 'Accounts' },
+      { to: '/transactions', label: 'Transactions' },
+      { to: '/budgets', label: 'Budgets' },
+      { to: '/reports', label: 'Reports' },
+    ],
+    []
+  );
+
+  const userProfile = useMemo(
+    () => ({
+      name: 'Eko Teguh Wicaksono',
+      status: 'Premium',
+    }),
+    []
+  );
+
+  const profileInitials = useMemo(() => {
+    const [first = '', second = ''] = userProfile.name.split(' ');
+    return `${first.charAt(0)}${second.charAt(0)}`.toUpperCase();
+  }, [userProfile.name]);
+
+  const isActiveLink = (path, exact = false) => {
+    if (exact) {
+      return location.pathname === path;
+    }
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname.startsWith(path);
+  };
+
+  const handleRecordClick = useCallback(() => {
+    openTransactionModal();
+    setShowSidebar(false);
+  }, [openTransactionModal]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   return (
-    <header>
-      <Navbar bg="primary" variant="dark" expand="lg" className="py-3">
-        <Container>
-          <Link to="/" className="navbar-brand">FinanceApp</Link>
-          <Navbar.Toggle aria-controls="basic-navbar-nav" />
-          <Navbar.Collapse id="basic-navbar-nav">
-            <Nav className="me-auto">
-              <Link to="/" className="nav-link">Dashboard</Link>
-              <Link to="/transactions" className="nav-link">Transactions</Link>
-              <Link to="/budgets" className="nav-link">Budgets</Link>
-              <Link to="/reports" className="nav-link">Reports</Link>
-            </Nav>
-            <Nav>
-              <Link to="/login" className="nav-link">Login</Link>
-              <Link to="/signup" className="nav-link">Sign Up</Link>
-            </Nav>
-          </Navbar.Collapse>
-        </Container>
-      </Navbar>
+    <header className="app-header">
+      <Container className="app-header__container">
+        <div className="app-header__left">
+          <Link to="/" className="app-header__brand" onClick={handleClose}>
+            <span className="app-header__brand-icon">
+              <img src={logo} alt="Wallet logo" className="app-header__brand-logo" />
+            </span>
+          </Link>
+
+          <nav className="app-header__nav d-none d-lg-flex">
+            {navigationLinks.map(({ to, label, exact }) => (
+              <Link
+                key={to}
+                to={to}
+                className={`app-header__link ${isActiveLink(to, exact) ? 'app-header__link--active' : ''
+                  }`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        <div className="app-header__right">
+          <Button
+            variant="success"
+            className="app-header__record-btn"
+            onClick={handleRecordClick}
+          >
+            <FaPlus className="me-2" size={12} />
+            Record
+          </Button>
+
+          <Dropdown className="d-none d-lg-flex">
+            <Dropdown.Toggle as="div" className="app-header__profile" bsPrefix="app-header">
+              <div className="app-header__avatar" aria-hidden="true">
+                {profileInitials}
+              </div>
+              <div className="app-header__profile-details">
+                <span className="app-header__profile-name">{userProfile.name}</span>
+                <span className="app-header__profile-status">{userProfile.status}</span>
+              </div>
+              <FaChevronDown className="app-header__profile-caret" size={14} />
+            </Dropdown.Toggle>
+
+            <Dropdown.Menu align="end">
+              <Dropdown.Item onClick={() => navigate('/settings')}>
+                <FaCog className="me-2" size={14} />
+                Settings
+              </Dropdown.Item>
+              <Dropdown.Item>
+                <FaQuestionCircle className="me-2" size={14} />
+                Help
+              </Dropdown.Item>
+              <Dropdown.Item>
+                <FaBug className="me-2" size={14} />
+                Report a bug
+              </Dropdown.Item>
+              <Dropdown.Divider />
+              <Dropdown.Item className="text-danger" onClick={handleLogout}>
+                <FaSignOutAlt className="me-2" size={14} />
+                Log out
+              </Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown>
+
+          <Button
+            variant="link"
+            className="app-header__menu-btn d-lg-none"
+            onClick={handleShow}
+          >
+            <FaBars size={20} />
+          </Button>
+        </div>
+      </Container>
+
+      <Offcanvas
+        show={showSidebar}
+        onHide={handleClose}
+        placement="end"
+        className="sidebar-offcanvas"
+      >
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title>Wallet</Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          <div className="app-header__mobile-profile">
+            <div className="app-header__avatar app-header__avatar--lg" aria-hidden="true">
+              {profileInitials}
+            </div>
+            <div className="app-header__profile-details">
+              <span className="app-header__profile-name">{userProfile.name}</span>
+              <span className="app-header__profile-status">{userProfile.status}</span>
+            </div>
+          </div>
+
+          <nav className="app-header__mobile-nav">
+            {navigationLinks.map(({ to, label, exact }) => (
+              <Button
+                key={to}
+                variant="link"
+                className={`app-header__mobile-link ${isActiveLink(to, exact) ? 'app-header__mobile-link--active' : ''
+                  }`}
+                onClick={() => {
+                  navigate(to);
+                  handleClose();
+                }}
+              >
+                {label}
+              </Button>
+            ))}
+          </nav>
+
+          <Button
+            variant="success"
+            className="app-header__mobile-record"
+            onClick={handleRecordClick}
+          >
+            <FaPlus className="me-2" size={12} />
+            Record Transaction
+          </Button>
+        </Offcanvas.Body>
+      </Offcanvas>
     </header>
   );
 };

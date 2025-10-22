@@ -1,15 +1,73 @@
 import React, { useState } from 'react';
-import { Row, Col, Card, Button, Container } from 'react-bootstrap';
+import { Row, Col, Card, Button, Container, Modal, Form } from 'react-bootstrap';
+import { FaUniversity, FaCreditCard, FaWallet, FaPiggyBank } from 'react-icons/fa';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import PeriodNavigation, {
+  PeriodNavigationProvider,
+  usePeriodNavigation,
+} from '../../components/PeriodNavigation';
+import PeriodRangeSelector from '../../components/PeriodRangeSelector';
 
-const Dashboard = () => {
+function DashboardContent() {
   // Sample account data
-  const [accounts] = useState([
+  const [accounts, setAccounts] = useState([
     { id: 1, name: 'Checking Account', balance: 2450.75, type: 'Bank', color: '#3498db' },
     { id: 2, name: 'Savings Account', balance: 8750.20, type: 'Bank', color: '#2ecc71' },
     { id: 3, name: 'Credit Card', balance: -1250.30, type: 'Credit', color: '#e74c3c' },
     { id: 4, name: 'Cash', balance: 420.00, type: 'Cash', color: '#f39c12' },
   ]);
+
+  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [newAccount, setNewAccount] = useState({
+    name: '',
+    type: 'Bank',
+    balance: 0
+  });
+
+  const {
+    state: { periodLabel, activePeriod, customRangeDraft },
+  } = usePeriodNavigation();
+
+  const accountTypes = ['Bank', 'Credit Card', 'Cash'];
+  const accountColors = ['#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6', '#1abc9c', '#34495e', '#e67e22'];
+
+  const accountTypeIcons = {
+    Bank: FaUniversity,
+    'Credit Card': FaCreditCard,
+    Cash: FaWallet,
+  };
+
+  const formatCurrency = (value) => {
+    const formatted = new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Math.abs(value));
+    return `${value < 0 ? '-' : ''}IDR ${formatted}`;
+  };
+
+  const handleAddAccount = () => {
+    if (newAccount.name) {
+      const newAccountObj = {
+        id: accounts.length + 1,
+        name: newAccount.name,
+        type: newAccount.type,
+        balance: parseFloat(newAccount.balance) || 0,
+        color: accountColors[accounts.length % accountColors.length]
+      };
+
+      setAccounts([...accounts, newAccountObj]);
+      setNewAccount({ name: '', type: 'Bank', balance: 0 });
+      setShowAddAccountModal(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewAccount(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   // Sample expense data for the chart
   const expenseData = [
@@ -41,38 +99,41 @@ const Dashboard = () => {
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   return (
-    <Container fluid>
-      <h1 className="mb-4">Dashboard</h1>
-      
+    <Container>
       {/* Account Cards Section */}
       <section className="mb-5">
-        <h2 className="mb-3">Accounts</h2>
         <Row>
-          {accounts.map((account) => (
-            <Col key={account.id} xs={12} sm={6} md={3} className="mb-3">
-              <Card 
-                className="h-100 account-card" 
-                style={{ borderLeft: `4px solid ${account.color}` }}
-              >
-                <Card.Body>
-                  <Card.Title>{account.name}</Card.Title>
-                  <Card.Text className="account-balance">
-                    ${account.balance.toFixed(2)}
-                  </Card.Text>
-                  <Card.Text className="text-muted">
-                    {account.type}
-                  </Card.Text>
-                </Card.Body>
-              </Card>
-            </Col>
-          ))}
+          {accounts.map((account) => {
+            const AccountIcon = accountTypeIcons[account.type] || FaPiggyBank;
+            return (
+              <Col key={account.id} xs={12} sm={6} md={3} className="mb-3">
+                <Card
+                  className="h-100 account-card"
+                  style={{ backgroundColor: account.color, borderColor: account.color }}
+                >
+                  <Card.Body className="account-card__body">
+                    <span className="account-card__icon">
+                      <AccountIcon size={24} />
+                    </span>
+                    <div className="account-card__details">
+                      <div className="account-card__name">{account.name}</div>
+                      <div className="account-card__balance">{formatCurrency(account.balance)}</div>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            );
+          })}
           {/* Add Account Card */}
           <Col xs={12} sm={6} md={3} className="mb-3">
-            <Card className="h-100 add-account-card d-flex align-items-center justify-content-center">
-              <Card.Body className="text-center">
-                <Button variant="outline-primary" size="lg">
-                  + Add Account
-                </Button>
+            <Card
+              className="h-100 add-account-card"
+              onClick={() => setShowAddAccountModal(true)}
+              style={{ cursor: 'pointer' }}
+            >
+              <Card.Body className="add-account-card__body">
+                <span className="add-account-card__plus">+</span>
+                <span className="add-account-card__text">Add Account</span>
               </Card.Body>
             </Card>
           </Col>
@@ -81,7 +142,17 @@ const Dashboard = () => {
 
       {/* Customizable Widgets Section */}
       <section>
-        <h2 className="mb-3">Financial Overview</h2>
+        <Row>
+          <Col lg={12} className="mb-4">
+            <PeriodNavigation className="mb-3">
+            <PeriodRangeSelector
+              label={periodLabel}
+              activePeriod={activePeriod}
+              customRange={customRangeDraft}
+            />
+            </PeriodNavigation>
+          </Col>
+        </Row>
         <Row>
           {/* Expense by Category Chart */}
           <Col lg={6} className="mb-4">
@@ -167,12 +238,12 @@ const Dashboard = () => {
                     <span>$200 of $400</span>
                   </div>
                   <div className="progress">
-                    <div 
-                      className="progress-bar bg-warning" 
-                      role="progressbar" 
-                      style={{ width: '50%' }} 
-                      aria-valuenow="50" 
-                      aria-valuemin="0" 
+                    <div
+                      className="progress-bar bg-warning"
+                      role="progressbar"
+                      style={{ width: '50%' }}
+                      aria-valuenow="50"
+                      aria-valuemin="0"
                       aria-valuemax="100"
                     ></div>
                   </div>
@@ -183,12 +254,12 @@ const Dashboard = () => {
                     <span>$120 of $150</span>
                   </div>
                   <div className="progress">
-                    <div 
-                      className="progress-bar bg-warning" 
-                      role="progressbar" 
-                      style={{ width: '80%' }} 
-                      aria-valuenow="80" 
-                      aria-valuemin="0" 
+                    <div
+                      className="progress-bar bg-warning"
+                      role="progressbar"
+                      style={{ width: '80%' }}
+                      aria-valuenow="80"
+                      aria-valuemin="0"
                       aria-valuemax="100"
                     ></div>
                   </div>
@@ -199,12 +270,12 @@ const Dashboard = () => {
                     <span>$50 of $200</span>
                   </div>
                   <div className="progress">
-                    <div 
-                      className="progress-bar bg-success" 
-                      role="progressbar" 
-                      style={{ width: '25%' }} 
-                      aria-valuenow="25" 
-                      aria-valuemin="0" 
+                    <div
+                      className="progress-bar bg-success"
+                      role="progressbar"
+                      style={{ width: '25%' }}
+                      aria-valuenow="25"
+                      aria-valuemin="0"
                       aria-valuemax="100"
                     ></div>
                   </div>
@@ -214,8 +285,68 @@ const Dashboard = () => {
           </Col>
         </Row>
       </section>
+      {/* Add Account Modal */}
+      <Modal show={showAddAccountModal} onHide={() => setShowAddAccountModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Add New Account</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3" controlId="accountName">
+              <Form.Label>Account Name</Form.Label>
+              <Form.Control
+                type="text"
+                name="name"
+                value={newAccount.name}
+                onChange={handleInputChange}
+                placeholder="e.g. Checking Account, Credit Card"
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3" controlId="accountType">
+              <Form.Label>Account Type</Form.Label>
+              <Form.Select
+                name="type"
+                value={newAccount.type}
+                onChange={handleInputChange}
+              >
+                {accountTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3" controlId="accountBalance">
+              <Form.Label>Current Balance</Form.Label>
+              <Form.Control
+                type="number"
+                name="balance"
+                value={newAccount.balance}
+                onChange={handleInputChange}
+                placeholder="0.00"
+                step="0.01"
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowAddAccountModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleAddAccount}>
+            Add Account
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
-};
+}
+
+const Dashboard = () => (
+  <PeriodNavigationProvider>
+    <DashboardContent />
+  </PeriodNavigationProvider>
+);
 
 export default Dashboard;

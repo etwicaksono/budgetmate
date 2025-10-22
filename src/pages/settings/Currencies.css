@@ -1,0 +1,33 @@
+.currencies-section {
+   max-width: 800px;
+}
+
+.currencies-add {
+   background-color: #f8f9fa;
+   padding: 1.5rem;
+   border-radius: 0.5rem;
+}
+
+.currencies-table {
+   background-color: white;
+}
+
+.currency-name {
+   display: flex;
+   flex-direction: column;
+}
+
+.currency-code {
+   font-weight: 500;
+   color: #212529;
+}
+
+.currency-full-name {
+   font-size: 0.875rem;
+   color: #6c757d;
+}
+
+.exchange-rate-input {
+   max-width: 120px;
+   text-align: right;
+}
