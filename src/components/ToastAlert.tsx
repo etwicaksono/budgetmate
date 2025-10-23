@@ -4,31 +4,46 @@ import React, {
   type ReactNode,
   type SyntheticEvent,
 } from 'react';
-import Snackbar, {
-  type SnackbarCloseReason,
-  type SnackbarOrigin,
-  type SnackbarProps,
-} from '@mui/material/Snackbar';
-import MuiAlert, {
-  type AlertColor,
-  type AlertProps,
-} from '@mui/material/Alert';
+import { Toast, ToastContainer } from 'react-bootstrap';
 
-type ToastAlertVariant = AlertProps['variant'];
+type ToastAlertVariant = 'filled' | 'outlined' | 'standard';
+type AnchorOrigin = { vertical: 'top' | 'bottom'; horizontal: 'left' | 'center' | 'right' };
 
 export interface ToastAlertProps {
   open: boolean;
-  onClose?: (
-    event: Event | SyntheticEvent,
-    reason?: SnackbarCloseReason,
-  ) => void;
-  severity?: AlertColor;
+  onClose?: (event: SyntheticEvent | Event, reason?: string) => void;
+  severity?: 'success' | 'info' | 'warning' | 'error';
   message: ReactNode;
   autoHideDuration?: number;
-  anchorOrigin?: SnackbarOrigin;
+  anchorOrigin?: AnchorOrigin;
   variant?: ToastAlertVariant;
   elevation?: number;
 }
+
+const severityToBg = (severity?: 'success' | 'info' | 'warning' | 'error'): string => {
+  switch (severity) {
+    case 'success':
+      return 'success';
+    case 'info':
+      return 'info';
+    case 'warning':
+      return 'warning';
+    case 'error':
+      return 'danger';
+    default:
+      return 'info';
+  }
+};
+
+const anchorToPosition = (
+  anchor?: AnchorOrigin,
+): 'top-start' | 'top-center' | 'top-end' | 'bottom-start' | 'bottom-center' | 'bottom-end' => {
+  const vertical = anchor?.vertical ?? 'top';
+  const horizontal = anchor?.horizontal ?? 'right';
+  const v = vertical === 'top' ? 'top' : 'bottom';
+  const h = horizontal === 'left' ? 'start' : horizontal === 'center' ? 'center' : 'end';
+  return `${v}-${h}` as 'top-start' | 'top-center' | 'top-end' | 'bottom-start' | 'bottom-center' | 'bottom-end';
+};
 
 const ToastAlert = forwardRef<HTMLDivElement, ToastAlertProps>(
   (
@@ -39,39 +54,25 @@ const ToastAlert = forwardRef<HTMLDivElement, ToastAlertProps>(
       message,
       autoHideDuration = 4000,
       anchorOrigin = { vertical: 'top', horizontal: 'right' },
-      variant = 'filled',
-      elevation = 6,
     },
     ref: ForwardedRef<HTMLDivElement>,
   ) => {
-    const handleSnackbarClose: NonNullable<SnackbarProps['onClose']> = (
-      event,
-      reason,
-    ) => {
-      onClose?.(event, reason);
-    };
-
-    const handleAlertClose: NonNullable<AlertProps['onClose']> = (event) => {
-      onClose?.(event);
-    };
+    const bg = severityToBg(severity);
+    const position = anchorToPosition(anchorOrigin);
 
     return (
-      <Snackbar
-        open={open}
-        autoHideDuration={autoHideDuration}
-        onClose={handleSnackbarClose}
-        anchorOrigin={anchorOrigin}
-      >
-        <MuiAlert
-          ref={ref}
-          severity={severity}
-          onClose={handleAlertClose}
-          elevation={elevation}
-          variant={variant}
+      <ToastContainer position={position} className="p-3">
+        <Toast
+          show={open}
+          autohide
+          delay={autoHideDuration}
+          bg={bg}
+          onClose={(e) => onClose?.(e ?? new Event('close'))}
+          ref={ref as unknown as React.RefObject<HTMLDivElement>}
         >
-          {message}
-        </MuiAlert>
-      </Snackbar>
+          <Toast.Body>{message}</Toast.Body>
+        </Toast>
+      </ToastContainer>
     );
   },
 );

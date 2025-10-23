@@ -1,10 +1,11 @@
 import React, { createElement, useCallback, useMemo, useState } from 'react';
 import { Button, Container, Dropdown, Offcanvas } from 'react-bootstrap';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { FaBars, FaBug, FaChevronDown, FaCog, FaPlus, FaQuestionCircle, FaSignOutAlt } from 'react-icons/fa';
 import { useTransactionModal } from '../context/TransactionModalContext';
 import { useAuth } from '../context/AuthContext';
-import logo from '../images/logo.svg';
+/* moved logo asset to public; use path '/images/logo.svg' */
 import type { IconBaseProps, IconType } from 'react-icons';
 
 type NavigationLink = {
@@ -32,8 +33,8 @@ const renderIcon = (IconComponent: IconRenderable, props: IconBaseProps = {}): R
   createElement(IconComponent as React.ComponentType<IconBaseProps>, props);
 
 const Header: React.FC = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const pathname = usePathname() || '/';
+  const router = useRouter();
   const [showSidebar, setShowSidebar] = useState<boolean>(false);
   const { openTransactionModal } = useTransactionModal() as TransactionModalContextValue;
   const { logout } = useAuth() as AuthContextValue;
@@ -68,14 +69,14 @@ const Header: React.FC = () => {
   const isActiveLink = useCallback(
     (path: string, exact = false): boolean => {
       if (exact) {
-        return location.pathname === path;
+        return pathname === path;
       }
       if (path === '/') {
-        return location.pathname === '/';
+        return pathname === '/';
       }
-      return location.pathname.startsWith(path);
+      return pathname.startsWith(path);
     },
-    [location.pathname]
+    [pathname]
   );
 
   const handleRecordClick = useCallback((): void => {
@@ -86,20 +87,20 @@ const Header: React.FC = () => {
   const handleLogout = useCallback(async (): Promise<void> => {
     try {
       await logout();
-      navigate('/login');
+      router.push('/login');
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Logout failed:', error);
     }
-  }, [logout, navigate]);
+  }, [logout, router]);
 
   return (
     <header className="app-header">
       <Container className="app-header__container">
         <div className="app-header__left">
-          <Link to="/" className="app-header__brand" onClick={handleClose}>
+          <Link href="/" className="app-header__brand" onClick={handleClose}>
             <span className="app-header__brand-icon">
-              <img src={logo as unknown as string} alt="Wallet logo" className="app-header__brand-logo" />
+              <img src="/images/logo.svg" alt="Wallet logo" className="app-header__brand-logo" />
             </span>
           </Link>
 
@@ -107,7 +108,7 @@ const Header: React.FC = () => {
             {navigationLinks.map(({ to, label, exact = false }) => (
               <Link
                 key={to}
-                to={to}
+                href={to}
                 className={`app-header__link ${isActiveLink(to, exact) ? 'app-header__link--active' : ''
                   }`}
               >
@@ -140,7 +141,7 @@ const Header: React.FC = () => {
             </Dropdown.Toggle>
 
             <Dropdown.Menu align="end">
-              <Dropdown.Item onClick={() => navigate('/settings')}>
+              <Dropdown.Item onClick={() => router.push('/settings')}>
                 {renderIcon(FaCog, { className: 'me-2', size: 14 })}
                 Settings
               </Dropdown.Item>
@@ -198,7 +199,7 @@ const Header: React.FC = () => {
                 className={`app-header__mobile-link ${isActiveLink(to, exact) ? 'app-header__mobile-link--active' : ''
                   }`}
                 onClick={() => {
-                  navigate(to);
+                  router.push(to);
                   handleClose();
                 }}
               >

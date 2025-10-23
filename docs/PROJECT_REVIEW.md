@@ -1,15 +1,22 @@
 # Finance App — Project Review and Improvement Suggestions
 
-This review covers key aspects of the codebase based on files including [`package.json`](package.json:1), [`tsconfig.json`](tsconfig.json:1), [`App.tsx`](src/App.tsx:31), [`ApiService.request()`](src/services/api.ts:92), [`AuthProvider`](src/context/AuthContext.tsx:89), [`PrivateRoute`](src/components/PrivateRoute.tsx:9), [`PublicRoute`](src/components/PublicRoute.tsx:13), [`TokenCrypto`](src/utils/crypto.ts:13), and centralized config [`src/config/index.ts`](src/config/index.ts).
+This review covers key aspects of the codebase based on files including [`package.json`](package.json:1), [`tsconfig.json`](tsconfig.json:1), [`RootLayout`](app/layout.tsx:1), [`ProtectedShell`](app/components/ProtectedShell.tsx:1), [`ApiService.request()`](src/services/api.ts:92), [`AuthProvider`](src/context/AuthContext.tsx:1), [`RequireAuth`](app/RequireAuth.tsx:1), [`TokenCrypto`](src/utils/crypto.ts:13), and centralized config [`src/config/index.ts`](src/config/index.ts).
 
 Highlights
 - Modern React with route guards and context-based auth.
 - Centralized API layer with token refresh logic.
 - Web Crypto AES-GCM for client-side token protection.
 
+Cleanup Summary (2025-10-22)
+- Removed MUI stack: @mui/material, @emotion/react, @emotion/styled; consolidated styling on Bootstrap per [`package.json`](package.json:12).
+- Refactored toast notifications to react-bootstrap in [`ToastAlert`](src/components/ToastAlert.tsx:1).
+- Deleted obsolete ambient module declaration [`src/types/toast-alert.d.ts`](src/types/toast-alert.d.ts:1) to prevent type shadowing.
+- Restored and retained [`recharts`](package.json:20) due to active usage in [`Dashboard`](src/pages/Dashboard/Dashboard.tsx:1) and [`Reports`](src/pages/Reports/Reports.tsx:1), and fixed related typings for labels and data.
+- Resolved ESLint warnings in pie label formatter within [`Reports`](src/pages/Reports/Reports.tsx:96).
+
 Risks and Opportunities
-- Legacy build stack via CRA `react-scripts`.
-- Mixed UI libraries (Bootstrap and MUI) increasing bundle size and inconsistency.
+- Current stack is Next.js 14 App Router.
+- UI library consolidated to Bootstrap to reduce bundle size and inconsistency.
 - Missing request timeouts and abort handling despite configured `timeout`.
 - Broad any/unknown types reduce API type safety and error discoverability.
 - TS target set to ES5 limits modern optimizations and can increase polyfill needs.
@@ -20,10 +27,9 @@ Architecture and Structure
 - Add a global error boundary component to catch runtime errors and show a user-friendly fallback.
 
 Routing and Code-Splitting
-- Convert top-level pages to lazy-loaded routes to reduce initial bundle:
-  - Example: use React.lazy for Dashboard, Transactions, Budgets, Reports, Accounts, Settings, and wrap Routes in Suspense with a spinner similar to [`PrivateRoute`](src/components/PrivateRoute.tsx:13).
-- Keep route guards; pattern in [`App.tsx`](src/App.tsx:48) using <PrivateRoute> with a layout is good.
-- Align redirect behavior between [`PublicRoute`](src/components/PublicRoute.tsx:27) and [`PrivateRoute`](src/components/PrivateRoute.tsx:26) to ensure consistent back navigation.
+- Use Next.js App Router idioms. Prefer `dynamic(() => import(...))` for heavy charts/pages (Dashboard, Reports) to reduce initial bundle.
+- Route protection is implemented via [`ProtectedShell`](app/components/ProtectedShell.tsx:1) and [`RequireAuth`](app/RequireAuth.tsx:1); keep this pattern and ensure a loading fallback.
+- Align redirect behavior between login and protected areas using a single guard in [`RequireAuth`](app/RequireAuth.tsx:1) to ensure consistent back navigation.
 
 TypeScript Configuration
 - Update target and libs to modern standards for React 18:
@@ -32,8 +38,8 @@ TypeScript Configuration
 - Enable incremental builds if migrating to Vite or tsup; currently `"noEmit": true` is fine for React builds.
 
 Dependency Management and Build Tooling
-- Migrate from CRA [`package.json`](package.json:7) to Vite for faster dev, smaller bundles, and simpler configuration.
-- Consolidate UI libraries: choose MUI or Bootstrap, not both, to reduce CSS and JS overlap. Current deps include MUI and Bootstrap in [`package.json`](package.json:12).
+- Next.js 14 is in use; enable the Next.js ESLint plugin in [`package.json`](package.json:33) and consider `@next/bundle-analyzer` for bundle insights.
+- UI library is consolidated to Bootstrap; avoid reintroducing parallel UI systems to keep CSS/JS overlap low.
 - Lock TypeScript to a current major (TS 5.x) and align @typescript-eslint to matching major ranges.
 - Add Prettier and an `.editorconfig`, and wire husky + lint-staged to enforce formatting on commit.
 
@@ -62,7 +68,7 @@ Auth Context and UX
 Error Handling and Observability
 - Replace console.error with a logging utility that can fan out to Sentry/console depending on env.
 - Add user-friendly messages for network errors and map common HTTP codes to guidance.
-- Add an ErrorBoundary component wrapping [`App.tsx`](src/App.tsx:28) to catch render errors.
+- Add a global error boundary using [`app/global-error.tsx`](app/global-error.tsx:1) or segment-level `error.tsx` to catch render errors.
 
 Data Fetching and State
 - Introduce TanStack Query for server state: caching, retries, background refresh, and mutation status would simplify logic across pages (e.g., transactions, budgets).
@@ -74,12 +80,12 @@ Performance
 - Use React.memo and memoized selectors for frequently rendered lists (transactions).
 
 Accessibility and i18n
-- Ensure all interactive controls have accessible names and roles; current spinners in [`PrivateRoute`](src/components/PrivateRoute.tsx:19) and [`PublicRoute`](src/components/PublicRoute.tsx:20) are fine—add aria-live for loading states on complex pages.
+- Ensure all interactive controls have accessible names and roles; ensure spinners in [`ProtectedShell`](app/components/ProtectedShell.tsx:1) and [`RequireAuth`](app/RequireAuth.tsx:1) include aria-live for loading states on complex pages.
 - Plan for i18n using react-intl or i18next; externalize strings from pages.
 
 Testing Strategy
 - Add unit tests for utils: [`numericInput`](src/utils/numericInput.ts) and crypto.
-- Add integration tests for auth flow covering [`PublicRoute`](src/components/PublicRoute.tsx:27) and [`PrivateRoute`](src/components/PrivateRoute.tsx:26).
+- Add integration tests for auth flow covering [`RequireAuth`](app/RequireAuth.tsx:1) and the authenticated layout [`ProtectedShell`](app/components/ProtectedShell.tsx:1).
 - Use MSW (Mock Service Worker) to simulate API responses and token refresh scenarios across [`ApiService.request()`](src/services/api.ts:92).
 
 Documentation
@@ -92,14 +98,14 @@ CI/CD
 - Gate merges on passing checks and minimum coverage thresholds.
 
 Environment and Configuration
-- Ensure `.env.example` includes `REACT_APP_API_BASE_URL` and other required keys; document defaults mirrored in [`API_CONFIG.baseURL`](src/config/index.ts:30).
+- Ensure `.env.example` includes `API_BASE_URL` and other required keys; document defaults mirrored in [`API_CONFIG.baseURL`](src/config/index.ts:30).
 - Consider runtime-config injection (window.__APP_CONFIG__) for containerized deployments rather than build-time env only.
 
 Prioritized Action Plan
 - High priority
-  - Migrate build to Vite and add lazy-loaded routes.
+  - Adopt dynamic imports for heavy charts/pages in Next.js and enable the Next.js ESLint plugin and bundle analyzer.
   - Implement request timeout and AbortController in [`ApiService.request()`](src/services/api.ts:92) with retry/backoff.
-  - Consolidate UI library to a single system (prefer MUI or Bootstrap).
+  - Consolidate UI library to a single system (Bootstrap is already selected).
   - Upgrade TypeScript to 5.x and set `target` to ES2020+ in [`tsconfig.json`](tsconfig.json:3).
 - Medium priority
   - Introduce TanStack Query and error boundary.

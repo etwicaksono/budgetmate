@@ -20,21 +20,21 @@ import {
   type TransactionFormValues,
   type TransactionChangeEvent,
   type QuickTransactionOption,
-} from '../pages/transactions/TransactionModal';
+} from '../features/transactions/TransactionModal';
 import {
   QuickTransactionModal,
   type QuickTransactionFormValues,
-} from '../pages/transactions/QuickTransactionModal';
+} from '../features/transactions/QuickTransactionModal';
 import {
   useCategoryData,
   type CategoryTree,
   type CategoryColorMap,
-} from '../pages/transactions/useCategoryData';
+} from '../features/transactions/useCategoryData';
 import {
   useQuickTransactions,
   type QuickTransactionPresetInput,
   type UseQuickTransactionsResult,
-} from '../pages/transactions/useQuickTransactions';
+} from '../features/transactions/useQuickTransactions';
 import {
   buildAccountMetadata,
   type AccountMetadata,
@@ -510,3 +510,4 @@ const accountIcons = useMemo<Record<string, IconType | null>>(
     </TransactionModalContext.Provider>
   );
 };
+
