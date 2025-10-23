@@ -1,76 +1,117 @@
-# FinanceApp - Personal Finance Management
+# FinanceApp — Personal Finance Management (Next.js + TypeScript)
 
-This is a personal finance web application built based on the product requirements document. The application provides users with a comprehensive platform to track their income and expenses, manage budgets, and gain insights into their financial health.
+FinanceApp is a personal finance web application built with Next.js App Router and TypeScript. It helps you track income and expenses, manage budgets, and visualize your financial health.
 
-## Features
+Features
 
-- **User Authentication**: Secure sign-up and login with email/password and third-party services
-- **Dashboard**: Accounts-centric overview with customizable widgets
-- **Transaction Management**: Manual entry of income and expenses with categories and notes
-- **Budgeting**: Create and track budgets for specific categories
-- **Reports & Analytics**: Visual reports showing spending patterns and cash flow
+- User authentication (login/register), protected routes, and session handling
+- Dashboard with accounts overview and widgets
+- Transaction management with categories, notes, and quick entry
+- Budgeting per category with progress indicators
+- Reports and analytics with charts (spending breakdown, income vs expense, cash flow)
+- Settings for categories, currencies, and templates
 
-## Technologies Used
+Tech Stack
 
-- React.js for the frontend
-- React Bootstrap for UI components
-- Recharts for data visualization
-- React Router for navigation
+- Next.js (App Router) [package.json](package.json)
+- React 18, TypeScript 5 [tsconfig.json](tsconfig.json)
+- React Bootstrap [app/layout.tsx](app/layout.tsx:1)
+- Recharts for data visualization [package.json](package.json)
+- SweetAlert2 for alerts [package.json](package.json)
 
-## Design Principles
+Quick Start
 
-- Clean and modern design
-- Intuitive and user-friendly interface
-- Responsive design for desktop, tablet, and mobile
-- Data visualization using charts and graphs
-- Color scheme following the PRD specifications:
-  - Primary Color: #4A90E2 (calming blue)
-  - Income: #7ED321 (green)
-  - Expenses: #D0021B (red)
-  - Neutral backgrounds: #F5F5F5 (gray)
+- Prerequisites: Node.js 18.18+ and npm 9+
+- Install dependencies:
+  - npm install
+- Run the dev server:
+  - npm run dev
+- Open http://localhost:3000
+- Production build:
+  - npm run build
+  - npm start
+- Lint:
+  - npm run lint
 
-## How to Run
+Environment Variables
 
-1. Make sure you have Node.js installed on your system
-2. Install dependencies:
-   ```
-   npm install
-   ```
-3. Start the development server:
-   ```
-   npm start
-   ```
-4. Open your browser and go to http://localhost:3000
+- API base URL: REACT_APP_API_BASE_URL
+  - Example: http://localhost:8080/api/v1
+  - Default: If not set, [API_CONFIG.baseURL](src/config/index.ts:30) falls back to http://localhost:8080/api/v1
+- Create a .env.local file in the project root to override defaults.
+- Note: This project currently reads REACT_APP_* in client code via [src/config/index.ts](src/config/index.ts:29). If you prefer Next.js public envs, use NEXT_PUBLIC_API_BASE_URL and update [src/config/index.ts](src/config/index.ts:29) accordingly, or expose variables through [next.config.js](next.config.js:1).
 
-## Project Structure
+Scripts
 
-```
+- dev: next dev
+- build: next build
+- start: next start
+- lint: next lint
+
+Project Structure
+
+app/
+- layout.tsx
+- providers.tsx
+- RequireAuth.tsx
+- components/
+  - ProtectedShell.tsx
+- accounts/
+  - page.tsx
+- budgets/
+  - page.tsx
+- login/
+  - page.tsx
+- register/
+  - page.tsx
+- reports/
+  - page.tsx
+- settings/
+  - page.tsx
+- transactions/
+  - page.tsx
+
 src/
-├── components/     # Reusable UI components
-│   └── Header.js
-├── pages/          # Main application pages
-│   ├── Dashboard.js
-│   ├── Login.js
-│   ├── Signup.js
-│   ├── Transactions.js
-│   ├── Budgets.js
-│   └── Reports.js
-├── styles/         # CSS styles
-│   ├── App.css
-│   └── main.css
-├── utils/          # Utility functions
-├── index.js        # Application entry point
-└── App.js          # Main application component
-```
+- components/
+  - Header.tsx
+  - PeriodNavigation.tsx
+  - PeriodRangeSelector.tsx
+  - ToastAlert.tsx
+- context/
+  - AuthContext.tsx
+- features/
+  - transactions/
+    - Transactions.tsx and related components
+- services/
+  - api.ts
+  - authService.ts
+- styles/
+  - App.css
+  - main.css
+- utils/
+  - crypto.ts
+- views/
+  - Accounts/, Budgets/, Dashboard/, Reports/, settings/
 
-## Implementation Notes
+Key Implementation Notes
 
-This application implements the core features specified in the PRD:
+- API client: [ApiService.request()](src/services/api.ts:92) centralizes fetch calls, JSON handling, and token refresh on 401.
+- Token refresh: When access token is invalid, a refresh is attempted via /auth/refresh; on failure, auth is cleared and the user is redirected to /login.
+- Auth context: [useAuth](src/context/AuthContext.tsx:81) and [AuthProvider](src/context/AuthContext.tsx:89) manage login/logout and encrypted token storage with toasts.
+- Route protection: [ProtectedShell](app/components/ProtectedShell.tsx:1) wraps pages in a container and [RequireAuth](app/RequireAuth.tsx:1) enforces authentication with a loading spinner.
+- Crypto: Client-side AES-GCM encryption utilities live in [src/utils/crypto.ts](src/utils/crypto.ts); keys are managed via [APP_CONFIG.storageKeys](src/config/index.ts:38).
+- Global styles and Bootstrap are imported in [app/layout.tsx](app/layout.tsx:1).
 
-1. **Dashboard**: Displays account cards with balances and customizable widgets for financial overview
-2. **Authentication**: Login and signup pages with form validation
-3. **Transactions**: Add, view, and filter transactions with category support
-4. **Budgets**: Create and track budgets with visual progress indicators
-5. **Reports**: Charts showing expense breakdown, income vs expenses, and cash flow analysis
+Security and Storage
 
-The UI follows the PRD specification with a clean, modern design using the specified color scheme and focusing on data visualization for financial insights.
+- Access and refresh tokens are encrypted before being stored in localStorage.
+- Storage keys and timeouts are centralized in [APP_CONFIG](src/config/index.ts:35) and [CRYPTO_CONFIG](src/config/index.ts:47).
+
+Troubleshooting
+
+- API base URL not set: The default [API_CONFIG.baseURL](src/config/index.ts:30) is used.
+- Unexpected logout: If refresh fails, [ApiService.request()](src/services/api.ts:92) clears auth and navigates to /login.
+
+Documentation and Roadmap
+
+- See the in-depth review and suggestions in [docs/PROJECT_REVIEW.md](docs/PROJECT_REVIEW.md:1).
