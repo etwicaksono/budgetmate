@@ -110,7 +110,7 @@ class ApiService {
           .json()
           .catch(() => ({}))) as ApiErrorResponse;
 
-        if (this.shouldAttemptTokenRefresh(response.status, errorData, attempt)) {
+        if (this.shouldAttemptTokenRefresh(response.status, errorData, attempt, endpoint)) {
           try {
             await this.refreshAccessToken();
             return this.request<T>(endpoint, options, attempt + 1);
@@ -247,7 +247,8 @@ class ApiService {
   private shouldAttemptTokenRefresh(
     status: number,
     errorData: ApiErrorResponse,
-    attempt: number
+    attempt: number,
+    endpoint: string
   ): boolean {
     if (attempt > 0) {
       return false;
@@ -257,11 +258,16 @@ class ApiService {
       return false;
     }
 
+    // Do NOT refresh token on login failures
+    // This prevents triggering a refresh when credentials are invalid
+    const ep = (endpoint || '').toLowerCase();
+    if (ep.includes('/auth/login')) {
+      return false;
+    }
+
     const code = (errorData?.code ?? '').toString().toUpperCase();
     const message = (errorData?.message ?? '').toString().toLowerCase();
-    const authError = (
-      errorData?.errors?.Authorization ?? ''
-    )
+    const authError = (errorData?.errors?.Authorization ?? '')
       .toString()
       .toLowerCase();
 

@@ -17,6 +17,12 @@ body {
   background-color: var(--neutral-gray);
 }
 
+/* Force grab cursor across the whole page while dragging */
+html.accounts-dragging,
+html.accounts-dragging * {
+  cursor: grab !important;
+}
+
 .period-range-selector__year-label {
   display: inline-block;
   min-width: 15vw;
@@ -313,6 +319,7 @@ body {
 
 .accounts-list__item--dragging {
   opacity: 0;
+  /* hide original element so only solid drag image is visible */
 }
 
 .accounts-list__item--drag-over {
@@ -322,6 +329,8 @@ body {
 .accounts-list__item--drag-preview {
   box-shadow: 0 22px 45px rgba(15, 23, 42, 0.18);
   border-radius: 1.2rem;
+  opacity: 1;
+  /* ensure drag image is fully opaque (solid) */
 }
 
 .accounts-list__empty {

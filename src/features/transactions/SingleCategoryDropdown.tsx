@@ -9,6 +9,7 @@ import React, {
 import { Form } from 'react-bootstrap';
 import { FaCaretDown, FaCheck, FaTimesCircle } from 'react-icons/fa';
 import type { IconBaseProps, IconType } from 'react-icons';
+import { InputClearButton } from '../../components/InputClearButton';
 
 const DEFAULT_COLOR = '#6c757d';
 
@@ -246,18 +247,21 @@ export function SingleCategoryDropdown({
           )}
         </div>
         <div className="d-flex align-items-center ms-2 gap-2">
-          {showClearButton && selectedCategory && (
-            <button
-              type="button"
-              className="btn p-0 border-0 bg-transparent text-muted"
+          {showClearButton && (
+            <InputClearButton
+              show={!!selectedCategory}
               onClick={(event) => {
-                event.stopPropagation();
+                event?.stopPropagation?.();
                 handleClearSelection();
               }}
-              aria-label={clearSelectedLabel}
-            >
-              {renderIcon(FaTimesCircle, { size: 18 })}
-            </button>
+              title={clearSelectedLabel}
+              ariaLabel={clearSelectedLabel}
+              className="btn p-0 border-0 bg-transparent"
+              colorClass="text-muted"
+              positionAbsolute={false}
+              rightOffset="0"
+              iconSize={18}
+            />
           )}
           {renderIcon(FaCaretDown, { className: 'text-muted' })}
         </div>
@@ -279,19 +283,21 @@ export function SingleCategoryDropdown({
                 autoComplete="off"
               />
               {categorySearch && (
-                <button
-                  type="button"
-                  className="btn btn-sm position-absolute top-50 end-0 translate-middle-y text-muted"
-                  style={{ border: 'none', background: 'transparent' }}
+                <InputClearButton
+                  show={true}
                   onClick={(event) => {
-                    event.stopPropagation();
+                    event?.stopPropagation?.();
                     setCategorySearch('');
                     searchInputRef.current?.focus();
                   }}
-                  aria-label="Clear search"
-                >
-                  {renderIcon(FaTimesCircle, { size: 16 })}
-                </button>
+                  title="Clear search"
+                  ariaLabel="Clear search"
+                  className="btn btn-sm border-0 bg-transparent"
+                  colorClass="text-muted"
+                  positionAbsolute={true}
+                  rightOffset="0.25rem"
+                  iconSize={16}
+                />
               )}
             </div>
           </div>

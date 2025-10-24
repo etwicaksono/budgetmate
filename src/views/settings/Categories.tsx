@@ -35,6 +35,7 @@ import {
   type CategoryUpdatePayload,
 } from '../../services/categoryService';
 import ToastAlert from '../../components/ToastAlert';
+import { InputClearButton } from '../../components/InputClearButton';
 import './Categories.css';
 
 const DEFAULT_ICON_KEY = 'FaGift';
@@ -991,22 +992,31 @@ const Categories: React.FC = () => {
 
       <div className="d-flex justify-content-start">
         <Form.Group className="mb-4 search-form">
-          <InputGroup>
-            <InputGroup.Text>
-              <SearchIcon size={14} />
-            </InputGroup.Text>
+          <div className="position-relative w-100">
             <Form.Control
               type="text"
               placeholder="Search categories..."
               value={searchTerm}
               onChange={(event: ChangeEvent<HTMLInputElement>) => setSearchTerm(event.target.value)}
+              style={{ paddingLeft: '2rem', paddingRight: '2rem' }}
             />
-            {searchTerm && (
-              <Button variant="outline-secondary" onClick={() => setSearchTerm('')} title="Clear search">
-                <TimesIcon size={14} />
-              </Button>
-            )}
-          </InputGroup>
+            <span
+              className="position-absolute top-50 start-0 translate-middle-y ms-2 text-muted"
+              aria-hidden="true"
+            >
+              <SearchIcon size={14} />
+            </span>
+            <InputClearButton
+              show={!!searchTerm}
+              onClick={() => setSearchTerm('')}
+              title="Clear search"
+              ariaLabel="Clear search"
+              rightOffset="0.5rem"
+              iconSize={16}
+              colorClass="text-muted"
+              className="p-0 border-0 bg-transparent z-3"
+            />
+          </div>
         </Form.Group>
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { Row, Col, Card, Button, Container, Modal, Form } from 'react-bootstrap';
+import { Row, Col, Card, Container } from 'react-bootstrap';
 import { FaUniversity, FaCreditCard, FaWallet, FaPiggyBank } from 'react-icons/fa';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import type { PieLabelRenderProps } from 'recharts';
@@ -8,6 +8,7 @@ import PeriodNavigation, {
   usePeriodNavigation,
 } from '../../components/PeriodNavigation';
 import PeriodRangeSelector from '../../components/PeriodRangeSelector';
+import AddAccountModal from '../../components/AddAccountModal';
 
 interface Account {
   id: number;
@@ -17,12 +18,8 @@ interface Account {
   color: string;
 }
 
-interface NewAccount {
-  name: string;
-  type: 'Bank' | 'Credit Card' | 'Cash';
-  balance: number | string;
-}
 
+ 
 interface ExpenseData {
   name: string;
   value: number;
@@ -58,18 +55,11 @@ const DashboardContent: React.FC = () => {
   ]);
 
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
-  const [newAccount, setNewAccount] = useState<NewAccount>({
-    name: '',
-    type: 'Bank',
-    balance: 0
-  });
+
 
   const {
     state: { periodLabel, activePeriod, customRangeDraft },
   } = usePeriodNavigation();
-
-  const accountTypes: AccountType[] = ['Bank', 'Credit Card', 'Cash'];
-  const accountColors = ['#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6', '#1abc9c', '#34495e', '#e67e22'];
 
   const accountTypeIcons: AccountTypeIcons = {
     Bank: FaUniversity as React.ComponentType<{ size?: number }>,
@@ -85,30 +75,9 @@ const DashboardContent: React.FC = () => {
     return `${value < 0 ? '-' : ''}IDR ${formatted}`;
   };
 
-  const handleAddAccount = (): void => {
-    if (newAccount.name) {
-      const newAccountObj: Account = {
-        id: accounts.length + 1,
-        name: newAccount.name,
-        type: newAccount.type,
-        balance: parseFloat(newAccount.balance as string) || 0,
-        color: accountColors[accounts.length % accountColors.length]
-      };
 
-      setAccounts([...accounts, newAccountObj]);
-      setNewAccount({ name: '', type: 'Bank', balance: 0 });
-      setShowAddAccountModal(false);
-    }
-  };
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>): void => {
-    const { name, value } = e.target;
-    setNewAccount(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
+  const mapAddAccountType = (t: string): AccountType => (t === 'Cash' ? 'Cash' : 'Bank');
   // Sample expense data for the chart
   const expenseData: ExpenseData[] = [
     { name: 'Food', value: 400 },
@@ -329,60 +298,23 @@ const DashboardContent: React.FC = () => {
         </Row>
       </section>
       {/* Add Account Modal */}
-      <Modal show={showAddAccountModal} onHide={() => setShowAddAccountModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Add New Account</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3" controlId="accountName">
-              <Form.Label>Account Name</Form.Label>
-              <Form.Control
-                type="text"
-                name="name"
-                value={newAccount.name}
-                onChange={handleInputChange}
-                placeholder="e.g. Checking Account, Credit Card"
-                required
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3" controlId="accountType">
-              <Form.Label>Account Type</Form.Label>
-              <Form.Select
-                name="type"
-                value={newAccount.type}
-                onChange={handleInputChange}
-              >
-                {accountTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3" controlId="accountBalance">
-              <Form.Label>Current Balance</Form.Label>
-              <Form.Control
-                type="number"
-                name="balance"
-                value={newAccount.balance}
-                onChange={handleInputChange}
-                placeholder="0.00"
-                step="0.01"
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAddAccountModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={handleAddAccount}>
-            Add Account
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </Container>
+      <AddAccountModal
+        show={showAddAccountModal}
+        onHide={() => setShowAddAccountModal(false)}
+        onSubmit={(form) => {
+          const newItem: Account = {
+            id: accounts.length + 1,
+            name: form.name.trim(),
+            type: mapAddAccountType(form.accountType),
+            balance: parseFloat(form.initialAmount || '0') || 0,
+            color: form.color || '#3498db',
+          };
+          setAccounts([...accounts, newItem]);
+          setShowAddAccountModal(false);
+        }}
+        title="Add Account"
+      />
+      </Container>
   );
 }
 

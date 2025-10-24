@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { Form } from 'react-bootstrap';
 import { FaCaretDown, FaCheck, FaTimesCircle } from 'react-icons/fa';
+import { InputClearButton } from '../../components/InputClearButton';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 
@@ -349,19 +350,20 @@ export const ChildCategorySelect: React.FC<ChildCategorySelectProps> = ({
           )}
         </div>
         <div className="d-flex alignments-center ms-2 gap-2">
-          {selectedCategory && TimesCircleIcon && (
-            <button
-              type="button"
-              className="btn p-0 border-0 bg-transparent text-muted"
-              onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
-                event.stopPropagation();
-                handleClearSelection();
-              }}
-              aria-label={clearSelectedLabel}
-            >
-              <TimesCircleIcon size={18} />
-            </button>
-          )}
+          <InputClearButton
+            show={!!selectedCategory}
+            onClick={(event) => {
+              event?.stopPropagation?.();
+              handleClearSelection();
+            }}
+            title={clearSelectedLabel}
+            ariaLabel={clearSelectedLabel}
+            className="btn p-0 border-0 bg-transparent"
+            colorClass="text-muted"
+            positionAbsolute={false}
+            rightOffset="0"
+            iconSize={18}
+          />
           {CaretDownIcon && <CaretDownIcon className="text-muted" />}
         </div>
       </div>
@@ -382,20 +384,22 @@ export const ChildCategorySelect: React.FC<ChildCategorySelectProps> = ({
                 autoComplete="off"
                 onClick={(event) => event.stopPropagation()}
               />
-              {categorySearch && TimesCircleIcon && (
-                <button
-                  type="button"
-                  className="btn btn-sm position-absolute top-50 end-0 translate-middle-y text-muted"
-                  style={{ border: 'none', background: 'transparent' }}
-                  onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
-                    event.stopPropagation();
+              {categorySearch && (
+                <InputClearButton
+                  show={true}
+                  onClick={(event) => {
+                    event?.stopPropagation?.();
                     setCategorySearch('');
                     searchInputRef.current?.focus();
                   }}
-                  aria-label="Clear search"
-                >
-                  <TimesCircleIcon size={16} />
-                </button>
+                  title="Clear search"
+                  ariaLabel="Clear search"
+                  className="btn btn-sm border-0 bg-transparent"
+                  colorClass="text-muted"
+                  positionAbsolute={true}
+                  rightOffset="0.25rem"
+                  iconSize={16}
+                />
               )}
             </div>
           </div>

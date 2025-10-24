@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect, ChangeEvent, FormEvent, DragEvent } from 'react';
-import { Container, Row, Col, Card, Button, Form, Modal, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Form } from 'react-bootstrap';
 import {
   FaBars,
   FaMobileAlt,
@@ -17,6 +17,7 @@ import { formatNumberDisplayFromValue, coerceAndFormatNumber } from '../../utils
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import { SingleCategoryDropdown } from '../../features/transactions/SingleCategoryDropdown';
+import AddAccountModal from '../../components/AddAccountModal';
 
 interface Account {
   id: string;
@@ -361,6 +362,9 @@ const Accounts: React.FC = () => {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', accountId);
     createDragPreview(event);
+    document.body.style.cursor = 'grab';
+    document.documentElement.style.cursor = 'grab';
+    document.documentElement.classList.add('accounts-dragging');
     setDraggingId(accountId);
   };
 
@@ -378,7 +382,7 @@ const Accounts: React.FC = () => {
     setDragOverId(targetId);
   };
 
-  const handleDragOver = (event: DragEvent<HTMLDivElement>): void => {
+  const handleDragOver = (event: DragEvent<HTMLElement>): void => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
   };
@@ -396,17 +400,27 @@ const Accounts: React.FC = () => {
     if (!sourceId || sourceId === targetId) {
       setDragOverId(null);
       cleanupDragPreview();
+      document.body.style.cursor = '';
+      document.documentElement.style.cursor = '';
+      document.documentElement.classList.remove('accounts-dragging');
       return;
     }
     cleanupDragPreview();
     setDraggingId(null);
     setDragOverId(null);
+    document.body.style.cursor = '';
+    document.documentElement.style.cursor = '';
+    document.documentElement.classList.remove('accounts-dragging');
+    document.documentElement.style.cursor = '';
   };
 
   const handleDragEnd = (): void => {
     cleanupDragPreview();
     setDraggingId(null);
     setDragOverId(null);
+    document.body.style.cursor = '';
+    document.documentElement.style.cursor = '';
+    document.documentElement.classList.remove('accounts-dragging');
   };
 
   const handleOpenAddModal = (): void => {
@@ -550,6 +564,31 @@ const Accounts: React.FC = () => {
     }
   }, [newAccountForm.initialAmount, isEditingInitialAmount]);
 
+  // Global dragover/drop handlers while dragging to avoid "not-allowed" cursor anywhere
+  useEffect(() => {
+    if (!draggingId) return;
+
+    const onDragOverWindow = (e: any) => {
+      e.preventDefault();
+      try {
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      } catch {
+        /* no-op */
+      }
+    };
+    const onDropWindow = (e: any) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener('dragover', onDragOverWindow);
+    window.addEventListener('drop', onDropWindow);
+
+    return () => {
+      window.removeEventListener('dragover', onDragOverWindow);
+      window.removeEventListener('drop', onDropWindow);
+    };
+  }, [draggingId]);
+
   const handleInitialAmountInput = (next: string): void => {
     const { display, normalized, deferCommit } = coerceAndFormatNumber(next);
     setInitialAmountDisplay(display);
@@ -559,12 +598,36 @@ const Accounts: React.FC = () => {
     }
   };
 
+  // Window-level drag handlers to avoid "not-allowed" cursor anywhere (including sidebar)
+  useEffect(() => {
+    if (!draggingId) return;
+
+    const onDragOverWindow = (e: any) => {
+      e.preventDefault();
+      try {
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      } catch {
+        // ignore
+      }
+    };
+    const onDropWindow = (e: any) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener('dragover', onDragOverWindow);
+    window.addEventListener('drop', onDropWindow);
+
+    return () => {
+      window.removeEventListener('dragover', onDragOverWindow);
+      window.removeEventListener('drop', onDropWindow);
+    };
+  }, [draggingId]);
   return (
-    <Container className="accounts-page">
-      <Row className="align-items-stretch accounts-page__layout">
-        <Col xl={3} lg={4} className="mb-4">
-          <Card className="accounts-sidebar">
-            <Card.Body>
+    <Container className="accounts-page" onDragOver={handleDragOver}>
+      <Row className="align-items-stretch accounts-page__layout" onDragOver={handleDragOver}>
+        <Col xl={3} lg={4} className="mb-4" onDragOver={handleDragOver}>
+          <Card className="accounts-sidebar" onDragOver={handleDragOver}>
+            <Card.Body onDragOver={handleDragOver}>
               <h2 className="accounts-sidebar__title">Accounts</h2>
               <p className="accounts-sidebar__caption">Organise your accounts and wallets in one place.</p>
 
@@ -604,7 +667,7 @@ const Accounts: React.FC = () => {
           </Card>
         </Col>
 
-        <Col xl={9} lg={8}>
+        <Col xl={9} lg={8} onDragOver={handleDragOver}>
           <div className="accounts-list" onDragOver={handleDragOver}>
             {filteredAccounts.map((account) => {
               const IconComponent = account.icon;
@@ -621,7 +684,7 @@ const Accounts: React.FC = () => {
                   onDragLeave={(event: DragEvent<HTMLDivElement>) => handleDragLeave(event, account.id)}
                   onDrop={(event: DragEvent<HTMLDivElement>) => handleDrop(event, account.id)}
                 >
-                  <Card.Body className="accounts-list__body">
+                  <Card.Body className="accounts-list__body" onDragOver={handleDragOver}>
                     <div
                       className="accounts-list__icon"
                       style={{ backgroundColor: account.backgroundColor, color: account.accentColor }}
@@ -642,6 +705,7 @@ const Accounts: React.FC = () => {
                       variant="light"
                       className="accounts-list__menu-btn"
                       draggable
+                      onDragOver={handleDragOver}
                       onDragStart={(event: DragEvent<HTMLButtonElement>) => handleDragStart(event, account.id)}
                       onDragEnd={handleDragEnd}
                       aria-label={`Reorder ${account.name}`}
@@ -668,230 +732,41 @@ const Accounts: React.FC = () => {
         </Col>
       </Row>
 
-      <Modal
+      {/* Shared Add Account Modal Component */}
+      <AddAccountModal
         show={showAddModal}
         onHide={handleCloseAddModal}
-        centered
-        backdrop="static"
-        className="add-account-modal"
-      >
-        <Form onSubmit={handleCreateAccount}>
-          <Modal.Header closeButton>
-            <Modal.Title>Add Account</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Row className="g-3">
-              <Col md={6}>
-                <Form.Group controlId="addAccountName" className="mb-3 mb-md-0">
-                  <Form.Label>
-                    Name <span className="text-danger">*</span>
-                  </Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Account name"
-                    value={newAccountForm.name}
-                    onChange={handleFormFieldChange('name')}
-                    autoFocus
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group controlId="addAccountColor" className="mb-3 mb-md-0">
-                  <Form.Label>Color</Form.Label>
-                  <InputGroup>
-                    <InputGroup.Text>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          width: '1rem',
-                          height: '1rem',
-                          borderRadius: '50%',
-                          backgroundColor: newAccountForm.color,
-                          border: '1px solid #dee2e6',
-                        }}
-                      />
-                    </InputGroup.Text>
-                    <Form.Control
-                      type="text"
-                      placeholder="#ce9600"
-                      value={colorHexInput}
-                      onChange={handleColorTextChange}
-                      onClick={openColorPicker}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          openColorPicker();
-                        }
-                      }}
-                    />
-                    <Form.Control
-                      ref={colorPickerInputRef}
-                      type="color"
-                      value={newAccountForm.color}
-                      title="Pick a color"
-                      onChange={handleColorPickerChange}
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: '8px',
-                        width: '180px',
-                        height: '42px',
-                        padding: 0,
-                        margin: 0,
-                        opacity: 0,
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                      onBlur={() => {
-                        // restore to initial hidden position to avoid layout jump
-                        if (colorPickerInputRef.current) {
-                          colorPickerInputRef.current.style.top = '8px';
-                        }
-                      }}
-                      tabIndex={-1}
-                    />
-                  </InputGroup>
-                </Form.Group>
-              </Col>
-            </Row>
+        onSubmit={(form) => {
+          const trimmedName = form.name.trim();
+          if (!trimmedName) return;
 
-            <Row className="g-3 mt-1">
-              <Col md={6}>
-                <Form.Group controlId="addAccountType">
-                  <Form.Label>Account type</Form.Label>
-                  <InputGroup>
-                    <InputGroup.Text>
-                      <SelectedAccountTypeIcon size={16} />
-                    </InputGroup.Text>
-                    <Form.Select
-                      value={newAccountForm.accountType}
-                      onChange={handleFormFieldChange('accountType')}
-                    >
-                      {ACCOUNT_TYPES.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </InputGroup>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group controlId="addAccountAmount">
-                  <Form.Label>Initial Amount</Form.Label>
-                  <InputGroup>
-                    <InputGroup.Text>{newAccountForm.currency}</InputGroup.Text>
-                    <Form.Control
-                      type="text"
-                      name="initialAmount"
-                      value={initialAmountDisplay}
-                      onChange={(event) => handleInitialAmountInput(event.target.value)}
-                      onBlur={() => {
-                        const { normalized } = coerceAndFormatNumber(initialAmountDisplay);
-                        setNewAccountForm((prev) => ({ ...prev, initialAmount: normalized }));
-                        setIsEditingInitialAmount(false);
-                      }}
-                      placeholder="Enter amount"
-                      autoComplete="off"
-                      inputMode="decimal"
-                    />
-                  </InputGroup>
-                </Form.Group>
-              </Col>
-            </Row>
+          const accountTypeMeta =
+            ACCOUNT_TYPES.find((type) => type.value === form.accountType) ?? ACCOUNT_TYPES[0];
+          const ResolvedIconComponent =
+            resolveIconComponent(form.iconKey) ?? (accountTypeMeta.icon ?? FaWallet);
 
-            <Row className="g-3 mt-1">
-              <Col md={6}>
-                <Form.Group className="mb-3" controlId="addAccountIcon">
-                  <Form.Label>Icon</Form.Label>
-                  <SingleCategoryDropdown
-                    selectedCategories={
-                      newAccountForm.iconKey ? [newAccountForm.iconKey] : [defaultIconKey]
-                    }
-                    setSelectedCategories={(values?: string[]) => {
-                      const nextValue = values?.[0] ?? defaultIconKey;
-                      setNewAccountForm((prev) => ({ ...prev, iconKey: nextValue }));
-                    }}
-                    categoryTree={{}}
-                    parentCategoryColors={iconColorMap}
-                    categoryIcons={iconDropdownIcons}
-                    allCategories={availableIconKeys}
-                    entityLabelSingular="icon"
-                    entityLabelPlural="icons"
-                    clearSelectedLabel="Clear icon"
-                    searchPlaceholder="Search icons..."
-                    showClearButton={false}
-                    triggerAvatarSize={24}
-                    triggerIconSize={14}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group controlId="addAccountUsability">
-                  <Form.Label>Usability</Form.Label>
-                  <Form.Select
-                    value={newAccountForm.usability}
-                    onChange={handleFormFieldChange('usability')}
-                  >
-                    {USABILITY_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
+          const maxOrder = accounts.reduce((max, account) => Math.max(max, account.order ?? 0), 0);
 
-            <Form.Group className="mb-3" controlId="addAccountActive">
-              <Form.Label>Is Active</Form.Label>
-              <Form.Check
-                type="switch"
-                id="addAccountActiveSwitch"
-                label="Active"
-                checked={newAccountForm.isActive}
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  setNewAccountForm((prev) => ({ ...prev, isActive: event.target.checked }))
-                }
-              />
-            </Form.Group>
+          const nextAccount: Account = {
+            id: generateAccountId(trimmedName),
+            order: maxOrder + 1,
+            name: trimmedName,
+            type: form.accountType,
+            balance: parseFloat(form.initialAmount || '0') || 0,
+            icon: ResolvedIconComponent,
+            accentColor: form.color,
+            backgroundColor: lightenColor(form.color),
+            excludeFromStatistics: form.excludeFromStatistics,
+            currency: form.currency,
+            isActive: form.isActive,
+            usability: form.usability,
+          };
 
-            <div className="mt-3">
-              <Form.Check
-                type="switch"
-                id="addAccountExclude"
-                label={
-                  <span className="d-inline-flex align-items-center">
-                    Exclude from statistics
-                    <OverlayTrigger
-                      placement="top"
-                      overlay={<Tooltip id="exclude-tip">Excluded accounts will not affect totals.</Tooltip>}
-                    >
-                      <span
-                        className="text-muted ms-2"
-                        role="button"
-                        tabIndex={0}
-                        style={{ lineHeight: 0, cursor: 'pointer' }}
-                      >
-                        <IconWrapper icon={FaInfoCircle} />
-                      </span>
-                    </OverlayTrigger>
-                  </span>
-                }
-                checked={newAccountForm.excludeFromStatistics}
-                onChange={handleExcludeToggle}
-              />
-            </div>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="outline-secondary" onClick={handleCloseAddModal}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="success" disabled={!newAccountForm.name.trim()}>
-              Create account
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+          setAccounts((previous) => [...previous, nextAccount]);
+          handleCloseAddModal();
+        }}
+        title="Add Account"
+      />
     </Container>
   );
 };

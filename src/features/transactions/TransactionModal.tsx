@@ -14,6 +14,7 @@ import type { ChangeEvent, ComponentType } from 'react';
 import type { IconType, IconBaseProps } from 'react-icons';
 import { ChildCategorySelect } from './ChildCategorySelect';
 import { SingleCategoryDropdown } from './SingleCategoryDropdown';
+import { InputClearButton } from '../../components/InputClearButton';
 import {
   categoryService,
   type ApiCategoryResponse,
@@ -792,7 +793,7 @@ export function TransactionModal({
                 <>
                   <Form.Group className="mb-3" controlId="amount">
                     <Form.Label>Amount</Form.Label>
-                    <InputGroup>
+                    <div className="position-relative">
                       <Form.Control
                         type="text"
                         name="amount"
@@ -806,8 +807,22 @@ export function TransactionModal({
                         placeholder="Enter amount"
                         autoComplete="off"
                         inputMode="decimal"
+                        style={{ paddingRight: '2.5rem' }}
                       />
-                    </InputGroup>
+                      <InputClearButton
+                        show={!!amountDisplay}
+                        onClick={() => {
+                          setAmountDisplay('');
+                          onChange?.({ target: { name: 'amount', value: '' } });
+                          setIsEditingAmount(false);
+                        }}
+                        title="Clear amount"
+                        ariaLabel="Clear amount"
+                        rightOffset="0.75rem"
+                        iconSize={18}
+                        colorClass="text-secondary"
+                      />
+                    </div>
                   </Form.Group>
 
                   <Form.Group className="mb-3" controlId="account">
@@ -855,17 +870,32 @@ export function TransactionModal({
 
               <Form.Group className="mb-3" controlId="labels">
                 <Form.Label>Labels</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="labels"
-                  value={labelsInput}
-                  onChange={(event) => {
-                    setLabelsInput(event.target.value);
-                    onChange?.(event);
-                  }}
-                  placeholder="Add labels (comma separated)"
-                  autoComplete="off"
-                />
+                <div className="position-relative">
+                  <Form.Control
+                    type="text"
+                    name="labels"
+                    value={labelsInput}
+                    onChange={(event) => {
+                      setLabelsInput(event.target.value);
+                      onChange?.(event);
+                    }}
+                    placeholder="Add labels (comma separated)"
+                    autoComplete="off"
+                    style={{ paddingRight: '2rem' }}
+                  />
+                  <InputClearButton
+                    show={!!labelsInput}
+                    onClick={() => {
+                      setLabelsInput('');
+                      onChange?.({ target: { name: 'labels', value: '' } });
+                    }}
+                    title="Clear labels"
+                    ariaLabel="Clear labels"
+                    rightOffset="0.75rem"
+                    iconSize={18}
+                    colorClass="text-muted"
+                  />
+                </div>
               </Form.Group>
 
               <Form.Group className="mb-3" controlId="dateTime">
@@ -908,17 +938,32 @@ export function TransactionModal({
 
               <Form.Group className="mb-3" controlId="payer">
                 <Form.Label>Payer</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="payer"
-                  value={payerInput}
-                  onChange={(event) => {
-                    setPayerInput(event.target.value);
-                    onChange?.(event);
-                  }}
-                  placeholder="Who paid?"
-                  autoComplete="off"
-                />
+                <div className="position-relative">
+                  <Form.Control
+                    type="text"
+                    name="payer"
+                    value={payerInput}
+                    onChange={(event) => {
+                      setPayerInput(event.target.value);
+                      onChange?.(event);
+                    }}
+                    placeholder="Who paid?"
+                    autoComplete="off"
+                    style={{ paddingRight: '2rem' }}
+                  />
+                  <InputClearButton
+                    show={!!payerInput}
+                    onClick={() => {
+                      setPayerInput('');
+                      onChange?.({ target: { name: 'payer', value: '' } });
+                    }}
+                    title="Clear payer"
+                    ariaLabel="Clear payer"
+                    rightOffset="0.75rem"
+                    iconSize={18}
+                    colorClass="text-muted"
+                  />
+                </div>
               </Form.Group>
 
               <Form.Group className="mb-3" controlId="paymentType">
