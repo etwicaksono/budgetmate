@@ -44,6 +44,17 @@ export interface CreateAccountRequest {
   group_id: string | null;
 }
 
+export interface UpdateAccountRequest {
+  name: string;
+  icon: string;
+  color: string;
+  active: boolean;
+  account_type: string;
+  initial_amount: number;
+  usability: Usability;
+  group_id: string | null;
+}
+
 const isApiResponse = <T,>(value: unknown): value is ApiResponse<T> =>
   typeof value === 'object' && value !== null && ('data' in (value as Record<string, unknown>) || 'message' in (value as Record<string, unknown>) || 'error' in (value as Record<string, unknown>));
 
@@ -59,6 +70,7 @@ export interface SwapOrderRequest {
 export interface AccountService {
   fetchAccounts(): Promise<ApiAccountResponse[]>;
   createAccount(payload: CreateAccountRequest): Promise<ApiAccountResponse>;
+  updateAccount(id: string, payload: UpdateAccountRequest): Promise<ApiAccountResponse>;
   swapAccountOrder(payload: SwapOrderRequest): Promise<void>;
   getNextPersonalId(): number;
 }
@@ -101,6 +113,20 @@ export const accountService: AccountService = {
     }
 
     throw new Error('Failed to create account');
+  },
+
+  async updateAccount(id: string, payload: UpdateAccountRequest) {
+    const response = (await apiService.put(`/accounts/${id}`, payload)) as ApiResponse<ApiAccountResponse> | ApiAccountResponse;
+
+    if (isApiResponse<ApiAccountResponse>(response) && response.data) {
+      return response.data;
+    }
+
+    if ('id' in response && response.id) {
+      return response as ApiAccountResponse;
+    }
+
+    throw new Error('Failed to update account');
   },
 
   async swapAccountOrder(payload: SwapOrderRequest) {

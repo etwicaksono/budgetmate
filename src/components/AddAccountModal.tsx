@@ -5,7 +5,7 @@ import { FaWallet, FaMoneyBillWave, FaUniversity, FaInfoCircle,FaPiggyBank, FaCr
 import type { IconType } from 'react-icons';
 import { SingleCategoryDropdown } from '../features/transactions/SingleCategoryDropdown';
 import { formatNumberDisplayFromValue, coerceAndFormatNumber } from '../utils/numericInput';
-import accountService, { CreateAccountRequest } from '../services/accountService';
+import accountService, { CreateAccountRequest, UpdateAccountRequest } from '../services/accountService';
 
 type UsabilityOption = 'USABLE' | 'PROTECTED';
 const USABILITY_OPTIONS: readonly UsabilityOption[] = ['USABLE', 'PROTECTED'] as const;
@@ -63,9 +63,11 @@ export interface AddAccountModalProps {
   onSubmit: (form: NewAccountForm) => void;
   title?: string;
   initialValue?: NewAccountForm;
+  accountId?: string; // ID of the account to edit (if in edit mode)
+  isEditMode?: boolean; // Flag to indicate if modal is in edit mode
 }
 
-const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmit, title = 'Add Account', initialValue }) => {
+const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmit, title = 'Add Account', initialValue, accountId, isEditMode = false }) => {
   const [newAccountForm, setNewAccountForm] = useState<NewAccountForm>(() => initialValue || createEmptyAccountForm());
   const [colorHexInput, setColorHexInput] = useState<string>(() => initialValue?.color || createEmptyAccountForm().color);
   const [initialAmountDisplay, setInitialAmountDisplay] = useState<string>('');
@@ -226,25 +228,45 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmi
     setIsLoading(true);
 
     try {
-      const nextPersonalId = accountService.getNextPersonalId();
       const initialAmount = parseFloat(newAccountForm.initialAmount) || 0;
-      const createPayload: CreateAccountRequest = {
-        personal_id: nextPersonalId,
-        name: trimmedName,
-        icon: newAccountForm.iconKey,
-        color: newAccountForm.color,
-        active: newAccountForm.isActive,
-        account_type: newAccountForm.accountType,
-        initial_amount: initialAmount,
-        usability: newAccountForm.usability,
-        group_id: null,
-      };
 
-      await accountService.createAccount(createPayload);
-      onSubmit({ ...newAccountForm, name: trimmedName });
-      onHide();
+      if (isEditMode && accountId) {
+        // Update existing account
+        const updatePayload: UpdateAccountRequest = {
+          name: trimmedName,
+          icon: newAccountForm.iconKey,
+          color: newAccountForm.color,
+          active: newAccountForm.isActive,
+          account_type: newAccountForm.accountType,
+          initial_amount: initialAmount,
+          usability: newAccountForm.usability,
+          group_id: null,
+        };
+
+        await accountService.updateAccount(accountId, updatePayload);
+        onSubmit({ ...newAccountForm, name: trimmedName });
+        onHide();
+      } else {
+        // Create new account
+        const nextPersonalId = accountService.getNextPersonalId();
+        const createPayload: CreateAccountRequest = {
+          personal_id: nextPersonalId,
+          name: trimmedName,
+          icon: newAccountForm.iconKey,
+          color: newAccountForm.color,
+          active: newAccountForm.isActive,
+          account_type: newAccountForm.accountType,
+          initial_amount: initialAmount,
+          usability: newAccountForm.usability,
+          group_id: null,
+        };
+
+        await accountService.createAccount(createPayload);
+        onSubmit({ ...newAccountForm, name: trimmedName });
+        onHide();
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create account';
+      const errorMessage = err instanceof Error ? err.message : isEditMode ? 'Failed to update account' : 'Failed to create account';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -482,7 +504,7 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmi
             variant="success"
             disabled={!newAccountForm.name.trim() || isLoading}
           >
-            {isLoading ? 'Creating...' : initialValue ? 'Update account' : 'Create account'}
+            {isLoading ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update account' : 'Create account')}
           </Button>
         </Modal.Footer>
       </Form>

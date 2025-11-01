@@ -38,16 +38,6 @@ export const lightenColor = (hex: string, ratio = 0.85): string => {
   return `#${toHex(apply(r))}${toHex(apply(g))}${toHex(apply(b))}`;
 };
 
-export const generateAccountId = (name: string): string => {
-  const base = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-  const fallback = base || 'account';
-  return `${fallback}-${Date.now().toString(36)}`;
-};
-
 export interface Account {
   id: string;
   personal_id?: number;
@@ -63,31 +53,38 @@ export interface Account {
   currency?: string;
   isActive?: boolean;
   usability?: 'USABLE' | 'PROTECTED';
+  iconKey?: string; // Store the original icon key from API
 }
 
 export const mapApiAccountToAccount = (
   apiAccount: ApiAccountResponse,
   index: number
 ): Account => {
+  if (!apiAccount.id) {
+    throw new Error('Account must have an id from the API');
+  }
+
   const IconComp =
     resolveIconFromApiName(apiAccount.icon) ??
     (FaIcons.FaWallet as React.ComponentType<{ size?: number }>);
   const color = typeof apiAccount.color === 'string' && apiAccount.color ? apiAccount.color : '#047857';
   const usabilityStr = typeof apiAccount.usability === 'string' ? apiAccount.usability.toUpperCase() : undefined;
   const usability: 'USABLE' | 'PROTECTED' = usabilityStr === 'PROTECTED' ? 'PROTECTED' : 'USABLE';
+  const iconKey = typeof apiAccount.icon === 'string' && apiAccount.icon ? apiAccount.icon : DEFAULT_ACCOUNT_ICON_KEY;
 
   return {
-    id: apiAccount.id ?? generateAccountId(apiAccount.name ?? 'Account'),
+    id: apiAccount.id,
     personal_id: apiAccount.personal_id,
     order: index + 1,
     name: apiAccount.name ?? 'Unnamed Account',
-    type: 'General',
-    balance: 0,
+    type: apiAccount.account_type ?? 'General',
+    balance: apiAccount.initial_amount ?? 0,
     icon: IconComp,
     accentColor: color,
     backgroundColor: lightenColor(color),
     isActive: apiAccount.active ?? true,
     isArchived: apiAccount.active === false,
     usability,
+    iconKey,
   };
 };

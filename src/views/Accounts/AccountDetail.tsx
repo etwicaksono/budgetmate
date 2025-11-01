@@ -308,7 +308,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
       initialAmount: acc.balance.toString(),
       currency: acc.currency || 'IDR',
       excludeFromStatistics: acc.excludeFromStatistics || false,
-      iconKey: (acc as Account & { iconKey?: string }).iconKey || 'FaWallet',
+      iconKey: acc.iconKey || 'FaWallet',
       isActive: acc.isActive !== false,
       usability: acc.usability || 'USABLE',
     };
@@ -730,6 +730,8 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
         onSubmit={handleAccountEditSubmit}
         title="Edit Account"
         initialValue={convertAccountToForm(account)}
+        accountId={account.id}
+        isEditMode={true}
       />
 
       {/* Delete Confirmation Modal */}

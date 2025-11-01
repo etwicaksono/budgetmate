@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation';
 import { Row, Col, Card, Container } from 'react-bootstrap';
 import { FaUniversity, FaCreditCard, FaWallet, FaPiggyBank, FaPencilAlt } from 'react-icons/fa';
 import { accountService, type ApiAccountResponse } from '../../services/accountService';
-import { resolveIconFromApiName, lightenColor, generateAccountId, type Account } from '../../utils/accountUtils';
+import { resolveIconFromApiName, lightenColor, type Account } from '../../utils/accountUtils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import type { PieLabelRenderProps } from 'recharts';
 import PeriodNavigation, {
@@ -40,25 +40,32 @@ type AccountTypeIcons = {
   [K in AccountType]: React.ComponentType<{ size?: number }>;
 };
 
-const mapApiAccountToAccount = (apiAccount: ApiAccountResponse, index: number): Account => {
+const mapApiAccountToAccount = (apiAccount: ApiAccountResponse, index: number): Account | null => {
+  if (!apiAccount.id) {
+    console.warn('Skipping account without ID:', apiAccount);
+    return null;
+  }
+
   const IconComp = resolveIconFromApiName(apiAccount.icon) ?? (FaWallet as React.ComponentType<{ size?: number }>);
   const color = typeof apiAccount.color === 'string' && apiAccount.color ? apiAccount.color : '#047857';
   const usabilityStr = typeof apiAccount.usability === 'string' ? apiAccount.usability.toUpperCase() : undefined;
   const usability: 'USABLE' | 'PROTECTED' = usabilityStr === 'PROTECTED' ? 'PROTECTED' : 'USABLE';
+  const iconKey = typeof apiAccount.icon === 'string' && apiAccount.icon ? apiAccount.icon : 'FaWallet';
 
   return {
-    id: apiAccount.id ?? generateAccountId(apiAccount.name ?? 'Account'),
+    id: apiAccount.id,
     personal_id: apiAccount.personal_id,
     order: index + 1,
     name: apiAccount.name ?? 'Unnamed Account',
     type: apiAccount.account_type ?? 'General',
-    balance: 0, // Balance data not available in API response
+    balance: apiAccount.initial_amount ?? 0,
     icon: IconComp,
     accentColor: color,
     backgroundColor: lightenColor(color),
     isActive: apiAccount.active ?? true,
     isArchived: apiAccount.active === false,
     usability,
+    iconKey,
   };
 };
 
@@ -80,7 +87,7 @@ const DashboardContent: React.FC = () => {
       try {
         const apiAccounts = await accountService.fetchAccounts();
         const activeAccounts = apiAccounts.filter((a) => a.active !== false);
-        const mapped = activeAccounts.map(mapApiAccountToAccount);
+        const mapped = activeAccounts.map(mapApiAccountToAccount).filter((a): a is Account => a !== null);
         setAccounts(mapped);
       } catch (error) {
         // eslint-disable-next-line no-console
@@ -123,7 +130,7 @@ const accountToNewAccountForm = (account: Account): NewAccountForm => ({
   initialAmount: account.balance.toString(),
   currency: account.currency || 'IDR',
   excludeFromStatistics: account.excludeFromStatistics || false,
-  iconKey: 'FaWallet',
+  iconKey: account.iconKey || 'FaWallet',
   isActive: account.isActive !== false,
   usability: account.usability || 'USABLE',
 });
@@ -402,50 +409,24 @@ const accountToNewAccountForm = (account: Account): NewAccountForm => ({
           setShowAddAccountModal(false);
           setEditingAccount(null);
         }}
-        onSubmit={(form) => {
-          if (editingAccount) {
-            // Update existing account
-            const updatedAccounts = accounts.map((account) =>
-              account.id === editingAccount.id
-                ? {
-                    ...account,
-                    name: form.name.trim(),
-                    type: form.accountType,
-                    balance: parseFloat(form.initialAmount || '0') || 0,
-                    accentColor: form.color || '#047857',
-                    backgroundColor: lightenColor(form.color || '#047857'),
-                    currency: form.currency,
-                    excludeFromStatistics: form.excludeFromStatistics,
-                    isActive: form.isActive,
-                    usability: form.usability,
-                  }
-                : account
-            );
-            setAccounts(updatedAccounts);
-            setEditingAccount(null);
-          } else {
-            // Create new account
-            const accentColor = form.color || '#047857';
-            const newItem: Account = {
-              id: generateAccountId(form.name.trim()),
-              order: accounts.length + 1,
-              name: form.name.trim(),
-              type: form.accountType,
-              balance: parseFloat(form.initialAmount || '0') || 0,
-              icon: resolveIconFromApiName(form.iconKey) ?? (FaWallet as React.ComponentType<{ size?: number }>),
-              accentColor,
-              backgroundColor: lightenColor(accentColor),
-              currency: form.currency,
-              excludeFromStatistics: form.excludeFromStatistics,
-              isActive: form.isActive,
-              usability: form.usability,
-            };
-            setAccounts([...accounts, newItem]);
-            setShowAddAccountModal(false);
+        onSubmit={async () => {
+          // Account creation/update is handled by the modal's internal API call
+          // Just refresh the accounts list after successful operation
+          try {
+            const apiAccounts = await accountService.fetchAccounts();
+            const activeAccounts = apiAccounts.filter((a) => a.active !== false);
+            const mapped = activeAccounts.map(mapApiAccountToAccount).filter((a): a is Account => a !== null);
+            setAccounts(mapped);
+          } catch (error) {
+            console.error('Failed to refresh accounts:', error);
           }
+          setShowAddAccountModal(false);
+          setEditingAccount(null);
         }}
         title={editingAccount ? 'Edit Account' : 'Add Account'}
         initialValue={editingAccount ? accountToNewAccountForm(editingAccount) : undefined}
+        accountId={editingAccount?.id}
+        isEditMode={!!editingAccount}
       />
       </Container>
   );

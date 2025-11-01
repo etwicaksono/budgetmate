@@ -4,4 +4,5 @@ references
 .next
 .env.production
 .env.development
+.env.local
 .claude

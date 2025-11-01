@@ -46,7 +46,6 @@ import {
   resolveIconComponent,
   resolveIconFromApiName,
   lightenColor,
-  generateAccountId,
   DEFAULT_ACCOUNT_ICON_KEY,
   type Account,
 } from '../../utils/accountUtils';
@@ -294,28 +293,32 @@ const Accounts: React.FC = () => {
         setInactiveAccountCount(inactiveCount);
 
         // Map ALL accounts (including inactive ones) so toggle can show/hide them
-        const mapped: Account[] = sorted.map((a, idx) => {
-          const IconComp =
-            resolveIconFromApiName(a.icon) ?? (FaWallet as React.ComponentType<{ size?: number }>);
-          const color = (typeof a.color === 'string' && a.color) ? a.color : '#047857';
-          const usabilityStr = typeof a.usability === 'string' ? a.usability.toUpperCase() : undefined;
-          const usability: UsabilityOption = usabilityStr === 'PROTECTED' ? 'PROTECTED' : 'USABLE';
+        const mapped: Account[] = sorted
+          .filter((a) => a.id) // Only process accounts with valid IDs from API
+          .map((a, idx) => {
+            const IconComp =
+              resolveIconFromApiName(a.icon) ?? (FaWallet as React.ComponentType<{ size?: number }>);
+            const color = (typeof a.color === 'string' && a.color) ? a.color : '#047857';
+            const usabilityStr = typeof a.usability === 'string' ? a.usability.toUpperCase() : undefined;
+            const usability: UsabilityOption = usabilityStr === 'PROTECTED' ? 'PROTECTED' : 'USABLE';
+            const iconKey = typeof a.icon === 'string' && a.icon ? a.icon : DEFAULT_ACCOUNT_ICON_KEY;
 
-          return {
-            id: a.id ?? generateAccountId(a.name ?? 'Account'),
-            personal_id: a.personal_id,
-            order: idx + 1,
-            name: a.name ?? 'Unnamed Account',
-            type: a.account_type ?? 'General',
-            balance: 0,
-            icon: IconComp,
-            accentColor: color,
-            backgroundColor: lightenColor(color),
-            isActive: a.active ?? true,
-            isArchived: a.active === false,
-            usability,
-          };
-        });
+            return {
+              id: a.id!,
+              personal_id: a.personal_id,
+              order: idx + 1,
+              name: a.name ?? 'Unnamed Account',
+              type: a.account_type ?? 'General',
+              balance: a.initial_amount ?? 0,
+              icon: IconComp,
+              accentColor: color,
+              backgroundColor: lightenColor(color),
+              isActive: a.active ?? true,
+              isArchived: a.active === false,
+              usability,
+              iconKey,
+            };
+          });
 
         setAccounts(mapped);
       } catch (error) {
@@ -501,39 +504,52 @@ const Accounts: React.FC = () => {
     }));
   };
 
-  const handleCreateAccount = (event: FormEvent<HTMLFormElement>): void => {
-    event.preventDefault();
-    const trimmedName = newAccountForm.name.trim();
-    if (!trimmedName) {
-      return;
+  const refreshAccounts = async (): Promise<void> => {
+    try {
+      const apiAccounts = (await accountService.fetchAccounts()) as ApiAccountResponse[];
+
+      const sorted = [...apiAccounts].sort((a, b) => {
+        const ap = (a.position ?? 0);
+        const bp = (b.position ?? 0);
+        if (ap !== bp) return ap - bp;
+        return ((a.personal_id ?? 0) - (b.personal_id ?? 0));
+      });
+
+      const inactiveCount = sorted.filter((a) => a.active === false).length;
+      setInactiveAccountCount(inactiveCount);
+
+      const mapped: Account[] = sorted
+        .filter((a) => a.id)
+        .map((a, idx) => {
+          const IconComp =
+            resolveIconFromApiName(a.icon) ?? (FaWallet as React.ComponentType<{ size?: number }>);
+          const color = (typeof a.color === 'string' && a.color) ? a.color : '#047857';
+          const usabilityStr = typeof a.usability === 'string' ? a.usability.toUpperCase() : undefined;
+          const usability: UsabilityOption = usabilityStr === 'PROTECTED' ? 'PROTECTED' : 'USABLE';
+          const iconKey = typeof a.icon === 'string' && a.icon ? a.icon : DEFAULT_ACCOUNT_ICON_KEY;
+
+          return {
+            id: a.id!,
+            personal_id: a.personal_id,
+            order: idx + 1,
+            name: a.name ?? 'Unnamed Account',
+            type: a.account_type ?? 'General',
+            balance: a.initial_amount ?? 0,
+            icon: IconComp,
+            accentColor: color,
+            backgroundColor: lightenColor(color),
+            isActive: a.active ?? true,
+            isArchived: a.active === false,
+            usability,
+            iconKey,
+          };
+        });
+
+      setAccounts(mapped);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to refresh accounts:', error);
     }
-
-    const accountTypeMeta =
-      ACCOUNT_TYPES.find((type) => type.value === newAccountForm.accountType) ?? ACCOUNT_TYPES[0];
-
-    const selectedIconKey = newAccountForm.iconKey || defaultIconKey;
-    const ResolvedIconComponent =
-      resolveIconComponent(selectedIconKey) ?? (accountTypeMeta.icon ?? FaWallet);
-
-    const maxOrder = accounts.reduce((max, account) => Math.max(max, account.order ?? 0), 0);
-
-    const nextAccount: Account = {
-      id: generateAccountId(trimmedName),
-      order: maxOrder + 1,
-      name: trimmedName,
-      type: newAccountForm.accountType,
-      balance: parseFloat(newAccountForm.initialAmount || '0') || 0,
-      icon: ResolvedIconComponent,
-      accentColor: newAccountForm.color,
-      backgroundColor: lightenColor(newAccountForm.color),
-      excludeFromStatistics: newAccountForm.excludeFromStatistics,
-      currency: newAccountForm.currency,
-      isActive: newAccountForm.isActive,
-      usability: newAccountForm.usability,
-    };
-
-    setAccounts((previous) => [...previous, nextAccount]);
-    handleCloseAddModal();
   };
 
   const selectedAccountType: AccountType =
@@ -736,33 +752,10 @@ const Accounts: React.FC = () => {
       <AddAccountModal
         show={showAddModal}
         onHide={handleCloseAddModal}
-        onSubmit={(form) => {
-          const trimmedName = form.name.trim();
-          if (!trimmedName) return;
-
-          const accountTypeMeta =
-            ACCOUNT_TYPES.find((type) => type.value === form.accountType) ?? ACCOUNT_TYPES[0];
-          const ResolvedIconComponent =
-            resolveIconComponent(form.iconKey) ?? (accountTypeMeta.icon ?? FaWallet);
-
-          const maxOrder = accounts.reduce((max, account) => Math.max(max, account.order ?? 0), 0);
-
-          const nextAccount: Account = {
-            id: generateAccountId(trimmedName),
-            order: maxOrder + 1,
-            name: trimmedName,
-            type: form.accountType,
-            balance: parseFloat(form.initialAmount || '0') || 0,
-            icon: ResolvedIconComponent,
-            accentColor: form.color,
-            backgroundColor: lightenColor(form.color),
-            excludeFromStatistics: form.excludeFromStatistics,
-            currency: form.currency,
-            isActive: form.isActive,
-            usability: form.usability,
-          };
-
-          setAccounts((previous) => [...previous, nextAccount]);
+        onSubmit={async () => {
+          // Account creation is handled by the modal's internal API call
+          // Just refresh the accounts list after successful creation
+          await refreshAccounts();
           handleCloseAddModal();
         }}
         title="Add Account"
