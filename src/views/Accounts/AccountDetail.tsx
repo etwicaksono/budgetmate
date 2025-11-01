@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Container, Row, Col, Card, Button, Tabs, Tab, Form, Dropdown, Modal } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Tabs, Tab, Form, Dropdown } from 'react-bootstrap';
 import { FaArrowLeft, FaEllipsisV } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import {
@@ -11,6 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import Swal from 'sweetalert2';
 import { TransactionModal } from '../../features/transactions/TransactionModal';
 import type { TransactionFormValues } from '../../features/transactions/TransactionModal';
 import AddAccountModal from '../../components/AddAccountModal';
@@ -143,7 +144,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set());
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [showAccountEditModal, setShowAccountEditModal] = useState<boolean>(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionFormValues | null>(null);
   const IconComponent = account.icon;
 
@@ -196,13 +196,56 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
     return `${value < 0 ? '-' : ''}IDR ${formatted}`;
   };
 
-  const handleDelete = (): void => {
-    setShowDeleteConfirm(true);
-  };
+  const handleDelete = async (): Promise<void> => {
+    const result = await Swal.fire({
+      title: 'Delete Account?',
+      html: `
+        <div style="text-align: left;">
+          <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.375rem;">
+            <div style="margin-bottom: 0.75rem;">
+              <span style="color: #6c757d; font-size: 0.875rem;">Account Name</span>
+              <p style="margin: 0.25rem 0 0 0; font-weight: 500; font-size: 1.1rem;">
+                ${account.name}
+              </p>
+            </div>
+            <div style="margin-bottom: 0.75rem;">
+              <span style="color: #6c757d; font-size: 0.875rem;">Account Type</span>
+              <p style="margin: 0.25rem 0 0 0; font-weight: 500;">
+                ${account.type}
+              </p>
+            </div>
+            <div>
+              <span style="color: #6c757d; font-size: 0.875rem;">Current Balance</span>
+              <p style="margin: 0.25rem 0 0 0; font-weight: 500;">
+                ${formatCurrency(account.balance)}
+              </p>
+            </div>
+          </div>
+          <div style="margin-bottom: 1.5rem;">
+            <p style="color: #6c757d; margin-bottom: 0;">
+              You are about to permanently delete this account and all its associated data.
+            </p>
+            <p style="color: #dc3545; font-weight: 500; margin-bottom: 0.5rem;margin-top: 0.5rem">
+              ⚠️ This action cannot be undone
+            </p>
+          </div>
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Delete Account',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
+      customClass: {
+        popup: 'delete-confirm-modal',
+      },
+    });
 
-  const handleConfirmDelete = (): void => {
-    setShowDeleteConfirm(false);
-    onDelete(account.id);
+    if (result.isConfirmed) {
+      onDelete(account.id);
+    }
   };
 
   const handleSelectRecord = (recordId: string): void => {
@@ -733,61 +776,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
         accountId={account.id}
         isEditMode={true}
       />
-
-      {/* Delete Confirmation Modal */}
-      {/* Shows account details and warning before permanent deletion */}
-      <Modal
-        show={showDeleteConfirm}
-        onHide={() => setShowDeleteConfirm(false)}
-        centered
-        backdrop="static"
-        className="delete-confirm-modal"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Delete Account?</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <div className="delete-confirm-content">
-            <div className="delete-confirm-warning" style={{ marginBottom: '1.5rem' }}>
-              <p style={{ color: '#dc3545', fontWeight: '500', marginBottom: '0.5rem' }}>
-                ⚠️ This action cannot be undone
-              </p>
-              <p style={{ color: '#6c757d', marginBottom: 0 }}>
-                You are about to permanently delete this account and all its associated data.
-              </p>
-            </div>
-
-            <div className="delete-confirm-details" style={{ backgroundColor: '#f8f9fa', padding: '1rem', borderRadius: '0.375rem', marginBottom: '1rem' }}>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <span style={{ color: '#6c757d', fontSize: '0.875rem' }}>Account Name</span>
-                <p style={{ margin: '0.25rem 0 0 0', fontWeight: '500', fontSize: '1.1rem' }}>
-                  {account.name}
-                </p>
-              </div>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <span style={{ color: '#6c757d', fontSize: '0.875rem' }}>Account Type</span>
-                <p style={{ margin: '0.25rem 0 0 0', fontWeight: '500' }}>
-                  {account.type}
-                </p>
-              </div>
-              <div>
-                <span style={{ color: '#6c757d', fontSize: '0.875rem' }}>Current Balance</span>
-                <p style={{ margin: '0.25rem 0 0 0', fontWeight: '500' }}>
-                  {formatCurrency(account.balance)}
-                </p>
-              </div>
-            </div>
-          </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => setShowDeleteConfirm(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleConfirmDelete}>
-            Delete Account
-          </Button>
-        </Modal.Footer>
-      </Modal>
     </Container>
   );
 };
