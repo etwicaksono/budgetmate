@@ -17,6 +17,7 @@ import type { TransactionFormValues } from '../../features/transactions/Transact
 import AddAccountModal from '../../components/AddAccountModal';
 import type { NewAccountForm } from '../../components/AddAccountModal';
 import type { Account } from './Accounts';
+import { accountService } from '../../services/accountService';
 
 interface BalanceData {
   date: string;
@@ -197,6 +198,8 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
   };
 
   const handleDelete = async (): Promise<void> => {
+    console.log('handleDelete called for account:', account.id, account.name);
+
     const result = await Swal.fire({
       title: 'Delete Account?',
       html: `
@@ -243,8 +246,51 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
       },
     });
 
+    console.log('Swal result:', result);
+
     if (result.isConfirmed) {
-      onDelete(account.id);
+      console.log('Delete confirmed, calling API...');
+      try {
+        // Show loading state
+        Swal.fire({
+          title: 'Deleting...',
+          text: 'Please wait while we delete the account',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+        });
+
+        // Call the delete API
+        console.log('Calling accountService.deleteAccount with ID:', account.id);
+        await accountService.deleteAccount(account.id);
+        console.log('Delete API call successful');
+
+        // Show success message
+        await Swal.fire({
+          icon: 'success',
+          title: 'Account Deleted',
+          text: 'The account has been successfully deleted',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+
+        // Call the onDelete callback to update parent component
+        console.log('Calling onDelete callback');
+        onDelete(account.id);
+      } catch (error) {
+        console.error('Delete error:', error);
+        // Show error message
+        await Swal.fire({
+          icon: 'error',
+          title: 'Delete Failed',
+          text: error instanceof Error ? error.message : 'Failed to delete account. Please try again.',
+          confirmButtonColor: '#dc3545',
+        });
+      }
+    } else {
+      console.log('Delete cancelled');
     }
   };
 

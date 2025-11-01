@@ -72,6 +72,7 @@ export interface AccountService {
   fetchAccountById(id: string): Promise<ApiAccountResponse>;
   createAccount(payload: CreateAccountRequest): Promise<ApiAccountResponse>;
   updateAccount(id: string, payload: UpdateAccountRequest): Promise<ApiAccountResponse>;
+  deleteAccount(id: string): Promise<void>;
   swapAccountOrder(payload: SwapOrderRequest): Promise<void>;
   getNextPersonalId(): number;
 }
@@ -142,6 +143,26 @@ export const accountService: AccountService = {
     }
 
     throw new Error('Failed to update account');
+  },
+
+  async deleteAccount(id: string) {
+    console.log('Deleting account with ID:', id);
+    try {
+      const response = (await apiService.delete(`/accounts/${id}`)) as ApiResponse<unknown>;
+      console.log('Delete response:', response);
+
+      // Check if the response indicates an error
+      if (response.error || (response.success === false)) {
+        const errorMessage = response.error?.message || response.message || 'Failed to delete account';
+        throw new Error(errorMessage);
+      }
+
+      // If response has success field and it's true, or no error field, consider it successful
+      return;
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      throw error;
+    }
   },
 
   async swapAccountOrder(payload: SwapOrderRequest) {
