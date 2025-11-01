@@ -22,8 +22,7 @@ export default function AccountDetailPage(): JSX.Element {
     const fetchAccount = async () => {
       try {
         setLoading(true);
-        const accounts = await accountService.fetchAccounts();
-        const foundAccount = accounts.find((acc) => acc.id === accountId);
+        const foundAccount = await accountService.fetchAccountById(accountId);
 
         if (foundAccount) {
           const mappedAccount = mapApiAccountToAccount(foundAccount, 0);

@@ -69,6 +69,7 @@ export interface SwapOrderRequest {
 
 export interface AccountService {
   fetchAccounts(): Promise<ApiAccountResponse[]>;
+  fetchAccountById(id: string): Promise<ApiAccountResponse>;
   createAccount(payload: CreateAccountRequest): Promise<ApiAccountResponse>;
   updateAccount(id: string, payload: UpdateAccountRequest): Promise<ApiAccountResponse>;
   swapAccountOrder(payload: SwapOrderRequest): Promise<void>;
@@ -99,6 +100,20 @@ export const accountService: AccountService = {
     }
 
     return accounts;
+  },
+
+  async fetchAccountById(id: string) {
+    const response = (await apiService.get(`/accounts/${id}`)) as ApiResponse<ApiAccountResponse> | ApiAccountResponse;
+
+    if (isApiResponse<ApiAccountResponse>(response) && response.data) {
+      return response.data;
+    }
+
+    if ('id' in response && response.id) {
+      return response as ApiAccountResponse;
+    }
+
+    throw new Error('Failed to fetch account');
   },
 
   async createAccount(payload: CreateAccountRequest) {
