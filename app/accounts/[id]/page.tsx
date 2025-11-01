@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import AccountDetail from '../../../src/views/Accounts/AccountDetail';
 import { accountService } from '../../../src/services/accountService';
@@ -17,10 +17,17 @@ export default function AccountDetailPage(): JSX.Element {
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
+    // Prevent double fetching in StrictMode or multiple mounts
+    if (fetchedRef.current) {
+      return;
+    }
+
     const fetchAccount = async () => {
       try {
+        fetchedRef.current = true;
         setLoading(true);
         const foundAccount = await accountService.fetchAccountById(accountId);
 
