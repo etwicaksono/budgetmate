@@ -48,12 +48,12 @@ export interface AccountMetadataEntry {
 export type AccountMetadata = Record<string, AccountMetadataEntry>;
 
 export function buildAccountMetadata(stored: Record<string, unknown> = {}): AccountMetadata {
-  const accounts = ['All', 'Checking Account', 'Savings Account', 'Credit Card', 'Cash'] as const;
+  const accounts = ['All', 'Checking Account-2', 'Savings Account', 'Credit Card', 'Cash'] as const;
   const defaultAccountMetadata: Record<
     (typeof accounts)[number],
     { color: string; icon: string | null }
   > = {
-    'Checking Account': { color: '#0d6efd', icon: 'FaUniversity' },
+    'Checking Account-2': { color: '#0d6efd', icon: 'FaUniversity' },
     'Savings Account': { color: '#198754', icon: 'FaPiggyBank' },
     'Credit Card': { color: '#dc3545', icon: 'FaCreditCard' },
     Cash: { color: '#fd7e14', icon: 'FaMoneyBillWave' },

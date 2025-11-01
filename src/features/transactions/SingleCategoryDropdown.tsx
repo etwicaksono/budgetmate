@@ -216,13 +216,20 @@ export function SingleCategoryDropdown({
       className="position-relative w-100"
       style={{ maxWidth: '100%' }}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         className="form-control d-flex justify-content-between align-items-center"
         onClick={toggleDropdown}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleDropdown();
+          }
+        }}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        style={{ minHeight: '38px', padding: '0.375rem 0.75rem' }}
+        style={{ minHeight: '38px', padding: '0.375rem 0.75rem', cursor: 'pointer' }}
       >
         <div className="d-flex align-items-center gap-2 w-100 text-start">
           {selectedCategory ? (
@@ -265,7 +272,7 @@ export function SingleCategoryDropdown({
           )}
           {renderIcon(FaCaretDown, { className: 'text-muted' })}
         </div>
-      </button>
+      </div>
 
       {isOpen && (
         <div

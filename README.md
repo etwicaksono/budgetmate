@@ -35,11 +35,11 @@ Quick Start
 
 Environment Variables
 
-- API base URL: REACT_APP_API_BASE_URL
+- API base URL: NEXT_PUBLIC_API_BASE_URL
   - Example: http://localhost:8080/api/v1
   - Default: If not set, [API_CONFIG.baseURL](src/config/index.ts:30) falls back to http://localhost:8080/api/v1
 - Create a .env.local file in the project root to override defaults.
-- Note: This project currently reads REACT_APP_* in client code via [src/config/index.ts](src/config/index.ts:29). If you prefer Next.js public envs, use NEXT_PUBLIC_API_BASE_URL and update [src/config/index.ts](src/config/index.ts:29) accordingly, or expose variables through [next.config.js](next.config.js:1).
+- Note: This project currently reads NEXT_PUBLIC_* in client code via [src/config/index.ts](src/config/index.ts:29). If you prefer Next.js public envs, use NEXT_PUBLIC_API_BASE_URL and update [src/config/index.ts](src/config/index.ts:29) accordingly, or expose variables through [next.config.js](next.config.js:1).
 
 Scripts
 

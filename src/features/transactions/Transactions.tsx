@@ -11,6 +11,7 @@ import {
   Offcanvas,
   InputGroup,
   Dropdown,
+  Modal,
 } from 'react-bootstrap';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -55,6 +56,12 @@ import {
   categoryService,
   type ApiCategoryResponse,
 } from '../../services/categoryService';
+import {
+  accountService,
+  type ApiAccountResponse,
+} from '../../services/accountService';
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
 
 type TransactionType = 'Expense' | 'Income' | 'Transfer' | string;
 
@@ -255,6 +262,7 @@ function SortDropdown({ id, value, onChange }: SortDropdownProps): JSX.Element {
 
 
 const ACCOUNT_METADATA_STORAGE_KEY = 'finance-app-account-metadata';
+const FILTER_VISIBILITY_STORAGE_KEY = 'finance-app-filter-visibility';
 
 const accountIconComponents: Record<string, IconRenderable> = {
   FaUniversity,
@@ -262,8 +270,6 @@ const accountIconComponents: Record<string, IconRenderable> = {
   FaCreditCard,
   FaMoneyBillWave,
 };
-
-const accounts = ['All', 'Checking Account', 'Savings Account', 'Credit Card', 'Cash'] as const;
 
 const getLocalDateTimeString = (): string => {
   const now = new Date();
@@ -289,7 +295,7 @@ const createTransactionTemplate = (
     date: resolvedDate,
     dateTime: resolvedDateTime,
     category: overrides.category ?? '',
-    account: overrides.account ?? 'Checking Account',
+    account: overrides.account ?? '',
     toAccount: overrides.toAccount ?? '',
     toAmount: overrides.toAmount ?? '',
     toCurrency: overrides.toCurrency ?? overrides.currency ?? 'IDR',
@@ -309,7 +315,7 @@ const createQuickTransactionTemplate = (
   description: overrides.description ?? '',
   category: overrides.category ?? '',
   amount: overrides.amount ?? '',
-  account: overrides.account ?? 'Checking Account',
+  account: overrides.account ?? '',
   type: overrides.type ?? 'Expense',
   currency: overrides.currency ?? 'IDR',
   ...overrides,
@@ -379,78 +385,33 @@ function TransactionsContent(): JSX.Element {
     };
   }, [categories.length, setCategories]);
 
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([
-    {
-      ...createTransactionTemplate({
-        type: 'Expense',
-        description: 'Grocery Store',
-        amount: -85.3,
-        currency: 'IDR',
-        date: '2023-07-15',
-        dateTime: '2023-07-15T00:00',
-        category: 'Food & Dining',
-        account: 'Checking Account',
-        notes: '',
-      }),
-      id: 1,
-    },
-    {
-      ...createTransactionTemplate({
-        type: 'Income',
-        description: 'Salary Deposit',
-        amount: 3500,
-        currency: 'IDR',
-        date: '2023-07-01',
-        dateTime: '2023-07-01T00:00',
-        category: 'Salary',
-        account: 'Checking Account',
-        notes: 'Monthly salary',
-      }),
-      id: 2,
-    },
-    {
-      ...createTransactionTemplate({
-        type: 'Expense',
-        description: 'Gas Station',
-        amount: -45,
-        currency: 'IDR',
-        date: '2023-07-14',
-        dateTime: '2023-07-14T00:00',
-        category: 'Transportation',
-        account: 'Credit Card',
-        notes: '',
-      }),
-      id: 3,
-    },
-    {
-      ...createTransactionTemplate({
-        type: 'Expense',
-        description: 'Online Purchase',
-        amount: -120.5,
-        currency: 'IDR',
-        date: '2023-07-13',
-        dateTime: '2023-07-13T00:00',
-        category: 'Shopping',
-        account: 'Credit Card',
-        notes: 'Electronics',
-      }),
-      id: 4,
-    },
-    {
-      ...createTransactionTemplate({
-        type: 'Expense',
-        description: 'Restaurant',
-        amount: -65.2,
-        currency: 'IDR',
-        date: '2023-07-12',
-        dateTime: '2023-07-12T00:00',
-        category: 'Food & Dining',
-        account: 'Checking Account',
-        notes: 'Dinner with friends',
-      }),
-      id: 5,
-    },
-  ]);
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadAccounts = async () => {
+      try {
+        const accounts = await accountService.fetchAccounts();
+        if (isCancelled) {
+          return;
+        }
+        if (accounts.length > 0) {
+          setApiAccounts(accounts);
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to fetch accounts for transactions:', error);
+      }
+    };
+
+    void loadAccounts();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [apiAccounts, setApiAccounts] = useState<ApiAccountResponse[]>([]);
   const [currentTransaction, setCurrentTransaction] = useState<TransactionFormValues>(
     createTransactionTemplate()
   );
@@ -478,6 +439,16 @@ function TransactionsContent(): JSX.Element {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [sortOption, setSortOption] = useState<SortValue>('amountAsc');
+  const [minAmount, setMinAmount] = useState<number>(0);
+  const [maxAmount, setMaxAmount] = useState<number>(20000000);
+  const [filterVisibility, setFilterVisibility] = useState<Record<string, boolean>>({
+    search: true,
+    sortBy: true,
+    accounts: true,
+    categories: true,
+    amountRange: true,
+  });
+  const [showFilterVisibilityPanel, setShowFilterVisibilityPanel] = useState<boolean>(false);
   const accountMetadata = useMemo<AccountMetadata>(() => {
     let storedMetadata: Record<string, unknown> = {};
     if (typeof window !== 'undefined') {
@@ -501,37 +472,67 @@ function TransactionsContent(): JSX.Element {
       );
     }
   }, [accountMetadata]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(FILTER_VISIBILITY_STORAGE_KEY);
+        if (stored) {
+          setFilterVisibility(JSON.parse(stored) as Record<string, boolean>);
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to read filter visibility from storage', error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        FILTER_VISIBILITY_STORAGE_KEY,
+        JSON.stringify(filterVisibility)
+      );
+    }
+  }, [filterVisibility]);
+
   const selectableAccounts = useMemo<string[]>(
-    () => accounts.filter((account) => account !== 'All'),
-    []
+    () => apiAccounts
+      .filter((account) => account.name && account.active !== false)
+      .map((account) => account.name as string),
+    [apiAccounts]
   );
   const accountTree = useMemo<Record<string, string[]>>(
     () => Object.fromEntries(selectableAccounts.map((account) => [account, [] as string[]])),
     [selectableAccounts]
   );
   const accountColors = useMemo<Record<string, string>>(
-    () =>
-      Object.fromEntries(
-        selectableAccounts.map((account) => [
-          account,
-          accountMetadata[account]?.color || '#6c757d',
-        ])
-      ),
-    [selectableAccounts, accountMetadata]
+    () => {
+      const colorMap: Record<string, string> = {};
+      selectableAccounts.forEach((accountName) => {
+        const apiAccount = apiAccounts.find((a) => a.name === accountName);
+        const color = apiAccount?.color ?? accountMetadata[accountName]?.color ?? '#6c757d';
+        colorMap[accountName] = color;
+      });
+      return colorMap;
+    },
+    [selectableAccounts, apiAccounts, accountMetadata]
   );
   const accountIcons = useMemo<Record<string, IconRenderable | undefined>>(
-    () =>
-      Object.fromEntries(
-        selectableAccounts.map((account) => {
-          const iconKey = accountMetadata[account]?.icon;
-          const icon =
-            iconKey && accountIconComponents[iconKey]
-              ? accountIconComponents[iconKey]
-              : undefined;
-          return [account, icon];
-        })
-      ),
-    [selectableAccounts, accountMetadata]
+    () => {
+      const iconMap: Record<string, IconRenderable | undefined> = {};
+      selectableAccounts.forEach((accountName) => {
+        const apiAccount = apiAccounts.find((a) => a.name === accountName);
+        const iconKey = apiAccount?.icon ?? accountMetadata[accountName]?.icon;
+        const icon =
+          iconKey && accountIconComponents[iconKey as keyof typeof accountIconComponents]
+            ? accountIconComponents[iconKey as keyof typeof accountIconComponents]
+            : undefined;
+        iconMap[accountName] = icon;
+      });
+      return iconMap;
+    },
+    [selectableAccounts, apiAccounts, accountMetadata]
   );
   const categoryByName = useMemo<CategoryMap>(
     () =>
@@ -566,7 +567,12 @@ function TransactionsContent(): JSX.Element {
         return afterStart && beforeEnd;
       })();
 
-      return matchesSearch && matchesCategory && matchesAccount && matchesDate;
+      const matchesAmount = (() => {
+        const absoluteAmount = Math.abs(Number(transaction.amount ?? 0));
+        return absoluteAmount >= minAmount && absoluteAmount <= maxAmount;
+      })();
+
+      return matchesSearch && matchesCategory && matchesAccount && matchesDate && matchesAmount;
     });
 
     const comparator = (a: TransactionRecord, b: TransactionRecord) => {
@@ -589,7 +595,7 @@ function TransactionsContent(): JSX.Element {
     };
 
     return [...filtered].sort(comparator);
-  }, [transactions, searchTerm, selectedCategories, selectedAccounts, dateRange, sortOption]);
+  }, [transactions, searchTerm, selectedCategories, selectedAccounts, dateRange, sortOption, minAmount, maxAmount]);
   useEffect(() => {
     setSelectedTransactionIds((previous) =>
       previous.filter((id) =>
@@ -896,84 +902,236 @@ function TransactionsContent(): JSX.Element {
           <Card>
             <Card.Header className="d-flex align-items-center justify-content-between">
               <span className="h3 mb-0">Transactions</span>
-              <Button
-                type="button"
-                variant="light"
-                className="transactions-add-record-btn"
-                onClick={() => setShowTransactionModal(true)}
-                aria-label="Add transaction"
-              >
-                {renderIcon(FaPlus, { size: 18 })}
-              </Button>
+              <div className="d-flex gap-2">
+                <Button
+                  type="button"
+                  variant="light"
+                  className="transactions-filter-visibility-btn"
+                  onClick={() => setShowFilterVisibilityPanel(true)}
+                  aria-label="Configure filters"
+                  title="Configure filters"
+                >
+                  {renderIcon(FaFilter, { size: 18 })}
+                </Button>
+                <Button
+                  type="button"
+                  variant="light"
+                  className="transactions-add-record-btn"
+                  onClick={() => setShowTransactionModal(true)}
+                  aria-label="Add transaction"
+                >
+                  {renderIcon(FaPlus, { size: 18 })}
+                </Button>
+              </div>
             </Card.Header>
             <Card.Body>
               <Form>
-                <Form.Group className="mb-3" controlId="searchTerm">
-                  <Form.Label>Search</Form.Label>
-                  <InputGroup>
-                    <InputGroup.Text className="search-input-icon">
-                      {renderIcon(FaSearch, { size: 14 })}
-                    </InputGroup.Text>
-                    <Form.Control
-                      type="text"
-                      placeholder="Search transactions"
-                      value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.target.value)}
-                      autoComplete="off"
+                {filterVisibility.search && (
+                  <Form.Group className="mb-3" controlId="searchTerm">
+                    <Form.Label>Search</Form.Label>
+                    <InputGroup>
+                      <InputGroup.Text className="search-input-icon">
+                        {renderIcon(FaSearch, { size: 14 })}
+                      </InputGroup.Text>
+                      <Form.Control
+                        type="text"
+                        placeholder="Search transactions"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        autoComplete="off"
+                      />
+                      {searchTerm && (
+                        <Button
+                          variant="light"
+                          className="clear-search-btn"
+                          onClick={() => setSearchTerm('')}
+                        >
+                          {renderIcon(FaTimes)}
+                        </Button>
+                      )}
+                    </InputGroup>
+                  </Form.Group>
+                )}
+
+                {filterVisibility.sortBy && (
+                  <Form.Group className="mb-3" controlId="sortOption">
+                    <Form.Label>Sort by</Form.Label>
+                    <SortDropdown
+                      id="sortOption"
+                      value={sortOption}
+                      onChange={setSortOption}
                     />
-                    {searchTerm && (
-                      <Button
-                        variant="light"
-                        className="clear-search-btn"
-                        onClick={() => setSearchTerm('')}
-                      >
-                        {renderIcon(FaTimes)}
-                      </Button>
-                    )}
-                  </InputGroup>
-                </Form.Group>
-                <Form.Group className="mb-3" controlId="sortOption">
-                  <Form.Label>Sort by</Form.Label>
-                  <SortDropdown
-                    id="sortOption"
-                    value={sortOption}
-                    onChange={setSortOption}
-                  />
-                </Form.Group>
+                  </Form.Group>
+                )}
 
-                <Form.Group className="mb-3" controlId="categoryFilter">
-                  <Form.Label>Category</Form.Label>
-                  <CategoryDropdown
-                    selectedCategories={selectedCategories}
-                    setSelectedCategories={setSelectedCategories}
-                    categoryTree={categoryTree}
-                    parentCategoryColors={parentCategoryColors}
-                    categoryIcons={categoryIcons as DropdownIconMap}
-                    allCategories={allCategories}
-                    leadingIcon={FaTags}
-                  />
-                </Form.Group>
+                {filterVisibility.categories && (
+                  <Form.Group className="mb-3" controlId="categoryFilter">
+                    <Form.Label>Category</Form.Label>
+                    <CategoryDropdown
+                      selectedCategories={selectedCategories}
+                      setSelectedCategories={setSelectedCategories}
+                      categoryTree={categoryTree}
+                      parentCategoryColors={parentCategoryColors}
+                      categoryIcons={categoryIcons as DropdownIconMap}
+                      allCategories={allCategories}
+                      leadingIcon={FaTags}
+                    />
+                  </Form.Group>
+                )}
 
-                <Form.Group className="mb-3" controlId="accountFilter">
-                  <Form.Label>Account</Form.Label>
-                  <CategoryDropdown
-                    selectedCategories={selectedAccounts}
-                    setSelectedCategories={setSelectedAccounts}
-                    categoryTree={accountTree}
-                    parentCategoryColors={accountColors}
-                    categoryIcons={accountIcons as DropdownIconMap}
-                    allCategories={selectableAccounts}
-                    entityLabelSingular="account"
-                    entityLabelPlural="accounts"
-                    searchPlaceholder="Search account"
-                    clearSelectedLabel="Clear accounts"
-                    leadingIcon={FaWallet}
-                  />
-                </Form.Group>
+                {filterVisibility.accounts && (
+                  <Form.Group className="mb-3" controlId="accountFilter">
+                    <Form.Label>Account</Form.Label>
+                    <CategoryDropdown
+                      selectedCategories={selectedAccounts}
+                      setSelectedCategories={setSelectedAccounts}
+                      categoryTree={accountTree}
+                      parentCategoryColors={accountColors}
+                      categoryIcons={accountIcons as DropdownIconMap}
+                      allCategories={selectableAccounts}
+                      entityLabelSingular="account"
+                      entityLabelPlural="accounts"
+                      searchPlaceholder="Search account"
+                      clearSelectedLabel="Clear accounts"
+                      leadingIcon={FaWallet}
+                    />
+                  </Form.Group>
+                )}
+
+                {filterVisibility.amountRange && (
+                  <Form.Group className="mb-3" controlId="amountFilter">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <Form.Label className="mb-0">Amount range</Form.Label>
+                    <small className="text-muted">IDR</small>
+                  </div>
+                  <small className="text-muted d-block mb-2">Absolute amount in referential currency</small>
+                  <div className="mb-3" style={{ padding: '16px 0' }}>
+                    <Slider
+                      range
+                      min={0}
+                      max={20000000}
+                      step={100000}
+                      value={[minAmount, maxAmount]}
+                      onChange={(values) => {
+                        if (Array.isArray(values)) {
+                          setMinAmount(values[0]);
+                          setMaxAmount(values[1]);
+                        }
+                      }}
+                      styles={{
+                        track: {
+                          backgroundColor: '#0d6efd',
+                        },
+                        rail: {
+                          backgroundColor: '#dee2e6',
+                        },
+                        handle: {
+                          backgroundColor: '#0d6efd',
+                          borderColor: '#0d6efd',
+                          boxShadow: '0 0 0 3px rgba(13, 110, 253, 0.25)',
+                        },
+                      }}
+                    />
+                  </div>
+                  <div className="d-flex gap-2">
+                    <div className="flex-grow-1">
+                      <Form.Control
+                        type="number"
+                        placeholder="Min"
+                        value={minAmount}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || value === '-') {
+                            setMinAmount(0);
+                          } else {
+                            setMinAmount(Math.max(0, Number(value)));
+                          }
+                        }}
+                        min="0"
+                        step="100000"
+                      />
+                      <small className="text-muted d-block mt-1">IDR {minAmount.toLocaleString('en-US')}</small>
+                    </div>
+                    <div className="flex-grow-1">
+                      <Form.Control
+                        type="number"
+                        placeholder="Max"
+                        value={maxAmount}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || value === '-') {
+                            setMaxAmount(20000000);
+                          } else {
+                            setMaxAmount(Math.max(0, Number(value)));
+                          }
+                        }}
+                        min="0"
+                        step="100000"
+                      />
+                      <small className="text-muted d-block mt-1">IDR {maxAmount.toLocaleString('en-US')}</small>
+                    </div>
+                  </div>
+                  </Form.Group>
+                )}
 
               </Form>
             </Card.Body>
           </Card>
+
+          <Modal show={showFilterVisibilityPanel} onHide={() => setShowFilterVisibilityPanel(false)} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>Show / Hide Filters</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="d-flex flex-column gap-3">
+                <Form.Check
+                  type="checkbox"
+                  id="modal-filter-search"
+                  label="Search"
+                  checked={filterVisibility.search}
+                  onChange={(e) =>
+                    setFilterVisibility((prev) => ({ ...prev, search: e.target.checked }))
+                  }
+                />
+                <Form.Check
+                  type="checkbox"
+                  id="modal-filter-sortby"
+                  label="Sort by"
+                  checked={filterVisibility.sortBy}
+                  onChange={(e) =>
+                    setFilterVisibility((prev) => ({ ...prev, sortBy: e.target.checked }))
+                  }
+                />
+                <Form.Check
+                  type="checkbox"
+                  id="modal-filter-accounts"
+                  label="Accounts"
+                  checked={filterVisibility.accounts}
+                  onChange={(e) =>
+                    setFilterVisibility((prev) => ({ ...prev, accounts: e.target.checked }))
+                  }
+                />
+                <Form.Check
+                  type="checkbox"
+                  id="modal-filter-categories"
+                  label="Categories"
+                  checked={filterVisibility.categories}
+                  onChange={(e) =>
+                    setFilterVisibility((prev) => ({ ...prev, categories: e.target.checked }))
+                  }
+                />
+                <Form.Check
+                  type="checkbox"
+                  id="modal-filter-amountrange"
+                  label="Amount range"
+                  checked={filterVisibility.amountRange}
+                  onChange={(e) =>
+                    setFilterVisibility((prev) => ({ ...prev, amountRange: e.target.checked }))
+                  }
+                />
+              </div>
+            </Modal.Body>
+          </Modal>
         </Col>
 
         <Col lg={9}>
@@ -1161,69 +1319,154 @@ function TransactionsContent(): JSX.Element {
         </Offcanvas.Header>
         <Offcanvas.Body>
           <Form>
-            <Form.Group className="mb-3" controlId="searchTermMobile">
-              <Form.Label>Search</Form.Label>
-              <InputGroup>
-                <InputGroup.Text className="search-input-icon">
-                  {renderIcon(FaSearch, { size: 14 })}
-                </InputGroup.Text>
-                <Form.Control
-                  type="text"
-                  placeholder="Search transactions"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  autoComplete="off"
+            {filterVisibility.search && (
+              <Form.Group className="mb-3" controlId="searchTermMobile">
+                <Form.Label>Search</Form.Label>
+                <InputGroup>
+                  <InputGroup.Text className="search-input-icon">
+                    {renderIcon(FaSearch, { size: 14 })}
+                  </InputGroup.Text>
+                  <Form.Control
+                    type="text"
+                    placeholder="Search transactions"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    autoComplete="off"
+                  />
+                  {searchTerm && (
+                    <Button
+                      variant="light"
+                      className="clear-search-btn"
+                      onClick={() => setSearchTerm('')}
+                    >
+                      {renderIcon(FaTimes)}
+                    </Button>
+                  )}
+                </InputGroup>
+              </Form.Group>
+            )}
+
+            {filterVisibility.sortBy && (
+              <Form.Group className="mb-3" controlId="sortOptionMobile">
+                <Form.Label>Sort by</Form.Label>
+                <SortDropdown
+                  id="sortOptionMobile"
+                  value={sortOption}
+                  onChange={setSortOption}
                 />
-                {searchTerm && (
-                  <Button
-                    variant="light"
-                    className="clear-search-btn"
-                    onClick={() => setSearchTerm('')}
-                  >
-                    {renderIcon(FaTimes)}
-                  </Button>
-                )}
-              </InputGroup>
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="sortOptionMobile">
-              <Form.Label>Sort by</Form.Label>
-              <SortDropdown
-                id="sortOptionMobile"
-                value={sortOption}
-                onChange={setSortOption}
-              />
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="categoryFilterMobile">
-              <Form.Label>Category</Form.Label>
-              <CategoryDropdown
-                selectedCategories={selectedCategories}
-                setSelectedCategories={setSelectedCategories}
-                categoryTree={categoryTree}
-                parentCategoryColors={parentCategoryColors}
-                categoryIcons={categoryIcons as DropdownIconMap}
-                allCategories={allCategories}
-                searchPlaceholder="Search category"
-                leadingIcon={FaTags}
-              />
-            </Form.Group>
+              </Form.Group>
+            )}
 
+            {filterVisibility.categories && (
+              <Form.Group className="mb-3" controlId="categoryFilterMobile">
+                <Form.Label>Category</Form.Label>
+                <CategoryDropdown
+                  selectedCategories={selectedCategories}
+                  setSelectedCategories={setSelectedCategories}
+                  categoryTree={categoryTree}
+                  parentCategoryColors={parentCategoryColors}
+                  categoryIcons={categoryIcons as DropdownIconMap}
+                  allCategories={allCategories}
+                  searchPlaceholder="Search category"
+                  leadingIcon={FaTags}
+                />
+              </Form.Group>
+            )}
 
-            <Form.Group className="mb-3" controlId="accountFilterMobile">
-              <Form.Label>Account</Form.Label>
-              <CategoryDropdown
-                selectedCategories={selectedAccounts}
-                setSelectedCategories={setSelectedAccounts}
-                categoryTree={accountTree}
-                parentCategoryColors={accountColors}
-                categoryIcons={accountIcons as DropdownIconMap}
-                allCategories={selectableAccounts}
-                entityLabelSingular="account"
-                entityLabelPlural="accounts"
-                searchPlaceholder="Search account"
-                clearSelectedLabel="Clear accounts"
-                leadingIcon={FaWallet}
-              />
-            </Form.Group>
+            {filterVisibility.accounts && (
+              <Form.Group className="mb-3" controlId="accountFilterMobile">
+                <Form.Label>Account</Form.Label>
+                <CategoryDropdown
+                  selectedCategories={selectedAccounts}
+                  setSelectedCategories={setSelectedAccounts}
+                  categoryTree={accountTree}
+                  parentCategoryColors={accountColors}
+                  categoryIcons={accountIcons as DropdownIconMap}
+                  allCategories={selectableAccounts}
+                  entityLabelSingular="account"
+                  entityLabelPlural="accounts"
+                  searchPlaceholder="Search account"
+                  clearSelectedLabel="Clear accounts"
+                  leadingIcon={FaWallet}
+                />
+              </Form.Group>
+            )}
+
+            {filterVisibility.amountRange && (
+              <Form.Group className="mb-3" controlId="amountFilterMobile">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <Form.Label className="mb-0">Amount range</Form.Label>
+                <small className="text-muted">IDR</small>
+              </div>
+              <small className="text-muted d-block mb-2">Absolute amount in referential currency</small>
+              <div className="mb-3" style={{ padding: '16px 0' }}>
+                <Slider
+                  range
+                  min={0}
+                  max={20000000}
+                  step={100000}
+                  value={[minAmount, maxAmount]}
+                  onChange={(values) => {
+                    if (Array.isArray(values)) {
+                      setMinAmount(values[0]);
+                      setMaxAmount(values[1]);
+                    }
+                  }}
+                  styles={{
+                    track: {
+                      backgroundColor: '#0d6efd',
+                    },
+                    rail: {
+                      backgroundColor: '#dee2e6',
+                    },
+                    handle: {
+                      backgroundColor: '#0d6efd',
+                      borderColor: '#0d6efd',
+                      boxShadow: '0 0 0 3px rgba(13, 110, 253, 0.25)',
+                    },
+                  }}
+                />
+              </div>
+              <div className="d-flex gap-2">
+                <div className="flex-grow-1">
+                  <Form.Control
+                    type="number"
+                    placeholder="Min"
+                    value={minAmount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || value === '-') {
+                        setMinAmount(0);
+                      } else {
+                        setMinAmount(Math.max(0, Number(value)));
+                      }
+                    }}
+                    min="0"
+                    step="100000"
+                  />
+                  <small className="text-muted d-block mt-1">IDR {minAmount.toLocaleString('en-US')}</small>
+                </div>
+                <div className="flex-grow-1">
+                  <Form.Control
+                    type="number"
+                    placeholder="Max"
+                    value={maxAmount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || value === '-') {
+                        setMaxAmount(20000000);
+                      } else {
+                        setMaxAmount(Math.max(0, Number(value)));
+                      }
+                    }}
+                    min="0"
+                    step="100000"
+                  />
+                  <small className="text-muted d-block mt-1">IDR {maxAmount.toLocaleString('en-US')}</small>
+                </div>
+              </div>
+              </Form.Group>
+            )}
 
           </Form>
         </Offcanvas.Body>
@@ -1270,7 +1513,7 @@ function TransactionsContent(): JSX.Element {
         }}
         onSubmit={handleAddNewQuickTransaction}
         availableCategories={allCategories}
-        availableAccounts={accounts.filter((account) => account !== 'All')}
+        availableAccounts={selectableAccounts}
       />
     </Container >
   );

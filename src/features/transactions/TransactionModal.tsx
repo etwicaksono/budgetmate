@@ -19,6 +19,10 @@ import {
   categoryService,
   type ApiCategoryResponse,
 } from '../../services/categoryService';
+import {
+  accountService,
+  type ApiAccountResponse,
+} from '../../services/accountService';
 import type { CategoryRecord, CategoryIconName } from './useCategoryData';
 import { formatNumberDisplayFromValue, coerceAndFormatNumber } from '../../utils/numericInput';
 
@@ -220,6 +224,29 @@ const buildCategoryIconMapFromRecords = (
     return accumulator;
   }, {});
 
+const buildAccountColorsMapFromResponse = (
+  accounts: ApiAccountResponse[]
+): ColorMapping =>
+  accounts.reduce<ColorMapping>((accumulator, account) => {
+    if (account.name) {
+      accumulator[account.name] = account.color ?? DEFAULT_CATEGORY_COLOR;
+    }
+    return accumulator;
+  }, {});
+
+const buildAccountIconMapFromResponse = (
+  accounts: ApiAccountResponse[]
+): IconMapping =>
+  accounts.reduce<IconMapping>((accumulator, account) => {
+    if (account.name && account.icon) {
+      const iconComponent = resolveIconComponent(account.icon);
+      if (iconComponent) {
+        accumulator[account.name] = iconComponent;
+      }
+    }
+    return accumulator;
+  }, {});
+
 export function TransactionModal({
   show,
   onHide,
@@ -240,6 +267,11 @@ export function TransactionModal({
 }: TransactionModalProps): JSX.Element | null {
   const [apiCategories, setApiCategories] = useState<CategoryRecord[]>([]);
   const [categoryFetchState, setCategoryFetchState] = useState<
+    'idle' | 'loading' | 'success' | 'error'
+  >('idle');
+
+  const [apiAccounts, setApiAccounts] = useState<ApiAccountResponse[]>([]);
+  const [accountFetchState, setAccountFetchState] = useState<
     'idle' | 'loading' | 'success' | 'error'
   >('idle');
 
@@ -392,14 +424,6 @@ export function TransactionModal({
     [onSave]
   );
 
-  const accountOptions = useMemo(
-    () =>
-      (availableAccounts ?? []).filter(
-        (accountOption) => accountOption && accountOption !== 'All'
-      ),
-    [availableAccounts]
-  );
-
   const providedCategoryOptions = useMemo(
     () =>
       (availableCategories ?? []).filter(
@@ -449,20 +473,47 @@ export function TransactionModal({
     return buildCategoryIconMapFromRecords(apiCategories);
   }, [apiCategories]);
 
+  const apiAccountOptions = useMemo(() => {
+    if (apiAccounts.length === 0) {
+      return [] as string[];
+    }
+    const uniqueNames = new Set<string>();
+    apiAccounts.forEach((account) => {
+      if (account.name && account.name !== 'All') {
+        uniqueNames.add(account.name);
+      }
+    });
+    return Array.from(uniqueNames);
+  }, [apiAccounts]);
+
+  const apiAccountColorsMap = useMemo<ColorMapping>(() => {
+    if (apiAccounts.length === 0) {
+      return {};
+    }
+    return buildAccountColorsMapFromResponse(apiAccounts);
+  }, [apiAccounts]);
+
+  const apiAccountIcons = useMemo<IconMapping>(() => {
+    if (apiAccounts.length === 0) {
+      return {};
+    }
+    return buildAccountIconMapFromResponse(apiAccounts);
+  }, [apiAccounts]);
+
   const ensureCategoriesLoaded = useCallback(async () => {
-    if (categoryFetchState === 'loading') {
+    if (categoryFetchState !== 'idle') {
       return;
     }
-  
+
     try {
       setCategoryFetchState('loading');
       const response = await categoryService.fetchCategories();
       const mapped = response
         .map(mapApiCategoryToRecord)
         .filter((item): item is CategoryRecord => item !== null);
-  
+
       setApiCategories(mapped);
-  
+
       setCategoryFetchState('success');
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -471,37 +522,50 @@ export function TransactionModal({
     }
   }, [categoryFetchState]);
 
+  const ensureAccountsLoaded = useCallback(async () => {
+    if (accountFetchState !== 'idle') {
+      return;
+    }
+
+    try {
+      setAccountFetchState('loading');
+      const response = await accountService.fetchAccounts();
+      setApiAccounts(response);
+      setAccountFetchState('success');
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('TransactionModal: failed to fetch accounts', error);
+      setAccountFetchState('error');
+    }
+  }, [accountFetchState]);
+
   useEffect(() => {
     if (show) {
       void ensureCategoriesLoaded();
+      void ensureAccountsLoaded();
+    } else {
+      // Reset to 'idle' when modal closes so it fetches fresh data next time
+      setCategoryFetchState('idle');
+      setAccountFetchState('idle');
     }
-  }, [show, ensureCategoriesLoaded]);
+  }, [show, ensureCategoriesLoaded, ensureAccountsLoaded]);
 
   const resolvedAccountTree = useMemo<CategoryTree>(() => {
-    const source = accountTree ?? {};
-    if (Object.keys(source).length > 0) {
-      return source;
-    }
+    // Use only API data for accounts
     return Object.fromEntries(
-      accountOptions.map((accountOption) => [accountOption, [] as string[]])
+      apiAccountOptions.map((accountOption) => [accountOption, [] as string[]])
     );
-  }, [accountTree, accountOptions]);
+  }, [apiAccountOptions]);
 
   const resolvedAccountColors = useMemo<ColorMapping>(() => {
-    const source = accountColors ?? {};
-    if (Object.keys(source).length > 0) {
-      return source;
-    }
-    return {};
-  }, [accountColors]);
+    // Use only API data for account colors
+    return apiAccountColorsMap;
+  }, [apiAccountColorsMap]);
 
   const resolvedAccountIcons = useMemo<IconMapping>(() => {
-    const source = accountIcons ?? {};
-    if (Object.keys(source).length > 0) {
-      return source;
-    }
-    return {};
-  }, [accountIcons]);
+    // Use only API data for account icons
+    return apiAccountIcons;
+  }, [apiAccountIcons]);
 
   const resolvedCategoryTree = useMemo<CategoryTree>(() => {
     if (categoryTree && Object.keys(categoryTree).length > 0) {
@@ -699,7 +763,7 @@ export function TransactionModal({
                           categoryTree={resolvedAccountTree}
                           parentCategoryColors={resolvedAccountColors}
                           categoryIcons={accountIconsForDropdown}
-                          allCategories={accountOptions}
+                          allCategories={apiAccountOptions}
                           entityLabelSingular="account"
                           entityLabelPlural="accounts"
                           searchPlaceholder="Search account..."
@@ -726,7 +790,7 @@ export function TransactionModal({
                           categoryTree={resolvedAccountTree}
                           parentCategoryColors={resolvedAccountColors}
                           categoryIcons={accountIconsForDropdown}
-                          allCategories={accountOptions}
+                          allCategories={apiAccountOptions}
                           entityLabelSingular="account"
                           entityLabelPlural="accounts"
                           searchPlaceholder="Search destination account..."
@@ -835,7 +899,7 @@ export function TransactionModal({
                       categoryTree={resolvedAccountTree}
                       parentCategoryColors={resolvedAccountColors}
                       categoryIcons={accountIconsForDropdown}
-                      allCategories={accountOptions}
+                      allCategories={apiAccountOptions}
                       entityLabelSingular="account"
                       entityLabelPlural="accounts"
                       searchPlaceholder="Search account..."

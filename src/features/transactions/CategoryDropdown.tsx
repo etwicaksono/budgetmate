@@ -12,6 +12,13 @@ import { Button, Form } from 'react-bootstrap';
 import { FaCaretDown, FaCaretRight, FaTimesCircle } from 'react-icons/fa';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
+import {
+  useFloating,
+  offset,
+  flip,
+  shift,
+  autoUpdate,
+} from '@floating-ui/react';
 
 type CategoryTree = Record<string, string[]>;
 type CategoryColorMap = Record<string, string>;
@@ -73,9 +80,27 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
   const [categorySearch, setCategorySearch] = useState<string>('');
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [expandedParentsInSearch, setExpandedParentsInSearch] = useState<string[]>([]);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const referenceRef = useRef<HTMLDivElement | null>(null);
+  const floatingRef = useRef<HTMLDivElement | null>(null);
+
+  const {
+    refs: { setReference, setFloating },
+    floatingStyles,
+  } = useFloating({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    middleware: [
+      offset(38),
+      flip({
+        padding: 8,
+      }),
+      shift({
+        padding: 8,
+      }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
   const placeholderText = `All ${entityLabelPlural}`;
   const singleSelectName = useId();
   const LeadingIcon = coerceIconComponent(leadingIcon);
@@ -232,23 +257,26 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if (!isOpen) return;
+
       const target = event.target as Node | null;
-      if (
-        dropdownRef.current &&
-        target &&
-        !dropdownRef.current.contains(target) &&
-        containerRef.current &&
-        !containerRef.current.contains(target)
-      ) {
+      if (!target) return;
+
+      const isClickOnReference = referenceRef.current && referenceRef.current.contains(target);
+      const isClickOnFloating = floatingRef.current && floatingRef.current.contains(target);
+
+      if (!isClickOnReference && !isClickOnFloating) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -280,7 +308,12 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
   };
 
   return (
-    <div className="position-relative" ref={containerRef}>
+    <div className="position-relative"
+      ref={(el) => {
+        referenceRef.current = el;
+        setReference(el);
+      }}
+    >
       {(categorySearch || selectedCategories.length > 0) && (
         <div className="mt-1">
           <span className="text-muted small d-block">
@@ -381,9 +414,21 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
       </div>
       {isOpen && (
         <div
-          ref={dropdownRef}
-          className="position-absolute w-100 mt-1 bg-white border rounded shadow-sm"
-          style={{ zIndex: 1000 }}
+          ref={(el) => {
+            floatingRef.current = el;
+            setFloating(el);
+          }}
+          className="bg-white border rounded shadow-sm"
+          style={{
+            position: floatingStyles.position as 'absolute' | 'fixed',
+            top: floatingStyles.top ?? 0,
+            left: floatingStyles.left ?? 0,
+            right: floatingStyles.right,
+            bottom: floatingStyles.bottom,
+            minWidth: `${referenceRef.current?.offsetWidth || 300}px`,
+            zIndex: 1000,
+            pointerEvents: 'auto',
+          }}
         >
           <div className="p-2 border-bottom">
             <div className="position-relative">

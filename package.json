@@ -7,11 +7,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "build:staging": "NODE_ENV=production next build",
+    "start:staging": "NODE_ENV=production next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@floating-ui/react": "^0.27.16",
     "bootstrap": "^5.3.8",
     "next": "^16.0.0",
+    "rc-slider": "^11.1.9",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.10",
     "react-color": "^2.19.3",

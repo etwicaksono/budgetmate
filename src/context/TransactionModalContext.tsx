@@ -39,10 +39,13 @@ import {
   buildAccountMetadata,
   type AccountMetadata,
 } from '../components/PeriodRangeSelector';
+import {
+  accountService,
+  type ApiAccountResponse,
+} from '../services/accountService';
+import { useAuth } from './AuthContext';
 
 const ACCOUNT_METADATA_STORAGE_KEY = 'finance-app-account-metadata';
-
-const accounts = ['All', 'Checking Account', 'Savings Account', 'Credit Card', 'Cash'] as const;
 
 const accountIconComponents: Record<string, IconType> = {
   FaUniversity,
@@ -91,7 +94,7 @@ const createTransactionTemplate = (
     date: resolvedDate,
     dateTime: resolvedDateTime,
     category: overrides.category ?? '',
-    account: overrides.account ?? 'Checking Account',
+    account: overrides.account ?? '',
     toAccount: overrides.toAccount ?? '',
     toAmount: overrides.toAmount ?? '',
     toCurrency: overrides.toCurrency ?? overrides.currency ?? 'IDR',
@@ -110,7 +113,7 @@ const createQuickTransactionTemplate = (
   description: overrides.description ?? '',
   category: overrides.category ?? '',
   amount: overrides.amount ?? '',
-  account: overrides.account ?? 'Checking Account',
+  account: overrides.account ?? '',
   type: overrides.type ?? 'Expense',
   currency: overrides.currency ?? 'IDR',
 });
@@ -136,6 +139,39 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
   } = useCategoryData();
   const { quickTransactions, addQuickTransactionPreset }: UseQuickTransactionsResult =
     useQuickTransactions(categories);
+  const { isAuthenticated, loading: authLoading } = useAuth();
+
+  const [apiAccounts, setApiAccounts] = useState<ApiAccountResponse[]>([]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadAccounts = async () => {
+      // Only fetch accounts if user is authenticated and auth context has finished loading
+      if (!isAuthenticated || authLoading) {
+        return;
+      }
+
+      try {
+        const accounts = await accountService.fetchAccounts();
+        if (isCancelled) {
+          return;
+        }
+        if (accounts.length > 0) {
+          setApiAccounts(accounts);
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to fetch accounts for transaction modal:', error);
+      }
+    };
+
+    void loadAccounts();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAuthenticated, authLoading]);
 
   const quickTransactionOptions = useMemo<QuickTransactionOption[]>(
     () =>
@@ -152,8 +188,10 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
   );
 
   const selectableAccounts = useMemo<string[]>(
-    () => accounts.filter((account) => account !== 'All'),
-    []
+    () => apiAccounts
+      .filter((account) => account.name && account.active !== false)
+      .map((account) => account.name as string),
+    [apiAccounts]
   );
 
   const accountMetadata = useMemo<AccountMetadata>(() => {
@@ -190,29 +228,33 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
   );
 
   const accountColors = useMemo<CategoryColorMap>(
-    () =>
-      Object.fromEntries(
-        selectableAccounts.map((account) => [
-          account,
-          accountMetadata[account]?.color ?? '#6c757d',
-        ])
-      ),
-    [selectableAccounts, accountMetadata]
+    () => {
+      const colorMap: Record<string, string> = {};
+      selectableAccounts.forEach((accountName) => {
+        const apiAccount = apiAccounts.find((a) => a.name === accountName);
+        const color = apiAccount?.color ?? accountMetadata[accountName]?.color ?? '#6c757d';
+        colorMap[accountName] = color;
+      });
+      return colorMap;
+    },
+    [selectableAccounts, apiAccounts, accountMetadata]
   );
 
-const accountIcons = useMemo<Record<string, IconType | null>>(
-    () =>
-      Object.fromEntries(
-        selectableAccounts.map((account) => {
-          const iconKey = accountMetadata[account]?.icon;
-          const iconComponent =
-            iconKey && iconKey in accountIconComponents
-              ? accountIconComponents[iconKey]
-              : null;
-          return [account, iconComponent];
-        })
-      ),
-    [selectableAccounts, accountMetadata]
+  const accountIcons = useMemo<Record<string, IconType | null>>(
+    () => {
+      const iconMap: Record<string, IconType | null> = {};
+      selectableAccounts.forEach((accountName) => {
+        const apiAccount = apiAccounts.find((a) => a.name === accountName);
+        const iconKey = apiAccount?.icon ?? accountMetadata[accountName]?.icon;
+        const iconComponent =
+          iconKey && iconKey in accountIconComponents
+            ? accountIconComponents[iconKey as keyof typeof accountIconComponents]
+            : null;
+        iconMap[accountName] = iconComponent;
+      });
+      return iconMap;
+    },
+    [selectableAccounts, apiAccounts, accountMetadata]
   );
 
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);

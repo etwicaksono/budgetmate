@@ -1,6 +1,9 @@
-import React, { useState, ChangeEvent } from 'react';
+import React, { useState, ChangeEvent, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Row, Col, Card, Container } from 'react-bootstrap';
-import { FaUniversity, FaCreditCard, FaWallet, FaPiggyBank } from 'react-icons/fa';
+import { FaUniversity, FaCreditCard, FaWallet, FaPiggyBank, FaPencilAlt } from 'react-icons/fa';
+import { accountService, type ApiAccountResponse } from '../../services/accountService';
+import { resolveIconFromApiName, lightenColor, generateAccountId, type Account } from '../../utils/accountUtils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import type { PieLabelRenderProps } from 'recharts';
 import PeriodNavigation, {
@@ -8,15 +11,7 @@ import PeriodNavigation, {
   usePeriodNavigation,
 } from '../../components/PeriodNavigation';
 import PeriodRangeSelector from '../../components/PeriodRangeSelector';
-import AddAccountModal from '../../components/AddAccountModal';
-
-interface Account {
-  id: number;
-  name: string;
-  balance: number;
-  type: 'Bank' | 'Credit Card' | 'Cash';
-  color: string;
-}
+import AddAccountModal, { type NewAccountForm } from '../../components/AddAccountModal';
 
 
  
@@ -45,16 +40,56 @@ type AccountTypeIcons = {
   [K in AccountType]: React.ComponentType<{ size?: number }>;
 };
 
-const DashboardContent: React.FC = () => {
-  // Sample account data
-  const [accounts, setAccounts] = useState<Account[]>([
-    { id: 1, name: 'Checking Account', balance: 2450.75, type: 'Bank', color: '#3498db' },
-    { id: 2, name: 'Savings Account', balance: 8750.20, type: 'Bank', color: '#2ecc71' },
-    { id: 3, name: 'Credit Card', balance: -1250.30, type: 'Credit Card', color: '#e74c3c' },
-    { id: 4, name: 'Cash', balance: 420.00, type: 'Cash', color: '#f39c12' },
-  ]);
+const mapApiAccountToAccount = (apiAccount: ApiAccountResponse, index: number): Account => {
+  const IconComp = resolveIconFromApiName(apiAccount.icon) ?? (FaWallet as React.ComponentType<{ size?: number }>);
+  const color = typeof apiAccount.color === 'string' && apiAccount.color ? apiAccount.color : '#047857';
+  const usabilityStr = typeof apiAccount.usability === 'string' ? apiAccount.usability.toUpperCase() : undefined;
+  const usability: 'USABLE' | 'PROTECTED' = usabilityStr === 'PROTECTED' ? 'PROTECTED' : 'USABLE';
 
+  return {
+    id: apiAccount.id ?? generateAccountId(apiAccount.name ?? 'Account'),
+    personal_id: apiAccount.personal_id,
+    order: index + 1,
+    name: apiAccount.name ?? 'Unnamed Account',
+    type: apiAccount.account_type ?? 'General',
+    balance: 0, // Balance data not available in API response
+    icon: IconComp,
+    accentColor: color,
+    backgroundColor: lightenColor(color),
+    isActive: apiAccount.active ?? true,
+    isArchived: apiAccount.active === false,
+    usability,
+  };
+};
+
+const DashboardContent: React.FC = () => {
+  const router = useRouter();
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const fetchedRef = React.useRef<boolean>(false);
+
+  useEffect(() => {
+    // Prevent double fetching in StrictMode or multiple mounts
+    if (fetchedRef.current) {
+      return;
+    }
+    fetchedRef.current = true;
+
+    const loadAccounts = async () => {
+      try {
+        const apiAccounts = await accountService.fetchAccounts();
+        const activeAccounts = apiAccounts.filter((a) => a.active !== false);
+        const mapped = activeAccounts.map(mapApiAccountToAccount);
+        setAccounts(mapped);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to fetch accounts for dashboard:', error);
+      }
+    };
+
+    void loadAccounts();
+  }, []);
 
 
   const {
@@ -75,9 +110,23 @@ const DashboardContent: React.FC = () => {
     return `${value < 0 ? '-' : ''}IDR ${formatted}`;
   };
 
-
+  const handleSelectAccount = (account: Account): void => {
+    router.push(`/accounts/${account.id}?from=dashboard`);
+  };
 
   const mapAddAccountType = (t: string): AccountType => (t === 'Cash' ? 'Cash' : 'Bank');
+
+const accountToNewAccountForm = (account: Account): NewAccountForm => ({
+  name: account.name,
+  color: account.accentColor,
+  accountType: account.type,
+  initialAmount: account.balance.toString(),
+  currency: account.currency || 'IDR',
+  excludeFromStatistics: account.excludeFromStatistics || false,
+  iconKey: 'FaWallet',
+  isActive: account.isActive !== false,
+  usability: account.usability || 'USABLE',
+});
   // Sample expense data for the chart
   const expenseData: ExpenseData[] = [
     { name: 'Food', value: 400 },
@@ -113,23 +162,72 @@ const DashboardContent: React.FC = () => {
       <section className="mb-5">
         <Row>
           {accounts.map((account) => {
-            const AccountIcon = accountTypeIcons[account.type] || (FaPiggyBank as React.ComponentType<{ size?: number }>);
             return (
               <Col key={account.id} xs={12} sm={6} md={3} className="mb-3">
-                <Card
-                  className="h-100 account-card"
-                  style={{ backgroundColor: account.color, borderColor: account.color }}
+                <div
+                  style={{
+                    position: 'relative',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => {
+                    const editBtn = e.currentTarget.querySelector('.edit-account-btn');
+                    if (editBtn) {
+                      (editBtn as HTMLElement).style.opacity = '1';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    const editBtn = e.currentTarget.querySelector('.edit-account-btn');
+                    if (editBtn) {
+                      (editBtn as HTMLElement).style.opacity = '0';
+                    }
+                  }}
                 >
-                  <Card.Body className="account-card__body">
-                    <span className="account-card__icon">
-                      <AccountIcon size={24} />
-                    </span>
-                    <div className="account-card__details">
-                      <div className="account-card__name">{account.name}</div>
-                      <div className="account-card__balance">{formatCurrency(account.balance)}</div>
-                    </div>
-                  </Card.Body>
-                </Card>
+                  <Card
+                    className="h-100 account-card"
+                    style={{ backgroundColor: account.accentColor, borderColor: account.accentColor }}
+                    onClick={() => handleSelectAccount(account)}
+                  >
+                    <Card.Body className="account-card__body">
+                      <span className="account-card__icon">
+                        <account.icon size={24} />
+                      </span>
+                      <div className="account-card__details">
+                        <div className="account-card__name">{account.name}</div>
+                        <div className="account-card__balance">{formatCurrency(account.balance)}</div>
+                  <button
+                    className="edit-account-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingAccount(account);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      right: '10px',
+                      transform: 'translateY(-50%)',
+                      opacity: 0,
+                      transition: 'opacity 0.2s ease-in-out',
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '36px',
+                      height: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      zIndex: 10,
+                      padding: 0,
+                      lineHeight: 1,
+                    }}
+                    title="Edit account"
+                  >
+                    <FaPencilAlt size={16} color="#333" />
+                  </button>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </div>
               </Col>
             );
           })}
@@ -297,22 +395,57 @@ const DashboardContent: React.FC = () => {
           </Col>
         </Row>
       </section>
-      {/* Add Account Modal */}
+      {/* Add/Edit Account Modal */}
       <AddAccountModal
-        show={showAddAccountModal}
-        onHide={() => setShowAddAccountModal(false)}
-        onSubmit={(form) => {
-          const newItem: Account = {
-            id: accounts.length + 1,
-            name: form.name.trim(),
-            type: mapAddAccountType(form.accountType),
-            balance: parseFloat(form.initialAmount || '0') || 0,
-            color: form.color || '#3498db',
-          };
-          setAccounts([...accounts, newItem]);
+        show={showAddAccountModal || !!editingAccount}
+        onHide={() => {
           setShowAddAccountModal(false);
+          setEditingAccount(null);
         }}
-        title="Add Account"
+        onSubmit={(form) => {
+          if (editingAccount) {
+            // Update existing account
+            const updatedAccounts = accounts.map((account) =>
+              account.id === editingAccount.id
+                ? {
+                    ...account,
+                    name: form.name.trim(),
+                    type: form.accountType,
+                    balance: parseFloat(form.initialAmount || '0') || 0,
+                    accentColor: form.color || '#047857',
+                    backgroundColor: lightenColor(form.color || '#047857'),
+                    currency: form.currency,
+                    excludeFromStatistics: form.excludeFromStatistics,
+                    isActive: form.isActive,
+                    usability: form.usability,
+                  }
+                : account
+            );
+            setAccounts(updatedAccounts);
+            setEditingAccount(null);
+          } else {
+            // Create new account
+            const accentColor = form.color || '#047857';
+            const newItem: Account = {
+              id: generateAccountId(form.name.trim()),
+              order: accounts.length + 1,
+              name: form.name.trim(),
+              type: form.accountType,
+              balance: parseFloat(form.initialAmount || '0') || 0,
+              icon: resolveIconFromApiName(form.iconKey) ?? (FaWallet as React.ComponentType<{ size?: number }>),
+              accentColor,
+              backgroundColor: lightenColor(accentColor),
+              currency: form.currency,
+              excludeFromStatistics: form.excludeFromStatistics,
+              isActive: form.isActive,
+              usability: form.usability,
+            };
+            setAccounts([...accounts, newItem]);
+            setShowAddAccountModal(false);
+          }
+        }}
+        title={editingAccount ? 'Edit Account' : 'Add Account'}
+        initialValue={editingAccount ? accountToNewAccountForm(editingAccount) : undefined}
       />
       </Container>
   );

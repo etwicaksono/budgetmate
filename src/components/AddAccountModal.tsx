@@ -1,10 +1,11 @@
 import React, { useMemo, useRef, useState, useEffect, ChangeEvent, FormEvent } from 'react';
-import { Modal, Form, Button, Row, Col, InputGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { Modal, Form, Button, Row, Col, InputGroup, OverlayTrigger, Tooltip, Alert } from 'react-bootstrap';
 import * as FaIcons from 'react-icons/fa';
-import { FaWallet, FaMoneyBillWave, FaUniversity, FaInfoCircle } from 'react-icons/fa';
+import { FaWallet, FaMoneyBillWave, FaUniversity, FaInfoCircle,FaPiggyBank, FaCreditCard,FaGift,FaShieldAlt,FaChartLine,FaHandHoldingUsd,FaHome,FaExclamationTriangle} from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import { SingleCategoryDropdown } from '../features/transactions/SingleCategoryDropdown';
 import { formatNumberDisplayFromValue, coerceAndFormatNumber } from '../utils/numericInput';
+import accountService, { CreateAccountRequest } from '../services/accountService';
 
 type UsabilityOption = 'USABLE' | 'PROTECTED';
 const USABILITY_OPTIONS: readonly UsabilityOption[] = ['USABLE', 'PROTECTED'] as const;
@@ -19,6 +20,14 @@ const ACCOUNT_TYPES: AccountTypeMeta[] = [
   { value: 'General', label: 'General', icon: FaWallet as React.ComponentType<{ size?: number }> },
   { value: 'Cash', label: 'Cash', icon: FaMoneyBillWave as React.ComponentType<{ size?: number }> },
   { value: 'Checking account', label: 'Checking account', icon: FaUniversity as React.ComponentType<{ size?: number }> },
+  { value: 'Credit account', label: 'Credit account', icon: FaCreditCard as React.ComponentType<{ size?: number }> },
+  { value: 'Savings account', label: 'Savings account', icon: FaPiggyBank as React.ComponentType<{ size?: number }> },
+  { value: 'Bonus', label: 'Bonus', icon: FaGift as React.ComponentType<{ size?: number }> },
+  { value: 'Life insurance account', label: 'Life insurance account', icon: FaShieldAlt as React.ComponentType<{ size?: number }> },
+  { value: 'Invesment account', label: 'Invesment account', icon: FaChartLine as React.ComponentType<{ size?: number }> },
+  { value: 'Loan', label: 'Loan', icon: FaHandHoldingUsd as React.ComponentType<{ size?: number }> },
+  { value: 'Mortgage', label: 'Mortgage', icon: FaHome as React.ComponentType<{ size?: number }> },
+  { value: 'Overdraft account', label: 'Overdraft account', icon: FaExclamationTriangle as React.ComponentType<{ size?: number }> },
 ];
 
 export interface NewAccountForm {
@@ -53,13 +62,16 @@ export interface AddAccountModalProps {
   onHide: () => void;
   onSubmit: (form: NewAccountForm) => void;
   title?: string;
+  initialValue?: NewAccountForm;
 }
 
-const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmit, title = 'Add Account' }) => {
-  const [newAccountForm, setNewAccountForm] = useState<NewAccountForm>(() => createEmptyAccountForm());
-  const [colorHexInput, setColorHexInput] = useState<string>(() => createEmptyAccountForm().color);
+const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmit, title = 'Add Account', initialValue }) => {
+  const [newAccountForm, setNewAccountForm] = useState<NewAccountForm>(() => initialValue || createEmptyAccountForm());
+  const [colorHexInput, setColorHexInput] = useState<string>(() => initialValue?.color || createEmptyAccountForm().color);
   const [initialAmountDisplay, setInitialAmountDisplay] = useState<string>('');
   const [isEditingInitialAmount, setIsEditingInitialAmount] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const colorPickerInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,9 +106,54 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmi
     [availableIconKeys, newAccountForm.color]
   );
 
-  const selectedAccountType: AccountTypeMeta =
-    ACCOUNT_TYPES.find((type) => type.value === newAccountForm.accountType) ?? ACCOUNT_TYPES[0];
-  const SelectedAccountTypeIcon = selectedAccountType.icon ?? FaWallet;
+  const accountTypeTree = useMemo<Record<string, string[]>>(
+    () =>
+      ACCOUNT_TYPES.reduce<Record<string, string[]>>((acc, type) => {
+        acc[type.value] = [];
+        return acc;
+      }, {}),
+    []
+  );
+
+  const accountTypeColors = useMemo<Record<string, string>>(
+    () =>
+      ACCOUNT_TYPES.reduce<Record<string, string>>((acc, type) => {
+        acc[type.value] = newAccountForm.color;
+        return acc;
+      }, {}),
+    [newAccountForm.color]
+  );
+
+  const accountTypeIcons = useMemo<Record<string, IconType | undefined>>(
+    () =>
+      ACCOUNT_TYPES.reduce<Record<string, IconType | undefined>>((acc, type) => {
+        acc[type.value] = type.icon as IconType;
+        return acc;
+      }, {}),
+    []
+  );
+
+  const accountTypeOptions = useMemo<string[]>(
+    () => ACCOUNT_TYPES.map((type) => type.value),
+    []
+  );
+
+
+  // Reset form when modal opens with initialValue
+  useEffect(() => {
+    if (show && initialValue) {
+      setNewAccountForm(initialValue);
+      setColorHexInput(initialValue.color);
+      setInitialAmountDisplay(formatNumberDisplayFromValue(initialValue.initialAmount));
+      setIsEditingInitialAmount(false);
+    } else if (show && !initialValue) {
+      setNewAccountForm(createEmptyAccountForm());
+      const emptyForm = createEmptyAccountForm();
+      setColorHexInput(emptyForm.color);
+      setInitialAmountDisplay('');
+      setIsEditingInitialAmount(false);
+    }
+  }, [show, initialValue]);
 
   useEffect(() => {
     if (!isEditingInitialAmount) {
@@ -160,11 +217,38 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmi
     }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const trimmedName = newAccountForm.name.trim();
     if (!trimmedName) return;
-    onSubmit({ ...newAccountForm, name: trimmedName });
+
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const nextPersonalId = accountService.getNextPersonalId();
+      const initialAmount = parseFloat(newAccountForm.initialAmount) || 0;
+      const createPayload: CreateAccountRequest = {
+        personal_id: nextPersonalId,
+        name: trimmedName,
+        icon: newAccountForm.iconKey,
+        color: newAccountForm.color,
+        active: newAccountForm.isActive,
+        account_type: newAccountForm.accountType,
+        initial_amount: initialAmount,
+        usability: newAccountForm.usability,
+        group_id: null,
+      };
+
+      await accountService.createAccount(createPayload);
+      onSubmit({ ...newAccountForm, name: trimmedName });
+      onHide();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create account';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -180,6 +264,11 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmi
           <Modal.Title>{title}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          {error && (
+            <Alert variant="danger" onClose={() => setError(null)} dismissible>
+              {error}
+            </Alert>
+          )}
           <Row className="g-3">
             <Col md={6}>
               <Form.Group controlId="addAccountName" className="mb-3 mb-md-0">
@@ -257,21 +346,24 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmi
             <Col md={6}>
               <Form.Group controlId="addAccountType">
                 <Form.Label>Account type</Form.Label>
-                <InputGroup>
-                  <InputGroup.Text>
-                    <SelectedAccountTypeIcon size={16} />
-                  </InputGroup.Text>
-                  <Form.Select
-                    value={newAccountForm.accountType}
-                    onChange={handleFormFieldChange('accountType')}
-                  >
-                    {ACCOUNT_TYPES.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </InputGroup>
+                <SingleCategoryDropdown
+                  selectedCategories={
+                    newAccountForm.accountType ? [newAccountForm.accountType] : []
+                  }
+                  setSelectedCategories={(values?: string[]) => {
+                    const nextValue = values?.[0] ?? ACCOUNT_TYPES[0].value;
+                    setNewAccountForm((prev) => ({ ...prev, accountType: nextValue }));
+                  }}
+                  categoryTree={accountTypeTree}
+                  parentCategoryColors={accountTypeColors}
+                  categoryIcons={accountTypeIcons}
+                  allCategories={accountTypeOptions}
+                  entityLabelSingular="account type"
+                  entityLabelPlural="account types"
+                  searchPlaceholder="Search account type..."
+                  clearSelectedLabel="Clear selection"
+                  showClearButton={false}
+                />
               </Form.Group>
             </Col>
             <Col md={6}>
@@ -382,11 +474,15 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmi
           </div>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="outline-secondary" onClick={onHide}>
+          <Button variant="outline-secondary" onClick={onHide} disabled={isLoading}>
             Cancel
           </Button>
-          <Button type="submit" variant="success" disabled={!newAccountForm.name.trim()}>
-            Create account
+          <Button
+            type="submit"
+            variant="success"
+            disabled={!newAccountForm.name.trim() || isLoading}
+          >
+            {isLoading ? 'Creating...' : initialValue ? 'Update account' : 'Create account'}
           </Button>
         </Modal.Footer>
       </Form>

@@ -376,8 +376,12 @@ class ApiService {
   private handleRefreshFailure(error: unknown): void {
     console.error('Token refresh failed:', error);
     this.clearAuthData();
+    // Only redirect to login if not already on the login page to prevent infinite redirects
     if (typeof window !== 'undefined') {
-      window.location.assign('/login');
+      const currentPath = window.location.pathname;
+      if (!currentPath.includes('/login') && !currentPath.includes('/register')) {
+        window.location.assign('/login');
+      }
     }
   }
 

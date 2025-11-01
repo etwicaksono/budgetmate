@@ -33,14 +33,26 @@ class TokenCrypto {
     return window.crypto;
   }
 
+  // Resolve SubtleCrypto instance across browsers (including Safari's webkitSubtle)
+  private getSubtle(cryptoInstance: Crypto): SubtleCrypto {
+    const subtle = (cryptoInstance as any).subtle ?? (cryptoInstance as any).webkitSubtle;
+    if (!subtle) {
+      throw new Error(
+        'SubtleCrypto is not available. Ensure the app runs in a secure context (HTTPS or localhost) and a supported browser.'
+      );
+    }
+    return subtle as SubtleCrypto;
+  }
+
   async getKey(): Promise<CryptoKey> {
     const cryptoInstance = this.ensureCrypto();
+    const subtle = this.getSubtle(cryptoInstance);
     const keyData = localStorage.getItem(this.sessionKey);
 
     if (keyData) {
       try {
         const jwk = JSON.parse(keyData) as JsonWebKey;
-        const importedKey = await cryptoInstance.subtle.importKey(
+        const importedKey = await subtle.importKey(
           'jwk',
           jwk,
           { name: this.algorithm },
@@ -53,16 +65,16 @@ class TokenCrypto {
       }
     }
 
-    const key = await cryptoInstance.subtle.generateKey(
+    const key = await subtle.generateKey(
       {
         name: this.algorithm,
         length: this.keyLength,
       },
       true,
       ['encrypt', 'decrypt'] satisfies CryptoKeyUsage[]
-    );
+    ) as CryptoKey;
 
-    const exportedKey = await cryptoInstance.subtle.exportKey('jwk', key);
+    const exportedKey = await subtle.exportKey('jwk', key);
     localStorage.setItem(this.sessionKey, JSON.stringify(exportedKey));
 
     return key;
@@ -75,10 +87,11 @@ class TokenCrypto {
 
     try {
       const cryptoInstance = this.ensureCrypto();
+      const subtle = this.getSubtle(cryptoInstance);
       const key = await this.getKey();
       const iv = cryptoInstance.getRandomValues(new Uint8Array(this.ivLength));
 
-      const encrypted = await cryptoInstance.subtle.encrypt(
+      const encrypted = await subtle.encrypt(
         {
           name: this.algorithm,
           iv,
@@ -112,6 +125,7 @@ class TokenCrypto {
 
     try {
       const cryptoInstance = this.ensureCrypto();
+      const subtle = this.getSubtle(cryptoInstance);
       const key = await this.getKey();
       const binary = atob(encryptedToken);
       const combined = new Uint8Array(binary.length);
@@ -122,7 +136,7 @@ class TokenCrypto {
       const iv = combined.slice(0, this.ivLength);
       const encryptedData = combined.slice(this.ivLength);
 
-      const decrypted = await cryptoInstance.subtle.decrypt(
+      const decrypted = await subtle.decrypt(
         {
           name: this.algorithm,
           iv,

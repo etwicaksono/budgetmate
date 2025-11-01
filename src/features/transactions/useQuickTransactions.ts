@@ -28,44 +28,7 @@ type StoredPreset = QuickTransactionPreset;
 
 const STORAGE_KEY = 'quickTransactions';
 
-const DEFAULT_PRESETS: readonly QuickTransactionPreset[] = [
-  {
-    id: 1,
-    description: 'Grocery Shopping',
-    category: 'Food & Dining',
-    amount: '',
-    account: 'Checking Account',
-    type: 'Expense',
-    currency: 'IDR',
-  },
-  {
-    id: 2,
-    description: 'Gas',
-    category: 'Transportation',
-    amount: '',
-    account: 'Checking Account',
-    type: 'Expense',
-    currency: 'IDR',
-  },
-  {
-    id: 3,
-    description: 'Salary',
-    category: 'Salary',
-    amount: '',
-    account: 'Checking Account',
-    type: 'Income',
-    currency: 'IDR',
-  },
-  {
-    id: 4,
-    description: 'Dinner',
-    category: 'Food & Dining',
-    amount: '',
-    account: 'Checking Account',
-    type: 'Expense',
-    currency: 'IDR',
-  },
-] as const;
+const DEFAULT_PRESETS: readonly QuickTransactionPreset[] = [] as const;
 
 const readFromStorage = (): StoredPreset[] => {
   if (typeof window === 'undefined') {
@@ -152,7 +115,7 @@ export const useQuickTransactions = (
       description,
       category,
       amount = '',
-      account = 'Checking Account',
+      account = '',
       type = 'Expense',
       currency = 'IDR',
     }: QuickTransactionPresetInput): void => {

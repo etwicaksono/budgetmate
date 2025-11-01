@@ -1,4 +1,7 @@
-import React, { useMemo, useRef, useState, useEffect, ChangeEvent, FormEvent, DragEvent } from 'react';
+'use client';
+
+import React, { useMemo, useRef, useState, useEffect, ChangeEvent, FormEvent, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Container, Row, Col, Card, Button, Form } from 'react-bootstrap';
 import {
   FaBars,
@@ -11,29 +14,44 @@ import {
   FaUniversity,
   FaWallet,
   FaInfoCircle,
+  FaFolderOpen,
 } from 'react-icons/fa';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 import { formatNumberDisplayFromValue, coerceAndFormatNumber } from '../../utils/numericInput';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import { SingleCategoryDropdown } from '../../features/transactions/SingleCategoryDropdown';
 import AddAccountModal from '../../components/AddAccountModal';
+import { accountService } from '../../services/accountService';
+import type { ApiAccountResponse } from '../../services/accountService';
+import {
+  resolveIconComponent,
+  resolveIconFromApiName,
+  lightenColor,
+  generateAccountId,
+  DEFAULT_ACCOUNT_ICON_KEY,
+  type Account,
+} from '../../utils/accountUtils';
 
-interface Account {
-  id: string;
-  order: number;
-  name: string;
-  type: string;
-  balance: number;
-  icon: React.ComponentType<{ size?: number }>;
-  accentColor: string;
-  backgroundColor: string;
-  isArchived?: boolean;
-  excludeFromStatistics?: boolean;
-  currency?: string;
-  isActive?: boolean;
-  usability?: 'USABLE' | 'PROTECTED';
-}
+export type { Account };
 
 interface AccountType {
   value: string;
@@ -59,150 +77,156 @@ interface Summary {
   archivedCount: number;
 }
 
-// Constants with proper typing
-const INITIAL_ACCOUNTS: Account[] = [
-  {
-    id: 'cash-eko',
-    order: 1,
-    name: 'Cash Eko',
-    type: 'Cash',
-    balance: 2816756,
-    icon: FaMoneyBillWave as React.ComponentType<{ size?: number }>,
-    accentColor: '#047857',
-    backgroundColor: '#ecfdf5',
-  },
-  {
-    id: 'cimb-syariah',
-    order: 2,
-    name: 'CIMB Syariah',
-    type: 'Checking account',
-    balance: 2813245.42,
-    icon: FaUniversity as React.ComponentType<{ size?: number }>,
-    accentColor: '#b91c1c',
-    backgroundColor: '#fee2e2',
-  },
-  {
-    id: 'saldo-pulsa',
-    order: 3,
-    name: 'Saldo Pulsa',
-    type: 'General',
-    balance: 80947,
-    icon: FaMobileAlt as React.ComponentType<{ size?: number }>,
-    accentColor: '#0284c7',
-    backgroundColor: '#e0f2fe',
-  },
-  {
-    id: 'ovo-eko',
-    order: 4,
-    name: 'OVO Eko',
-    type: 'General',
-    balance: 0,
-    icon: FaWallet as React.ComponentType<{ size?: number }>,
-    accentColor: '#7c3aed',
-    backgroundColor: '#ede9fe',
-  },
-  {
-    id: 'shopee-pay',
-    order: 5,
-    name: 'Shopee Pay Eko',
-    type: 'General',
-    balance: 0,
-    icon: FaStore as React.ComponentType<{ size?: number }>,
-    accentColor: '#ea580c',
-    backgroundColor: '#ffedd5',
-  },
-  {
-    id: 'saldo-tokped',
-    order: 6,
-    name: 'Saldo Tokped',
-    type: 'General',
-    balance: 0,
-    icon: FaShoppingCart as React.ComponentType<{ size?: number }>,
-    accentColor: '#16a34a',
-    backgroundColor: '#dcfce7',
-  },
-  {
-    id: 'gopay',
-    order: 7,
-    name: 'Gopay',
-    type: 'General',
-    balance: 0,
-    icon: FaWallet as React.ComponentType<{ size?: number }>,
-    accentColor: '#0ea5e9',
-    backgroundColor: '#e0f2fe',
-  },
-  {
-    id: 'dana',
-    order: 8,
-    name: 'DANA',
-    type: 'General',
-    balance: 127741,
-    icon: FaPiggyBank as React.ComponentType<{ size?: number }>,
-    accentColor: '#2563eb',
-    backgroundColor: '#dbeafe',
-  },
-  {
-    id: 'bca',
-    order: 9,
-    name: 'BCA',
-    type: 'Checking account',
-    balance: 0,
-    icon: FaUniversity as React.ComponentType<{ size?: number }>,
-    accentColor: '#1d4ed8',
-    backgroundColor: '#dbeafe',
-  },
-  {
-    id: 'cash-dewi',
-    order: 10,
-    name: 'Cash Dewi',
-    type: 'Cash',
-    balance: -7800,
-    icon: FaMoneyBillWave as React.ComponentType<{ size?: number }>,
-    accentColor: '#be123c',
-    backgroundColor: '#fee2e2',
-  },
-  {
-    id: 'archived-savings',
-    order: 11,
-    name: 'Savings Jar (Archived)',
-    type: 'General',
-    balance: 450000,
-    icon: FaPiggyBank as React.ComponentType<{ size?: number }>,
-    accentColor: '#7c3aed',
-    backgroundColor: '#ede9fe',
-    isArchived: true,
-  },
-];
 
 const ACCOUNT_TYPES: AccountType[] = [
   { value: 'General', label: 'General', icon: FaWallet as React.ComponentType<{ size?: number }> },
   { value: 'Cash', label: 'Cash', icon: FaMoneyBillWave as React.ComponentType<{ size?: number }> },
-  { value: 'Checking account', label: 'Checking account', icon: FaUniversity as React.ComponentType<{ size?: number }> },
+  { value: 'Checking account-4', label: 'Checking account-4', icon: FaUniversity as React.ComponentType<{ size?: number }> },
 ];
 
-const DEFAULT_ACCOUNT_ICON_KEY = 'FaWallet';
 const ICON_EXCLUSIONS = new Set<string>(['IconContext']);
 type UsabilityOption = 'USABLE' | 'PROTECTED';
 const USABILITY_OPTIONS: readonly UsabilityOption[] = ['USABLE', 'PROTECTED'] as const;
 
-const resolveIconComponent = (
-  iconName: string | null | undefined
-): React.ComponentType<{ size?: number }> | undefined => {
-  if (!iconName) return undefined;
-  const iconsLibrary = FaIcons as unknown as Record<string, IconType>;
-  const IconComp = iconsLibrary[iconName];
-  if (!IconComp) return undefined;
-  return IconComp as unknown as React.ComponentType<{ size?: number }>;
-};
-
 
 // Icon wrapper to handle icon type issues
-const IconWrapper: React.FC<{ 
+const IconWrapper: React.FC<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  icon: any; 
-  size?: number; 
-  className?: string; 
+  icon: any;
+  size?: number;
+  className?: string;
 }> = ({ icon: Icon, size, className }) => <Icon size={size} className={className} />;
+
+// Sortable Account Card Component
+interface SortableAccountCardProps {
+  account: Account;
+  formatCurrency: (value: number) => string;
+  onSelectAccount: (account: Account) => void;
+  isArchived?: boolean;
+}
+
+const SortableAccountCard: React.FC<SortableAccountCardProps> = ({
+  account,
+  formatCurrency,
+  onSelectAccount,
+  isArchived = false,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: account.id, disabled: isArchived });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0 : 1,
+  };
+
+  const IconComponent = account.icon;
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className="accounts-list__item"
+      onClick={() => onSelectAccount(account)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onSelectAccount(account);
+        }
+      }}
+      data-style="cursor: pointer"
+    >
+      <Card.Body className="accounts-list__body">
+        <div
+          className="accounts-list__icon"
+          style={{ backgroundColor: account.backgroundColor, color: account.accentColor }}
+        >
+          <IconComponent size={20} />
+        </div>
+        <div className="accounts-list__details">
+          <span className="accounts-list__name">{account.name}</span>
+          <span className="accounts-list__type">{account.type}</span>
+        </div>
+        <div
+          className={`accounts-list__balance ${account.balance < 0 ? 'accounts-list__balance--negative' : ''}`}
+        >
+          {formatCurrency(account.balance)}
+        </div>
+        {!isArchived && (
+          <Button
+            variant="light"
+            className="accounts-list__menu-btn"
+            aria-label={`Reorder ${account.name}`}
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <IconWrapper icon={FaBars} size={20} />
+          </Button>
+        )}
+      </Card.Body>
+    </Card>
+  );
+};
+
+// Draggable card content component (for overlay rendering)
+interface DraggableCardProps {
+  account: Account;
+  formatCurrency: (value: number) => string;
+}
+
+const DraggableCard: React.FC<DraggableCardProps> = ({ account, formatCurrency }) => {
+  const IconComponent = account.icon;
+
+  return (
+    <Card
+      style={{
+        minWidth: '350px',
+        borderRadius: '1.2rem',
+        boxShadow: '0 22px 45px rgba(15, 23, 42, 0.18)',
+      }}
+    >
+      <Card.Body className="accounts-list__body">
+        <div
+          className="accounts-list__icon"
+          style={{ backgroundColor: account.backgroundColor, color: account.accentColor }}
+        >
+          <IconComponent size={20} />
+        </div>
+        <div className="accounts-list__details">
+          <span className="accounts-list__name">{account.name}</span>
+          <span className="accounts-list__type">{account.type}</span>
+        </div>
+        <div
+          className={`accounts-list__balance ${account.balance < 0 ? 'accounts-list__balance--negative' : ''}`}
+        >
+          {formatCurrency(account.balance)}
+        </div>
+        <div
+          style={{
+            marginLeft: '0.75rem',
+            width: '42px',
+            height: '42px',
+            borderRadius: '0.95rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#64748b',
+          }}
+        >
+          <IconWrapper icon={FaBars} size={20} />
+        </div>
+      </Card.Body>
+    </Card>
+  );
+};
 
 // Utility functions with type annotations
 const createEmptyAccountForm = (): NewAccountForm => ({
@@ -217,74 +241,92 @@ const createEmptyAccountForm = (): NewAccountForm => ({
   usability: 'USABLE',
 });
 
-const reorderAccounts = (
-  items: Account[], 
-  sourceId: string, 
-  targetId: string, 
-  placeAfter: boolean
-): Account[] => {
-  const sorted = [...items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const sourceIndex = sorted.findIndex((account) => account.id === sourceId);
-  const targetIndex = sorted.findIndex((account) => account.id === targetId);
 
-  if (sourceIndex === -1 || targetIndex === -1) {
-    return items;
-  }
-
-  const [sourceAccount] = sorted.splice(sourceIndex, 1);
-
-  let adjustedTargetIndex = targetIndex;
-  if (sourceIndex < targetIndex) {
-    adjustedTargetIndex -= 1;
-  }
-
-  let insertIndex = placeAfter ? adjustedTargetIndex + 1 : adjustedTargetIndex;
-  insertIndex = Math.max(0, Math.min(insertIndex, sorted.length));
-
-  sorted.splice(insertIndex, 0, sourceAccount);
-
-  sorted.forEach((account, index) => {
-    account.order = index + 1;
-  });
-
-  return [...sorted];
-};
-
-const lightenColor = (hex: string, ratio = 0.85): string => {
-  if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) {
-    return '#f8f9fa';
-  }
-
-  const normalized = hex.startsWith('#') ? hex.slice(1) : hex;
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
-  const apply = (channel: number) => Math.round(channel + (255 - channel) * ratio);
-  const toHex = (channel: number) => channel.toString(16).padStart(2, '0');
-
-  return `#${toHex(apply(r))}${toHex(apply(g))}${toHex(apply(b))}`;
-};
-
-const generateAccountId = (name: string): string => {
-  const base = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-  const fallback = base || 'account';
-  return `${fallback}-${Date.now().toString(36)}`;
-};
 
 const Accounts: React.FC = () => {
+  const router = useRouter();
   const [showArchived, setShowArchived] = useState<boolean>(false);
-  const [accounts, setAccounts] = useState<Account[]>(() =>
-    INITIAL_ACCOUNTS.map((account) => ({ ...account })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  );
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [inactiveAccountCount, setInactiveAccountCount] = useState<number>(0);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [newAccountForm, setNewAccountForm] = useState<NewAccountForm>(() => createEmptyAccountForm());
   const [colorHexInput, setColorHexInput] = useState<string>(() => createEmptyAccountForm().color);
-  
-  const colorPickerInputRef = useRef<HTMLInputElement>(null);
-  const dragPreviewElementRef = useRef<HTMLDivElement | null>(null);
+  const [isReordering, setIsReordering] = useState<boolean>(false);
 
+  const colorPickerInputRef = useRef<HTMLInputElement>(null);
+  const fetchedRef = useRef<boolean>(false);
+  const reorderingRef = useRef<boolean>(false);
+
+  // DnD-Kit sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+  
+  // Fetch accounts from API on mount
+  useEffect(() => {
+    // Prevent double fetching in StrictMode or multiple mounts
+    if (fetchedRef.current) {
+      return;
+    }
+    fetchedRef.current = true;
+
+    const load = async (): Promise<void> => {
+      try {
+        const apiAccounts = (await accountService.fetchAccounts()) as ApiAccountResponse[];
+
+        const sorted = [...apiAccounts].sort((a, b) => {
+          const ap = (a.position ?? 0);
+          const bp = (b.position ?? 0);
+          if (ap !== bp) return ap - bp;
+          return ((a.personal_id ?? 0) - (b.personal_id ?? 0));
+        });
+
+        // Count inactive accounts (active: false)
+        const inactiveCount = sorted.filter((a) => a.active === false).length;
+        setInactiveAccountCount(inactiveCount);
+
+        // Map ALL accounts (including inactive ones) so toggle can show/hide them
+        const mapped: Account[] = sorted.map((a, idx) => {
+          const IconComp =
+            resolveIconFromApiName(a.icon) ?? (FaWallet as React.ComponentType<{ size?: number }>);
+          const color = (typeof a.color === 'string' && a.color) ? a.color : '#047857';
+          const usabilityStr = typeof a.usability === 'string' ? a.usability.toUpperCase() : undefined;
+          const usability: UsabilityOption = usabilityStr === 'PROTECTED' ? 'PROTECTED' : 'USABLE';
+
+          return {
+            id: a.id ?? generateAccountId(a.name ?? 'Account'),
+            personal_id: a.personal_id,
+            order: idx + 1,
+            name: a.name ?? 'Unnamed Account',
+            type: a.account_type ?? 'General',
+            balance: 0,
+            icon: IconComp,
+            accentColor: color,
+            backgroundColor: lightenColor(color),
+            isActive: a.active ?? true,
+            isArchived: a.active === false,
+            usability,
+          };
+        });
+
+        setAccounts(mapped);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load accounts:', error);
+      }
+    };
+
+    void load();
+  }, []);
+  
   const openColorPicker = (event?: React.MouseEvent): void => {
     const picker = colorPickerInputRef.current;
     if (!picker) {
@@ -305,15 +347,14 @@ const Accounts: React.FC = () => {
 
   const summary = useMemo((): Summary => {
     const activeAccounts = accounts.filter((account) => !account.isArchived);
-    const archivedAccounts = accounts.filter((account) => account.isArchived);
     const visibleAccounts = showArchived ? accounts : activeAccounts;
 
     return {
       totalVisibleBalance: visibleAccounts.reduce((total, account) => total + account.balance, 0),
       activeCount: activeAccounts.length,
-      archivedCount: archivedAccounts.length,
+      archivedCount: inactiveAccountCount,
     };
-  }, [accounts, showArchived]);
+  }, [accounts, inactiveAccountCount, showArchived]);
 
   const formatCurrency = (value: number): string => {
     const formatted = new Intl.NumberFormat('en-US', {
@@ -324,107 +365,89 @@ const Accounts: React.FC = () => {
     return `${value < 0 ? '-' : ''}IDR ${formatted}`;
   };
 
-  const cleanupDragPreview = (): void => {
-    if (dragPreviewElementRef.current && dragPreviewElementRef.current.parentNode) {
-      dragPreviewElementRef.current.parentNode.removeChild(dragPreviewElementRef.current);
+  const handleDragEnd = useCallback((event: DragEndEvent): void => {
+    setActiveId(null);
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      // Store the current accounts to extract swap details
+      setAccounts((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) return items;
+
+        // Get the accounts being swapped before reordering
+        const draggedAccount = items[oldIndex];
+        const targetAccount = items[newIndex];
+
+        // Swap personal_id values between the two accounts
+        const tempPersonalId = draggedAccount.personal_id;
+        draggedAccount.personal_id = targetAccount.personal_id;
+        targetAccount.personal_id = tempPersonalId;
+
+        // Reorder items
+        const reordered = arrayMove(items, oldIndex, newIndex);
+
+        reordered.forEach((account, index) => {
+          account.order = index + 1;
+        });
+
+        // Call API to update account order with all reordered items
+        // Prevent multiple API calls for the same reorder action
+        if (!reorderingRef.current) {
+          reorderingRef.current = true;
+          setIsReordering(true);
+          void (async () => {
+            try {
+              // Build order_map with all accounts that have personal_id
+              const orderMap = reordered
+                .filter((acc) => acc.personal_id)
+                .map((acc) => ({
+                  id: acc.id,
+                  personal_id: acc.personal_id!,
+                }));
+
+              if (orderMap.length > 0) {
+                await accountService.swapAccountOrder({
+                  order_map: orderMap,
+                });
+              }
+            } catch (error) {
+              // eslint-disable-next-line no-console
+              console.error('Failed to update account order:', error);
+              // Note: UI has already been updated optimistically, could add error toast here
+            } finally {
+              reorderingRef.current = false;
+              setIsReordering(false);
+            }
+          })();
+        }
+
+        return reordered;
+      });
     }
-    dragPreviewElementRef.current = null;
-  };
+  }, []);
 
-  const createDragPreview = (event: DragEvent<HTMLButtonElement>): void => {
-    const dragCard = event.currentTarget.closest('.accounts-list__item');
-    if (!dragCard) {
-      cleanupDragPreview();
-      return;
-    }
+  const handleDragCancel = useCallback((): void => {
+    setActiveId(null);
+  }, []);
 
-    const node = dragCard.cloneNode(true) as HTMLDivElement;
-    const { clientX, clientY } = event.nativeEvent;
-    const rect = dragCard.getBoundingClientRect();
-    const offsetX = clientX - rect.left;
-    const offsetY = clientY - rect.top;
-
-    node.style.position = 'fixed';
-    node.style.left = '-9999px';
-    node.style.top = '-9999px';
-    node.style.width = `${rect.width}px`;
-    node.style.pointerEvents = 'none';
-    node.style.zIndex = '2147483647';
-    node.classList.add('accounts-list__item--drag-preview');
-
-    document.body.appendChild(node);
-    dragPreviewElementRef.current = node;
-    event.dataTransfer.setDragImage(node, offsetX, offsetY);
-  };
-
-  const handleDragStart = (event: DragEvent<HTMLButtonElement>, accountId: string): void => {
-    event.stopPropagation();
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', accountId);
-    createDragPreview(event);
-    document.body.style.cursor = 'grab';
-    document.documentElement.style.cursor = 'grab';
-    document.documentElement.classList.add('accounts-dragging');
-    setDraggingId(accountId);
-  };
-
-  const handleDragEnter = (event: DragEvent<HTMLDivElement>, targetId: string): void => {
-    event.preventDefault();
-    if (!draggingId || draggingId === targetId) {
-      return;
-    }
-
-    const { top, height } = event.currentTarget.getBoundingClientRect();
-    const shouldPlaceAfter = event.clientY - top > height / 2;
-
-    setAccounts((previous) => reorderAccounts(previous, draggingId, targetId, shouldPlaceAfter));
-
-    setDragOverId(targetId);
-  };
-
-  const handleDragOver = (event: DragEvent<HTMLElement>): void => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDragLeave = (event: DragEvent<HTMLDivElement>, targetId: string): void => {
-    if (dragOverId === targetId) {
-      setDragOverId(null);
-    }
-  };
-
-  const handleDrop = (event: DragEvent<HTMLDivElement>, targetId: string): void => {
-    event.preventDefault();
-    const sourceId = event.dataTransfer.getData('text/plain') || draggingId;
-
-    if (!sourceId || sourceId === targetId) {
-      setDragOverId(null);
-      cleanupDragPreview();
-      document.body.style.cursor = '';
-      document.documentElement.style.cursor = '';
-      document.documentElement.classList.remove('accounts-dragging');
-      return;
-    }
-    cleanupDragPreview();
-    setDraggingId(null);
-    setDragOverId(null);
-    document.body.style.cursor = '';
-    document.documentElement.style.cursor = '';
-    document.documentElement.classList.remove('accounts-dragging');
-    document.documentElement.style.cursor = '';
-  };
-
-  const handleDragEnd = (): void => {
-    cleanupDragPreview();
-    setDraggingId(null);
-    setDragOverId(null);
-    document.body.style.cursor = '';
-    document.documentElement.style.cursor = '';
-    document.documentElement.classList.remove('accounts-dragging');
-  };
+  const handleDragStartWrapper = useCallback((event: DragEndEvent): void => {
+    setActiveId(event.active.id as string);
+  }, []);
 
   const handleOpenAddModal = (): void => {
     setShowAddModal(true);
+  };
+
+  const handleSelectAccount = (account: Account): void => {
+    router.push(`/accounts/${account.id}?from=accounts`);
+  };
+
+  const handleDeleteAccount = (accountId: string): void => {
+    setAccounts((previous) => previous.filter((acc) => acc.id !== accountId));
+    // TODO: Add API call to delete the account on the backend
   };
 
   const resetAddAccountForm = (): void => {
@@ -564,30 +587,6 @@ const Accounts: React.FC = () => {
     }
   }, [newAccountForm.initialAmount, isEditingInitialAmount]);
 
-  // Global dragover/drop handlers while dragging to avoid "not-allowed" cursor anywhere
-  useEffect(() => {
-    if (!draggingId) return;
-
-    const onDragOverWindow = (e: any) => {
-      e.preventDefault();
-      try {
-        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      } catch {
-        /* no-op */
-      }
-    };
-    const onDropWindow = (e: any) => {
-      e.preventDefault();
-    };
-
-    window.addEventListener('dragover', onDragOverWindow);
-    window.addEventListener('drop', onDropWindow);
-
-    return () => {
-      window.removeEventListener('dragover', onDragOverWindow);
-      window.removeEventListener('drop', onDropWindow);
-    };
-  }, [draggingId]);
 
   const handleInitialAmountInput = (next: string): void => {
     const { display, normalized, deferCommit } = coerceAndFormatNumber(next);
@@ -598,36 +597,13 @@ const Accounts: React.FC = () => {
     }
   };
 
-  // Window-level drag handlers to avoid "not-allowed" cursor anywhere (including sidebar)
-  useEffect(() => {
-    if (!draggingId) return;
 
-    const onDragOverWindow = (e: any) => {
-      e.preventDefault();
-      try {
-        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      } catch {
-        // ignore
-      }
-    };
-    const onDropWindow = (e: any) => {
-      e.preventDefault();
-    };
-
-    window.addEventListener('dragover', onDragOverWindow);
-    window.addEventListener('drop', onDropWindow);
-
-    return () => {
-      window.removeEventListener('dragover', onDragOverWindow);
-      window.removeEventListener('drop', onDropWindow);
-    };
-  }, [draggingId]);
   return (
-    <Container className="accounts-page" onDragOver={handleDragOver}>
-      <Row className="align-items-stretch accounts-page__layout" onDragOver={handleDragOver}>
-        <Col xl={3} lg={4} className="mb-4" onDragOver={handleDragOver}>
-          <Card className="accounts-sidebar" onDragOver={handleDragOver}>
-            <Card.Body onDragOver={handleDragOver}>
+    <Container className="accounts-page">
+      <Row className="align-items-stretch accounts-page__layout">
+        <Col xl={3} lg={4} className="mb-4">
+          <Card className="accounts-sidebar">
+            <Card.Body>
               <h2 className="accounts-sidebar__title">Accounts</h2>
               <p className="accounts-sidebar__caption">Organise your accounts and wallets in one place.</p>
 
@@ -667,68 +643,92 @@ const Accounts: React.FC = () => {
           </Card>
         </Col>
 
-        <Col xl={9} lg={8} onDragOver={handleDragOver}>
-          <div className="accounts-list" onDragOver={handleDragOver}>
-            {filteredAccounts.map((account) => {
-              const IconComponent = account.icon;
-              const isDragging = draggingId === account.id;
-              const isDragOver = dragOverId === account.id;
+        <Col xl={9} lg={8}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStartWrapper}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <SortableContext
+              items={filteredAccounts.filter((a) => !a.isArchived).map((a) => a.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="accounts-list">
+                {(() => {
+                  const activeAccountsList = filteredAccounts.filter((account) => !account.isArchived);
+                  const archivedAccountsList = filteredAccounts.filter((account) => account.isArchived);
 
-              return (
-                <Card
-                  key={account.id}
-                  className={`accounts-list__item${isDragging ? ' accounts-list__item--dragging' : ''}${isDragOver ? ' accounts-list__item--drag-over' : ''
-                    }`}
-                  onDragEnter={(event: DragEvent<HTMLDivElement>) => handleDragEnter(event, account.id)}
-                  onDragOver={handleDragOver}
-                  onDragLeave={(event: DragEvent<HTMLDivElement>) => handleDragLeave(event, account.id)}
-                  onDrop={(event: DragEvent<HTMLDivElement>) => handleDrop(event, account.id)}
-                >
-                  <Card.Body className="accounts-list__body" onDragOver={handleDragOver}>
-                    <div
-                      className="accounts-list__icon"
-                      style={{ backgroundColor: account.backgroundColor, color: account.accentColor }}
-                    >
-                      <IconComponent size={20} />
-                    </div>
-                    <div className="accounts-list__details">
-                      <span className="accounts-list__name">{account.name}</span>
-                      <span className="accounts-list__type">{account.type}</span>
-                    </div>
-                    <div
-                      className={`accounts-list__balance ${account.balance < 0 ? 'accounts-list__balance--negative' : ''
-                        }`}
-                    >
-                      {formatCurrency(account.balance)}
-                    </div>
-                    <Button
-                      variant="light"
-                      className="accounts-list__menu-btn"
-                      draggable
-                      onDragOver={handleDragOver}
-                      onDragStart={(event: DragEvent<HTMLButtonElement>) => handleDragStart(event, account.id)}
-                      onDragEnd={handleDragEnd}
-                      aria-label={`Reorder ${account.name}`}
-                    >
-                      <IconWrapper icon={FaBars} size={20} />
-                    </Button>
-                  </Card.Body>
-                </Card>
-              );
-            })}
+                  return (
+                    <>
+                      {/* Active Accounts */}
+                      {activeAccountsList.map((account) => (
+                        <SortableAccountCard
+                          key={account.id}
+                          account={account}
+                          formatCurrency={formatCurrency}
+                          onSelectAccount={handleSelectAccount}
+                          isArchived={false}
+                        />
+                      ))}
 
-            {filteredAccounts.length === 0 && (
-              <Card className="accounts-list__empty">
-                <Card.Body>
-                  <div className="accounts-list__empty-icon">
-                    <IconWrapper icon={FaBars} size={20} />
-                  </div>
-                  <h3>No accounts to show</h3>
-                  <p>Toggle archived accounts or add a new one to get started.</p>
-                </Card.Body>
-              </Card>
-            )}
-          </div>
+                      {/* Archived Section */}
+                      {showArchived && archivedAccountsList.length > 0 && (
+                        <>
+                          <div
+                            style={{
+                              textAlign: 'center',
+                              padding: '1.5rem 0 1rem 0',
+                              color: '#64748b',
+                              fontSize: '0.875rem',
+                              fontWeight: '500',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                            }}
+                          >
+                            Archived
+                          </div>
+                          {archivedAccountsList.map((account) => (
+                            <SortableAccountCard
+                              key={account.id}
+                              account={account}
+                              formatCurrency={formatCurrency}
+                              onSelectAccount={handleSelectAccount}
+                              isArchived={true}
+                            />
+                          ))}
+                        </>
+                      )}
+
+                      {filteredAccounts.length === 0 && (
+                        <Card className="accounts-list__empty">
+                          <Card.Body>
+                            <div className="accounts-list__empty-icon">
+                              <IconWrapper icon={FaFolderOpen} size={20} />
+                            </div>
+                            <h3>No accounts to show</h3>
+                            <p>Toggle archived accounts or add a new one to get started.</p>
+                          </Card.Body>
+                        </Card>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </SortableContext>
+
+            <DragOverlay>
+              {activeId
+                ? (() => {
+                    const account = accounts.find((a) => a.id === activeId);
+                    return account ? (
+                      <DraggableCard account={account} formatCurrency={formatCurrency} />
+                    ) : null;
+                  })()
+                : null}
+            </DragOverlay>
+          </DndContext>
         </Col>
       </Row>
 
