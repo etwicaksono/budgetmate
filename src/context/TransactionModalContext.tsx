@@ -20,6 +20,7 @@ import {
   type TransactionFormValues,
   type TransactionChangeEvent,
   type QuickTransactionOption,
+  type TransactionModalSaveContext,
 } from '../features/transactions/TransactionModal';
 import {
   QuickTransactionModal,
@@ -29,11 +30,13 @@ import {
   useCategoryData,
   type CategoryTree,
   type CategoryColorMap,
+  type CategoryIconName,
 } from '../features/transactions/useCategoryData';
 import {
   useQuickTransactions,
   type QuickTransactionPresetInput,
   type UseQuickTransactionsResult,
+  type CategoryReference,
 } from '../features/transactions/useQuickTransactions';
 import {
   buildAccountMetadata,
@@ -43,6 +46,15 @@ import {
   accountService,
   type ApiAccountResponse,
 } from '../services/accountService';
+import {
+  transactionService,
+  type CreateTransactionRequest,
+} from '../services/transactionService';
+import {
+  categoryService,
+  type ApiCategoryResponse,
+} from '../services/categoryService';
+import { formatDateForBackend } from '../utils/dateFormatter';
 import { useAuth } from './AuthContext';
 
 const ACCOUNT_METADATA_STORAGE_KEY = 'finance-app-account-metadata';
@@ -94,6 +106,7 @@ const createTransactionTemplate = (
     date: resolvedDate,
     dateTime: resolvedDateTime,
     category: overrides.category ?? '',
+    categoryId: overrides.categoryId ?? '',
     account: overrides.account ?? '',
     toAccount: overrides.toAccount ?? '',
     toAmount: overrides.toAmount ?? '',
@@ -137,8 +150,29 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
     allCategories,
     addCategory,
   } = useCategoryData();
+
+  const quickTransactionCategories = useMemo<CategoryReference[]>(
+    () =>
+      categories
+        .filter(
+          (category): category is typeof categories[number] & {
+            id: string | number;
+            name: string;
+          } =>
+            typeof category.id === 'string' &&
+            category.id.length > 0 &&
+            typeof category.name === 'string' &&
+            category.name.length > 0
+        )
+        .map((category) => ({
+          id: category.id as string | number,
+          name: category.name as string,
+        })),
+    [categories]
+  );
+
   const { quickTransactions, addQuickTransactionPreset }: UseQuickTransactionsResult =
-    useQuickTransactions(categories);
+    useQuickTransactions(quickTransactionCategories);
   const { isAuthenticated, loading: authLoading } = useAuth();
 
   const [apiAccounts, setApiAccounts] = useState<ApiAccountResponse[]>([]);
@@ -185,6 +219,20 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
         currency: preset.currency,
       })),
     [quickTransactions]
+  );
+
+  const categoryByName = useMemo(
+    () =>
+      categories.reduce<Record<string, typeof categories[number]>>(
+        (accumulator, category) => {
+          if (category.name) {
+            accumulator[category.name] = category;
+          }
+          return accumulator;
+        },
+        {}
+      ),
+    [categories]
   );
 
   const selectableAccounts = useMemo<string[]>(
@@ -261,15 +309,26 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
   const [currentTransaction, setCurrentTransaction] = useState<TransactionFormValues>(() =>
     createTransactionTemplate()
   );
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [showTransactionModal, setShowTransactionModal] = useState<boolean>(false);
   const [showQuickTransactionModal, setShowQuickTransactionModal] = useState<boolean>(false);
   const [newQuickTransaction, setNewQuickTransaction] =
     useState<QuickTransactionFormValues>(() => createQuickTransactionTemplate());
 
   const ensureCategoryExists = useCallback(
-    (categoryName: string) => {
-      if (!categoryName || allCategories.includes(categoryName)) {
-        return;
+    async (categoryName: string): Promise<ApiCategoryResponse | undefined> => {
+      const trimmedName = categoryName?.trim();
+      if (!trimmedName) {
+        return undefined;
+      }
+
+      const existingCategory = categories.find((category) => category.name?.trim() === trimmedName);
+      if (existingCategory?.id) {
+        return existingCategory;
+      }
+
+      if (allCategories.includes(trimmedName)) {
+        return existingCategory;
       }
 
       const fallbackParent =
@@ -277,13 +336,60 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
         categories.find((category) => category.is_parent) ??
         null;
 
-      addCategory(
-        categoryName,
-        fallbackParent ? fallbackParent.id : null,
-        'FaGift',
-        fallbackParent ? fallbackParent.color : '#6c757d',
-        false
-      );
+      const fallbackParentId = fallbackParent?.id ?? null;
+      const fallbackColor = fallbackParent?.color ?? '#6c757d';
+
+      const findMatchingCategory = (items: ApiCategoryResponse[]): ApiCategoryResponse | undefined => {
+        const normalizedTarget = trimmedName.toLowerCase();
+        return items.find((item) => {
+          if (!item?.name) {
+            return false;
+          }
+          const normalizedName = item.name.trim().toLowerCase();
+          return normalizedName === normalizedTarget && typeof item.id === 'string' && item.id.length > 0;
+        });
+      };
+
+      try {
+        const candidates = await categoryService.fetchCategories({ keyword: trimmedName });
+        let resolvedCategory = findMatchingCategory(candidates);
+
+        if (!resolvedCategory) {
+          const allRemoteCategories = await categoryService.fetchCategories();
+          resolvedCategory = findMatchingCategory(allRemoteCategories);
+        }
+
+        if (!resolvedCategory?.id) {
+          // eslint-disable-next-line no-console
+          console.warn('Category not found from API lookup:', trimmedName);
+          return undefined;
+        }
+
+        const resolvedParentId =
+          resolvedCategory.parent_id ?? fallbackParentId;
+        const resolvedColor = resolvedCategory.color ?? fallbackColor;
+        const resolvedIsParent =
+          typeof resolvedCategory.is_parent === 'boolean'
+            ? resolvedCategory.is_parent
+            : resolvedParentId == null;
+        const resolvedIcon =
+          typeof resolvedCategory.icon === 'string' && resolvedCategory.icon.length > 0
+            ? (resolvedCategory.icon as CategoryIconName)
+            : 'FaGift';
+
+        return addCategory(
+          resolvedCategory.name ?? trimmedName,
+          resolvedParentId,
+          resolvedIcon,
+          resolvedColor,
+          resolvedIsParent,
+          resolvedCategory.id
+        );
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to fetch categories from API', error);
+        return undefined;
+      }
     },
     [addCategory, allCategories, categories]
   );
@@ -300,6 +406,13 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
       if (!name) {
         return;
       }
+
+      // Clear validation error for this field when it changes
+      setValidationErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[name];
+        return updated;
+      });
 
       if (name === 'dateTime') {
         const nextValue =
@@ -349,34 +462,56 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
         description: selected.description || '',
         amount: selected.amount ?? '',
         category: selected.category || previous.category,
+        categoryId:
+          selected.category_id && String(selected.category_id).length > 0
+            ? String(selected.category_id)
+            : categoryByName[selected.category ?? '']?.id || previous.categoryId,
         account: selected.account || previous.account,
         type: selected.type || previous.type,
         currency: selected.currency || previous.currency,
       }));
     },
-    [quickTransactionOptions]
+    [quickTransactionOptions, categoryByName]
   );
 
   const handleSaveTransaction = useCallback(
-    (createAnother = false) => {
+    async (
+      createAnother = false,
+      context?: TransactionModalSaveContext
+    ) => {
       const isTransfer = currentTransaction.type === 'Transfer';
-      if (!currentTransaction.description) {
-        return;
+      const errors: Record<string, string> = {};
+
+      // Validate required fields
+      if (currentTransaction.amount === '' || !currentTransaction.amount) {
+        errors.amount = 'Please enter an amount';
+      }
+
+      if (!currentTransaction.account) {
+        errors.account = 'Please select an account';
       }
 
       if (isTransfer) {
-        if (
-          !currentTransaction.account ||
-          !currentTransaction.toAccount ||
-          currentTransaction.amount === ''
-        ) {
-          return;
+        if (!currentTransaction.toAccount) {
+          errors.toAccount = 'Please select a destination account';
         }
-      } else if (currentTransaction.amount === '') {
+      } else {
+        // For non-transfers, category is required
+        if (!currentTransaction.category) {
+          errors.category = 'Please select a category';
+        }
+      }
+
+      // If there are validation errors, set them and return
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
         return;
       }
 
-      ensureCategoryExists(currentTransaction.category);
+      // Clear validation errors if validation passes
+      setValidationErrors({});
+
+      const ensuredCategory = await ensureCategoryExists(currentTransaction.category);
 
       const parsedAmount = parseFloat(String(currentTransaction.amount));
       const transactionRecord: TransactionRecord = {
@@ -392,42 +527,122 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
           : parsedToAmount;
       }
 
-      setTransactions((previous) => [transactionRecord, ...previous]);
+      const normalizedCategoryIdFromContext =
+        context?.categoryId && String(context.categoryId).length > 0
+          ? String(context.categoryId)
+          : '';
+      const normalizedCategoryId =
+        normalizedCategoryIdFromContext ||
+        (currentTransaction.categoryId && String(currentTransaction.categoryId).length > 0
+          ? String(currentTransaction.categoryId)
+          : '');
+      const categoryRecordById = normalizedCategoryId
+        ? categories.find((cat) => String(cat.id) === normalizedCategoryId)
+        : undefined;
+      const categoryRecordByName = categories.find(
+        (cat) => cat.name === currentTransaction.category
+      );
+      const categoryRecord = categoryRecordById ?? categoryRecordByName ?? ensuredCategory;
+      const categoryId = normalizedCategoryId || categoryRecord?.id;
+      transactionRecord.categoryId = categoryId ?? '';
 
-      if (currentTransaction.createTemplate) {
-        const presetInput: QuickTransactionPresetInput = {
-          description: currentTransaction.description,
-          category: currentTransaction.category,
-          amount: currentTransaction.amount,
-          account: currentTransaction.account,
-          type: currentTransaction.type,
-          currency: currentTransaction.currency,
-        };
-        addQuickTransactionPreset(presetInput);
-      }
+      // Map account name to account ID
+      const accountRecord = apiAccounts.find((acc) => acc.name === currentTransaction.account);
+      const accountId = accountRecord?.id;
 
-      if (createAnother) {
-        const nextDefaults: Partial<TransactionFormValues> = {
-          type: currentTransaction.type,
-          currency: currentTransaction.currency,
-          account: currentTransaction.account,
-          category: currentTransaction.category,
-        };
-
-        if (isTransfer) {
-          nextDefaults.toAccount = currentTransaction.toAccount ?? '';
-          nextDefaults.toCurrency =
-            currentTransaction.toCurrency || currentTransaction.currency;
-        }
-
-        setCurrentTransaction(createTransactionTemplate(nextDefaults));
+      // Basic validation - these shouldn't normally happen if dropdowns work correctly
+      if (!categoryId && !isTransfer) {
+        // eslint-disable-next-line no-console
+        console.error('Category not found:', currentTransaction.category);
+        setValidationErrors({ category: 'Invalid category selected' });
         return;
       }
 
-      setShowTransactionModal(false);
-      setCurrentTransaction(createTransactionTemplate());
+      if (!accountId) {
+        // eslint-disable-next-line no-console
+        console.error('Account not found:', currentTransaction.account);
+        setValidationErrors({ account: 'Invalid account selected' });
+        return;
+      }
+
+      try {
+        // Use description if available, otherwise create a default one
+        const description = currentTransaction.description ||
+          `${currentTransaction.type} - ${currentTransaction.category || 'Transaction'}`;
+
+        // Prepare the API payload with properly formatted date
+        const formattedDate = formatDateForBackend(currentTransaction.dateTime || currentTransaction.date);
+        
+        const createPayload: CreateTransactionRequest = {
+          date: formattedDate,
+          account_id: accountId,
+          category_id: String(categoryId),
+          amount: typeof transactionRecord.amount === 'number' ? transactionRecord.amount : parseFloat(String(transactionRecord.amount)),
+          type: currentTransaction.type,
+          note: currentTransaction.notes || description,
+        };
+
+        // eslint-disable-next-line no-console
+        console.log('=== Transaction Form Values ===');
+        // eslint-disable-next-line no-console
+        console.log('Current Transaction:', currentTransaction);
+        // eslint-disable-next-line no-console
+        console.log('=== API Payload ===');
+        // eslint-disable-next-line no-console
+        console.log('Payload to be sent:', createPayload);
+        // eslint-disable-next-line no-console
+        console.log('========================');
+
+        // Call the API to create the transaction
+        const createdTransaction = await transactionService.createTransaction(createPayload);
+
+        // eslint-disable-next-line no-console
+        console.log('Transaction created successfully:', createdTransaction);
+
+        // Update local state with the created transaction
+        setTransactions((previous) => [transactionRecord, ...previous]);
+
+        if (currentTransaction.createTemplate) {
+          const presetInput: QuickTransactionPresetInput = {
+            description: currentTransaction.description,
+            category: currentTransaction.category,
+            category_id: categoryId ?? normalizedCategoryId ?? null,
+            amount: currentTransaction.amount,
+            account: currentTransaction.account,
+            type: currentTransaction.type,
+            currency: currentTransaction.currency,
+          };
+          addQuickTransactionPreset(presetInput);
+        }
+
+        if (createAnother) {
+          const nextDefaults: Partial<TransactionFormValues> = {
+            type: currentTransaction.type,
+            currency: currentTransaction.currency,
+            account: currentTransaction.account,
+            category: currentTransaction.category,
+            categoryId: currentTransaction.categoryId || context?.categoryId || '',
+          };
+
+          if (isTransfer) {
+            nextDefaults.toAccount = currentTransaction.toAccount ?? '';
+            nextDefaults.toCurrency =
+              currentTransaction.toCurrency || currentTransaction.currency;
+          }
+
+          setCurrentTransaction(createTransactionTemplate(nextDefaults));
+          return;
+        }
+
+        setShowTransactionModal(false);
+        setCurrentTransaction(createTransactionTemplate());
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to create transaction:', error);
+        alert('Failed to create transaction. Please try again.');
+      }
     },
-    [addQuickTransactionPreset, currentTransaction, ensureCategoryExists]
+    [addQuickTransactionPreset, currentTransaction, ensureCategoryExists, categories, apiAccounts]
   );
 
   const handleAddNewQuickTransaction = useCallback(() => {
@@ -435,7 +650,7 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
       return;
     }
 
-    ensureCategoryExists(newQuickTransaction.category);
+    void ensureCategoryExists(newQuickTransaction.category);
     addQuickTransactionPreset(newQuickTransaction);
     setNewQuickTransaction(createQuickTransactionTemplate());
     setShowQuickTransactionModal(false);
@@ -463,6 +678,7 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
   const closeTransactionModal = useCallback(() => {
     setShowTransactionModal(false);
     setCurrentTransaction(createTransactionTemplate());
+    setValidationErrors({});
   }, []);
 
   const openQuickTransactionModal = useCallback(() => {
@@ -539,6 +755,7 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
             IconType | React.ComponentType<IconBaseProps> | null | undefined
           >
         }
+        validationErrors={validationErrors}
       />
       <QuickTransactionModal
         show={showQuickTransactionModal}

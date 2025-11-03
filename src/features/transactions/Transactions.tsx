@@ -32,14 +32,15 @@ import {
   FaSortAmountDownAlt,
 } from 'react-icons/fa';
 import type { IconType, IconBaseProps } from 'react-icons';
-import { useCategoryData, type CategoryRecord } from './useCategoryData';
-import { useQuickTransactions } from './useQuickTransactions';
+import { useCategoryData, type CategoryIconName } from './useCategoryData';
+import { useQuickTransactions, type CategoryReference } from './useQuickTransactions';
 import { CategoryDropdown } from './CategoryDropdown';
 import {
   TransactionModal,
   type TransactionFormValues,
   type TransactionChangeEvent,
   type QuickTransactionOption,
+  type TransactionModalSaveContext,
 } from './TransactionModal';
 import {
   QuickTransactionModal,
@@ -60,8 +61,13 @@ import {
   accountService,
   type ApiAccountResponse,
 } from '../../services/accountService';
+import {
+  transactionService,
+  type CreateTransactionRequest,
+} from '../../services/transactionService';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
+import { formatDateForBackend } from '../../utils/dateFormatter';
 
 type TransactionType = 'Expense' | 'Income' | 'Transfer' | string;
 
@@ -97,7 +103,7 @@ interface AccountMetadataEntry {
 
 type AccountMetadata = Record<string, AccountMetadataEntry>;
 
-type CategoryMap = Record<string, CategoryRecord>;
+type CategoryMap = Record<string, ApiCategoryResponse>;
 
 interface QuickTransactionPreset extends QuickTransactionFormValues {
   id?: string | number;
@@ -125,24 +131,36 @@ const renderIcon = (
 };
 
 const DEFAULT_CATEGORY_COLOR = '#6c757d';
-const DEFAULT_CATEGORY_ICON: CategoryRecord['icon'] = 'FaGift';
+const DEFAULT_CATEGORY_ICON: CategoryIconName = 'FaGift';
 
-const mapApiCategoryToRecord = (
-  item: ApiCategoryResponse
-): CategoryRecord | null => {
-  if (!item || item.id == null || !item.name) {
-    return null;
+type ApiCategoryEntity = ApiCategoryResponse & {
+  id: string;
+  name: string;
+};
+
+const isValidApiCategory = (
+  item: ApiCategoryResponse | null | undefined
+): item is ApiCategoryEntity => {
+  if (!item) {
+    return false;
   }
 
-  return {
-    id: item.id,
-    parent_id: item.parent_id ?? null,
-    name: item.name,
-    icon: (item.icon ?? DEFAULT_CATEGORY_ICON) as CategoryRecord['icon'],
-    color: item.color ?? DEFAULT_CATEGORY_COLOR,
-    is_parent: item.is_parent ?? item.parent_id == null,
-  };
+  const { id, name } = item;
+  return typeof id === 'string' && id.length > 0 && typeof name === 'string' && name.length > 0;
 };
+
+const normalizeApiCategory = (item: ApiCategoryEntity): ApiCategoryResponse => ({
+  ...item,
+  id: item.id,
+  parent_id: item.parent_id ?? null,
+  name: item.name,
+  icon: item.icon ?? DEFAULT_CATEGORY_ICON,
+  color: item.color ?? DEFAULT_CATEGORY_COLOR,
+  is_parent:
+    typeof item.is_parent === 'boolean'
+      ? item.is_parent
+      : item.parent_id == null,
+});
 
 const SORT_OPTIONS: SortOption[] = [
   {
@@ -295,6 +313,7 @@ const createTransactionTemplate = (
     date: resolvedDate,
     dateTime: resolvedDateTime,
     category: overrides.category ?? '',
+    categoryId: overrides.categoryId ?? '',
     account: overrides.account ?? '',
     toAccount: overrides.toAccount ?? '',
     toAmount: overrides.toAmount ?? '',
@@ -334,8 +353,18 @@ function TransactionsContent(): JSX.Element {
     addCategory,
     setCategories,
   } = useCategoryData();
+  const quickTransactionCategories = useMemo<CategoryReference[]>(
+    () =>
+      categories
+        .filter(isValidApiCategory)
+        .map((category) => ({
+          id: category.id,
+          name: category.name,
+        })),
+    [categories]
+  );
   const { quickTransactions, addQuickTransactionPreset } = useQuickTransactions(
-    categories
+    quickTransactionCategories
   ) as unknown as {
     quickTransactions: QuickTransactionPreset[];
     addQuickTransactionPreset: (preset: QuickTransactionPresetInput) => void;
@@ -364,11 +393,9 @@ function TransactionsContent(): JSX.Element {
         if (isCancelled) {
           return;
         }
-        const mapped = apiCategories
-          .map(mapApiCategoryToRecord)
-          .filter((item): item is CategoryRecord => item !== null);
-        if (mapped.length > 0) {
-          setCategories(mapped);
+        const validCategories = apiCategories.filter(isValidApiCategory);
+        if (validCategories.length > 0) {
+          setCategories(validCategories.map(normalizeApiCategory));
         }
       } catch (error) {
         // eslint-disable-next-line no-console
@@ -537,7 +564,9 @@ function TransactionsContent(): JSX.Element {
   const categoryByName = useMemo<CategoryMap>(
     () =>
       categories.reduce<CategoryMap>((accumulator, category) => {
-        accumulator[category.name] = category;
+        if (category.name) {
+          accumulator[category.name] = category;
+        }
         return accumulator;
       }, {}),
     [categories]
@@ -726,40 +755,123 @@ function TransactionsContent(): JSX.Element {
     return 'neutral';
   }, []);
 
-  const ensureCategoryExists = (categoryName: string) => {
-    if (allCategories.includes(categoryName)) {
-      return;
-    }
+  const ensureCategoryExists = useCallback(
+    async (categoryName: string): Promise<ApiCategoryResponse | undefined> => {
+      const trimmedName = categoryName?.trim();
+      if (!trimmedName) {
+        return undefined;
+      }
 
-    const fallbackParent =
-      categories.find((category) => category.is_parent && category.name !== 'Income') ||
-      categories.find((category) => category.is_parent) ||
-      null;
+      const existingCategory = categories.find((category) => category.name?.trim() === trimmedName);
+      if (existingCategory?.id) {
+        return existingCategory;
+      }
 
-    addCategory(
-      categoryName,
-      fallbackParent ? fallbackParent.id : null,
-      DEFAULT_CATEGORY_ICON,
-      fallbackParent?.color ?? DEFAULT_CATEGORY_COLOR,
-      false
-    );
-  };
+      if (allCategories.includes(trimmedName)) {
+        return existingCategory;
+      }
 
-  const handleSaveTransaction = (createAnother = false): void => {
+      const fallbackParent =
+        categories.find((category) => category.is_parent && category.name !== 'Income') ||
+        categories.find((category) => category.is_parent) ||
+        null;
+
+      const fallbackParentId = fallbackParent?.id ?? null;
+      const fallbackColor = fallbackParent?.color ?? DEFAULT_CATEGORY_COLOR;
+
+      const findMatchingCategory = (items: ApiCategoryResponse[]): ApiCategoryResponse | undefined => {
+        const normalizedTarget = trimmedName.toLowerCase();
+        return items.find((item) => {
+          if (!item?.name) {
+            return false;
+          }
+          const normalizedName = item.name.trim().toLowerCase();
+          return normalizedName === normalizedTarget && typeof item.id === 'string' && item.id.length > 0;
+        });
+      };
+
+      try {
+        const candidates = await categoryService.fetchCategories({ keyword: trimmedName });
+        let resolvedCategory = findMatchingCategory(candidates);
+
+        if (!resolvedCategory) {
+          const allRemoteCategories = await categoryService.fetchCategories();
+          resolvedCategory = findMatchingCategory(allRemoteCategories);
+        }
+
+        if (!resolvedCategory?.id) {
+          // eslint-disable-next-line no-console
+          console.warn('Category not found from API lookup:', trimmedName);
+          return undefined;
+        }
+
+        const resolvedParentId =
+          resolvedCategory.parent_id ?? fallbackParentId;
+        const resolvedColor = resolvedCategory.color ?? fallbackColor;
+        const resolvedIsParent =
+          typeof resolvedCategory.is_parent === 'boolean'
+            ? resolvedCategory.is_parent
+            : resolvedParentId == null;
+        const resolvedIcon =
+          typeof resolvedCategory.icon === 'string' && resolvedCategory.icon.length > 0
+            ? (resolvedCategory.icon as CategoryIconName)
+            : DEFAULT_CATEGORY_ICON;
+
+        return addCategory(
+          resolvedCategory.name ?? trimmedName,
+          resolvedParentId,
+          resolvedIcon,
+          resolvedColor,
+          resolvedIsParent,
+          resolvedCategory.id
+        );
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to fetch categories from API', error);
+        return undefined;
+      }
+    },
+    [addCategory, allCategories, categories]
+  );
+
+  const handleSaveTransaction = async (
+    createAnother = false,
+    context?: TransactionModalSaveContext
+  ): Promise<void> => {
+    // eslint-disable-next-line no-console
+    console.log('handleSaveTransaction called with:', {
+      createAnother,
+      currentTransaction,
+      context,
+    });
+
     const isTransfer = currentTransaction.type === 'Transfer';
     if (!currentTransaction.description) {
+      // eslint-disable-next-line no-console
+      console.log('No description provided');
+      alert('Please enter a description');
       return;
     }
 
     if (isTransfer) {
       if (!currentTransaction.account || !currentTransaction.toAccount || currentTransaction.amount === '') {
+        // eslint-disable-next-line no-console
+        console.log('Transfer validation failed:', {
+          account: currentTransaction.account,
+          toAccount: currentTransaction.toAccount,
+          amount: currentTransaction.amount
+        });
+        alert('Please fill in all required fields for transfer: From Account, To Account, and Amount');
         return;
       }
     } else if (currentTransaction.amount === '') {
+      // eslint-disable-next-line no-console
+      console.log('Amount validation failed');
+      alert('Please enter an amount');
       return;
     }
 
-    ensureCategoryExists(currentTransaction.category);
+    const ensuredCategory = await ensureCategoryExists(currentTransaction.category);
 
     const parsedAmount = Number.parseFloat(String(currentTransaction.amount ?? 0));
     const transactionRecord: TransactionRecord = {
@@ -773,37 +885,110 @@ function TransactionsContent(): JSX.Element {
       transactionRecord.toAmount = Number.isNaN(parsedToAmount) ? currentTransaction.toAmount : parsedToAmount;
     }
 
-    setTransactions((previous) => [transactionRecord, ...previous]);
-    setLastTransaction(transactionRecord);
+    // Determine category ID from current selection
+    const normalizedCategoryIdFromContext =
+      context?.categoryId && String(context.categoryId).length > 0
+        ? String(context.categoryId)
+        : '';
+    const normalizedCategoryId =
+      normalizedCategoryIdFromContext ||
+      (currentTransaction.categoryId && String(currentTransaction.categoryId).length > 0
+        ? String(currentTransaction.categoryId)
+        : '');
+    const categoryRecordById = normalizedCategoryId
+      ? categories.find((cat) => String(cat.id) === normalizedCategoryId)
+      : undefined;
+    const categoryRecordByName = categories.find(
+      (cat) => cat.name === currentTransaction.category
+    );
+    const categoryRecord = categoryRecordById ?? categoryRecordByName ?? ensuredCategory;
+    const categoryId = normalizedCategoryId || categoryRecord?.id;
 
-    if (currentTransaction.createTemplate) {
-      addQuickTransactionPreset({
-        description: currentTransaction.description,
-        category: currentTransaction.category,
-        amount: currentTransaction.amount,
-        account: currentTransaction.account,
-        type: currentTransaction.type,
-        currency: currentTransaction.currency,
-      });
-    }
+    transactionRecord.categoryId = categoryId ?? '';
 
-    if (createAnother) {
-      const nextDefaults: Partial<TransactionFormValues> = {
-        type: currentTransaction.type,
-        currency: currentTransaction.currency,
-        account: currentTransaction.account,
-        category: currentTransaction.category,
-      };
+    // Map account name to account ID
+    const accountRecord = apiAccounts.find((acc) => acc.name === currentTransaction.account);
+    const accountId = accountRecord?.id;
 
-      if (isTransfer) {
-        nextDefaults.toAccount = currentTransaction.toAccount;
-        nextDefaults.toCurrency = currentTransaction.toCurrency || currentTransaction.currency;
-      }
-      setCurrentTransaction(createTransactionTemplate(nextDefaults));
+    // Basic validation
+    if (!categoryId) {
+      // eslint-disable-next-line no-console
+      console.error('Category not found:', currentTransaction.category);
+      alert('Please select a valid category');
       return;
     }
 
-    setShowTransactionModal(false);
+    if (!accountId) {
+      // eslint-disable-next-line no-console
+      console.error('Account not found:', currentTransaction.account);
+      alert('Please select a valid account');
+      return;
+    }
+
+    try {
+      // Prepare the API payload
+      const normalizedAmount =
+        typeof transactionRecord.amount === 'number'
+          ? transactionRecord.amount
+          : Number(transactionRecord.amount);
+
+      // Format the date properly for Go backend (RFC3339 with seconds and timezone)
+      const formattedDate = formatDateForBackend(currentTransaction.dateTime || currentTransaction.date);
+
+      const createPayload: CreateTransactionRequest = {
+        date: formattedDate,
+        account_id: accountId,
+        category_id: String(categoryId),
+        amount: Number.isNaN(normalizedAmount) ? 0 : normalizedAmount,
+        type: currentTransaction.type,
+        note: currentTransaction.notes || null,
+      };
+
+      // Call the API to create the transaction
+      const createdTransaction = await transactionService.createTransaction(createPayload);
+
+      // eslint-disable-next-line no-console
+      console.log('Transaction created successfully:', createdTransaction);
+
+      // Update local state with the created transaction
+      setTransactions((previous) => [transactionRecord, ...previous]);
+      setLastTransaction(transactionRecord);
+
+      if (currentTransaction.createTemplate) {
+        addQuickTransactionPreset({
+          description: currentTransaction.description,
+          category: currentTransaction.category,
+          category_id: categoryId ?? normalizedCategoryId ?? null,
+          amount: currentTransaction.amount,
+          account: currentTransaction.account,
+          type: currentTransaction.type,
+          currency: currentTransaction.currency,
+        });
+      }
+
+      if (createAnother) {
+        const nextDefaults: Partial<TransactionFormValues> = {
+          type: currentTransaction.type,
+          currency: currentTransaction.currency,
+          account: currentTransaction.account,
+          category: currentTransaction.category,
+          categoryId: currentTransaction.categoryId,
+        };
+
+        if (isTransfer) {
+          nextDefaults.toAccount = currentTransaction.toAccount;
+          nextDefaults.toCurrency = currentTransaction.toCurrency || currentTransaction.currency;
+        }
+        setCurrentTransaction(createTransactionTemplate(nextDefaults));
+        return;
+      }
+
+      setShowTransactionModal(false);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to create transaction:', error);
+      alert('Failed to create transaction. Please try again.');
+    }
   };
 
   const handleAddNewQuickTransaction = (): void => {
@@ -811,7 +996,7 @@ function TransactionsContent(): JSX.Element {
       return;
     }
 
-    ensureCategoryExists(newQuickTransaction.category);
+    void ensureCategoryExists(newQuickTransaction.category);
     addQuickTransactionPreset(newQuickTransaction as QuickTransactionPresetInput);
     setNewQuickTransaction(createQuickTransactionTemplate());
     setShowQuickTransactionModal(false);
@@ -859,12 +1044,16 @@ function TransactionsContent(): JSX.Element {
         description: selected.description || '',
         amount: selected.amount || '',
         category: selected.category || previous.category,
+        categoryId:
+          (selected.category_id && String(selected.category_id).length > 0)
+            ? String(selected.category_id)
+            : categoryByName[selected.category ?? '']?.id || previous.categoryId,
         account: selected.account || previous.account,
         type: selected.type || previous.type,
         currency: selected.currency || previous.currency,
       }));
     },
-    [quickTransactions, setCurrentTransaction]
+    [quickTransactions, setCurrentTransaction, categoryByName]
   );
 
   const toggleFilterSidebar = (): void =>

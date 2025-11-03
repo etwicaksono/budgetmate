@@ -1,0 +1,3851 @@
+openapi: 3.0.3
+info:
+  title: Finance API
+  description: Lorem, ipsum dolor sit amet consectetur adipisicing elit. Quas
+    dolor nemo laudantium perferendis voluptas ipsam, illum optio, quidem porro,
+    accusamus fuga explicabo ab dignissimos voluptates? Quaerat iste eligendi
+    odio voluptatum. Lorem ipsum dolor sit amet consectetur adipisicing elit.
+    Tempore aspernatur maxime eligendi accusamus eaque porro quaerat repellat
+    inventore, ullam voluptatibus quod molestias quae ab. Expedita corporis ab
+    id pariatur omnis. Lorem ipsum dolor sit amet, consectetur adipisicing elit.
+    Pariatur nesciunt sint obcaecati eligendi beatae velit! Repellendus
+    accusantium, rerum suscipit, quaerat nam commodi, unde eligendi explicabo
+    architecto provident reprehenderit temporibus distinctio.
+  contact:
+    email: etwicaksono@dutacorpora.id
+  version: v0.0.1
+externalDocs:
+  description: Find out more about Swagger
+  url: http://swagger.io
+servers:
+  - url: http://localhost:8080
+    description: This API powers your personal finance and transaction management
+      system. Use it to track expenses, manage budgets, and analyze your
+      financial data effortlessly.
+tags:
+  - name: Authentication
+    description: Authentication related operations
+  - name: Users
+    description: User related operations
+  - name: Groups
+    description: Group related operations
+  - name: Accounts
+    description: Account related operations
+  - name: Categories
+    description: Category related operations
+  - name: Transactions
+    description: Transaction related operations
+  - name: Transfers
+    description: Transfer related operations
+  - name: Debts
+    description: Debt related operations
+paths:
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Registers a new user with the provided details.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+                - password
+                - username
+              properties:
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+                password:
+                  type: string
+                username:
+                  type: string
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+                - password
+                - username
+              properties:
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+                password:
+                  type: string
+                username:
+                  type: string
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User created successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: 8102abc8-0fe0-484b-bf93-f81ec03bee7d
+                      name:
+                        type: string
+                        example: Test User4
+                      email:
+                        type: string
+                        format: email
+                        example: test4@example.com
+                      username:
+                        type: string
+                        example: testuser4
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: 2025-10-17T20:41:52.0498127Z
+                      created_by:
+                        type: string
+                        nullable: true
+                        example: null
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: 2025-10-17T20:41:52.0498127Z
+                      updated_by:
+                        type: string
+                        nullable: true
+                        example: null
+                  meta:
+                    type: object
+                    properties:
+                      version:
+                        type: string
+                        example: v1.0.0
+                      timestamp:
+                        type: integer
+                        example: 1760733712
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login to the application
+      description: Authenticates the user and returns access and refresh tokens.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - email_or_username
+                - password
+              properties:
+                email_or_username:
+                  type: string
+                password:
+                  type: string
+          application/json:
+            schema:
+              type: object
+              required:
+                - email_or_username
+                - password
+              properties:
+                email_or_username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Login successful
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                        description: JWT access token for authenticated requests
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMjg3OGQyNDYtZWY3Ny00YTI5LWIzOTgtZGM1MmJiMzIyNGEwIiwiZW1haWwiOiJlY2hvdGVjaG5vMDA3QGdtYWlsLmNvbSIsInVzZXJuYW1lIjoiYWRtaW4iLCJleHAiOjE3NjA4MjA4NDYsImlhdCI6MTc2MDczNDQ0Nn0.NhQvaZR9b9lSRGorBDr4SJoShHcr5jey1dF6eHqPrro
+                      refresh_token:
+                        type: string
+                        description: JWT refresh token for obtaining new access tokens
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMjg3OGQyNDYtZWY3Ny00YTI5LWIzOTgtZGM1MmJiMzIyNGEwIiwiZW1haWwiOiJlY2hvdGVjaG5vMDA3QGdtYWlsLmNvbSIsInVzZXJuYW1lIjoiYWRtaW4iLCJleHAiOjE3NjEzMzkyNDYsImlhdCI6MTc2MDczNDQ0Nn0.VfxQ4FQv80XgcHySp1CVs9l-jkyb6-QL-UHP-b_Kc84
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                            example: 2878d246-ef77-4a29-b398-dc52bb3224a0
+                          name:
+                            type: string
+                            example: Jane Doe
+                          email:
+                            type: string
+                            format: email
+                            example: janedoe@gmail.com
+                          username:
+                            type: string
+                            example: admin
+                          created_at:
+                            type: string
+                            format: date-time
+                            example: 2025-10-17T00:00:00Z
+                          created_by:
+                            type: string
+                            nullable: true
+                            example: null
+                          updated_at:
+                            type: string
+                            format: date-time
+                            example: 2025-10-17T00:00:00Z
+                          updated_by:
+                            type: string
+                            nullable: true
+                            example: null
+                  meta:
+                    type: object
+                    properties:
+                      version:
+                        type: string
+                        example: v1.0.0
+                      timestamp:
+                        type: integer
+                        example: 1760734446
+        "401":
+          description: Unauthorized, invalid credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: invalid login credentials
+                  data:
+                    type: object
+                    nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                  errors:
+                    type: object
+                    properties:
+                      password:
+                        type: string
+                        example: Invalid username or password
+                      username:
+                        type: string
+                        example: Invalid username or password
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout the user
+      description: Logs out the user by invalidating the current session token.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Successful logout
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized, missing or invalid token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh Access Token
+      description: Allows a user to refresh their access token using a refresh token.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+                  description: The refresh token required to obtain a new access token.
+              required:
+                - refresh_token
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+                  description: The refresh token required to obtain a new access token.
+              required:
+                - refresh_token
+      responses:
+        "200":
+          description: Successfully refreshed the token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+                  message:
+                    type: string
+                    example: Token refreshed
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                        description: The new access token for authenticated requests.
+                      expired_at:
+                        type: string
+                        format: date-time
+                        description: The expiration date and time of the new access token.
+                      refresh_token:
+                        type: string
+                        description: A new refresh token if the previous one has been rotated.
+                      refreshable_until:
+                        type: string
+                        format: date-time
+                        description: The last date and time the refresh token can be used.
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Bad Request
+                  message:
+                    type: string
+                    example: invalid token
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    example: null
+                    nullable: true
+  /api/v1/users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Retrieve a user by their unique identifier.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: 2878d246-ef77-4a29-b398-dc52bb3224a0
+                      name:
+                        type: string
+                        example: Jane Doe
+                      email:
+                        type: string
+                        format: email
+                        example: janedoe@gmail.com
+                      username:
+                        type: string
+                        example: janedoe
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: 2025-10-17T00:00:00Z
+                      created_by:
+                        type: string
+                        nullable: true
+                        example: null
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        example: 2025-10-17T00:00:00Z
+                      updated_by:
+                        type: string
+                        nullable: true
+                        example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: User not found
+    put:
+      tags:
+        - Users
+      summary: Update user
+      description: Update a user's details.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+      responses:
+        "200":
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: 2878d246-ef77-4a29-b398-dc52bb3224a0
+                      name:
+                        type: string
+                        example: Jane Doe
+                      email:
+                        type: string
+                        format: email
+                        example: janedoe@gmail.com
+                      username:
+                        type: string
+                        example: janedoe
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: 2025-10-17T00:00:00Z
+                      created_by:
+                        type: string
+                        nullable: true
+                        example: null
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        example: 2025-10-17T00:00:00Z
+                      updated_by:
+                        type: string
+                        nullable: true
+                        example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "404":
+          description: User not found
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Delete a user by ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: 2878d246-ef77-4a29-b398-dc52bb3224a0
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: User not found
+  /api/v1/groups:
+    post:
+      tags:
+        - Groups
+      summary: Create group
+      description: Create a new group.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+      responses:
+        "201":
+          description: Group created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Group created successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      name:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+    get:
+      tags:
+        - Groups
+      summary: List groups
+      description: Retrieve all groups.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Groups retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Groups retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        user_id:
+                          type: string
+                          format: uuid
+                        personal_id:
+                          type: integer
+                          format: int64
+                        name:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        created_by:
+                          type: string
+                          nullable: true
+                        updated_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        updated_by:
+                          type: string
+                          nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+  /api/v1/groups/{id}:
+    get:
+      tags:
+        - Groups
+      summary: Get group by ID
+      description: Retrieve a group by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Group retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Group retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      name:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Group not found
+    put:
+      tags:
+        - Groups
+      summary: Update group
+      description: Update a group by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        "200":
+          description: Group updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Group updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      name:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Group not found
+    delete:
+      tags:
+        - Groups
+      summary: Delete group
+      description: Delete a group by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Group deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Group deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Group not found
+  /api/v1/accounts:
+    post:
+      tags:
+        - Accounts
+      summary: Create account
+      description: Create a new account.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - personal_id
+                - name
+                - icon
+                - color
+                - active
+                - usability
+                - account_type
+              properties:
+                personal_id:
+                  type: integer
+                name:
+                  type: string
+                icon:
+                  type: string
+                color:
+                  type: string
+                active:
+                  type: boolean
+                account_type:
+                  type: string
+                initial_amount:
+                  type: number
+                  format: double
+                usability:
+                  type: string
+                  enum:
+                    - USABLE
+                    - PROTECTED
+                group_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        "201":
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Account created successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      name:
+                        type: string
+                      icon:
+                        type: string
+                      color:
+                        type: string
+                      active:
+                        type: boolean
+                      usability:
+                        type: string
+                      position:
+                        type: object
+                        additionalProperties: true
+                      group_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+    get:
+      tags:
+        - Accounts
+      summary: List accounts
+      description: Retrieve accounts. Optionally filter by user_id.
+      security:
+        - BearerAuth: []
+      parameters: null
+      responses:
+        "200":
+          description: Accounts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Accounts retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        user_id:
+                          type: string
+                          format: uuid
+                        personal_id:
+                          type: integer
+                          format: int64
+                        name:
+                          type: string
+                        icon:
+                          type: string
+                        color:
+                          type: string
+                        active:
+                          type: boolean
+                        usability:
+                          type: string
+                        position:
+                          type: object
+                          additionalProperties: true
+                        group_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+                        created_by:
+                          type: string
+                          nullable: true
+                        updated_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        updated_by:
+                          type: string
+                          nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+  /api/v1/accounts/{id}:
+    get:
+      tags:
+        - Accounts
+      summary: Get account by ID
+      description: Retrieve an account by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Account ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Account retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Account retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      name:
+                        type: string
+                      icon:
+                        type: string
+                      color:
+                        type: string
+                      active:
+                        type: boolean
+                      usability:
+                        type: string
+                      position:
+                        type: object
+                        additionalProperties: true
+                      group_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Account not found
+        "500":
+          description: Internal server error
+    put:
+      tags:
+        - Accounts
+      summary: Update account
+      description: Update an account by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Account ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - icon
+                - color
+                - active
+                - usability
+                - account_type
+              properties:
+                name:
+                  type: string
+                icon:
+                  type: string
+                color:
+                  type: string
+                active:
+                  type: boolean
+                account_type:
+                  type: string
+                initial_amount:
+                  type: number
+                  format: double
+                usability:
+                  type: string
+                  enum:
+                    - USABLE
+                    - PROTECTED
+                group_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        "200":
+          description: Account updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Account updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      name:
+                        type: string
+                      icon:
+                        type: string
+                      color:
+                        type: string
+                      active:
+                        type: boolean
+                      usability:
+                        type: string
+                      position:
+                        type: object
+                        additionalProperties: true
+                      group_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Account not found
+    delete:
+      tags:
+        - Accounts
+      summary: Delete account
+      description: Delete an account by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Account ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Account deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Account deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Account not found
+  /api/v1/accounts/swap-order:
+    put:
+      tags:
+        - Accounts
+      summary: Batch update account order
+      description: Update the personal_id order for multiple accounts in a single
+        transaction.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - order_map
+              properties:
+                order_map:
+                  type: array
+                  description: Array of account IDs with their new personal_id values
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - personal_id
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        description: Account ID
+                      personal_id:
+                        type: integer
+                        format: int64
+                        description: New personal ID for this account
+                  minItems: 1
+      responses:
+        "200":
+          description: Account order updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Account swaped successfully
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "500":
+          description: Internal server error
+  /api/v1/categories:
+    post:
+      tags:
+        - Categories
+      summary: Create category
+      description: Create a new category.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - personal_id
+                - name
+                - icon
+                - color
+                - nature
+              properties:
+                personal_id:
+                  type: integer
+                  format: int64
+                parent_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                name:
+                  type: string
+                icon:
+                  type: string
+                color:
+                  type: string
+                nature:
+                  type: string
+                  enum:
+                    - WANT
+                    - NEED
+                    - MUST
+                is_active:
+                  type: boolean
+                position:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "201":
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Category created successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      user_id:
+                        type: string
+                        format: uuid
+                      parent_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      name:
+                        type: string
+                      icon:
+                        type: string
+                      color:
+                        type: string
+                      nature:
+                        type: string
+                      is_active:
+                        type: boolean
+                      position:
+                        type: object
+                        additionalProperties: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+    get:
+      tags:
+        - Categories
+      summary: List categories
+      description: Retrieve categories for current user. Optionally filter by keyword.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          description: Keyword for searching categories
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Categories retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        personal_id:
+                          type: integer
+                          format: int64
+                        user_id:
+                          type: string
+                          format: uuid
+                        parent_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        name:
+                          type: string
+                        icon:
+                          type: string
+                        color:
+                          type: string
+                        nature:
+                          type: string
+                        is_active:
+                          type: boolean
+                        position:
+                          type: object
+                          additionalProperties: true
+                        created_at:
+                          type: string
+                          format: date-time
+                        created_by:
+                          type: string
+                          nullable: true
+                        updated_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        updated_by:
+                          type: string
+                          nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+  /api/v1/categories/{id}:
+    get:
+      tags:
+        - Categories
+      summary: Get category by ID
+      description: Retrieve a category by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Category ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Category retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Category retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      user_id:
+                        type: string
+                        format: uuid
+                      parent_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      name:
+                        type: string
+                      icon:
+                        type: string
+                      color:
+                        type: string
+                      nature:
+                        type: string
+                      is_active:
+                        type: boolean
+                      position:
+                        type: object
+                        additionalProperties: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Category not found
+    put:
+      tags:
+        - Categories
+      summary: Update category
+      description: Update a category by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Category ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                parent_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                name:
+                  type: string
+                icon:
+                  type: string
+                color:
+                  type: string
+                nature:
+                  type: string
+                  enum:
+                    - WANT
+                    - NEED
+                    - MUST
+                is_active:
+                  type: boolean
+                position:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Category updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      user_id:
+                        type: string
+                        format: uuid
+                      parent_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      name:
+                        type: string
+                      icon:
+                        type: string
+                      color:
+                        type: string
+                      nature:
+                        type: string
+                      is_active:
+                        type: boolean
+                      position:
+                        type: object
+                        additionalProperties: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Category not found
+    delete:
+      tags:
+        - Categories
+      summary: Delete category
+      description: Delete a category by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Category ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Category deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Category deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Category not found
+  /api/v1/transactions:
+    post:
+      tags:
+        - Transactions
+      summary: Create transaction
+      description: Create a new transaction.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - account_id
+                - category_id
+                - amount
+                - type
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                date:
+                  type: string
+                  format: date-time
+                account_id:
+                  type: string
+                  format: uuid
+                category_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: double
+                type:
+                  type: string
+                note:
+                  type: string
+                  nullable: true
+                position:
+                  type: object
+                  additionalProperties: true
+                transfer_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                debt_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        "201":
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transaction created successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      date:
+                        type: string
+                        format: date-time
+                      account_id:
+                        type: string
+                        format: uuid
+                      category_id:
+                        type: string
+                        format: uuid
+                      amount:
+                        type: number
+                        format: double
+                      type:
+                        type: string
+                      note:
+                        type: string
+                        nullable: true
+                      position:
+                        type: object
+                        additionalProperties: true
+                      transfer_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      debt_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+    get:
+      tags:
+        - Transactions
+      summary: List transactions
+      description: Retrieve transactions. Can be filtered by user_id, account_id, or
+        date range.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          description: Filter transactions belonging to a specific user
+          schema:
+            type: string
+            format: uuid
+        - name: account_id
+          in: query
+          required: false
+          description: Filter transactions by account (requires user_id)
+          schema:
+            type: string
+            format: uuid
+        - name: start_date
+          in: query
+          required: false
+          description: Start date (YYYY-MM-DD) for date range filtering (requires end_date
+            and user_id)
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: false
+          description: End date (YYYY-MM-DD) for date range filtering (requires start_date
+            and user_id)
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transactions retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        user_id:
+                          type: string
+                          format: uuid
+                        personal_id:
+                          type: integer
+                          format: int64
+                        date:
+                          type: string
+                          format: date-time
+                        account_id:
+                          type: string
+                          format: uuid
+                        category_id:
+                          type: string
+                          format: uuid
+                        amount:
+                          type: number
+                          format: double
+                        type:
+                          type: string
+                        note:
+                          type: string
+                          nullable: true
+                        position:
+                          type: object
+                          additionalProperties: true
+                        transfer_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        debt_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+                        created_by:
+                          type: string
+                          nullable: true
+                        updated_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        updated_by:
+                          type: string
+                          nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+  /api/v1/transactions/{id}:
+    get:
+      tags:
+        - Transactions
+      summary: Get transaction by ID
+      description: Retrieve a transaction by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Transaction retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transaction retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      date:
+                        type: string
+                        format: date-time
+                      account_id:
+                        type: string
+                        format: uuid
+                      category_id:
+                        type: string
+                        format: uuid
+                      amount:
+                        type: number
+                        format: double
+                      type:
+                        type: string
+                      note:
+                        type: string
+                        nullable: true
+                      position:
+                        type: object
+                        additionalProperties: true
+                      transfer_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      debt_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Transaction not found
+    put:
+      tags:
+        - Transactions
+      summary: Update transaction
+      description: Update a transaction by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date-time
+                account_id:
+                  type: string
+                  format: uuid
+                category_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: double
+                type:
+                  type: string
+                note:
+                  type: string
+                  nullable: true
+                position:
+                  type: object
+                  additionalProperties: true
+                transfer_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                debt_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        "200":
+          description: Transaction updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transaction updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      date:
+                        type: string
+                        format: date-time
+                      account_id:
+                        type: string
+                        format: uuid
+                      category_id:
+                        type: string
+                        format: uuid
+                      amount:
+                        type: number
+                        format: double
+                      type:
+                        type: string
+                      note:
+                        type: string
+                        nullable: true
+                      position:
+                        type: object
+                        additionalProperties: true
+                      transfer_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      debt_id:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Transaction not found
+    delete:
+      tags:
+        - Transactions
+      summary: Delete transaction
+      description: Delete a transaction by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Transaction deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transaction deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Transaction not found
+  /api/v1/transfers:
+    post:
+      tags:
+        - Transfers
+      summary: Create transfer
+      description: Create a new transfer between accounts.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - personal_id
+                - from_account
+                - to_account
+                - amount
+                - note
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                personal_id:
+                  type: integer
+                  format: int64
+                date:
+                  type: string
+                  format: date-time
+                from_account:
+                  type: string
+                  format: uuid
+                to_account:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: double
+                note:
+                  type: string
+                position:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "201":
+          description: Transfer created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transfer created successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      date:
+                        type: string
+                        format: date-time
+                      from_account:
+                        type: string
+                        format: uuid
+                      to_account:
+                        type: string
+                        format: uuid
+                      amount:
+                        type: number
+                        format: double
+                      note:
+                        type: string
+                      position:
+                        type: object
+                        additionalProperties: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+    get:
+      tags:
+        - Transfers
+      summary: List transfers
+      description: Retrieve all transfers.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Transfers retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transfers retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        user_id:
+                          type: string
+                          format: uuid
+                        personal_id:
+                          type: integer
+                          format: int64
+                        date:
+                          type: string
+                          format: date-time
+                        from_account:
+                          type: string
+                          format: uuid
+                        to_account:
+                          type: string
+                          format: uuid
+                        amount:
+                          type: number
+                          format: double
+                        note:
+                          type: string
+                        position:
+                          type: object
+                          additionalProperties: true
+                        created_at:
+                          type: string
+                          format: date-time
+                        created_by:
+                          type: string
+                          nullable: true
+                        updated_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        updated_by:
+                          type: string
+                          nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+  /api/v1/transfers/{id}:
+    get:
+      tags:
+        - Transfers
+      summary: Get transfer by ID
+      description: Retrieve a transfer by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transfer ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Transfer retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transfer retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      date:
+                        type: string
+                        format: date-time
+                      from_account:
+                        type: string
+                        format: uuid
+                      to_account:
+                        type: string
+                        format: uuid
+                      amount:
+                        type: number
+                        format: double
+                      note:
+                        type: string
+                      position:
+                        type: object
+                        additionalProperties: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Transfer not found
+    put:
+      tags:
+        - Transfers
+      summary: Update transfer
+      description: Update a transfer by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transfer ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                personal_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                date:
+                  type: string
+                  format: date-time
+                  nullable: true
+                from_account:
+                  type: string
+                  format: uuid
+                  nullable: true
+                to_account:
+                  type: string
+                  format: uuid
+                  nullable: true
+                amount:
+                  type: number
+                  format: double
+                  nullable: true
+                note:
+                  type: string
+                  nullable: true
+                position:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Transfer updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transfer updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      date:
+                        type: string
+                        format: date-time
+                      from_account:
+                        type: string
+                        format: uuid
+                      to_account:
+                        type: string
+                        format: uuid
+                      amount:
+                        type: number
+                        format: double
+                      note:
+                        type: string
+                      position:
+                        type: object
+                        additionalProperties: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Transfer not found
+    delete:
+      tags:
+        - Transfers
+      summary: Delete transfer
+      description: Delete a transfer by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transfer ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Transfer deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Transfer deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Transfer not found
+  /api/v1/debts:
+    post:
+      tags:
+        - Debts
+      summary: Create debt
+      description: Create a new debt.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - personal_id
+                - account_id
+                - name
+                - type
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                personal_id:
+                  type: integer
+                  format: int64
+                account_id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                type:
+                  type: string
+                position:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "201":
+          description: Debt created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Debt created successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      account_id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      type:
+                        type: string
+                      position:
+                        type: object
+                        additionalProperties: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+    get:
+      tags:
+        - Debts
+      summary: List debts
+      description: Retrieve debts. Optionally filter by user_id.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          description: Filter debts belonging to a specific user
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Debts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Debts retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        user_id:
+                          type: string
+                          format: uuid
+                        personal_id:
+                          type: integer
+                          format: int64
+                        account_id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        type:
+                          type: string
+                        position:
+                          type: object
+                          additionalProperties: true
+                        created_at:
+                          type: string
+                          format: date-time
+                        created_by:
+                          type: string
+                          nullable: true
+                        updated_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        updated_by:
+                          type: string
+                          nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+  /api/v1/debts/{id}:
+    get:
+      tags:
+        - Debts
+      summary: Get debt by ID
+      description: Retrieve a debt by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Debt ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Debt retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Debt retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      account_id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      type:
+                        type: string
+                      position:
+                        type: object
+                        additionalProperties: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Debt not found
+    put:
+      tags:
+        - Debts
+      summary: Update debt
+      description: Update a debt by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Debt ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                personal_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                user_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                account_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                name:
+                  type: string
+                  nullable: true
+                type:
+                  type: string
+                  nullable: true
+                position:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Debt updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Debt updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      user_id:
+                        type: string
+                        format: uuid
+                      personal_id:
+                        type: integer
+                        format: int64
+                      account_id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      type:
+                        type: string
+                      position:
+                        type: object
+                        additionalProperties: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      created_by:
+                        type: string
+                        nullable: true
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      updated_by:
+                        type: string
+                        nullable: true
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Debt not found
+    delete:
+      tags:
+        - Debts
+      summary: Delete debt
+      description: Delete a debt by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Debt ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Debt deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Debt deleted successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Unauthorized
+                  message:
+                    type: string
+                    example: unauthorized
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+                  meta:
+                    type: object
+                    nullable: true
+                    example: null
+                  errors:
+                    type: object
+                    nullable: true
+                    example: null
+        "404":
+          description: Debt not found
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

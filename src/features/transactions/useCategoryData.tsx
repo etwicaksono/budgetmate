@@ -31,6 +31,7 @@ import {
 } from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import * as FaIcons from 'react-icons/fa';
+import type { ApiCategoryResponse } from '../../services/categoryService';
 
 const ICON_MAP = {
   FaMoneyBillWave,
@@ -61,60 +62,94 @@ type DynamicIconName = keyof typeof FaIcons;
 export type CategoryIconName = StaticIconName | DynamicIconName;
 type IconComponentType = ComponentType<{ size?: number; className?: string }>;
 
-export interface CategoryRecord {
-  id: number;
-  parent_id: number | null;
-  name: string;
-  icon: CategoryIconName;
-  color: string;
-  is_parent: boolean;
-}
-
 export type CategoryTree = Record<string, string[]>;
 export type CategoryColorMap = Record<string, string>;
 export type CategoryIconMap = Record<string, IconType | IconComponentType>;
 
+let localCategoryCounter = 0;
+
+const getNextLocalCategoryId = (): string => `local-${++localCategoryCounter}`;
+
+const resolveApiCategoryId = (
+  id: ApiCategoryResponse['id'] | null | undefined
+): string | null => (typeof id === 'string' && id.length > 0 ? id : null);
+
 interface UseCategoryDataResult {
-  categories: CategoryRecord[];
+  categories: ApiCategoryResponse[];
   categoryTree: CategoryTree;
   parentCategoryColors: CategoryColorMap;
   categoryIcons: CategoryIconMap;
   allCategories: string[];
-  addCategory: (name: string, parentId?: number | null, icon?: CategoryIconName, color?: string, isParent?: boolean) => CategoryRecord;
-  setCategories: Dispatch<SetStateAction<CategoryRecord[]>>;
+  addCategory: (
+    name: string,
+    parentId?: string | null,
+    icon?: CategoryIconName,
+    color?: string,
+    isParent?: boolean,
+    id?: ApiCategoryResponse['id']
+  ) => ApiCategoryResponse;
+  setCategories: Dispatch<SetStateAction<ApiCategoryResponse[]>>;
 }
 
-const resolveIcon = (iconName: CategoryIconName): IconType | IconComponentType | undefined => {
+const resolveIcon = (iconName?: string | null): IconType | IconComponentType | undefined => {
+  if (!iconName) {
+    return undefined;
+  }
+
   if (iconName in ICON_MAP) {
     return ICON_MAP[iconName as StaticIconName];
   }
   return FaIcons[iconName as DynamicIconName] as IconType | IconComponentType | undefined;
 };
 
+const isCategoryWithIdAndName = (
+  category: ApiCategoryResponse
+): category is ApiCategoryResponse & { id: string; name: string } => {
+  return (
+    typeof category.id === 'string' &&
+    category.id.length > 0 &&
+    typeof category.name === 'string' &&
+    category.name.length > 0
+  );
+};
+
+const isParentCategory = (category: ApiCategoryResponse): boolean => {
+  if (typeof category.is_parent === 'boolean') {
+    return category.is_parent;
+  }
+  return category.parent_id === null || category.parent_id === undefined;
+};
+
 export const useCategoryData = (): UseCategoryDataResult => {
-  const [categories, setCategories] = useState<CategoryRecord[]>(() => []);
+  const [categories, setCategories] = useState<ApiCategoryResponse[]>(() => []);
 
   const addCategory = useCallback(
     (
       name: string,
-      parentId: number | null = null,
+      parentId: string | null = null,
       icon: CategoryIconName = 'FaGift',
       color = '#6c757d',
-      isParent = false
-    ): CategoryRecord => {
+      isParent = false,
+      id?: ApiCategoryResponse['id']
+    ): ApiCategoryResponse => {
+      const providedId = resolveApiCategoryId(id ?? null);
+      if (!providedId) {
+        throw new Error('Expected category ID from API but received null/undefined.');
+      }
+
+      const existingById = categories.find((category) => category.id === providedId);
+      if (existingById) {
+        return existingById;
+      }
+
       const existing = categories.find((category) => category.name === name);
       if (existing) {
         return existing;
       }
 
-      const nextId =
-        categories.length > 0
-          ? Math.max(...categories.map((category) => category.id)) + 1
-          : 1;
-
-      const newCategory: CategoryRecord = {
-        id: nextId,
-        parent_id: parentId,
+      const newCategory: ApiCategoryResponse = {
+        id: providedId,
+        parent_id: parentId ?? null,
         name,
         icon,
         color,
@@ -129,8 +164,9 @@ export const useCategoryData = (): UseCategoryDataResult => {
 
   const categoryTree = useMemo<CategoryTree>(() => {
     const tree: CategoryTree = {};
-    const parents = categories.filter((category) => category.is_parent);
-    const children = categories.filter((category) => !category.is_parent);
+    const validCategories = categories.filter(isCategoryWithIdAndName);
+    const parents = validCategories.filter(isParentCategory);
+    const children = validCategories.filter((category) => !isParentCategory(category));
 
     parents.forEach((parent) => {
       tree[parent.name] = children
@@ -141,8 +177,9 @@ export const useCategoryData = (): UseCategoryDataResult => {
     children
       .filter((child) => child.parent_id == null)
       .forEach((child) => {
-        if (!tree[child.name]) {
-          tree[child.name] = [];
+        const childName = child.name;
+        if (childName && !tree[childName]) {
+          tree[childName] = [];
         }
       });
 
@@ -151,15 +188,16 @@ export const useCategoryData = (): UseCategoryDataResult => {
 
   const parentCategoryColors = useMemo<CategoryColorMap>(() => {
     return categories
-      .filter((category) => category.is_parent)
+      .filter(isCategoryWithIdAndName)
+      .filter(isParentCategory)
       .reduce<CategoryColorMap>((accumulator, category) => {
-        accumulator[category.name] = category.color;
+        accumulator[category.name] = category.color ?? '#6c757d';
         return accumulator;
       }, {});
   }, [categories]);
 
   const categoryIcons = useMemo<CategoryIconMap>(() => {
-    return categories.reduce<CategoryIconMap>((accumulator, category) => {
+    return categories.filter(isCategoryWithIdAndName).reduce<CategoryIconMap>((accumulator, category) => {
       const IconComponent = resolveIcon(category.icon);
       if (IconComponent) {
         accumulator[category.name] = IconComponent;
@@ -169,7 +207,10 @@ export const useCategoryData = (): UseCategoryDataResult => {
   }, [categories]);
 
   const allCategories = useMemo<string[]>(
-    () => categories.map((category) => category.name),
+    () =>
+      categories
+        .map((category) => category.name)
+        .filter((name): name is string => typeof name === 'string' && name.length > 0),
     [categories]
   );
 

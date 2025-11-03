@@ -1,22 +1,17 @@
 /* eslint-disable react/prop-types */
 import React, {
   createContext,
-  useState,
   useContext,
   useEffect,
+  useCallback,
+  useMemo,
   type ReactNode,
-  type SyntheticEvent,
 } from 'react';
 import { authService } from '../services/authService';
 import tokenCrypto from '../utils/crypto';
 import { APP_CONFIG } from '../config';
-import ToastAlert from '../components/ToastAlert';
-
-interface ToastState {
-  open: boolean;
-  message: string;
-  severity: 'success' | 'error';
-}
+import { useToast } from './ToastContext';
+import { useAuthState } from './AuthStateContext';
 
 export interface LoginResponseData {
   access_token?: string;
@@ -87,17 +82,21 @@ export const useAuth = (): AuthContextValue => {
 };
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [toastState, setToastState] = useState<ToastState>({
-    open: false,
-    message: '',
-    severity: 'success',
-  });
+  const { isAuthenticated, setIsAuthenticated, loading, setLoading } = useAuthState();
+  const { showToast } = useToast();
 
-  const AUTH_TOKEN_KEY = (APP_CONFIG?.storageKeys?.authToken ?? 'authToken') as string;
-  const REFRESH_TOKEN_KEY = (APP_CONFIG?.storageKeys?.refreshToken ?? 'refreshToken') as string;
-  const USER_DATA_KEY = (APP_CONFIG?.storageKeys?.userData ?? 'userData') as string;
+  const AUTH_TOKEN_KEY = useMemo(
+    () => (APP_CONFIG?.storageKeys?.authToken ?? 'authToken') as string,
+    []
+  );
+  const REFRESH_TOKEN_KEY = useMemo(
+    () => (APP_CONFIG?.storageKeys?.refreshToken ?? 'refreshToken') as string,
+    []
+  );
+  const USER_DATA_KEY = useMemo(
+    () => (APP_CONFIG?.storageKeys?.userData ?? 'userData') as string,
+    []
+  );
 
   useEffect(() => {
     const checkAuthentication = async () => {
@@ -119,66 +118,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     void checkAuthentication();
-  }, []);
+  }, [AUTH_TOKEN_KEY, setIsAuthenticated, setLoading]);
 
-  const storeToken = async (token: unknown) => {
-    if (typeof token === 'string' && token) {
-      const encryptedToken = await tokenCrypto.encryptToken(token);
-      if (typeof encryptedToken === 'string') {
-        localStorage.setItem(AUTH_TOKEN_KEY, encryptedToken);
-      }
-    }
-  };
-
-  const storeRefreshToken = async (token: unknown) => {
-    if (typeof token === 'string' && token) {
-      const encryptedToken = await tokenCrypto.encryptToken(token);
-      if (typeof encryptedToken === 'string') {
-        localStorage.setItem(REFRESH_TOKEN_KEY, encryptedToken);
-      }
-    }
-  };
-
-  const login = async (response: LoginResult) => {
-    try {
-      if (typeof response !== 'string' && response.data?.access_token) {
-        await storeToken(response.data.access_token);
-
-        if (response.data.refresh_token) {
-          await storeRefreshToken(response.data.refresh_token);
+  const storeToken = useCallback(
+    async (token: unknown) => {
+      if (typeof token === 'string' && token) {
+        const encryptedToken = await tokenCrypto.encryptToken(token);
+        if (typeof encryptedToken === 'string') {
+          localStorage.setItem(AUTH_TOKEN_KEY, encryptedToken);
         }
-
-        setIsAuthenticated(true);
-        const successMessage =
-          (typeof response.data?.message === 'string' && response.data.message) ||
-          (typeof response.message === 'string' && response.message) ||
-          'Login successful';
-        setToastState({
-          open: true,
-          message: successMessage,
-          severity: 'success',
-        });
-      } else {
-        await storeToken(response);
-        setIsAuthenticated(true);
-        const fallbackMessage =
-          typeof response === 'string'
-            ? 'Login successful'
-            : (typeof response.message === 'string' && response.message) || 'Login successful';
-        setToastState({
-          open: true,
-          message: fallbackMessage,
-          severity: 'success',
-        });
       }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Login encryption failed:', error);
-      throw new Error('Failed to store authentication tokens');
-    }
-  };
+    },
+    [AUTH_TOKEN_KEY]
+  );
 
-  const logout = async () => {
+  const storeRefreshToken = useCallback(
+    async (token: unknown) => {
+      if (typeof token === 'string' && token) {
+        const encryptedToken = await tokenCrypto.encryptToken(token);
+        if (typeof encryptedToken === 'string') {
+          localStorage.setItem(REFRESH_TOKEN_KEY, encryptedToken);
+        }
+      }
+    },
+    [REFRESH_TOKEN_KEY]
+  );
+
+  const login = useCallback(
+    async (response: LoginResult) => {
+      try {
+        if (typeof response !== 'string' && response.data?.access_token) {
+          await storeToken(response.data.access_token);
+
+          if (response.data.refresh_token) {
+            await storeRefreshToken(response.data.refresh_token);
+          }
+
+          setIsAuthenticated(true);
+          const successMessage =
+            (typeof response.data?.message === 'string' && response.data.message) ||
+            (typeof response.message === 'string' && response.message) ||
+            'Login successful';
+          showToast(successMessage, 'success');
+        } else {
+          await storeToken(response);
+          setIsAuthenticated(true);
+          const fallbackMessage =
+            typeof response === 'string'
+              ? 'Login successful'
+              : (typeof response.message === 'string' && response.message) || 'Login successful';
+          showToast(fallbackMessage, 'success');
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Login encryption failed:', error);
+        throw new Error('Failed to store authentication tokens');
+      }
+    },
+    [storeToken, storeRefreshToken, setIsAuthenticated, showToast]
+  );
+
+  const logout = useCallback(async () => {
     try {
       const response = await authService.logout();
 
@@ -193,20 +193,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         message = response.message;
       }
 
-      setToastState({
-        open: true,
-        message,
-        severity: 'success',
-      });
+      showToast(message, 'success');
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Logout error:', error);
       const errorMessage = extractLogoutErrorMessage(error);
-      setToastState({
-        open: true,
-        message: errorMessage,
-        severity: 'error',
-      });
+      showToast(errorMessage, 'error');
     } finally {
       localStorage.removeItem(AUTH_TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
@@ -214,37 +206,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       tokenCrypto.clearKey();
       setIsAuthenticated(false);
     }
-  };
+  }, [AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_DATA_KEY, setIsAuthenticated, showToast]);
 
-  const handleCloseToast = (_: SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setToastState((prev) => ({
-      ...prev,
-      open: false,
-    }));
-  };
-
-  const value: AuthContextValue = {
-    isAuthenticated,
-    loading,
-    login,
-    logout,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-
-      <ToastAlert
-        open={toastState.open}
-        onClose={handleCloseToast}
-        severity={toastState.severity}
-        message={toastState.message || 'Action completed successfully'}
-        autoHideDuration={3000}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      />
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      isAuthenticated,
+      loading,
+      login,
+      logout,
+    }),
+    [isAuthenticated, loading, login, logout]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

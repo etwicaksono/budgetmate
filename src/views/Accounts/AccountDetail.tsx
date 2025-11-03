@@ -13,7 +13,10 @@ import {
 } from 'recharts';
 import Swal from 'sweetalert2';
 import { TransactionModal } from '../../features/transactions/TransactionModal';
-import type { TransactionFormValues } from '../../features/transactions/TransactionModal';
+import type {
+  TransactionFormValues,
+  TransactionModalSaveContext,
+} from '../../features/transactions/TransactionModal';
 import AddAccountModal from '../../components/AddAccountModal';
 import type { NewAccountForm } from '../../components/AddAccountModal';
 import type { Account } from './Accounts';
@@ -429,11 +432,14 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
     });
   };
 
-  const handleEditModalSave = (createAnother: boolean): void => {
+  const handleEditModalSave = (
+    createAnother: boolean,
+    context?: TransactionModalSaveContext
+  ): void => {
     if (!editingTransaction) return;
 
     // TODO: Implement API call to save the transaction
-    console.log('Saving transaction:', editingTransaction);
+    console.log('Saving transaction:', editingTransaction, 'context:', context);
     setShowEditModal(false);
     setEditingTransaction(null);
 

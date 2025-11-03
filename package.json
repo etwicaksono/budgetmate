@@ -9,7 +9,10 @@
     "start": "next start",
     "build:staging": "NODE_ENV=production next build",
     "start:staging": "NODE_ENV=production next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "analyze": "cross-env ANALYZE=true next build",
+    "analyze:server": "cross-env BUNDLE_ANALYZE=server next build",
+    "analyze:browser": "cross-env BUNDLE_ANALYZE=browser next build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -24,15 +27,22 @@
     "react-color": "^2.19.3",
     "react-dom": "^18.3.1",
     "react-icons": "^5.5.0",
+    "react-virtualized-auto-sizer": "^1.0.26",
+    "react-window": "^1.8.10",
+    "react-window-infinite-loader": "^2.0.0",
     "recharts": "^3.3.0",
-    "sweetalert2": "^11.26.3"
+    "sweetalert2": "^11.26.3",
+    "web-vitals": "^5.1.0"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.0.1",
     "@types/node": "^20.11.30",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
+    "@types/react-window": "^1.8.8",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
+    "cross-env": "^10.1.0",
     "eslint": "^9.38.0",
     "eslint-config-next": "^16.0.0",
     "typescript": "^5.5.4"

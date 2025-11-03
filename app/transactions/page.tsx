@@ -1,12 +1,21 @@
 'use client';
-import React from 'react';
-import Transactions from '../../src/features/transactions/Transactions';
+import React, { Suspense } from 'react';
+import { LazyTransactions } from '../components/LazyRoute';
 import ProtectedShell from '../components/ProtectedShell';
+import { Spinner, Container } from 'react-bootstrap';
+
+const LoadingFallback = () => (
+  <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+    <Spinner animation="border" role="status" variant="primary" />
+  </Container>
+);
 
 export default function Page(): JSX.Element {
   return (
     <ProtectedShell>
-      <Transactions />
+      <Suspense fallback={<LoadingFallback />}>
+        <LazyTransactions />
+      </Suspense>
     </ProtectedShell>
   );
 }

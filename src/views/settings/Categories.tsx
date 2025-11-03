@@ -46,8 +46,8 @@ const ALLOWED_NATURES = ['WANT', 'NEED', 'MUST'] as const;
 type NatureValue = (typeof ALLOWED_NATURES)[number];
 
 interface Category {
-  id: number;
-  parent_id: number | null;
+  id: string;
+  parent_id: string | null;
   name: string;
   icon: string;
   color: string;
@@ -58,7 +58,7 @@ interface Category {
 }
 
 interface CategoryChild {
-  id: number;
+  id: string;
   name: string;
   type: 'parent' | 'child';
   icon?: string;
@@ -69,16 +69,16 @@ interface CategoryWithChildren extends Category {
 }
 
 interface CategoryFormState {
-  id: number | null;
+  id: string | null;
   name: string;
   nature: NatureValue;
-  parentId: number | null;
+  parentId: string | null;
   icon: string;
   color: string;
   isActive: boolean;
 }
 
-type CategoryMap = Record<number, string>;
+type CategoryMap = Record<string, string>;
 type ParentColorMap = Record<string, string>;
 
 type UseCategoryDataReturn = {
@@ -154,7 +154,7 @@ const resolveIconKey = (
 };
 
 const resolveParentColor = (
-  parentId: number | null,
+  parentId: string | null,
   parentIdToNameMap: CategoryMap,
   parentCategoryColorsMap: ParentColorMap,
   fallback: string = DEFAULT_CATEGORY_COLOR,
@@ -307,11 +307,11 @@ const Categories: React.FC = () => {
     }, {} as CategoryMap);
   }, [parentCategories]);
 
-  const parentNameToIdMap = useMemo<Record<string, number>>(() => {
-    return parentCategories.reduce<Record<string, number>>((accumulator, category) => {
+  const parentNameToIdMap = useMemo<Record<string, string>>(() => {
+    return parentCategories.reduce<Record<string, string>>((accumulator, category) => {
       accumulator[category.name] = category.id;
       return accumulator;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, string>);
   }, [parentCategories]);
 
   const parentCategoryColorsMap = useMemo<ParentColorMap>(() => {
@@ -394,7 +394,7 @@ const Categories: React.FC = () => {
   );
 
   const resolveColorForParent = useCallback(
-    (parentId: number | null, fallbackColor: string = DEFAULT_CATEGORY_COLOR) =>
+    (parentId: string | null, fallbackColor: string = DEFAULT_CATEGORY_COLOR) =>
       resolveParentColor(parentId, parentIdToNameMap, parentCategoryColorsMap, fallbackColor),
     [parentCategoryColorsMap, parentIdToNameMap],
   );
@@ -541,7 +541,7 @@ const Categories: React.FC = () => {
     }
   };
 
-  const handleDeleteCategory = async (categoryId: number | null | undefined): Promise<void> => {
+  const handleDeleteCategory = async (categoryId: string | null | undefined): Promise<void> => {
     if (!categoryId) {
       return;
     }
@@ -622,7 +622,7 @@ const Categories: React.FC = () => {
     }
   };
 
-  const handleOpenEdit = (categoryId: number): void => {
+  const handleOpenEdit = (categoryId: string): void => {
     const cat = categories.find((c) => c.id === categoryId);
     if (!cat) {
       return;
@@ -756,7 +756,7 @@ const Categories: React.FC = () => {
     resetNewForm();
   };
 
-  const handleAddSubcategory = (parentId: number): void => {
+  const handleAddSubcategory = (parentId: string): void => {
     const parentColor = resolveColorForParent(parentId);
     setNewCategory(
       createEmptyFormState(defaultIconKey, {
@@ -771,7 +771,7 @@ const Categories: React.FC = () => {
     setShowColorPicker(false);
   };
 
-  const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>(() => ({}));
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() => ({}));
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const handleDropdownToggle = (menuId: string | null): void => {
@@ -792,7 +792,7 @@ const Categories: React.FC = () => {
     setLoadError('');
   };
 
-  const toggleCategory = (categoryId: number): void => {
+  const toggleCategory = (categoryId: string): void => {
     setExpandedCategories((prev) => ({
       ...prev,
       [categoryId]: !prev[categoryId],

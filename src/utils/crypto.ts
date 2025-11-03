@@ -7,6 +7,12 @@ type CryptoKeyUsage = 'encrypt' | 'decrypt';
 const isBrowserCryptoAvailable = (): boolean =>
   typeof window !== 'undefined' && typeof window.crypto !== 'undefined';
 
+const isSecureContext = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  // Check if we're in a secure context (HTTPS or localhost)
+  return window.isSecureContext === true;
+};
+
 const TEXT_ENCODER = new TextEncoder();
 const TEXT_DECODER = new TextDecoder();
 
@@ -19,11 +25,22 @@ class TokenCrypto {
 
   private readonly ivLength: number;
 
+  private readonly useSecureCrypto: boolean;
+
   constructor() {
     this.sessionKey = APP_CONFIG.storageKeys.cryptoKey;
     this.algorithm = CRYPTO_CONFIG.algorithm;
     this.keyLength = CRYPTO_CONFIG.keyLength;
     this.ivLength = CRYPTO_CONFIG.ivLength;
+    this.useSecureCrypto = isSecureContext();
+
+    // Warn developers if running in non-secure context
+    if (!this.useSecureCrypto && typeof window !== 'undefined') {
+      console.warn(
+        'Running in non-secure context. Token encryption is disabled. ' +
+        'Use HTTPS or localhost for production-grade security.'
+      );
+    }
   }
 
   private ensureCrypto(): Crypto {
@@ -80,11 +97,32 @@ class TokenCrypto {
     return key;
   }
 
+  // Fallback encoding for non-secure contexts (Base64 only - NOT SECURE)
+  private fallbackEncode(token: string): string {
+    return btoa(encodeURIComponent(token));
+  }
+
+  // Fallback decoding for non-secure contexts
+  private fallbackDecode(encodedToken: string): string {
+    return decodeURIComponent(atob(encodedToken));
+  }
+
   async encryptToken(token: string | null | undefined): Promise<string | null> {
     if (!token) {
       return null;
     }
 
+    // Fallback for non-secure contexts (development only)
+    if (!this.useSecureCrypto) {
+      try {
+        return this.fallbackEncode(token);
+      } catch (error) {
+        console.error('Fallback encoding failed:', error);
+        throw new Error('Failed to encode token');
+      }
+    }
+
+    // Use secure encryption in secure contexts
     try {
       const cryptoInstance = this.ensureCrypto();
       const subtle = this.getSubtle(cryptoInstance);
@@ -123,6 +161,17 @@ class TokenCrypto {
       return null;
     }
 
+    // Fallback for non-secure contexts (development only)
+    if (!this.useSecureCrypto) {
+      try {
+        return this.fallbackDecode(encryptedToken);
+      } catch (error) {
+        console.error('Fallback decoding failed:', error);
+        throw new Error('Failed to decode token');
+      }
+    }
+
+    // Use secure decryption in secure contexts
     try {
       const cryptoInstance = this.ensureCrypto();
       const subtle = this.getSubtle(cryptoInstance);

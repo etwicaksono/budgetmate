@@ -23,7 +23,7 @@ import {
   accountService,
   type ApiAccountResponse,
 } from '../../services/accountService';
-import type { CategoryRecord, CategoryIconName } from './useCategoryData';
+import type { CategoryIconName } from './useCategoryData';
 import { formatNumberDisplayFromValue, coerceAndFormatNumber } from '../../utils/numericInput';
 
 type TransactionType = 'Expense' | 'Income' | 'Transfer' | string;
@@ -44,6 +44,7 @@ export interface QuickTransactionOption {
   id: string | number;
   description: string;
   category?: string;
+  category_id?: string | number | null;
   amount?: string | number;
   account?: string;
   type?: TransactionType;
@@ -59,6 +60,7 @@ export interface TransactionFormValues {
   date: string;
   dateTime: string;
   category: string;
+  categoryId?: string;
   account: string;
   toAccount?: string;
   toAmount?: string | number;
@@ -88,12 +90,20 @@ export type TransactionChangeEvent =
 
 export type TransactionChangeHandler = (event: TransactionChangeEvent) => void;
 
+export type TransactionModalSaveContext = {
+  categoryId?: string;
+  categoryLabel?: string;
+};
+
 export interface TransactionModalProps {
   show: boolean;
   onHide: () => void;
   transaction: TransactionFormValues | null;
   onChange?: TransactionChangeHandler;
-  onSave?: (createAnother: boolean) => void;
+  onSave?: (
+    createAnother: boolean,
+    context?: TransactionModalSaveContext
+  ) => void | Promise<void>;
   quickTransactions?: QuickTransactionOption[];
   onTemplateSelect?: (templateId: string | null) => void;
   onAddTemplate?: () => void;
@@ -105,6 +115,7 @@ export interface TransactionModalProps {
   accountTree?: CategoryTree;
   accountColors?: ColorMapping;
   accountIcons?: IconMapping;
+  validationErrors?: Record<string, string>;
 }
 
 const TYPE_OPTIONS: TypeOption[] = [
@@ -154,75 +165,105 @@ const resolveIconComponent = (
   return undefined;
 };
 
-const mapApiCategoryToRecord = (
+const isCategoryWithIdAndName = (
+  category: ApiCategoryResponse | null | undefined
+): category is ApiCategoryResponse & { id: string; name: string } => {
+  if (!category) {
+    return false;
+  }
+
+  const { id, name } = category;
+  return (
+    typeof id === 'string' &&
+    id.length > 0 &&
+    typeof name === 'string' &&
+    name.length > 0
+  );
+};
+
+const isParentCategory = (category: ApiCategoryResponse): boolean => {
+  if (typeof category.is_parent === 'boolean') {
+    return category.is_parent;
+  }
+  return category.parent_id === null || category.parent_id === undefined;
+};
+
+const normalizeApiCategory = (
   item: ApiCategoryResponse
-): CategoryRecord | null => {
-  if (!item || item.id == null || !item.name) {
+): ApiCategoryResponse | null => {
+  if (!isCategoryWithIdAndName(item)) {
     return null;
   }
 
   return {
+    ...item,
     id: item.id,
-    parent_id: item.parent_id ?? null,
     name: item.name,
-    icon: (item.icon ?? DEFAULT_CATEGORY_ICON) as CategoryRecord['icon'],
+    parent_id: item.parent_id ?? null,
+    icon: item.icon ?? DEFAULT_CATEGORY_ICON,
     color: item.color ?? DEFAULT_CATEGORY_COLOR,
-    is_parent: item.is_parent ?? item.parent_id == null,
+    is_parent: isParentCategory(item),
   };
 };
 
-const buildCategoryTreeFromRecords = (
-  records: CategoryRecord[]
+const buildCategoryTreeFromCategories = (
+  categories: ApiCategoryResponse[]
 ): CategoryTree => {
   const tree: CategoryTree = {};
-  const parentNameById = new Map<number, string>();
+  const validCategories = categories.filter(isCategoryWithIdAndName);
+  const parentNameById = new Map<string, string>();
 
-  records.forEach((record) => {
-    parentNameById.set(record.id, record.name);
-    if (record.is_parent || record.parent_id == null) {
-      if (!tree[record.name]) {
-        tree[record.name] = [];
+  validCategories.forEach((category) => {
+    parentNameById.set(category.id, category.name);
+    if (isParentCategory(category) || category.parent_id == null) {
+      if (!tree[category.name]) {
+        tree[category.name] = [];
       }
     }
   });
 
-  records.forEach((record) => {
-    if (record.parent_id != null) {
-      const parentName = parentNameById.get(record.parent_id);
+  validCategories.forEach((category) => {
+    if (category.parent_id != null) {
+      const parentName = parentNameById.get(category.parent_id);
       if (parentName) {
         if (!tree[parentName]) {
           tree[parentName] = [];
         }
-        tree[parentName].push(record.name);
-      } else if (!tree[record.name]) {
-        tree[record.name] = [];
+        tree[parentName].push(category.name);
+      } else if (!tree[category.name]) {
+        tree[category.name] = [];
       }
-    } else if (!record.is_parent && !tree[record.name]) {
-      tree[record.name] = [];
+    } else if (!isParentCategory(category) && !tree[category.name]) {
+      tree[category.name] = [];
     }
   });
 
   return tree;
 };
 
-const buildCategoryColorMapFromRecords = (
-  records: CategoryRecord[]
+const buildCategoryColorMapFromCategories = (
+  categories: ApiCategoryResponse[]
 ): ColorMapping =>
-  records.reduce<ColorMapping>((accumulator, record) => {
-    accumulator[record.name] = record.color ?? DEFAULT_CATEGORY_COLOR;
-    return accumulator;
-  }, {});
+  categories
+    .filter(isCategoryWithIdAndName)
+    .filter(isParentCategory)
+    .reduce<ColorMapping>((accumulator, category) => {
+      accumulator[category.name] = category.color ?? DEFAULT_CATEGORY_COLOR;
+      return accumulator;
+    }, {});
 
-const buildCategoryIconMapFromRecords = (
-  records: CategoryRecord[]
+const buildCategoryIconMapFromCategories = (
+  categories: ApiCategoryResponse[]
 ): IconMapping =>
-  records.reduce<IconMapping>((accumulator, record) => {
-    const iconComponent = resolveIconComponent(record.icon);
-    if (iconComponent) {
-      accumulator[record.name] = iconComponent;
-    }
-    return accumulator;
-  }, {});
+  categories
+    .filter(isCategoryWithIdAndName)
+    .reduce<IconMapping>((accumulator, category) => {
+      const iconComponent = resolveIconComponent(category.icon);
+      if (iconComponent) {
+        accumulator[category.name] = iconComponent;
+      }
+      return accumulator;
+    }, {});
 
 const buildAccountColorsMapFromResponse = (
   accounts: ApiAccountResponse[]
@@ -264,8 +305,9 @@ export function TransactionModal({
   accountTree,
   accountColors,
   accountIcons,
+  validationErrors = {},
 }: TransactionModalProps): JSX.Element | null {
-  const [apiCategories, setApiCategories] = useState<CategoryRecord[]>([]);
+  const [apiCategories, setApiCategories] = useState<ApiCategoryResponse[]>([]);
   const [categoryFetchState, setCategoryFetchState] = useState<
     'idle' | 'loading' | 'success' | 'error'
   >('idle');
@@ -417,11 +459,67 @@ export function TransactionModal({
     [onChange]
   );
 
+  const categoryIdByName = useMemo<Record<string, string>>(() => {
+    const mapping: Record<string, string> = {};
+    apiCategories.forEach((category) => {
+      if (category.name && category.id) {
+        mapping[category.name] = String(category.id);
+      }
+    });
+    return mapping;
+  }, [apiCategories]);
   const handleSave = useCallback(
     (createAnother: boolean) => {
-      onSave?.(createAnother);
+      // eslint-disable-next-line no-console
+      console.log('TransactionModal handleSave called, createAnother:', createAnother);
+      // eslint-disable-next-line no-console
+      console.log('onSave exists?', !!onSave, 'type:', typeof onSave);
+      // eslint-disable-next-line no-console
+      console.log('onSave function name:', onSave?.name);
+
+      if (onSave) {
+        const categoryLabel = transaction?.category ?? '';
+        const computedCategoryId =
+          transaction?.categoryId && String(transaction.categoryId).length > 0
+            ? String(transaction.categoryId)
+            : categoryLabel
+              ? categoryIdByName[categoryLabel] ?? undefined
+              : undefined;
+
+        const saveContext: TransactionModalSaveContext = {
+          categoryId: computedCategoryId,
+          categoryLabel: categoryLabel || undefined,
+        };
+
+        // eslint-disable-next-line no-console
+        console.log('Invoking onSave with context:', saveContext);
+
+        try {
+          const result = onSave(createAnother, saveContext);
+          // eslint-disable-next-line no-console
+          console.log('onSave returned:', result);
+          // If it's a promise, log when it resolves
+          if (result instanceof Promise) {
+            // eslint-disable-next-line no-console
+            console.log('onSave returned a promise, waiting...');
+            result.then(() => {
+              // eslint-disable-next-line no-console
+              console.log('onSave promise resolved');
+            }).catch((error: unknown) => {
+              // eslint-disable-next-line no-console
+              console.error('onSave promise rejected:', error);
+            });
+          }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('Error calling onSave:', error);
+        }
+      } else {
+        // eslint-disable-next-line no-console
+        console.error('onSave is not defined!');
+      }
     },
-    [onSave]
+    [onSave, transaction, categoryIdByName]
   );
 
   const providedCategoryOptions = useMemo(
@@ -456,21 +554,21 @@ export function TransactionModal({
     if (apiCategories.length === 0) {
       return {};
     }
-    return buildCategoryTreeFromRecords(apiCategories);
+    return buildCategoryTreeFromCategories(apiCategories);
   }, [apiCategories]);
 
   const apiCategoryColorsMap = useMemo<ColorMapping>(() => {
     if (apiCategories.length === 0) {
       return {};
     }
-    return buildCategoryColorMapFromRecords(apiCategories);
+    return buildCategoryColorMapFromCategories(apiCategories);
   }, [apiCategories]);
 
   const apiCategoryIcons = useMemo<IconMapping>(() => {
     if (apiCategories.length === 0) {
       return {};
     }
-    return buildCategoryIconMapFromRecords(apiCategories);
+    return buildCategoryIconMapFromCategories(apiCategories);
   }, [apiCategories]);
 
   const apiAccountOptions = useMemo(() => {
@@ -509,8 +607,8 @@ export function TransactionModal({
       setCategoryFetchState('loading');
       const response = await categoryService.fetchCategories();
       const mapped = response
-        .map(mapApiCategoryToRecord)
-        .filter((item): item is CategoryRecord => item !== null);
+        .map(normalizeApiCategory)
+        .filter((item): item is ApiCategoryResponse => item !== null);
 
       setApiCategories(mapped);
 
@@ -568,12 +666,32 @@ export function TransactionModal({
   }, [apiAccountIcons]);
 
   const resolvedCategoryTree = useMemo<CategoryTree>(() => {
+    const mergedTree: CategoryTree = {};
+
+    Object.entries(apiCategoryTree ?? {}).forEach(([parent, children]) => {
+      mergedTree[parent] = [...(children ?? [])];
+    });
+
     if (categoryTree && Object.keys(categoryTree).length > 0) {
-      return categoryTree;
+      Object.entries(categoryTree).forEach(([parent, children]) => {
+        const existingChildren = mergedTree[parent] ?? [];
+        const normalizedChildren = (children ?? []).filter(
+          (child): child is string => Boolean(child)
+        );
+        if (normalizedChildren.length === 0 && !mergedTree[parent]) {
+          mergedTree[parent] = existingChildren;
+          return;
+        }
+
+        const combined = new Set<string>([...existingChildren, ...normalizedChildren]);
+        mergedTree[parent] = Array.from(combined);
+      });
     }
-    if (Object.keys(apiCategoryTree).length > 0) {
-      return apiCategoryTree;
+
+    if (Object.keys(mergedTree).length > 0) {
+      return mergedTree;
     }
+
     return Object.fromEntries(
       resolvedCategoryOptions.map((categoryOption) => [categoryOption, [] as string[]])
     );
@@ -638,14 +756,36 @@ export function TransactionModal({
   const createSingleSelectSetter = useCallback(
     (fieldName: 'account' | 'toAccount' | 'category') =>
       (nextSelection?: string[]) => {
-        if (!transaction || !onChange) {
-          return;
-        }
         const normalized = Array.isArray(nextSelection) ? nextSelection : [];
         const sanitized = normalized.filter(
           (item): item is string => !!item && item !== 'All'
         );
         const nextValue = sanitized[sanitized.length - 1] ?? '';
+
+        if (fieldName === 'category') {
+          const nextCategoryId = nextValue ? categoryIdByName[nextValue] ?? '' : '';
+          // eslint-disable-next-line no-console
+          console.log(
+            'Selected category_id for API:',
+            nextCategoryId || '(unmapped selection)',
+            '| label:',
+            nextValue || '(none)'
+          );
+          if (transaction && onChange) {
+            onChange({
+              target: {
+                name: 'categoryId',
+                value: nextCategoryId,
+              },
+            });
+          }
+        }
+
+        if (!transaction || !onChange) {
+          return;
+        }
+
+        // Trigger onChange which will clear validation errors
         onChange({
           target: {
             name: fieldName,
@@ -653,7 +793,7 @@ export function TransactionModal({
           },
         });
       },
-    [transaction, onChange]
+    [transaction, onChange, categoryIdByName]
   );
 
   const handleAccountSelect = useMemo(
@@ -872,6 +1012,7 @@ export function TransactionModal({
                         autoComplete="off"
                         inputMode="decimal"
                         style={{ paddingRight: '2.5rem' }}
+                        isInvalid={!!validationErrors.amount}
                       />
                       <InputClearButton
                         show={!!amountDisplay}
@@ -886,6 +1027,11 @@ export function TransactionModal({
                         iconSize={18}
                         colorClass="text-secondary"
                       />
+                      {validationErrors.amount && (
+                        <Form.Control.Feedback type="invalid" style={{ display: 'block' }}>
+                          {validationErrors.amount}
+                        </Form.Control.Feedback>
+                      )}
                     </div>
                   </Form.Group>
 
@@ -905,6 +1051,11 @@ export function TransactionModal({
                       searchPlaceholder="Search account..."
                       clearSelectedLabel="Clear selection"
                     />
+                    {validationErrors.account && (
+                      <div className="invalid-feedback" style={{ display: 'block' }}>
+                        {validationErrors.account}
+                      </div>
+                    )}
                   </Form.Group>
                 </>
               )}
@@ -929,6 +1080,11 @@ export function TransactionModal({
                       void ensureCategoriesLoaded();
                     }}
                   />
+                  {validationErrors.category && (
+                    <div className="invalid-feedback" style={{ display: 'block' }}>
+                      {validationErrors.category}
+                    </div>
+                  )}
                 </Form.Group>
               )}
 

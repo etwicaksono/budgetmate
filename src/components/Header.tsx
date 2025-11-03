@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { FaBars, FaBug, FaChevronDown, FaCog, FaPlus, FaQuestionCircle, FaSignOutAlt } from 'react-icons/fa';
 import { useTransactionModal } from '../context/TransactionModalContext';
 import { useAuth } from '../context/AuthContext';
-/* moved logo asset to public; use path '/images/logo.svg' */
 import type { IconBaseProps, IconType } from 'react-icons';
 
 type NavigationLink = {
@@ -100,7 +99,7 @@ const Header: React.FC = () => {
         <div className="app-header__left">
           <Link href="/" className="app-header__brand" onClick={handleClose}>
             <span className="app-header__brand-icon">
-              <img src="/images/logo.svg" alt="Wallet logo" className="app-header__brand-logo" />
+              <img src="/images/logo-image-only.svg" alt="Wallet logo" className="app-header__brand-logo" />
             </span>
           </Link>
 
