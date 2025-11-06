@@ -38,7 +38,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { formatNumberDisplayFromValue, coerceAndFormatNumber } from '../../utils/numericInput';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
-import { SingleCategoryDropdown } from '../../features/transactions/SingleCategoryDropdown';
+import { SingleCategoryDropdown } from '../Transactions/SingleCategoryDropdown';
 import AddAccountModal from '../../components/AddAccountModal';
 import { accountService } from '../../services/accountService';
 import type { ApiAccountResponse } from '../../services/accountService';
@@ -615,7 +615,7 @@ const Accounts: React.FC = () => {
 
 
   return (
-    <Container className="accounts-page">
+    <Container fluid className="accounts-page">
       <Row className="align-items-stretch accounts-page__layout">
         <Col xl={3} lg={4} className="mb-4">
           <Card className="accounts-sidebar">

@@ -1,64 +1,52 @@
-import React, { useState, ChangeEvent } from 'react';
-import { Container, Row, Col, Card, Form } from 'react-bootstrap';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import type { PieLabelRenderProps } from 'recharts';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Container, Row, Col, Card, Form, Dropdown } from 'react-bootstrap';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { RiListSettingsLine } from 'react-icons/ri';
+import analyticsService, { type ExpenseByCategory, type DashboardTransaction } from '../../services/analyticsService';
+import budgetService, { type BudgetStatus } from '../../services/budgetService';
+import CategoryPieChart from '../../components/CategoryPieChart';
+import IncomeExpenseBarChart from '../../components/IncomeExpenseBarChart';
+import CashFlowChart from '../../components/CashFlowChart';
+import RecentTransactionsList from '../../components/RecentTransactionsList';
+import BudgetStatusList from '../../components/BudgetStatusList';
+import BalanceTrendWidget from '../../components/Widget/BalanceTrendWidget';
+import PeriodNavigation, {
+  PeriodNavigationProvider,
+  usePeriodNavigation,
+} from '../../components/PeriodNavigation';
+import PeriodRangeSelector from '../../components/PeriodRangeSelector';
+import { SortableWidgetCard, WidgetCard } from '../../components/WidgetCards';
 
 // Type definitions
-interface ExpenseData {
-  name: string;
-  amount: number;
-  [key: string]: string | number;
-}
-
 interface IncomeExpenseData {
   name: string;
   income: number;
   expense: number;
+  [key: string]: string | number;
 }
 
 interface CashFlowData {
-  month: string;
-  inflow: number;
-  outflow: number;
+  name: string;
+  income: number;
+  expense: number;
   net: number;
+  [key: string]: string | number;
 }
-
-
-type TimeRange = 'weekly' | 'monthly' | 'yearly';
-
-interface ExpenseDataMap {
-  weekly: ExpenseData[];
-  monthly: ExpenseData[];
-  yearly: ExpenseData[];
-}
-
-// Constants with proper typing
-const INITIAL_EXPENSE_DATA: ExpenseDataMap = {
-  monthly: [
-    { name: 'Food', amount: 800 },
-    { name: 'Transport', amount: 400 },
-    { name: 'Shopping', amount: 600 },
-    { name: 'Entertainment', amount: 300 },
-    { name: 'Utilities', amount: 500 },
-    { name: 'Healthcare', amount: 200 },
-  ],
-  weekly: [
-    { name: 'Food', amount: 200 },
-    { name: 'Transport', amount: 100 },
-    { name: 'Shopping', amount: 150 },
-    { name: 'Entertainment', amount: 75 },
-    { name: 'Utilities', amount: 125 },
-    { name: 'Healthcare', amount: 50 },
-  ],
-  yearly: [
-    { name: 'Food', amount: 9600 },
-    { name: 'Transport', amount: 4800 },
-    { name: 'Shopping', amount: 7200 },
-    { name: 'Entertainment', amount: 3600 },
-    { name: 'Utilities', amount: 6000 },
-    { name: 'Healthcare', amount: 2400 },
-  ]
-};
 
 const INCOME_EXPENSE_DATA: IncomeExpenseData[] = [
   { name: 'Jan', income: 4000, expense: 2400 },
@@ -76,164 +64,411 @@ const INCOME_EXPENSE_DATA: IncomeExpenseData[] = [
 ];
 
 const CASH_FLOW_DATA: CashFlowData[] = [
-  { month: 'Jan', inflow: 4000, outflow: 2400, net: 1600 },
-  { month: 'Feb', inflow: 3000, outflow: 1398, net: 1602 },
-  { month: 'Mar', inflow: 2000, outflow: 9800, net: -7800 },
-  { month: 'Apr', inflow: 2780, outflow: 3908, net: -1128 },
-  { month: 'May', inflow: 1890, outflow: 4800, net: -2910 },
-  { month: 'Jun', inflow: 2390, outflow: 3800, net: -1410 },
-  { month: 'Jul', inflow: 3490, outflow: 4300, net: -810 },
-  { month: 'Aug', inflow: 3200, outflow: 2800, net: 400 },
-  { month: 'Sep', inflow: 2800, outflow: 3100, net: -300 },
-  { month: 'Oct', inflow: 4000, outflow: 2200, net: 1800 },
+  { name: 'Jan', income: 4000, expense: 2400, net: 1600 },
+  { name: 'Feb', income: 3000, expense: 1398, net: 1602 },
+  { name: 'Mar', income: 2000, expense: 9800, net: -7800 },
+  { name: 'Apr', income: 2780, expense: 3908, net: -1128 },
+  { name: 'May', income: 1890, expense: 4800, net: -2910 },
+  { name: 'Jun', income: 2390, expense: 3800, net: -1410 },
+  { name: 'Jul', income: 3490, expense: 4300, net: -810 },
+  { name: 'Aug', income: 3200, expense: 2800, net: 400 },
+  { name: 'Sep', income: 2800, expense: 3100, net: -300 },
+  { name: 'Oct', income: 4000, expense: 2200, net: 1800 },
 ];
 
-const COLORS: readonly string[] = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B'];
+const COLORS: readonly string[] = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B', '#4ECDC4', '#95E1D3'];
+
+// LocalStorage key for widget order
+const WIDGET_ORDER_STORAGE_KEY = 'reports-widget-order';
+const DEFAULT_WIDGET_ORDER = [
+  'balanceTrend',
+  'expensesByCategory',
+  'incomeVsExpenses',
+  'cashFlow',
+  'recentTransactions',
+  'budgetStatus',
+];
+
+// Helper function to load widget order from localStorage
+const loadWidgetOrder = (): string[] => {
+  if (typeof window === 'undefined') return DEFAULT_WIDGET_ORDER;
+  
+  try {
+    const stored = localStorage.getItem(WIDGET_ORDER_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as string[];
+      // If stored order matches expected length, use it
+      if (Array.isArray(parsed) && parsed.length === DEFAULT_WIDGET_ORDER.length) {
+        return parsed;
+      }
+      // If stored order is outdated, merge with default order
+      if (Array.isArray(parsed)) {
+        const merged = [...DEFAULT_WIDGET_ORDER];
+        parsed.forEach((widgetId) => {
+          if (DEFAULT_WIDGET_ORDER.includes(widgetId) && !merged.includes(widgetId)) {
+            merged.push(widgetId);
+          }
+        });
+        return merged;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load widget order from localStorage:', error);
+  }
+  
+  return DEFAULT_WIDGET_ORDER;
+};
 
 // Utility function for tooltip formatting
-const formatCurrency = (value: number): [string, string] => [`$${value}`, 'Amount'];
+const formatCurrencyTooltip = (value: number): [string, string] => {
+  const formatted = new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.abs(value));
+  return [`${value < 0 ? '-' : ''}IDR ${formatted}`, 'Amount'];
+};
 
-// Utility function for pie chart labels
-const pieLabelFormatter = (props: PieLabelRenderProps): string => {
-  const r = props as unknown as Record<string, unknown>;
-  const percent = typeof r.percent === 'number' ? (r.percent as number) : 0;
-  const name = typeof r.name === 'string' ? (r.name as string) : '';
-  return `${name} ${(percent * 100).toFixed(0)}%`;
-}
+// Utility function for IDR currency formatting
+const formatCurrency = (value: number): string => {
+  const formatted = new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(value));
+  return `${value < 0 ? '-' : ''}IDR ${formatted}`;
+};
 
-const Reports: React.FC = () => {
-  const [timeRange, setTimeRange] = useState<TimeRange>('monthly');
+const ReportsContent: React.FC = () => {
+  const [expensesFromService, setExpensesFromService] = useState<ExpenseByCategory[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<DashboardTransaction[]>([]);
+  const [budgetStatus, setBudgetStatus] = useState<BudgetStatus[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample expense data for different time ranges
-  const expenseData: ExpenseDataMap = INITIAL_EXPENSE_DATA;
+  // Widget order state - load from localStorage
+  const [widgetOrder, setWidgetOrder] = useState<string[]>(() => loadWidgetOrder());
 
-  const handleTimeRangeChange = (e: ChangeEvent<HTMLSelectElement>): void => {
-    setTimeRange(e.target.value as TimeRange);
+  // Drag state
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Control panel state
+  const [showControlPanel, setShowControlPanel] = useState(false);
+
+  // Widget visibility state
+  const [widgetVisibility, setWidgetVisibility] = useState({
+    balanceTrend: true,
+    expensesByCategory: true,
+    incomeVsExpenses: true,
+    cashFlow: true,
+    recentTransactions: true,
+    budgetStatus: true,
+  });
+
+  const toggleWidgetVisibility = (widgetKey: keyof typeof widgetVisibility) => {
+    setWidgetVisibility(prev => ({
+      ...prev,
+      [widgetKey]: !prev[widgetKey],
+    }));
+  };
+
+  // DnD-Kit sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Drag handlers
+  const handleDragStart = useCallback((event: DragEndEvent) => {
+    setActiveId(event.active.id as string);
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setWidgetOrder((items) => {
+        const oldIndex = items.findIndex((item) => item === active.id);
+        const newIndex = items.findIndex((item) => item === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) return items;
+
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  }, []);
+
+  const handleDragCancel = useCallback(() => {
+    setActiveId(null);
+  }, []);
+
+  const {
+    state: { periodLabel, activePeriod, customRangeDraft },
+  } = usePeriodNavigation();
+
+  // Save widget order to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(WIDGET_ORDER_STORAGE_KEY, JSON.stringify(widgetOrder));
+      } catch (error) {
+        console.error('Failed to save widget order to localStorage:', error);
+      }
+    }
+  }, [widgetOrder]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [expenses, transactions, budgets] = await Promise.all([
+          analyticsService.fetchExpensesByCategory(),
+          analyticsService.fetchRecentTransactions(10),
+          budgetService.fetchBudgetStatus(),
+        ]);
+        setExpensesFromService(expenses);
+        setRecentTransactions(transactions);
+        setBudgetStatus(budgets);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchData();
+  }, []);
+
+  // Filter expense data to only show categories with percentage >= 0.5% (rounds to 1% or more)
+  const filteredExpenseData = React.useMemo(() => {
+    const nonZero = expensesFromService.filter((item) => item.value > 0);
+    const total = nonZero.reduce((sum, item) => sum + item.value, 0);
+    return total > 0 ? nonZero.filter((item) => (item.value / total) >= 0.005) : [];
+  }, [expensesFromService]);
+
+  // Widget components map
+  const widgets: Record<string, { title: string; component: React.ReactNode }> = {
+    balanceTrend: {
+      title: 'Balance Trend',
+      component: (
+        <BalanceTrendWidget
+          formatCurrency={formatCurrency}
+          height={350}
+          lineColor="#2563eb"
+        />
+      ),
+    },
+    expensesByCategory: {
+      title: 'Expenses by Category',
+      component: loading ? (
+        <div className="text-center py-5">Loading...</div>
+      ) : filteredExpenseData.length === 0 ? (
+        <div className="text-center text-muted py-5">No expense data available</div>
+      ) : (
+        <CategoryPieChart
+          data={filteredExpenseData}
+          colors={[...COLORS]}
+          formatValue={formatCurrency}
+          height={350}
+          outerRadius={100}
+        />
+      ),
+    },
+    incomeVsExpenses: {
+      title: 'Income vs Expenses (Yearly)',
+      component: (
+        <IncomeExpenseBarChart
+          data={INCOME_EXPENSE_DATA}
+          formatValue={(value) => formatCurrencyTooltip(value)[0]}
+          height={350}
+          incomeColor="#2ecc71"
+          expenseColor="#e74c3c"
+          incomeLabel="Income"
+          expenseLabel="Expense"
+        />
+      ),
+    },
+    cashFlow: {
+      title: 'Cash Flow Analysis',
+      component: (
+        <CashFlowChart
+          data={CASH_FLOW_DATA}
+          formatValue={(value) => formatCurrencyTooltip(value)[0]}
+          height={350}
+          incomeColor="#2ecc71"
+          expenseColor="#e74c3c"
+          netColor="#000000"
+          incomeLabel="Income"
+          expenseLabel="Expense"
+          netLabel="Cash flow"
+        />
+      ),
+    },
+    recentTransactions: {
+      title: 'Recent Transactions',
+      component: loading ? (
+        <div className="text-center py-5">Loading...</div>
+      ) : (
+        <RecentTransactionsList
+          transactions={recentTransactions}
+          formatCurrency={formatCurrency}
+          emptyMessage="No recent transactions"
+        />
+      ),
+    },
+    budgetStatus: {
+      title: 'Budget Status',
+      component: loading ? (
+        <div className="text-center py-5">Loading...</div>
+      ) : (
+        <BudgetStatusList
+          budgets={budgetStatus}
+          formatCurrency={formatCurrency}
+          limit={5}
+          emptyMessage="No budget data available"
+        />
+      ),
+    },
   };
 
   return (
-    <Container >
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1>Reports & Analytics</h1>
-        <Form.Select
-          value={timeRange}
-          onChange={handleTimeRangeChange}
-          style={{ width: '200px' }}
-        >
-          <option value="weekly">This Week</option>
-          <option value="monthly">This Month</option>
-          <option value="yearly">This Year</option>
-        </Form.Select>
-      </div>
-
+    <Container  fluid>
       <Row>
-        {/* Expense by Category - Pie Chart */}
-        <Col lg={6} className="mb-4">
-          <Card>
-            <Card.Header>Expenses by Category</Card.Header>
-            <Card.Body>
-              <ResponsiveContainer width="100%" height={350}>
-                <PieChart>
-                  <Pie
-                    data={expenseData[timeRange]}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="amount"
-                    label={pieLabelFormatter}
-                  >
-                    {expenseData[timeRange].map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={formatCurrency} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        {/* Income vs Expenses - Bar Chart */}
-        <Col lg={6} className="mb-4">
-          <Card>
-            <Card.Header>Income vs Expenses (Yearly)</Card.Header>
-            <Card.Body>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={INCOME_EXPENSE_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={formatCurrency} />
-                  <Legend />
-                  <Bar dataKey="income" fill="#2ecc71" name="Income" />
-                  <Bar dataKey="expense" fill="#e74c3c" name="Expense" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row>
-        {/* Cash Flow Analysis */}
         <Col lg={12} className="mb-4">
-          <Card>
-            <Card.Header>Cash Flow Analysis</Card.Header>
-            <Card.Body>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={CASH_FLOW_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={formatCurrency} />
-                  <Legend />
-                  <Line type="monotone" dataKey="inflow" stroke="#2ecc71" name="Total Inflow" strokeWidth={2} />
-                  <Line type="monotone" dataKey="outflow" stroke="#e74c3c" name="Total Outflow" strokeWidth={2} />
-                  <Line type="monotone" dataKey="net" stroke="#3498db" name="Net Cash Flow" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card.Body>
-          </Card>
+          <h1 className="mb-3">Reports & Analytics</h1>
+          <div className="d-flex align-items-start mb-3" style={{ position: 'relative' }}>
+            <div style={{ flex: 1 }}></div>
+            <PeriodNavigation>
+              <PeriodRangeSelector
+                label={periodLabel}
+                activePeriod={activePeriod}
+                customRange={customRangeDraft}
+              />
+            </PeriodNavigation>
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              {/* Widget Control Panel */}
+              <Dropdown show={showControlPanel} onToggle={(isOpen) => setShowControlPanel(isOpen)}>
+              <Dropdown.Toggle
+                as="button"
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <RiListSettingsLine size={24} color="#6b7280" />
+              </Dropdown.Toggle>
+
+              <Dropdown.Menu
+                align="end"
+                style={{
+                  minWidth: '280px',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+                  border: '1px solid #e5e7eb',
+                  marginTop: '8px',
+                }}
+              >
+                <div style={{ marginBottom: '12px' }}>
+                  <h6 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1f2937' }}>
+                    Customize Widgets
+                  </h6>
+                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#6b7280' }}>
+                    Show or hide widgets on this page
+                  </p>
+                </div>
+                <hr style={{ margin: '12px 0', borderColor: '#e5e7eb' }} />
+                <div>
+                  {Object.entries(widgets).map(([widgetId, widget]) => (
+                    <Form.Check
+                      key={widgetId}
+                      type="checkbox"
+                      id={`widget-${widgetId}`}
+                      label={widget.title}
+                      checked={widgetVisibility[widgetId as keyof typeof widgetVisibility]}
+                      onChange={() => toggleWidgetVisibility(widgetId as keyof typeof widgetVisibility)}
+                      style={{
+                        marginBottom: '10px',
+                        fontSize: '14px',
+                      }}
+                      className="custom-widget-checkbox"
+                    />
+                  ))}
+                </div>
+              </Dropdown.Menu>
+              </Dropdown>
+            </div>
+          </div>
         </Col>
       </Row>
 
-      <Row>
-        {/* Summary Cards */}
-        <Col md={4} className="mb-4">
-          <Card className="text-center bg-primary text-white">
-            <Card.Body>
-              <Card.Title>Total Income</Card.Title>
-              <Card.Text className="display-4">$35,680</Card.Text>
-              <Card.Text className="text-light">This Year</Card.Text>
-            </Card.Body>
-          </Card>
-        </Col>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <SortableContext items={widgetOrder} strategy={rectSortingStrategy}>
+          <Row>
+            {widgetOrder
+              .filter((widgetId) => widgetVisibility[widgetId as keyof typeof widgetVisibility])
+              .map((widgetId) => {
+                const widget = widgets[widgetId];
+                const visibility = widgetVisibility[widgetId as keyof typeof widgetVisibility];
 
-        <Col md={4} className="mb-4">
-          <Card className="text-center bg-danger text-white">
-            <Card.Body>
-              <Card.Title>Total Expenses</Card.Title>
-              <Card.Text className="display-4">$29,226</Card.Text>
-              <Card.Text className="text-light">This Year</Card.Text>
-            </Card.Body>
-          </Card>
-        </Col>
+                return (
+                  <SortableWidgetCard
+                    key={widgetId}
+                    widgetId={widgetId}
+                    widget={widget}
+                    visibility={visibility}
+                    onToggleVisibility={() => toggleWidgetVisibility(widgetId as keyof typeof widgetVisibility)}
+                  />
+                );
+              })}
+          </Row>
+        </SortableContext>
 
-        <Col md={4} className="mb-4">
-          <Card className="text-center bg-success text-white">
-            <Card.Body>
-              <Card.Title>Net Savings</Card.Title>
-              <Card.Text className="display-4">$6,454</Card.Text>
-              <Card.Text className="text-light">This Year</Card.Text>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+        <DragOverlay>
+          {activeId
+            ? (() => {
+                const widget = widgets[activeId];
+                const visibility = widgetVisibility[activeId as keyof typeof widgetVisibility];
+                return widget ? (
+                  <WidgetCard widgetId={activeId} widget={widget} visibility={visibility} />
+                ) : null;
+              })()
+            : null}
+        </DragOverlay>
+      </DndContext>
+
     </Container>
   );
 };
+
+const Reports: React.FC = () => (
+  <PeriodNavigationProvider initialDate={new Date()}>
+    <ReportsContent />
+  </PeriodNavigationProvider>
+);
 
 export default Reports;

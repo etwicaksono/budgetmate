@@ -3,7 +3,7 @@ import { Modal, Form, Button, Row, Col, InputGroup, OverlayTrigger, Tooltip, Ale
 import * as FaIcons from 'react-icons/fa';
 import { FaWallet, FaMoneyBillWave, FaUniversity, FaInfoCircle,FaPiggyBank, FaCreditCard,FaGift,FaShieldAlt,FaChartLine,FaHandHoldingUsd,FaHome,FaExclamationTriangle} from 'react-icons/fa';
 import type { IconType } from 'react-icons';
-import { SingleCategoryDropdown } from '../features/transactions/SingleCategoryDropdown';
+import { SingleCategoryDropdown } from '../views/Transactions/SingleCategoryDropdown';
 import { formatNumberDisplayFromValue, coerceAndFormatNumber } from '../utils/numericInput';
 import accountService, { CreateAccountRequest, UpdateAccountRequest } from '../services/accountService';
 

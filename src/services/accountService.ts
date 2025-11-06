@@ -1,4 +1,5 @@
 import apiService from './api';
+import type { TransactionRecord } from '../types/transaction';
 
 export interface ApiResponse<T> {
   success?: boolean;
@@ -74,11 +75,76 @@ export interface AccountService {
   updateAccount(id: string, payload: UpdateAccountRequest): Promise<ApiAccountResponse>;
   deleteAccount(id: string): Promise<void>;
   swapAccountOrder(payload: SwapOrderRequest): Promise<void>;
+  fetchAccountTransactions(accountId: string, currentBalance: number): Promise<TransactionRecord[]>;
   getNextPersonalId(): number;
 }
 
 // Store the next personal_id
 let nextPersonalId = 1;
+
+// Generate mock transaction records
+const generateMockTransactions = (currentBalance: number): TransactionRecord[] => {
+  const categories = [
+    { name: 'Loans, interests', icon: 'FaHandshake', iconColor: '#F97316', payer: 'Ibuk Fatim' },
+    { name: 'Missing', icon: 'FaQuestionCircle', iconColor: '#6B7280', payer: '' },
+    { name: 'Life events', icon: 'FaLeaf', iconColor: '#10B981', payer: '' },
+    { name: 'Charity, gifts', icon: 'FaGift', iconColor: '#EC4899', payer: '' },
+    { name: 'Fuel', icon: 'FaGasPump', iconColor: '#8B5CF6', payer: '' },
+    { name: 'Food & Dining', icon: 'FaUtensils', iconColor: '#EF4444', payer: '' },
+    { name: 'Transport', icon: 'FaTaxi', iconColor: '#3B82F6', payer: '' },
+  ];
+
+  const descriptions = [
+    'Payment to friend',
+    'Monthly subscription',
+    'Shopping',
+    'Transfer to savings',
+    'Salary deposit',
+    'Refund',
+    'Invoice payment',
+  ];
+
+  const accounts = ['Cash Eko', 'Cash Dewi', 'CIMB Syariah', 'BCA', 'Mandiri'];
+
+  const transactions: TransactionRecord[] = [];
+  const today = new Date();
+
+  // Generate transactions for the last 30 days
+  for (let i = 0; i < 50; i++) {
+    const daysAgo = Math.floor(Math.random() * 30);
+    const date = new Date(today);
+    date.setDate(date.getDate() - daysAgo);
+
+    const category = categories[Math.floor(Math.random() * categories.length)];
+    const amount = Math.floor(Math.random() * 500000) + 10000;
+    const isExpense = Math.random() > 0.3; // 70% expenses, 30% income
+
+    const hours = Math.floor(Math.random() * 24);
+    const minutes = Math.floor(Math.random() * 60);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    const time = `${String(hours12).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+
+    const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+    transactions.push({
+      id: `trans-${i}`,
+      date: dateString,
+      time,
+      categoryName: category.name,
+      categoryIcon: category.icon,
+      categoryIconColor: category.iconColor,
+      accountName: accounts[Math.floor(Math.random() * accounts.length)],
+      description: descriptions[Math.floor(Math.random() * descriptions.length)],
+      payer: category.payer,
+      amount: amount,
+      type: isExpense ? 'EXPENSE' : 'INCOME',
+    });
+  }
+
+  // Sort by date descending (most recent first)
+  return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
 
 export const accountService: AccountService = {
   async fetchAccounts() {
@@ -171,6 +237,16 @@ export const accountService: AccountService = {
     if (!response.success && response.error) {
       throw new Error(response.error.message || 'Failed to swap account order');
     }
+  },
+
+  async fetchAccountTransactions(accountId: string, currentBalance: number) {
+    // TODO: Replace with actual API call when backend is ready
+    // const response = (await apiService.get(`/accounts/${accountId}/transactions`)) as ApiResponse<TransactionRecord[]> | TransactionRecord[];
+
+    // For now, return mock data with simulated network delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    return generateMockTransactions(currentBalance);
   },
 
   getNextPersonalId() {

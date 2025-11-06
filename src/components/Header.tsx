@@ -46,6 +46,7 @@ const Header: React.FC = () => {
       { to: '/', label: 'Dashboard', exact: true },
       { to: '/accounts', label: 'Accounts' },
       { to: '/transactions', label: 'Transactions' },
+      { to: '/analytics', label: 'Analytics' },
       { to: '/budgets', label: 'Budgets' },
       { to: '/reports', label: 'Reports' },
     ],
@@ -95,7 +96,7 @@ const Header: React.FC = () => {
 
   return (
     <header className="app-header">
-      <Container className="app-header__container">
+      <Container fluid className="app-header__container">
         <div className="app-header__left">
           <Link href="/" className="app-header__brand" onClick={handleClose}>
             <span className="app-header__brand-icon">

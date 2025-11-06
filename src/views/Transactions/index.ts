@@ -2,10 +2,8 @@
  * Transaction Feature Exports
  * 
  * This file exports the transaction components and utilities
+ * Note: Main Transactions component has been moved to src/views/Transactions/
  */
-
-// Main component
-export { default as Transactions } from './Transactions';
 
 // Components
 export { default as TransactionList } from './components/TransactionList';

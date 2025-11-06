@@ -86,7 +86,7 @@ const TransactionListItem: React.FC<TransactionListItemProps> = memo(({
         </Badge>
       </td>
       <td>{transaction.category || '-'}</td>
-      <td>{transaction.account || '-'}</td>
+      <td>{transaction.accountName || transaction.account || '-'}</td>
       <td className="text-end">
         <span className={`text-${getTypeVariant(transaction.type)}`}>
           {getTransactionSign(transaction.type)} {formatCurrency(Math.abs(Number(transaction.amount)))}

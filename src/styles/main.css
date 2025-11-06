@@ -453,12 +453,6 @@ html.accounts-dragging * {
   border-top: 1px solid #e0e0e0;
 }
 
-/* Main container */
-.main-container {
-  padding-top: 20px;
-  padding-bottom: 40px;
-}
-
 /* Responsive adjustments */
 @media (max-width: 991.98px) {
   .main-container {

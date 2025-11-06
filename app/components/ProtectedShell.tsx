@@ -10,7 +10,7 @@ export default function ProtectedShell({ children }: Props): JSX.Element {
   return (
     <RequireAuth>
       <Header />
-      <Container className="main-container">
+      <Container fluid className="main-container">
         {children}
       </Container>
     </RequireAuth>

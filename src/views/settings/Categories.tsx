@@ -25,9 +25,9 @@ import type { IconType } from 'react-icons';
 import { ChromePicker } from 'react-color';
 import type { ColorResult } from 'react-color';
 import Swal from 'sweetalert2';
-import { ChildCategorySelect } from '../../features/transactions/ChildCategorySelect';
-import { SingleCategoryDropdown } from '../../features/transactions/SingleCategoryDropdown';
-import { useCategoryData } from '../../features/transactions/useCategoryData';
+import { ChildCategorySelect } from '../Transactions/ChildCategorySelect';
+import { SingleCategoryDropdown } from '../Transactions/SingleCategoryDropdown';
+import { useCategoryData } from '../Transactions/useCategoryData';
 import {
   categoryService,
   type ApiCategoryResponse,

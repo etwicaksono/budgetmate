@@ -21,23 +21,23 @@ import {
   type TransactionChangeEvent,
   type QuickTransactionOption,
   type TransactionModalSaveContext,
-} from '../features/transactions/TransactionModal';
+} from '../views/Transactions/TransactionModal';
 import {
   QuickTransactionModal,
   type QuickTransactionFormValues,
-} from '../features/transactions/QuickTransactionModal';
+} from '../views/Transactions/QuickTransactionModal';
 import {
   useCategoryData,
   type CategoryTree,
   type CategoryColorMap,
   type CategoryIconName,
-} from '../features/transactions/useCategoryData';
+} from '../views/Transactions/useCategoryData';
 import {
   useQuickTransactions,
   type QuickTransactionPresetInput,
   type UseQuickTransactionsResult,
   type CategoryReference,
-} from '../features/transactions/useQuickTransactions';
+} from '../views/Transactions/useQuickTransactions';
 import {
   buildAccountMetadata,
   type AccountMetadata,
@@ -74,6 +74,8 @@ export interface TransactionModalContextValue {
   openQuickTransactionModal: () => void;
   setTransactionDefaults: (overrides?: Partial<TransactionFormValues>) => void;
   transactions: TransactionRecord[];
+  accountIdToName: Record<string, string>;
+  accountNameToId: Record<string, string>;
 }
 
 interface TransactionModalProviderProps {
@@ -235,6 +237,37 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
     [categories]
   );
 
+  // Map of account ID to account name for display purposes
+  const accountIdToName = useMemo<Record<string, string>>(
+    () => apiAccounts
+      .filter((account) => account.id && account.name && account.active !== false)
+      .reduce((acc, account) => {
+        acc[account.id as string] = account.name as string;
+        return acc;
+      }, {} as Record<string, string>),
+    [apiAccounts]
+  );
+
+  // Map of account name to account ID for reverse lookup
+  const accountNameToId = useMemo<Record<string, string>>(
+    () => apiAccounts
+      .filter((account) => account.id && account.name && account.active !== false)
+      .reduce((acc, account) => {
+        acc[account.name as string] = account.id as string;
+        return acc;
+      }, {} as Record<string, string>),
+    [apiAccounts]
+  );
+
+  // List of selectable account IDs
+  const selectableAccountIds = useMemo<string[]>(
+    () => apiAccounts
+      .filter((account) => account.id && account.name && account.active !== false)
+      .map((account) => account.id as string),
+    [apiAccounts]
+  );
+
+  // List of account names for backward compatibility with UI components
   const selectableAccounts = useMemo<string[]>(
     () => apiAccounts
       .filter((account) => account.name && account.active !== false)
@@ -267,6 +300,16 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
     }
   }, [accountMetadata]);
 
+  // Account tree using IDs as keys
+  const accountTreeById = useMemo<CategoryTree>(
+    () =>
+      Object.fromEntries(
+        selectableAccountIds.map((accountId) => [accountId, [] as string[]])
+      ),
+    [selectableAccountIds]
+  );
+
+  // Account tree using names as keys (for backward compatibility)
   const accountTree = useMemo<CategoryTree>(
     () =>
       Object.fromEntries(
@@ -275,6 +318,22 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
     [selectableAccounts]
   );
 
+  // Account colors by ID
+  const accountColorsById = useMemo<CategoryColorMap>(
+    () => {
+      const colorMap: Record<string, string> = {};
+      selectableAccountIds.forEach((accountId) => {
+        const apiAccount = apiAccounts.find((a) => a.id === accountId);
+        const accountName = accountIdToName[accountId];
+        const color = apiAccount?.color ?? accountMetadata[accountName]?.color ?? '#6c757d';
+        colorMap[accountId] = color;
+      });
+      return colorMap;
+    },
+    [selectableAccountIds, apiAccounts, accountMetadata, accountIdToName]
+  );
+
+  // Account colors by name (for backward compatibility)
   const accountColors = useMemo<CategoryColorMap>(
     () => {
       const colorMap: Record<string, string> = {};
@@ -288,6 +347,26 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
     [selectableAccounts, apiAccounts, accountMetadata]
   );
 
+  // Account icons by ID
+  const accountIconsById = useMemo<Record<string, IconType | null>>(
+    () => {
+      const iconMap: Record<string, IconType | null> = {};
+      selectableAccountIds.forEach((accountId) => {
+        const apiAccount = apiAccounts.find((a) => a.id === accountId);
+        const accountName = accountIdToName[accountId];
+        const iconKey = apiAccount?.icon ?? accountMetadata[accountName]?.icon;
+        const iconComponent =
+          iconKey && iconKey in accountIconComponents
+            ? accountIconComponents[iconKey as keyof typeof accountIconComponents]
+            : null;
+        iconMap[accountId] = iconComponent;
+      });
+      return iconMap;
+    },
+    [selectableAccountIds, apiAccounts, accountMetadata, accountIdToName]
+  );
+
+  // Account icons by name (for backward compatibility)
   const accountIcons = useMemo<Record<string, IconType | null>>(
     () => {
       const iconMap: Record<string, IconType | null> = {};
@@ -456,6 +535,11 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
         return;
       }
 
+      // Convert account name to ID if needed
+      const accountId = selected.account 
+        ? (accountNameToId[selected.account] ?? selected.account)
+        : '';
+
       setCurrentTransaction((previous) => ({
         ...previous,
         templateId: String(selected.id ?? ''),
@@ -466,12 +550,13 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
           selected.category_id && String(selected.category_id).length > 0
             ? String(selected.category_id)
             : categoryByName[selected.category ?? '']?.id || previous.categoryId,
-        account: selected.account || previous.account,
+        account: accountId || previous.account,
+        accountName: selected.account || accountIdToName[accountId] || previous.accountName,
         type: selected.type || previous.type,
         currency: selected.currency || previous.currency,
       }));
     },
-    [quickTransactionOptions, categoryByName]
+    [quickTransactionOptions, categoryByName, accountNameToId, accountIdToName]
   );
 
   const handleSaveTransaction = useCallback(
@@ -518,6 +603,9 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
         ...currentTransaction,
         id: Date.now(),
         amount: Number.isNaN(parsedAmount) ? 0 : parsedAmount,
+        // Ensure accountName is populated for display
+        accountName: currentTransaction.accountName || accountIdToName[currentTransaction.account] || '',
+        toAccountName: currentTransaction.toAccountName || (currentTransaction.toAccount ? accountIdToName[currentTransaction.toAccount] : undefined),
       };
 
       if (isTransfer) {
@@ -546,9 +634,8 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
       const categoryId = normalizedCategoryId || categoryRecord?.id;
       transactionRecord.categoryId = categoryId ?? '';
 
-      // Map account name to account ID
-      const accountRecord = apiAccounts.find((acc) => acc.name === currentTransaction.account);
-      const accountId = accountRecord?.id;
+      // currentTransaction.account now contains account ID, not name
+      const accountId = currentTransaction.account;
 
       // Basic validation - these shouldn't normally happen if dropdowns work correctly
       if (!categoryId && !isTransfer) {
@@ -560,7 +647,7 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
 
       if (!accountId) {
         // eslint-disable-next-line no-console
-        console.error('Account not found:', currentTransaction.account);
+        console.error('Account ID is missing');
         setValidationErrors({ account: 'Invalid account selected' });
         return;
       }
@@ -574,6 +661,7 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
         const formattedDate = formatDateForBackend(currentTransaction.dateTime || currentTransaction.date);
         
         const createPayload: CreateTransactionRequest = {
+          personal_id: 1,
           date: formattedDate,
           account_id: accountId,
           category_id: String(categoryId),
@@ -620,12 +708,14 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
             type: currentTransaction.type,
             currency: currentTransaction.currency,
             account: currentTransaction.account,
+            accountName: currentTransaction.accountName,
             category: currentTransaction.category,
             categoryId: currentTransaction.categoryId || context?.categoryId || '',
           };
 
           if (isTransfer) {
             nextDefaults.toAccount = currentTransaction.toAccount ?? '';
+            nextDefaults.toAccountName = currentTransaction.toAccountName ?? '';
             nextDefaults.toCurrency =
               currentTransaction.toCurrency || currentTransaction.currency;
           }
@@ -659,13 +749,21 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
   const openTransactionModal = useCallback(
     (overrides?: Partial<TransactionFormValues>) => {
       if (overrides && Object.keys(overrides).length > 0) {
+        // If account is provided without accountName, populate it
+        const enrichedOverrides = { ...overrides };
+        if (enrichedOverrides.account && !enrichedOverrides.accountName) {
+          enrichedOverrides.accountName = accountIdToName[enrichedOverrides.account] || '';
+        }
+        if (enrichedOverrides.toAccount && !enrichedOverrides.toAccountName) {
+          enrichedOverrides.toAccountName = accountIdToName[enrichedOverrides.toAccount] || '';
+        }
         setCurrentTransaction((previous) =>
-          createTransactionTemplate({ ...previous, ...overrides })
+          createTransactionTemplate({ ...previous, ...enrichedOverrides })
         );
       }
       setShowTransactionModal(true);
     },
-    []
+    [accountIdToName]
   );
 
   const setTransactionDefaults = useCallback(
@@ -715,6 +813,8 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
       openQuickTransactionModal,
       setTransactionDefaults,
       transactions,
+      accountIdToName,
+      accountNameToId,
     }),
     [
       closeTransactionModal,
@@ -722,6 +822,8 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
       openTransactionModal,
       setTransactionDefaults,
       transactions,
+      accountIdToName,
+      accountNameToId,
     ]
   );
 

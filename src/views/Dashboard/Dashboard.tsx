@@ -1,43 +1,88 @@
-import React, { useState, ChangeEvent, useEffect } from 'react';
+import React, { useState, ChangeEvent, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Row, Col, Card, Container } from 'react-bootstrap';
+import { Row, Col, Card, Container, Form, Dropdown } from 'react-bootstrap';
 import { FaUniversity, FaCreditCard, FaWallet, FaPiggyBank, FaPencilAlt } from 'react-icons/fa';
+import { RiListSettingsLine } from 'react-icons/ri';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
 import { accountService, type ApiAccountResponse } from '../../services/accountService';
+import analyticsService, {
+  type ExpenseByCategory,
+  type IncomeExpenseTrend,
+  type DashboardTransaction,
+} from '../../services/analyticsService';
+import budgetService, { type BudgetStatus } from '../../services/budgetService';
 import { resolveIconFromApiName, lightenColor, type Account } from '../../utils/accountUtils';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import type { PieLabelRenderProps } from 'recharts';
 import PeriodNavigation, {
   PeriodNavigationProvider,
   usePeriodNavigation,
 } from '../../components/PeriodNavigation';
 import PeriodRangeSelector from '../../components/PeriodRangeSelector';
 import AddAccountModal, { type NewAccountForm } from '../../components/AddAccountModal';
-
-
- 
-interface ExpenseData {
-  name: string;
-  value: number;
-  [key: string]: string | number;
-}
-
-interface IncomeExpenseData {
-  name: string;
-  income: number;
-  expense: number;
-}
-
-interface Transaction {
-  id: number;
-  description: string;
-  amount: number;
-  date: string;
-  category: string;
-}
+import CategoryPieChart from '../../components/CategoryPieChart';
+import IncomeExpenseBarChart from '../../components/IncomeExpenseBarChart';
+import RecentTransactionsList from '../../components/RecentTransactionsList';
+import BudgetStatusList from '../../components/BudgetStatusList';
+import BalanceTrendWidget from '../../components/Widget/BalanceTrendWidget';
+import { SortableWidgetCard, WidgetCard } from '../../components/WidgetCards';
 
 type AccountType = 'Bank' | 'Credit Card' | 'Cash';
 type AccountTypeIcons = {
   [K in AccountType]: React.ComponentType<{ size?: number }>;
+};
+
+// LocalStorage key for widget order
+const WIDGET_ORDER_STORAGE_KEY = 'dashboard-widget-order';
+const DEFAULT_WIDGET_ORDER = [
+  'balanceTrend',
+  'expensesByCategory',
+  'incomeVsExpenses',
+  'recentTransactions',
+  'budgetStatus',
+];
+
+// Helper function to load widget order from localStorage
+const loadWidgetOrder = (): string[] => {
+  if (typeof window === 'undefined') return DEFAULT_WIDGET_ORDER;
+  
+  try {
+    const stored = localStorage.getItem(WIDGET_ORDER_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as string[];
+      // If stored order matches expected length, use it
+      if (Array.isArray(parsed) && parsed.length === DEFAULT_WIDGET_ORDER.length) {
+        return parsed;
+      }
+      // If stored order is outdated, merge with default order
+      if (Array.isArray(parsed)) {
+        const merged = [...DEFAULT_WIDGET_ORDER];
+        parsed.forEach((widgetId) => {
+          if (DEFAULT_WIDGET_ORDER.includes(widgetId) && !merged.includes(widgetId)) {
+            merged.push(widgetId);
+          }
+        });
+        return merged;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load widget order from localStorage:', error);
+  }
+  
+  return DEFAULT_WIDGET_ORDER;
 };
 
 const mapApiAccountToAccount = (apiAccount: ApiAccountResponse, index: number): Account | null => {
@@ -74,7 +119,85 @@ const DashboardContent: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [expenseData, setExpenseData] = useState<ExpenseByCategory[]>([]);
+  const [incomeExpenseData, setIncomeExpenseData] = useState<IncomeExpenseTrend[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<DashboardTransaction[]>([]);
+  const [budgetStatus, setBudgetStatus] = useState<BudgetStatus[]>([]);
+  const [loading, setLoading] = useState(true);
   const fetchedRef = React.useRef<boolean>(false);
+
+  // Widget order state - load from localStorage
+  const [widgetOrder, setWidgetOrder] = useState<string[]>(() => loadWidgetOrder());
+
+  // Drag state
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Control panel state
+  const [showControlPanel, setShowControlPanel] = useState(false);
+
+  // Widget visibility state
+  const [widgetVisibility, setWidgetVisibility] = useState({
+    balanceTrend: true,
+    expensesByCategory: true,
+    incomeVsExpenses: true,
+    recentTransactions: true,
+    budgetStatus: true,
+  });
+
+  const toggleWidgetVisibility = (widgetKey: keyof typeof widgetVisibility) => {
+    setWidgetVisibility(prev => ({
+      ...prev,
+      [widgetKey]: !prev[widgetKey],
+    }));
+  };
+
+  // DnD-Kit sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Drag handlers
+  const handleDragStart = useCallback((event: DragEndEvent) => {
+    setActiveId(event.active.id as string);
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setWidgetOrder((items) => {
+        const oldIndex = items.findIndex((item) => item === active.id);
+        const newIndex = items.findIndex((item) => item === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) return items;
+
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  }, []);
+
+  const handleDragCancel = useCallback(() => {
+    setActiveId(null);
+  }, []);
+
+  // Save widget order to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(WIDGET_ORDER_STORAGE_KEY, JSON.stringify(widgetOrder));
+      } catch (error) {
+        console.error('Failed to save widget order to localStorage:', error);
+      }
+    }
+  }, [widgetOrder]);
 
   useEffect(() => {
     // Prevent double fetching in StrictMode or multiple mounts
@@ -83,19 +206,36 @@ const DashboardContent: React.FC = () => {
     }
     fetchedRef.current = true;
 
-    const loadAccounts = async () => {
+    const loadDashboardData = async () => {
       try {
-        const apiAccounts = await accountService.fetchAccounts();
+        setLoading(true);
+
+        // Fetch all dashboard data in parallel
+        const [apiAccounts, expenses, trends, transactions, budgets] = await Promise.all([
+          accountService.fetchAccounts(),
+          analyticsService.fetchExpensesByCategory(),
+          analyticsService.fetchIncomeExpenseTrend(),
+          analyticsService.fetchRecentTransactions(4),
+          budgetService.fetchBudgetStatus(),
+        ]);
+
         const activeAccounts = apiAccounts.filter((a) => a.active !== false);
         const mapped = activeAccounts.map(mapApiAccountToAccount).filter((a): a is Account => a !== null);
+
         setAccounts(mapped);
+        setExpenseData(expenses);
+        setIncomeExpenseData(trends);
+        setRecentTransactions(transactions);
+        setBudgetStatus(budgets);
       } catch (error) {
         // eslint-disable-next-line no-console
-        console.error('Failed to fetch accounts for dashboard:', error);
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    void loadAccounts();
+    void loadDashboardData();
   }, []);
 
 
@@ -103,68 +243,113 @@ const DashboardContent: React.FC = () => {
     state: { periodLabel, activePeriod, customRangeDraft },
   } = usePeriodNavigation();
 
-  const accountTypeIcons: AccountTypeIcons = {
-    Bank: FaUniversity as React.ComponentType<{ size?: number }>,
-    'Credit Card': FaCreditCard as React.ComponentType<{ size?: number }>,
-    Cash: FaWallet as React.ComponentType<{ size?: number }>,
+  const handleSelectAccount = (account: Account): void => {
+    router.push(`/accounts/${account.id}?from=dashboard`);
   };
 
+
+  const accountToNewAccountForm = (account: Account): NewAccountForm => ({
+    name: account.name,
+    color: account.accentColor,
+    accountType: account.type,
+    initialAmount: account.balance.toString(),
+    currency: account.currency || 'IDR',
+    excludeFromStatistics: account.excludeFromStatistics || false,
+    iconKey: account.iconKey || 'FaWallet',
+    isActive: account.isActive !== false,
+    usability: account.usability || 'USABLE',
+  });
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B', '#4ECDC4', '#95E1D3'];
+
   const formatCurrency = (value: number): string => {
-    const formatted = new Intl.NumberFormat('en-US', {
+    const formatted = new Intl.NumberFormat('id-ID', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(Math.abs(value));
     return `${value < 0 ? '-' : ''}IDR ${formatted}`;
   };
 
-  const handleSelectAccount = (account: Account): void => {
-    router.push(`/accounts/${account.id}?from=dashboard`);
+  // Filter expense data to only show categories with percentage >= 0.5% (rounds to 1% or more)
+  const filteredExpenseData = React.useMemo(() => {
+    const nonZero = expenseData.filter((item) => item.value > 0);
+    const total = nonZero.reduce((sum, item) => sum + item.value, 0);
+    return total > 0 ? nonZero.filter((item) => (item.value / total) >= 0.005) : [];
+  }, [expenseData]);
+
+  // Widget components map
+  const widgets: Record<string, { title: string; component: React.ReactNode }> = {
+    balanceTrend: {
+      title: 'Balance Trend',
+      component: (
+        <BalanceTrendWidget
+          formatCurrency={formatCurrency}
+          height={300}
+          lineColor="#2563eb"
+        />
+      ),
+    },
+    expensesByCategory: {
+      title: 'Expenses by Category',
+      component: loading ? (
+        <div className="text-center py-5">Loading...</div>
+      ) : filteredExpenseData.length === 0 ? (
+        <div className="text-center text-muted py-5">No expense data available</div>
+      ) : (
+        <CategoryPieChart
+          data={filteredExpenseData}
+          colors={COLORS}
+          formatValue={formatCurrency}
+          height={300}
+          outerRadius={80}
+        />
+      ),
+    },
+    incomeVsExpenses: {
+      title: 'Income vs Expenses',
+      component: loading ? (
+        <div className="text-center py-5">Loading...</div>
+      ) : (
+        <IncomeExpenseBarChart
+          data={incomeExpenseData}
+          formatValue={formatCurrency}
+          height={300}
+          incomeColor="#2ecc71"
+          expenseColor="#e74c3c"
+          incomeLabel="Income"
+          expenseLabel="Expense"
+        />
+      ),
+    },
+    recentTransactions: {
+      title: 'Recent Transactions',
+      component: loading ? (
+        <div className="text-center py-5">Loading...</div>
+      ) : (
+        <RecentTransactionsList
+          transactions={recentTransactions}
+          formatCurrency={formatCurrency}
+          emptyMessage="No recent transactions"
+        />
+      ),
+    },
+    budgetStatus: {
+      title: 'Budget Status',
+      component: loading ? (
+        <div className="text-center py-5">Loading...</div>
+      ) : (
+        <BudgetStatusList
+          budgets={budgetStatus}
+          formatCurrency={formatCurrency}
+          limit={3}
+          emptyMessage="No budget data available"
+        />
+      ),
+    },
   };
 
-  const mapAddAccountType = (t: string): AccountType => (t === 'Cash' ? 'Cash' : 'Bank');
-
-const accountToNewAccountForm = (account: Account): NewAccountForm => ({
-  name: account.name,
-  color: account.accentColor,
-  accountType: account.type,
-  initialAmount: account.balance.toString(),
-  currency: account.currency || 'IDR',
-  excludeFromStatistics: account.excludeFromStatistics || false,
-  iconKey: account.iconKey || 'FaWallet',
-  isActive: account.isActive !== false,
-  usability: account.usability || 'USABLE',
-});
-  // Sample expense data for the chart
-  const expenseData: ExpenseData[] = [
-    { name: 'Food', value: 400 },
-    { name: 'Transport', value: 300 },
-    { name: 'Shopping', value: 200 },
-    { name: 'Entertainment', value: 150 },
-    { name: 'Utilities', value: 250 },
-  ];
-
-  // Sample income vs expense data
-  const incomeExpenseData: IncomeExpenseData[] = [
-    { name: 'Jan', income: 4000, expense: 2400 },
-    { name: 'Feb', income: 3000, expense: 1398 },
-    { name: 'Mar', income: 2000, expense: 9800 },
-    { name: 'Apr', income: 2780, expense: 3908 },
-    { name: 'May', income: 1890, expense: 4800 },
-    { name: 'Jun', income: 2390, expense: 3800 },
-  ];
-
-  // Sample recent transactions
-  const recentTransactions: Transaction[] = [
-    { id: 1, description: 'Grocery Store', amount: -85.30, date: '2023-07-15', category: 'Food' },
-    { id: 2, description: 'Salary Deposit', amount: 3500.00, date: '2023-07-01', category: 'Salary' },
-    { id: 3, description: 'Gas Station', amount: -45.00, date: '2023-07-14', category: 'Transport' },
-    { id: 4, description: 'Online Purchase', amount: -120.50, date: '2023-07-13', category: 'Shopping' },
-  ];
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
-
   return (
-    <Container>
+    <Container fluid>
       {/* Account Cards Section */}
       <section className="mb-5">
         <Row>
@@ -258,149 +443,126 @@ const accountToNewAccountForm = (account: Account): NewAccountForm => ({
       <section>
         <Row>
           <Col lg={12} className="mb-4">
-            <PeriodNavigation className="mb-3">
-              <PeriodRangeSelector
-                label={periodLabel}
-                activePeriod={activePeriod}
-                customRange={customRangeDraft}
-              />
-            </PeriodNavigation>
-          </Col>
-        </Row>
-        <Row>
-          {/* Expense by Category Chart */}
-          <Col lg={6} className="mb-4">
-            <Card>
-              <Card.Header>Expenses by Category</Card.Header>
-              <Card.Body>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={expenseData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={(props: PieLabelRenderProps) => {
-                        const percent = Number(props.percent ?? 0);
-                        return `${props.name ?? ''} ${(percent * 100).toFixed(0)}%`;
-                      }}
-                    >
-                      {expenseData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </Card.Body>
-            </Card>
-          </Col>
+            <div className="d-flex align-items-start mb-3" style={{ position: 'relative' }}>
+              <div style={{ flex: 1 }}></div>
+              <PeriodNavigation>
+                <PeriodRangeSelector
+                  label={periodLabel}
+                  activePeriod={activePeriod}
+                  customRange={customRangeDraft}
+                />
+              </PeriodNavigation>
+              <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                {/* Widget Control Panel */}
+                <Dropdown show={showControlPanel} onToggle={(isOpen) => setShowControlPanel(isOpen)}>
+                  <Dropdown.Toggle
+                    as="button"
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '8px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f3f4f6';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <RiListSettingsLine size={24} color="#6b7280" />
+                  </Dropdown.Toggle>
 
-          {/* Income vs Expenses Chart */}
-          <Col lg={6} className="mb-4">
-            <Card>
-              <Card.Header>Income vs Expenses</Card.Header>
-              <Card.Body>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={incomeExpenseData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                    <Legend />
-                    <Bar dataKey="income" fill="#2ecc71" name="Income" />
-                    <Bar dataKey="expense" fill="#e74c3c" name="Expense" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-
-        <Row>
-          {/* Recent Transactions */}
-          <Col lg={6} className="mb-4">
-            <Card>
-              <Card.Header>Recent Transactions</Card.Header>
-              <Card.Body>
-                <div className="transaction-list">
-                  {recentTransactions.map((transaction) => (
-                    <div key={transaction.id} className="transaction-item d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
-                      <div>
-                        <div className="fw-bold">{transaction.description}</div>
-                        <div className="text-muted small">{transaction.category} • {transaction.date}</div>
-                      </div>
-                      <div className={transaction.amount > 0 ? 'text-success' : 'text-danger'}>
-                        {transaction.amount > 0 ? '+' : ''}{transaction.amount.toFixed(2)}
-                      </div>
+                  <Dropdown.Menu
+                    align="end"
+                    style={{
+                      minWidth: '280px',
+                      padding: '16px',
+                      borderRadius: '12px',
+                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+                      border: '1px solid #e5e7eb',
+                      marginTop: '8px',
+                    }}
+                  >
+                    <div style={{ marginBottom: '12px' }}>
+                      <h6 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1f2937' }}>
+                        Customize Widgets
+                      </h6>
+                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#6b7280' }}>
+                        Show or hide widgets on this page
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-
-          {/* Budget Status */}
-          <Col lg={6} className="mb-4">
-            <Card>
-              <Card.Header>Budget Status</Card.Header>
-              <Card.Body>
-                <div className="budget-item mb-3">
-                  <div className="d-flex justify-content-between mb-1">
-                    <span>Food Budget</span>
-                    <span>$200 of $400</span>
-                  </div>
-                  <div className="progress">
-                    <div
-                      className="progress-bar bg-warning"
-                      role="progressbar"
-                      style={{ width: '50%' }}
-                      aria-valuenow={50}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    ></div>
-                  </div>
-                </div>
-                <div className="budget-item mb-3">
-                  <div className="d-flex justify-content-between mb-1">
-                    <span>Entertainment</span>
-                    <span>$120 of $150</span>
-                  </div>
-                  <div className="progress">
-                    <div
-                      className="progress-bar bg-warning"
-                      role="progressbar"
-                      style={{ width: '80%' }}
-                      aria-valuenow={80}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    ></div>
-                  </div>
-                </div>
-                <div className="budget-item mb-3">
-                  <div className="d-flex justify-content-between mb-1">
-                    <span>Transport</span>
-                    <span>$50 of $200</span>
-                  </div>
-                  <div className="progress">
-                    <div
-                      className="progress-bar bg-success"
-                      role="progressbar"
-                      style={{ width: '25%' }}
-                      aria-valuenow={25}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    ></div>
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
+                    <hr style={{ margin: '12px 0', borderColor: '#e5e7eb' }} />
+                    <div>
+                      {Object.entries(widgets).map(([widgetId, widget]) => (
+                        <Form.Check
+                          key={widgetId}
+                          type="checkbox"
+                          id={`widget-${widgetId}`}
+                          label={widget.title}
+                          checked={widgetVisibility[widgetId as keyof typeof widgetVisibility]}
+                          onChange={() => toggleWidgetVisibility(widgetId as keyof typeof widgetVisibility)}
+                          style={{
+                            marginBottom: '10px',
+                            fontSize: '14px',
+                          }}
+                          className="custom-widget-checkbox"
+                        />
+                      ))}
+                    </div>
+                  </Dropdown.Menu>
+                </Dropdown>
+              </div>
+            </div>
           </Col>
         </Row>
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext items={widgetOrder} strategy={rectSortingStrategy}>
+            <Row>
+              {widgetOrder
+                .filter((widgetId) => widgetVisibility[widgetId as keyof typeof widgetVisibility])
+                .map((widgetId) => {
+                  const widget = widgets[widgetId];
+                  const visibility = widgetVisibility[widgetId as keyof typeof widgetVisibility];
+
+                  return (
+                    <SortableWidgetCard
+                      key={widgetId}
+                      widgetId={widgetId}
+                      widget={widget}
+                      visibility={visibility}
+                      onToggleVisibility={() => toggleWidgetVisibility(widgetId as keyof typeof widgetVisibility)}
+                    />
+                  );
+                })}
+            </Row>
+          </SortableContext>
+
+          <DragOverlay>
+            {activeId
+              ? (() => {
+                  const widget = widgets[activeId];
+                  const visibility = widgetVisibility[activeId as keyof typeof widgetVisibility];
+                  return widget ? (
+                    <WidgetCard widgetId={activeId} widget={widget} visibility={visibility} />
+                  ) : null;
+                })()
+              : null}
+          </DragOverlay>
+        </DndContext>
       </section>
       {/* Add/Edit Account Modal */}
       <AddAccountModal
@@ -411,14 +573,26 @@ const accountToNewAccountForm = (account: Account): NewAccountForm => ({
         }}
         onSubmit={async () => {
           // Account creation/update is handled by the modal's internal API call
-          // Just refresh the accounts list after successful operation
+          // Refresh all dashboard data after successful operation
           try {
-            const apiAccounts = await accountService.fetchAccounts();
+            const [apiAccounts, expenses, trends, transactions, budgets] = await Promise.all([
+              accountService.fetchAccounts(),
+              analyticsService.fetchExpensesByCategory(),
+              analyticsService.fetchIncomeExpenseTrend(),
+              analyticsService.fetchRecentTransactions(4),
+              budgetService.fetchBudgetStatus(),
+            ]);
+
             const activeAccounts = apiAccounts.filter((a) => a.active !== false);
             const mapped = activeAccounts.map(mapApiAccountToAccount).filter((a): a is Account => a !== null);
+
             setAccounts(mapped);
+            setExpenseData(expenses);
+            setIncomeExpenseData(trends);
+            setRecentTransactions(transactions);
+            setBudgetStatus(budgets);
           } catch (error) {
-            console.error('Failed to refresh accounts:', error);
+            console.error('Failed to refresh dashboard data:', error);
           }
           setShowAddAccountModal(false);
           setEditingAccount(null);

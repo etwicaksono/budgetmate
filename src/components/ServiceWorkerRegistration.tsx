@@ -35,11 +35,12 @@ export function ServiceWorkerRegistration() {
       });
 
       // Handle offline/online events
-      window.addEventListener('online', () => {
+      window.addEventListener('online', async () => {
         console.log('[SW] Back online');
         // Trigger sync if needed
-        if ('sync' in navigator.serviceWorker.registration) {
-          navigator.serviceWorker.registration.sync.register('sync-transactions');
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration && 'sync' in registration) {
+          await (registration as any).sync.register('sync-transactions');
         }
       });
 

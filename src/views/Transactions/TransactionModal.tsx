@@ -61,8 +61,10 @@ export interface TransactionFormValues {
   dateTime: string;
   category: string;
   categoryId?: string;
-  account: string;
-  toAccount?: string;
+  account: string; // Now stores account ID instead of name
+  accountName?: string; // Optional: for display purposes
+  toAccount?: string; // Now stores account ID instead of name
+  toAccountName?: string; // Optional: for display purposes
   toAmount?: string | number;
   toCurrency?: string;
   labels: string;
@@ -753,6 +755,17 @@ export function TransactionModal({
     [resolvedCategoryIcons]
   );
 
+  // Build account name to ID mapping from apiAccounts
+  const accountNameToIdMap = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    apiAccounts.forEach((account) => {
+      if (account.name && account.id) {
+        map[account.name] = account.id;
+      }
+    });
+    return map;
+  }, [apiAccounts]);
+
   const createSingleSelectSetter = useCallback(
     (fieldName: 'account' | 'toAccount' | 'category') =>
       (nextSelection?: string[]) => {
@@ -785,6 +798,29 @@ export function TransactionModal({
           return;
         }
 
+        // For account fields, convert name to ID
+        if (fieldName === 'account' || fieldName === 'toAccount') {
+          const accountId = nextValue ? accountNameToIdMap[nextValue] ?? '' : '';
+          const accountNameField = fieldName === 'account' ? 'accountName' : 'toAccountName';
+          
+          // Set the account ID
+          onChange({
+            target: {
+              name: fieldName,
+              value: accountId,
+            },
+          });
+          
+          // Also set the account name for display
+          onChange({
+            target: {
+              name: accountNameField,
+              value: nextValue,
+            },
+          });
+          return;
+        }
+
         // Trigger onChange which will clear validation errors
         onChange({
           target: {
@@ -793,7 +829,7 @@ export function TransactionModal({
           },
         });
       },
-    [transaction, onChange, categoryIdByName]
+    [transaction, onChange, categoryIdByName, accountNameToIdMap]
   );
 
   const handleAccountSelect = useMemo(
@@ -897,7 +933,7 @@ export function TransactionModal({
                         <Form.Label>From account</Form.Label>
                         <SingleCategoryDropdown
                           selectedCategories={
-                            transaction.account ? [transaction.account] : []
+                            transaction.accountName ? [transaction.accountName] : []
                           }
                           setSelectedCategories={handleAccountSelect}
                           categoryTree={resolvedAccountTree}
@@ -924,7 +960,7 @@ export function TransactionModal({
                         <Form.Label>To account</Form.Label>
                         <SingleCategoryDropdown
                           selectedCategories={
-                            transaction.toAccount ? [transaction.toAccount] : []
+                            transaction.toAccountName ? [transaction.toAccountName] : []
                           }
                           setSelectedCategories={handleToAccountSelect}
                           categoryTree={resolvedAccountTree}
@@ -1039,7 +1075,7 @@ export function TransactionModal({
                     <Form.Label>Account</Form.Label>
                     <SingleCategoryDropdown
                       selectedCategories={
-                        transaction.account ? [transaction.account] : []
+                        transaction.accountName ? [transaction.accountName] : []
                       }
                       setSelectedCategories={handleAccountSelect}
                       categoryTree={resolvedAccountTree}

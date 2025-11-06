@@ -1,7 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Container, Row, Col, Card, Button, Tabs, Tab, Form, Dropdown } from 'react-bootstrap';
-import { FaArrowLeft, FaEllipsisV } from 'react-icons/fa';
-import * as FaIcons from 'react-icons/fa';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Container, Row, Col, Card, Button, Tabs, Tab } from 'react-bootstrap';
+import { FaArrowLeft } from 'react-icons/fa';
 import {
   LineChart,
   Line,
@@ -12,36 +11,21 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import Swal from 'sweetalert2';
-import { TransactionModal } from '../../features/transactions/TransactionModal';
+import { TransactionModal } from '../Transactions/TransactionModal';
 import type {
   TransactionFormValues,
   TransactionModalSaveContext,
-} from '../../features/transactions/TransactionModal';
+} from '../Transactions/TransactionModal';
 import AddAccountModal from '../../components/AddAccountModal';
 import type { NewAccountForm } from '../../components/AddAccountModal';
 import type { Account } from './Accounts';
 import { accountService } from '../../services/accountService';
+import { RecordsHeader, RecordsList } from '../../components/Records';
+import type { TransactionRecord, GroupedTransactions } from '../../types/transaction';
 
 interface BalanceData {
   date: string;
   balance: number;
-}
-
-interface TransactionRecord {
-  id: string;
-  date: Date;
-  category: string;
-  categoryIcon?: string;
-  subCategory?: string;
-  description: string;
-  amount: number;
-  status: 'WANT' | 'NEED' | 'Credit' | 'Unknown';
-  runningBalance: number;
-  time: string;
-}
-
-interface GroupedTransactions {
-  [dateString: string]: TransactionRecord[];
 }
 
 interface AccountDetailProps {
@@ -76,68 +60,6 @@ const generateMockBalanceHistory = (currentBalance: number): BalanceData[] => {
   return data;
 };
 
-// Generate mock transaction records
-const generateMockTransactions = (currentBalance: number): TransactionRecord[] => {
-  const categories = [
-    { name: 'Loans, interests', icon: 'FaHandshake', subCategory: 'Ibuk Fatim' },
-    { name: 'Missing', icon: 'FaQuestionCircle', subCategory: 'Unknown' },
-    { name: 'Life events', icon: 'FaLeaf', subCategory: 'luran alumni Inayatullah' },
-    { name: 'Charity, gifts', icon: 'FaGift', subCategory: 'Kondangan nikahan Danang' },
-    { name: 'Fuel', icon: 'FaGasPump', subCategory: 'Pertalite heat' },
-    { name: 'Food & Dining', icon: 'FaUtensils', subCategory: 'Restaurant' },
-    { name: 'Transport', icon: 'FaTaxi', subCategory: 'Uber' },
-  ];
-
-  const statuses: Array<'WANT' | 'NEED' | 'Credit' | 'Unknown'> = ['WANT', 'NEED', 'Credit', 'Unknown'];
-  const descriptions = [
-    'Payment to friend',
-    'Monthly subscription',
-    'Shopping',
-    'Transfer to savings',
-    'Salary deposit',
-    'Refund',
-    'Invoice payment',
-  ];
-
-  const transactions: TransactionRecord[] = [];
-  let runningBalance = currentBalance;
-  const today = new Date();
-
-  // Generate transactions for the last 30 days
-  for (let i = 0; i < 50; i++) {
-    const daysAgo = Math.floor(Math.random() * 30);
-    const date = new Date(today);
-    date.setDate(date.getDate() - daysAgo);
-
-    const category = categories[Math.floor(Math.random() * categories.length)];
-    const amount = Math.floor(Math.random() * 500000) + 10000;
-    const isExpense = Math.random() > 0.3; // 70% expenses, 30% income
-    const finalAmount = isExpense ? -amount : amount;
-
-    const hours = Math.floor(Math.random() * 24);
-    const minutes = Math.floor(Math.random() * 60);
-    const time = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-
-    runningBalance += finalAmount;
-
-    transactions.push({
-      id: `trans-${i}`,
-      date,
-      category: category.name,
-      categoryIcon: category.icon,
-      subCategory: category.subCategory,
-      description: descriptions[Math.floor(Math.random() * descriptions.length)],
-      amount: finalAmount,
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      runningBalance,
-      time,
-    });
-  }
-
-  // Sort by date descending (most recent first)
-  return transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
-};
-
 const AccountDetail: React.FC<AccountDetailProps> = ({
   account,
   onBack,
@@ -149,20 +71,34 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [showAccountEditModal, setShowAccountEditModal] = useState<boolean>(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionFormValues | null>(null);
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState<boolean>(false);
   const IconComponent = account.icon;
 
-  // Generate and memoize transactions
-  const transactions = useMemo(
-    () => generateMockTransactions(account.balance),
-    [account.balance]
-  );
+  // Fetch transactions when component mounts or account changes
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      setLoadingTransactions(true);
+      try {
+        const data = await accountService.fetchAccountTransactions(account.id, account.balance);
+        setTransactions(data);
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+      } finally {
+        setLoadingTransactions(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [account.id, account.balance]);
 
   // Group transactions by date
   const groupedTransactions = useMemo<GroupedTransactions>(() => {
     const grouped: GroupedTransactions = {};
 
     transactions.forEach((transaction) => {
-      const dateKey = transaction.date.toLocaleDateString('en-US', {
+      const dateObj = new Date(transaction.date);
+      const dateKey = dateObj.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -316,28 +252,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
     }
   };
 
-  const resolveIconComponent = (
-    iconName?: string
-  ): React.ComponentType<{ size?: number }> | undefined => {
-    if (!iconName) return undefined;
-    const iconsLibrary = FaIcons as unknown as Record<string, React.ComponentType<{ size?: number }>>;
-    const IconComp = iconsLibrary[iconName];
-    return IconComp ? (IconComp as React.ComponentType<{ size?: number }>) : undefined;
-  };
-
-  const getStatusBadgeColor = (status: string): string => {
-    switch (status) {
-      case 'WANT':
-        return 'success';
-      case 'NEED':
-        return 'info';
-      case 'Credit':
-        return 'primary';
-      default:
-        return 'secondary';
-    }
-  };
-
   const handleBulkEdit = (): void => {
     // TODO: Implement bulk edit functionality
     console.log(`Editing ${selectedRecords.size} records`);
@@ -365,22 +279,40 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
   };
 
   const convertTransactionRecordToFormValues = (record: TransactionRecord): TransactionFormValues => {
-    const dateTime = record.date.toISOString().slice(0, 16);
-    const date = record.date.toISOString().slice(0, 10);
+    // Convert 12-hour time format to 24-hour for datetime-local input
+    const convertTo24Hour = (time12h: string): string => {
+      const match = time12h.match(/(\d{1,2}):(\d{2})\s?(AM|PM)/i);
+      if (!match) return '00:00';
+
+      let hours = parseInt(match[1]);
+      const minutes = match[2];
+      const period = match[3].toUpperCase();
+
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+
+      return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    };
+
+    const time24h = convertTo24Hour(record.time);
+    const dateTime = `${record.date}T${time24h}`;
 
     return {
-      type: record.amount < 0 ? 'Expense' : 'Income', // Determine type from amount
+      type: record.type === 'INCOME' ? 'Income' : 'Expense',
       description: record.description,
-      amount: Math.abs(record.amount),
+      amount: record.amount,
       currency: 'IDR',
-      date,
+      date: record.date,
       dateTime,
-      category: record.category,
+      category: record.categoryName,
       account: account.name, // Pre-populate with current account name
       labels: '',
       createTemplate: false,
-      notes: `${record.subCategory || ''}`,
-      payer: '',
+      notes: '',
+      payer: record.payer,
       paymentType: 'Cash',
       paymentStatus: 'Cleared',
     };
@@ -591,204 +523,32 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
             <Card className="account-detail-card">
               <Card.Body className="account-detail-records">
                 {/* Records Header */}
-                {selectedRecords.size > 0 ? (
-                  <div className="account-detail-records__header account-detail-records__header--active">
-                    <div className="account-detail-records__info">
-                      <Form.Check
-                        className="account-detail-records__select-all"
-                        type="checkbox"
-                        id="select-all-records"
-                        checked={selectedRecords.size === transactions.length && transactions.length > 0}
-                        onChange={handleSelectAllRecords}
-                        label={`Selected ${selectedRecords.size} item(s)`}
-                      />
-                    </div>
-                    <div className="account-detail-records__bulk-actions">
-                      <Button
-                        variant="success"
-                        size="sm"
-                        className="account-detail-records__bulk-btn"
-                        onClick={handleBulkEdit}
-                      >
-                        Edit ({selectedRecords.size})
-                      </Button>
-                      <Button
-                        variant="info"
-                        size="sm"
-                        className="account-detail-records__bulk-btn"
-                        onClick={handleBulkExport}
-                      >
-                        Export ({selectedRecords.size})
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        className="account-detail-records__bulk-btn"
-                        onClick={handleBulkDelete}
-                      >
-                        Delete ({selectedRecords.size})
-                      </Button>
-                    </div>
-                    <div className="account-detail-records__header-close">
-                      <Button
-                        variant="link"
-                        className="account-detail-records__header-close-btn"
-                        onClick={clearSelection}
-                      >
-                        ✕
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="account-detail-records__header">
-                    <div className="account-detail-records__info">
-                      <Form.Check
-                        className="account-detail-records__select-all"
-                        type="checkbox"
-                        id="select-all-records"
-                        checked={selectedRecords.size === transactions.length && transactions.length > 0}
-                        onChange={handleSelectAllRecords}
-                        label={`Found ${transactions.length} records`}
-                      />
-                    </div>
-                    <div className="account-detail-records__summary">
-                      <span className="account-detail-records__total">
-                        {formatCurrency(account.balance)}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                <RecordsHeader
+                  selectedCount={selectedRecords.size}
+                  totalCount={transactions.length}
+                  allSelected={selectedRecords.size === transactions.length}
+                  onSelectAll={handleSelectAllRecords}
+                  onClearSelection={clearSelection}
+                  onBulkEdit={handleBulkEdit}
+                  onBulkExport={handleBulkExport}
+                  onBulkDelete={handleBulkDelete}
+                  summaryText={formatCurrency(account.balance)}
+                  showBulkActions={true}
+                />
 
                 {/* Records List */}
-                <div className="account-detail-records__list">
-                  {Object.entries(groupedTransactions).length > 0 ? (
-                    Object.entries(groupedTransactions).map(([dateKey, dayTransactions]) => (
-                      <div key={dateKey} className="account-detail-records__day-group">
-                        <div className="account-detail-records__day-header">
-                          <h4>{dateKey}</h4>
-                          <span className="account-detail-records__day-balance">
-                            {formatCurrency(dayTransactions[0]?.runningBalance ?? 0)}
-                          </span>
-                        </div>
-
-                        <div className="account-detail-records__transactions">
-                          {dayTransactions.map((transaction) => {
-                            const CategoryIcon = resolveIconComponent(transaction.categoryIcon);
-                            const isSelected = selectedRecords.has(transaction.id);
-
-                            return (
-                              <div
-                                key={transaction.id}
-                                className={`account-detail-records__item ${
-                                  isSelected ? 'account-detail-records__item--selected' : ''
-                                }`}
-                                onClick={() => handleEditRecord(transaction)}
-                                style={{ cursor: 'pointer' }}
-                              >
-                                <div
-                                  className="account-detail-records__item-checkbox"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Form.Check
-                                    type="checkbox"
-                                    id={transaction.id}
-                                    checked={isSelected}
-                                    onChange={() => handleSelectRecord(transaction.id)}
-                                  />
-                                </div>
-
-                                <div className="account-detail-records__item-icon">
-                                  {CategoryIcon ? (
-                                    <CategoryIcon size={20} />
-                                  ) : (
-                                    <span>📦</span>
-                                  )}
-                                </div>
-
-                                <div className="account-detail-records__item-details">
-                                  <div className="account-detail-records__item-category">
-                                    {transaction.category}
-                                  </div>
-                                  <div className="account-detail-records__item-info">
-                                    <span className="account-detail-records__item-subcategory">
-                                      {transaction.subCategory || transaction.description}
-                                    </span>
-                                    <span className="account-detail-records__item-account">
-                                      • {account.name}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div className="account-detail-records__item-description">
-                                  {transaction.description}
-                                </div>
-
-                                <div className="account-detail-records__item-status">
-                                  <span
-                                    className={`account-detail-records__badge account-detail-records__badge--${getStatusBadgeColor(
-                                      transaction.status
-                                    )}`}
-                                  >
-                                    {transaction.status}
-                                  </span>
-                                </div>
-
-                                <div className="account-detail-records__item-amount">
-                                  <strong
-                                    className={`${
-                                      transaction.amount < 0
-                                        ? 'account-detail-records__amount--negative'
-                                        : 'account-detail-records__amount--positive'
-                                    }`}
-                                  >
-                                    {formatCurrency(transaction.amount)}
-                                  </strong>
-                                  <span className="account-detail-records__item-time">
-                                    {transaction.time}
-                                  </span>
-                                </div>
-
-                                <div
-                                  className="account-detail-records__item-actions"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Dropdown>
-                                    <Dropdown.Toggle
-                                      variant="link"
-                                      className="account-detail-records__menu-btn"
-                                      id={`menu-${transaction.id}`}
-                                    >
-                                      <FaEllipsisV size={16} />
-                                    </Dropdown.Toggle>
-
-                                    <Dropdown.Menu align="end">
-                                      <Dropdown.Item
-                                        className="account-detail-records__menu-item"
-                                        onClick={() => handleEditRecord(transaction)}
-                                      >
-                                        Edit
-                                      </Dropdown.Item>
-                                      <Dropdown.Divider />
-                                      <Dropdown.Item
-                                        className="account-detail-records__menu-item account-detail-records__menu-item--danger"
-                                      >
-                                        Delete
-                                      </Dropdown.Item>
-                                    </Dropdown.Menu>
-                                  </Dropdown>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="account-detail-empty-state">
-                      <p>No records found</p>
-                    </div>
-                  )}
-                </div>
+                <RecordsList
+                  groupedTransactions={groupedTransactions}
+                  selectedRecords={selectedRecords}
+                  accountName={account.name}
+                  onSelectRecord={handleSelectRecord}
+                  onEditRecord={handleEditRecord}
+                  formatCurrency={formatCurrency}
+                  showCheckboxes={true}
+                  showDropdownMenu={true}
+                  showPayer={true}
+                  showType={false}
+                />
               </Card.Body>
             </Card>
           </Tab>

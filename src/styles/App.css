@@ -7,6 +7,16 @@
 .main-container {
   flex: 1;
   overflow: hidden;
+  padding-top: 20px;
+  padding-bottom: 40px;
+}
+
+/* Desktop only padding */
+@media (min-width: 992px) {
+  .main-container {
+    padding-left: 6rem;
+    padding-right: 6rem;
+  }
 }
 
 .App-logo {
@@ -43,4 +53,99 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Analytics Page Styles */
+.analytics-sidebar-container {
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.analytics-sidebar {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.analytics-sidebar .filter-section {
+  border-bottom: 1px solid #e9ecef;
+}
+
+.analytics-sidebar .filter-section:last-child {
+  border-bottom: none;
+}
+
+.analytics-header {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.analytics-month-selector select {
+  min-width: 200px;
+}
+
+.analytics-tabs {
+  border-bottom: 2px solid #e9ecef;
+  gap: 10px;
+}
+
+.analytics-tabs .nav-link {
+  border: 1px solid transparent;
+  border-radius: 8px 8px 0 0;
+  color: #6c757d;
+  padding: 10px 20px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.analytics-tabs .nav-link:hover {
+  color: #198754;
+  background-color: #f8f9fa;
+}
+
+.analytics-tabs .nav-link.active {
+  color: #fff;
+  background-color: #198754;
+  border-color: #198754;
+}
+
+.analytics-tabs .tab-icon {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+.analytics-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+}
+
+.category-item {
+  transition: background-color 0.2s ease;
+}
+
+.category-item:hover {
+  background-color: #f8f9fa;
+}
+
+.incomes-expenses-report .card,
+.balance-trend .card,
+.cash-flow .card,
+.advanced-charts .card {
+  transition: box-shadow 0.3s ease;
+}
+
+.incomes-expenses-report .card:hover,
+.balance-trend .card:hover,
+.cash-flow .card:hover,
+.advanced-charts .card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

@@ -92,7 +92,7 @@ const Budgets: React.FC = () => {
   };
 
   return (
-    <Container >
+    <Container  fluid>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h1>Budgets</h1>
         <Button variant="primary" onClick={handleAddBudget}>
