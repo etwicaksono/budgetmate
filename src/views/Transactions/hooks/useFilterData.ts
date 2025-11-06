@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { ComponentType } from 'react';
 import type { IconType, IconBaseProps } from 'react-icons';
 import {
@@ -77,9 +77,19 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
   // Account data
   const [apiAccounts, setApiAccounts] = useState<ApiAccountResponse[]>([]);
 
+  // Track if data has been fetched to prevent duplicates
+  const categoriesFetchedRef = useRef(false);
+  const accountsFetchedRef = useRef(false);
+
   // Load categories
   useEffect(() => {
+    // Prevent duplicate fetches
+    if (categoriesFetchedRef.current || categories.length > 0) {
+      return;
+    }
+
     let isCancelled = false;
+    categoriesFetchedRef.current = true;
 
     const loadCategories = async () => {
       try {
@@ -88,12 +98,11 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
         setCategories(apiCategories);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
+        categoriesFetchedRef.current = false; // Reset on error to allow retry
       }
     };
 
-    if (categories.length === 0) {
-      void loadCategories();
-    }
+    void loadCategories();
 
     return () => {
       isCancelled = true;
@@ -102,7 +111,13 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
 
   // Load accounts
   useEffect(() => {
+    // Prevent duplicate fetches
+    if (accountsFetchedRef.current || apiAccounts.length > 0) {
+      return;
+    }
+
     let isCancelled = false;
+    accountsFetchedRef.current = true;
 
     const loadAccounts = async () => {
       try {
@@ -113,6 +128,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
         }
       } catch (error) {
         console.error('Failed to fetch accounts:', error);
+        accountsFetchedRef.current = false; // Reset on error to allow retry
       }
     };
 
@@ -121,7 +137,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [apiAccounts.length]);
 
   // Account metadata
   const accountMetadata = useMemo<AccountMetadata>(() => {
