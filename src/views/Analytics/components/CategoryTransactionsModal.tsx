@@ -100,12 +100,10 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
 
   const handleBulkEdit = (): void => {
     // TODO: Implement bulk edit functionality
-    console.log(`Editing ${selectedRecords.size} records`);
   };
 
   const handleBulkExport = (): void => {
     // TODO: Implement bulk export functionality
-    console.log(`Exporting ${selectedRecords.size} records`);
   };
 
   const handleBulkDelete = (): void => {
@@ -115,7 +113,6 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
       )
     ) {
       // TODO: Implement bulk delete functionality
-      console.log(`Deleting ${selectedRecords.size} records`);
       setSelectedRecords(new Set());
     }
   };
@@ -176,7 +173,6 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
 
   const handleSaveTransaction = async () => {
     // TODO: Implement save logic when backend is ready
-    console.log('Saving transaction:', editingTransaction);
     handleCloseEditModal();
     // Optionally refresh the transaction list
     if (categoryId) {

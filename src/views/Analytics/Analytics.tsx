@@ -95,6 +95,7 @@ const AnalyticsContent: React.FC = () => {
       isActive: true,
       excludeFromStatistics: false,
       usability: 'USABLE',
+      order: 0,
     };
   };
 

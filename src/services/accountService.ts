@@ -212,10 +212,8 @@ export const accountService: AccountService = {
   },
 
   async deleteAccount(id: string) {
-    console.log('Deleting account with ID:', id);
     try {
       const response = (await apiService.delete(`/accounts/${id}`)) as ApiResponse<unknown>;
-      console.log('Delete response:', response);
 
       // Check if the response indicates an error
       if (response.error || (response.success === false)) {

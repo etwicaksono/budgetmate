@@ -137,8 +137,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
   };
 
   const handleDelete = async (): Promise<void> => {
-    console.log('handleDelete called for account:', account.id, account.name);
-
     const result = await Swal.fire({
       title: 'Delete Account?',
       html: `
@@ -185,10 +183,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
       },
     });
 
-    console.log('Swal result:', result);
-
     if (result.isConfirmed) {
-      console.log('Delete confirmed, calling API...');
       try {
         // Show loading state
         Swal.fire({
@@ -202,9 +197,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
         });
 
         // Call the delete API
-        console.log('Calling accountService.deleteAccount with ID:', account.id);
         await accountService.deleteAccount(account.id);
-        console.log('Delete API call successful');
 
         // Show success message
         await Swal.fire({
@@ -216,7 +209,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
         });
 
         // Call the onDelete callback to update parent component
-        console.log('Calling onDelete callback');
         onDelete(account.id);
       } catch (error) {
         console.error('Delete error:', error);
@@ -228,8 +220,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
           confirmButtonColor: '#dc3545',
         });
       }
-    } else {
-      console.log('Delete cancelled');
     }
   };
 
@@ -254,12 +244,10 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
 
   const handleBulkEdit = (): void => {
     // TODO: Implement bulk edit functionality
-    console.log(`Editing ${selectedRecords.size} records`);
   };
 
   const handleBulkExport = (): void => {
     // TODO: Implement bulk export functionality
-    console.log(`Exporting ${selectedRecords.size} records`);
   };
 
   const handleBulkDelete = (): void => {
@@ -269,7 +257,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
       )
     ) {
       // TODO: Implement bulk delete functionality
-      console.log(`Deleting ${selectedRecords.size} records`);
       setSelectedRecords(new Set());
     }
   };
@@ -345,7 +332,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
 
   const handleAccountEditSubmit = (form: NewAccountForm): void => {
     // TODO: Implement API call to update the account
-    console.log('Updating account:', form);
     setShowAccountEditModal(false);
   };
 
@@ -371,7 +357,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
     if (!editingTransaction) return;
 
     // TODO: Implement API call to save the transaction
-    console.log('Saving transaction:', editingTransaction, 'context:', context);
     setShowEditModal(false);
     setEditingTransaction(null);
 

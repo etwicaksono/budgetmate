@@ -255,10 +255,6 @@ export const transactionService: TransactionService = {
   },
 
   async createTransaction(payload: CreateTransactionRequest) {
-    // Log the payload to check date format
-    console.log('transactionService.createTransaction payload:', payload);
-    console.log('Date being sent:', payload.date);
-    
     const response = (await apiService.post('/transactions', payload)) as
       ApiResponse<ApiTransactionResponse> | ApiTransactionResponse;
 
