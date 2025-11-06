@@ -670,22 +670,8 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
           note: currentTransaction.notes || description,
         };
 
-        // eslint-disable-next-line no-console
-        console.log('=== Transaction Form Values ===');
-        // eslint-disable-next-line no-console
-        console.log('Current Transaction:', currentTransaction);
-        // eslint-disable-next-line no-console
-        console.log('=== API Payload ===');
-        // eslint-disable-next-line no-console
-        console.log('Payload to be sent:', createPayload);
-        // eslint-disable-next-line no-console
-        console.log('========================');
-
         // Call the API to create the transaction
         const createdTransaction = await transactionService.createTransaction(createPayload);
-
-        // eslint-disable-next-line no-console
-        console.log('Transaction created successfully:', createdTransaction);
 
         // Update local state with the created transaction
         setTransactions((previous) => [transactionRecord, ...previous]);

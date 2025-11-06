@@ -472,13 +472,6 @@ export function TransactionModal({
   }, [apiCategories]);
   const handleSave = useCallback(
     (createAnother: boolean) => {
-      // eslint-disable-next-line no-console
-      console.log('TransactionModal handleSave called, createAnother:', createAnother);
-      // eslint-disable-next-line no-console
-      console.log('onSave exists?', !!onSave, 'type:', typeof onSave);
-      // eslint-disable-next-line no-console
-      console.log('onSave function name:', onSave?.name);
-
       if (onSave) {
         const categoryLabel = transaction?.category ?? '';
         const computedCategoryId =
@@ -493,21 +486,11 @@ export function TransactionModal({
           categoryLabel: categoryLabel || undefined,
         };
 
-        // eslint-disable-next-line no-console
-        console.log('Invoking onSave with context:', saveContext);
-
         try {
           const result = onSave(createAnother, saveContext);
-          // eslint-disable-next-line no-console
-          console.log('onSave returned:', result);
-          // If it's a promise, log when it resolves
+          // If it's a promise, catch any errors
           if (result instanceof Promise) {
-            // eslint-disable-next-line no-console
-            console.log('onSave returned a promise, waiting...');
-            result.then(() => {
-              // eslint-disable-next-line no-console
-              console.log('onSave promise resolved');
-            }).catch((error: unknown) => {
+            result.catch((error: unknown) => {
               // eslint-disable-next-line no-console
               console.error('onSave promise rejected:', error);
             });
@@ -777,13 +760,6 @@ export function TransactionModal({
 
         if (fieldName === 'category') {
           const nextCategoryId = nextValue ? categoryIdByName[nextValue] ?? '' : '';
-          // eslint-disable-next-line no-console
-          console.log(
-            'Selected category_id for API:',
-            nextCategoryId || '(unmapped selection)',
-            '| label:',
-            nextValue || '(none)'
-          );
           if (transaction && onChange) {
             onChange({
               target: {

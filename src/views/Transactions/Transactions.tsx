@@ -621,35 +621,18 @@ function TransactionsContent(): JSX.Element {
     createAnother = false,
     context?: TransactionModalSaveContext
   ): Promise<void> => {
-    // eslint-disable-next-line no-console
-    console.log('handleSaveTransaction called with:', {
-      createAnother,
-      currentTransaction,
-      context,
-    });
-
     const isTransfer = currentTransaction.type === 'Transfer';
     if (!currentTransaction.description) {
-      // eslint-disable-next-line no-console
-      console.log('No description provided');
       alert('Please enter a description');
       return;
     }
 
     if (isTransfer) {
       if (!currentTransaction.account || !currentTransaction.toAccount || currentTransaction.amount === '') {
-        // eslint-disable-next-line no-console
-        console.log('Transfer validation failed:', {
-          account: currentTransaction.account,
-          toAccount: currentTransaction.toAccount,
-          amount: currentTransaction.amount
-        });
         alert('Please fill in all required fields for transfer: From Account, To Account, and Amount');
         return;
       }
     } else if (currentTransaction.amount === '') {
-      // eslint-disable-next-line no-console
-      console.log('Amount validation failed');
       alert('Please enter an amount');
       return;
     }
@@ -734,9 +717,6 @@ function TransactionsContent(): JSX.Element {
 
       // Call the API to create the transaction
       const createdTransaction = await transactionService.createTransaction(createPayload);
-
-      // eslint-disable-next-line no-console
-      console.log('Transaction created successfully:', createdTransaction);
 
       // Refresh transactions from API
       try {
