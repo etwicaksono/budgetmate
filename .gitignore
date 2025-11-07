@@ -6,3 +6,4 @@ references
 .env.development
 .env.local
 .claude
+/generated/prisma

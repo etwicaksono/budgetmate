@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model accounts {
+  id                                         String      @id @db.VarChar(36)
+  user_id                                    String      @db.VarChar(36)
+  personal_id                                BigInt
+  name                                       String      @db.VarChar(36)
+  icon                                       String      @db.VarChar(36)
+  active                                     Boolean     @default(true)
+  usability                                  String      @db.VarChar(32)
+  account_type                               String      @db.VarChar(32)
+  color                                      String      @db.VarChar(255)
+  initial_amount                             Float?
+  group_id                                   String?     @db.VarChar(36)
+  position                                   Json?       @db.Json
+  created_at                                 DateTime    @db.Date
+  created_by                                 String?     @db.VarChar(64)
+  updated_at                                 DateTime?   @db.Date
+  updated_by                                 String?     @db.VarChar(64)
+  groups                                     groups?     @relation(fields: [group_id], references: [id], onDelete: Restrict, map: "fk_accounts_reference_groups")
+  users                                      users       @relation(fields: [user_id], references: [id], map: "fk_accounts_reference_users")
+  debts                                      debts[]
+  transfers_transfers_from_accountToaccounts transfers[] @relation("transfers_from_accountToaccounts")
+  transfers_transfers_to_accountToaccounts   transfers[] @relation("transfers_to_accountToaccounts")
+
+  @@unique([user_id, personal_id], map: "ak_personal_account_k_accounts")
+}
+
+model cache {
+  key        String @id @db.VarChar(191)
+  value      String
+  expiration Int
+}
+
+model cache_locks {
+  key        String @id @db.VarChar(191)
+  owner      String @db.VarChar(191)
+  expiration Int
+}
+
+model categories {
+  id               String       @id @db.VarChar(36)
+  personal_id      BigInt
+  user_id          String       @db.VarChar(36)
+  parent_id        String?      @db.VarChar(36)
+  name             String       @db.VarChar(36)
+  icon             String       @db.VarChar(36)
+  nature           String       @db.VarChar(8)
+  is_active        Boolean
+  position         Json?        @db.Json
+  created_at       DateTime     @db.Date
+  created_by       String?      @db.VarChar(64)
+  updated_at       DateTime?    @db.Date
+  updated_by       String?      @db.VarChar(64)
+  color            String?      @db.VarChar(36)
+  categories       categories?  @relation("categoriesTocategories", fields: [parent_id], references: [id], onDelete: Restrict, map: "fk_categori_reference_categori")
+  other_categories categories[] @relation("categoriesTocategories")
+  users            users        @relation(fields: [user_id], references: [id], map: "fk_categori_reference_users")
+
+  @@unique([personal_id, user_id], map: "ak_personal_categorie_categori")
+}
+
+model debts {
+  id           String         @id @db.VarChar(36)
+  user_id      String         @db.VarChar(36)
+  personal_id  BigInt
+  account_id   String         @db.VarChar(36)
+  name         String         @db.VarChar(64)
+  type         String         @db.VarChar(16)
+  position     Json?          @db.Json
+  created_at   DateTime       @db.Date
+  created_by   String?        @db.VarChar(64)
+  updated_at   DateTime?      @db.Date
+  updated_by   String?        @db.VarChar(64)
+  accounts     accounts       @relation(fields: [account_id], references: [id], map: "fk_debts_reference_accounts")
+  users        users          @relation(fields: [user_id], references: [id], map: "fk_debts_reference_users")
+  transactions transactions[]
+}
+
+model failed_jobs {
+  id         BigInt   @id @default(autoincrement())
+  uuid       String   @unique(map: "failed_jobs_uuid_unique") @db.VarChar(191)
+  connection String
+  queue      String
+  payload    String
+  exception  String
+  failed_at  DateTime @default(now()) @db.Timestamp(0)
+}
+
+model groups {
+  id          String     @id @db.VarChar(36)
+  user_id     String     @db.VarChar(36)
+  personal_id BigInt
+  name        String     @db.VarChar(64)
+  created_at  DateTime   @db.Date
+  created_by  String?    @db.VarChar(64)
+  updated_at  DateTime?  @db.Date
+  updated_by  String?    @db.VarChar(64)
+  accounts    accounts[]
+  users       users      @relation(fields: [user_id], references: [id], map: "fk_groups_reference_users")
+}
+
+model job_batches {
+  id             String  @id @db.VarChar(191)
+  name           String  @db.VarChar(191)
+  total_jobs     Int
+  pending_jobs   Int
+  failed_jobs    Int
+  failed_job_ids String
+  options        String?
+  cancelled_at   Int?
+  created_at     Int
+  finished_at    Int?
+}
+
+model jobs {
+  id           BigInt @id @default(autoincrement())
+  queue        String @db.VarChar(191)
+  payload      String
+  attempts     Int    @db.SmallInt
+  reserved_at  Int?
+  available_at Int
+  created_at   Int
+
+  @@index([queue], map: "jobs_queue_index")
+}
+
+model migrations {
+  id        Int    @id @default(autoincrement())
+  migration String @db.VarChar(191)
+  batch     Int
+}
+
+model transactions {
+  id          String     @id @db.VarChar(36)
+  user_id     String     @db.VarChar(36)
+  personal_id BigInt
+  date        DateTime   @db.Date
+  account_id  String     @db.VarChar(36)
+  category_id String     @db.VarChar(36)
+  amount      Float
+  type        String     @db.VarChar(16)
+  note        String?
+  position    Json?      @db.Json
+  transfer_id String?    @db.VarChar(36)
+  debt_id     String?    @db.VarChar(36)
+  created_at  DateTime   @db.Date
+  created_by  String?    @db.VarChar(64)
+  updated_at  DateTime?  @db.Date
+  updated_by  String?    @db.VarChar(64)
+  debts       debts?     @relation(fields: [debt_id], references: [id], onDelete: Restrict, map: "fk_transact_reference_debts")
+  transfers   transfers? @relation(fields: [transfer_id], references: [id], onDelete: Restrict, map: "fk_transact_reference_transfer")
+  users       users      @relation(fields: [user_id], references: [id], map: "fk_transact_reference_users")
+
+  @@unique([user_id, personal_id], map: "ak_personal_transacti_transact")
+}
+
+model transfers {
+  id                                        String         @id @db.VarChar(36)
+  user_id                                   String         @db.VarChar(36)
+  personal_id                               BigInt
+  date                                      DateTime       @db.Date
+  from_account                              String         @db.VarChar(64)
+  to_account                                String         @db.VarChar(64)
+  amount                                    Float
+  note                                      String
+  position                                  Json?          @db.Json
+  created_at                                DateTime       @db.Date
+  created_by                                String?        @db.VarChar(64)
+  updated_at                                DateTime?      @db.Date
+  updated_by                                String?        @db.VarChar(64)
+  transactions                              transactions[]
+  accounts_transfers_from_accountToaccounts accounts       @relation("transfers_from_accountToaccounts", fields: [from_account], references: [id], map: "fk_transfer_reference_from_accounts")
+  accounts_transfers_to_accountToaccounts   accounts       @relation("transfers_to_accountToaccounts", fields: [to_account], references: [id], map: "fk_transfer_reference_to_accounts")
+  users                                     users          @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "fk_transfer_reference_users")
+}
+
+model users {
+  id           String         @id @db.VarChar(36)
+  name         String         @db.VarChar(64)
+  email        String         @db.VarChar(36)
+  username     String         @db.VarChar(36)
+  password     String         @db.VarChar(255)
+  created_at   DateTime       @db.Date
+  created_by   String?        @db.VarChar(64)
+  updated_at   DateTime?      @db.Date
+  updated_by   String?        @db.VarChar(64)
+  accounts     accounts[]
+  categories   categories[]
+  debts        debts[]
+  groups       groups[]
+  transactions transactions[]
+  transfers    transfers[]
+}

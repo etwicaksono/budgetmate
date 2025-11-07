@@ -9,6 +9,19 @@ type RequestInitWithBody = Omit<RequestInit, 'body'> & {
 
 export type JsonRecord = Record<string, unknown>;
 
+// Wrapped API response format (full-stack refactor)
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  message: string;
+  data: T | null;
+  meta: {
+    version: string;
+    timestamp: number;
+    [key: string]: unknown;
+  } | null;
+  errors?: unknown;
+}
+
 export interface ApiErrorResponse {
   code?: string | number;
   message?: string;
@@ -140,7 +153,36 @@ class ApiService {
 
       const contentType = response.headers.get('content-type');
       if (isJsonResponse(contentType)) {
-        return (await response.json()) as T;
+        const jsonData = await response.json();
+        
+        // Check if response is wrapped in {success, message, data, meta} format
+        if (
+          typeof jsonData === 'object' &&
+          jsonData !== null &&
+          'success' in jsonData &&
+          'data' in jsonData
+        ) {
+          const wrappedResponse = jsonData as ApiResponse<T>;
+          
+          // If wrapped response indicates failure, throw error
+          if (!wrappedResponse.success) {
+            const error = new Error(wrappedResponse.message || 'API request failed') as FetchError;
+            error.response = {
+              data: {
+                message: wrappedResponse.message,
+                errors: wrappedResponse.errors,
+              } as ApiErrorResponse,
+              status: response.status,
+            };
+            throw error;
+          }
+          
+          // Unwrap and return data
+          return wrappedResponse.data as T;
+        }
+        
+        // Return raw response if not wrapped
+        return jsonData as T;
       }
 
       return (response as unknown) as T;
