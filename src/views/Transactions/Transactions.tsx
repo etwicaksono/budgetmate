@@ -11,6 +11,7 @@ import {
   Modal,
 } from 'react-bootstrap';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import Swal from 'sweetalert2';
 import {
   FaFilter,
   FaUniversity,
@@ -631,17 +632,35 @@ function TransactionsContent(): JSX.Element {
   ): Promise<void> => {
     const isTransfer = currentTransaction.type === 'Transfer';
     if (!currentTransaction.description) {
-      alert('Please enter a description');
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Missing Information',
+        text: 'Please enter a description',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#00a86b'
+      });
       return;
     }
 
     if (isTransfer) {
       if (!currentTransaction.account || !currentTransaction.toAccount || currentTransaction.amount === '') {
-        alert('Please fill in all required fields for transfer: From Account, To Account, and Amount');
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Missing Information',
+          text: 'Please fill in all required fields for transfer: From Account, To Account, and Amount',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#00a86b'
+        });
         return;
       }
     } else if (currentTransaction.amount === '') {
-      alert('Please enter an amount');
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Missing Information',
+        text: 'Please enter an amount',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#00a86b'
+      });
       return;
     }
 
@@ -693,38 +712,125 @@ function TransactionsContent(): JSX.Element {
     if (!categoryId) {
       // eslint-disable-next-line no-console
       console.error('Category not found:', currentTransaction.category);
-      alert('Please select a valid category');
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Category',
+        text: 'Please select a valid category',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#00a86b'
+      });
       return;
     }
 
     if (!accountId) {
       // eslint-disable-next-line no-console
       console.error('Account not found:', currentTransaction.account);
-      alert('Please select a valid account');
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Account',
+        text: 'Please select a valid account',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#00a86b'
+      });
       return;
     }
 
+    // Retry logic for personal_id conflicts
+    const maxRetries = 3;
+    let attempt = 0;
+    let lastError: any = null;
+    let createdTransaction: any = null;
+
+    // Prepare the base API payload
+    const normalizedAmount =
+      typeof transactionRecord.amount === 'number'
+        ? transactionRecord.amount
+        : Number(transactionRecord.amount);
+
+    // Format the date properly for Go backend (RFC3339 with seconds and timezone)
+    const formattedDate = formatDateForBackend(currentTransaction.dateTime || currentTransaction.date);
+
+    // Retry loop
+    while (attempt < maxRetries && !createdTransaction) {
+      try {
+        const createPayload: CreateTransactionRequest = {
+          date: formattedDate,
+          account_id: accountId,
+          category_id: String(categoryId),
+          amount: Number.isNaN(normalizedAmount) ? 0 : normalizedAmount,
+          type: currentTransaction.type,
+          note: currentTransaction.notes || null,
+        };
+
+        // On retry attempts, explicitly increment personal_id in cache
+        if (attempt > 0) {
+          console.log(`🔄 Retry attempt ${attempt}/${maxRetries} with incremented personal_id`);
+          // Force increment the cached personal_id before retry
+          const currentMax = parseInt(localStorage.getItem('max_transaction_personal_id') || '0', 10);
+          const newMax = currentMax + attempt; // Add attempt number to ensure increment
+          localStorage.setItem('max_transaction_personal_id', String(newMax));
+          console.log(`📝 Updated max_transaction_personal_id from ${currentMax} to ${newMax}`);
+        }
+
+        // Call the API to create the transaction
+        createdTransaction = await transactionService.createTransaction(createPayload);
+        console.log('✅ Transaction created successfully!');
+        break; // Success! Exit the retry loop
+      } catch (error: any) {
+        lastError = error;
+        attempt++;
+
+        // Check if it's a personal_id conflict error
+        const errorMessage = error?.message || error?.response?.data?.message || '';
+        const isPersonalIdConflict = errorMessage.toLowerCase().includes('personal_id') && 
+                                     errorMessage.toLowerCase().includes('already exists');
+
+        console.error(`❌ Attempt ${attempt} failed:`, errorMessage);
+
+        if (isPersonalIdConflict && attempt < maxRetries) {
+          console.warn(`⚠️ personal_id conflict detected, will retry (attempt ${attempt}/${maxRetries})...`);
+          // Small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } else {
+          // Not a personal_id error or max retries reached
+          console.error('❌ Not retrying - either not a personal_id conflict or max retries reached');
+          break;
+        }
+      }
+    }
+
+    // If all retries failed, show appropriate error message
+    if (!createdTransaction) {
+      const errorMessage = lastError?.message || lastError?.response?.data?.message || 'Unknown error occurred';
+      const isPersonalIdConflict = errorMessage.toLowerCase().includes('personal_id') && 
+                                   errorMessage.toLowerCase().includes('already exists');
+
+      if (isPersonalIdConflict) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Transaction Creation Failed',
+          html: `<p>Failed to create transaction after ${maxRetries} attempts due to ID conflicts.</p>
+                 <p class="text-muted small">This might be caused by concurrent transactions or cache synchronization issues.</p>`,
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc3545',
+          footer: '<p class="text-muted small">Please try again or refresh the page.</p>'
+        });
+      } else {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Transaction Creation Failed',
+          text: errorMessage,
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc3545'
+        });
+      }
+
+      console.error('❌ Failed to create transaction after all retries:', lastError);
+      return; // Exit the function
+    }
+
+    // Success! Continue with the rest of the logic
     try {
-      // Prepare the API payload
-      const normalizedAmount =
-        typeof transactionRecord.amount === 'number'
-          ? transactionRecord.amount
-          : Number(transactionRecord.amount);
-
-      // Format the date properly for Go backend (RFC3339 with seconds and timezone)
-      const formattedDate = formatDateForBackend(currentTransaction.dateTime || currentTransaction.date);
-
-      const createPayload: CreateTransactionRequest = {
-        date: formattedDate,
-        account_id: accountId,
-        category_id: String(categoryId),
-        amount: Number.isNaN(normalizedAmount) ? 0 : normalizedAmount,
-        type: currentTransaction.type,
-        note: currentTransaction.notes || null,
-      };
-
-      // Call the API to create the transaction
-      const createdTransaction = await transactionService.createTransaction(createPayload);
 
       // Refresh transactions from API
       try {
@@ -819,8 +925,17 @@ function TransactionsContent(): JSX.Element {
       setShowTransactionModal(false);
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('Failed to create transaction:', error);
-      alert('Failed to create transaction. Please try again.');
+      console.error('Error refreshing transactions after creation:', error);
+      // Transaction was created successfully, but refresh failed
+      // This is non-critical, so we can still close the modal
+      await Swal.fire({
+        icon: 'info',
+        title: 'Transaction Created',
+        text: 'Transaction created successfully, but failed to refresh the list. Please refresh the page.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#00a86b'
+      });
+      setShowTransactionModal(false);
     }
   };
 

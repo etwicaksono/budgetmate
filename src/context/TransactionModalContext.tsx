@@ -15,6 +15,7 @@ import {
   FaMoneyBillWave,
 } from 'react-icons/fa';
 import type { IconType, IconBaseProps } from 'react-icons';
+import Swal from 'sweetalert2';
 import {
   TransactionModal,
   type TransactionFormValues,
@@ -652,27 +653,103 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
         return;
       }
 
+      // Retry logic for personal_id conflicts
+      const maxRetries = 3;
+      let attempt = 0;
+      let lastError: any = null;
+      let createdTransaction: any = null;
+
+      // Use description if available, otherwise create a default one
+      const description = currentTransaction.description ||
+        `${currentTransaction.type} - ${currentTransaction.category || 'Transaction'}`;
+
+      // Prepare the API payload with properly formatted date
+      const formattedDate = formatDateForBackend(currentTransaction.dateTime || currentTransaction.date);
+      
+      const normalizedAmount = typeof transactionRecord.amount === 'number' 
+        ? transactionRecord.amount 
+        : parseFloat(String(transactionRecord.amount));
+
+      // Retry loop
+      while (attempt < maxRetries && !createdTransaction) {
+        try {
+          const createPayload: CreateTransactionRequest = {
+            date: formattedDate,
+            account_id: accountId,
+            category_id: String(categoryId),
+            amount: normalizedAmount,
+            type: currentTransaction.type,
+            note: currentTransaction.notes || description,
+          };
+
+          // On retry attempts, explicitly increment personal_id in cache
+          if (attempt > 0) {
+            console.log(`🔄 [Context] Retry attempt ${attempt}/${maxRetries} with incremented personal_id`);
+            const currentMax = parseInt(localStorage.getItem('max_transaction_personal_id') || '0', 10);
+            const newMax = currentMax + attempt;
+            localStorage.setItem('max_transaction_personal_id', String(newMax));
+            console.log(`📝 [Context] Updated max_transaction_personal_id from ${currentMax} to ${newMax}`);
+          }
+
+          // Call the API to create the transaction
+          createdTransaction = await transactionService.createTransaction(createPayload);
+          console.log('✅ [Context] Transaction created successfully!');
+          break; // Success! Exit the retry loop
+        } catch (error: any) {
+          lastError = error;
+          attempt++;
+
+          // Check if it's a personal_id conflict error
+          const errorMessage = error?.message || error?.response?.data?.message || '';
+          const isPersonalIdConflict = errorMessage.toLowerCase().includes('personal_id') && 
+                                       errorMessage.toLowerCase().includes('already exists');
+
+          console.error(`❌ [Context] Attempt ${attempt} failed:`, errorMessage);
+
+          if (isPersonalIdConflict && attempt < maxRetries) {
+            console.warn(`⚠️ [Context] personal_id conflict detected, will retry (attempt ${attempt}/${maxRetries})...`);
+            // Small delay before retry
+            await new Promise(resolve => setTimeout(resolve, 200));
+          } else {
+            // Not a personal_id error or max retries reached
+            console.error('❌ [Context] Not retrying - either not a personal_id conflict or max retries reached');
+            break;
+          }
+        }
+      }
+
+      // If all retries failed, show appropriate error message
+      if (!createdTransaction) {
+        const errorMessage = lastError?.message || lastError?.response?.data?.message || 'Unknown error occurred';
+        const isPersonalIdConflict = errorMessage.toLowerCase().includes('personal_id') && 
+                                     errorMessage.toLowerCase().includes('already exists');
+
+        if (isPersonalIdConflict) {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Transaction Creation Failed',
+            html: `<p>Failed to create transaction after ${maxRetries} attempts due to ID conflicts.</p>
+                   <p class="text-muted small">This might be caused by concurrent transactions or cache synchronization issues.</p>`,
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#dc3545',
+            footer: '<p class="text-muted small">Please try again or refresh the page.</p>'
+          });
+        } else {
+          await Swal.fire({
+            icon: 'error',
+            title: 'Transaction Creation Failed',
+            text: errorMessage,
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#dc3545'
+          });
+        }
+
+        console.error('❌ [Context] Failed to create transaction after all retries:', lastError);
+        return; // Exit the function
+      }
+
+      // Success! Continue with the rest of the logic
       try {
-        // Use description if available, otherwise create a default one
-        const description = currentTransaction.description ||
-          `${currentTransaction.type} - ${currentTransaction.category || 'Transaction'}`;
-
-        // Prepare the API payload with properly formatted date
-        const formattedDate = formatDateForBackend(currentTransaction.dateTime || currentTransaction.date);
-        
-        const createPayload: CreateTransactionRequest = {
-          personal_id: 1,
-          date: formattedDate,
-          account_id: accountId,
-          category_id: String(categoryId),
-          amount: typeof transactionRecord.amount === 'number' ? transactionRecord.amount : parseFloat(String(transactionRecord.amount)),
-          type: currentTransaction.type,
-          note: currentTransaction.notes || description,
-        };
-
-        // Call the API to create the transaction
-        const createdTransaction = await transactionService.createTransaction(createPayload);
-
         // Update local state with the created transaction
         setTransactions((previous) => [transactionRecord, ...previous]);
 
@@ -714,11 +791,18 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
         setCurrentTransaction(createTransactionTemplate());
       } catch (error) {
         // eslint-disable-next-line no-console
-        console.error('Failed to create transaction:', error);
-        alert('Failed to create transaction. Please try again.');
+        console.error('[Context] Error updating state after transaction creation:', error);
+        // Transaction was created successfully, but state update failed
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Transaction Created',
+          text: 'Transaction was created but there was an issue updating the display. Please refresh the page.',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#00a86b'
+        });
       }
     },
-    [addQuickTransactionPreset, currentTransaction, ensureCategoryExists, categories, apiAccounts]
+    [addQuickTransactionPreset, currentTransaction, ensureCategoryExists, categories, apiAccounts, accountIdToName]
   );
 
   const handleAddNewQuickTransaction = useCallback(() => {
