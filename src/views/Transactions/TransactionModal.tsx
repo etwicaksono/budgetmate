@@ -401,11 +401,36 @@ export function TransactionModal({
 
 
 
+  // Helper to remove leading zeros (e.g., "0012345" -> "12345")
+  const removeLeadingZeros = useCallback((value: string): string => {
+    // Handle empty or invalid input
+    if (!value) return value;
+    
+    // If the value starts with digits, remove leading zeros
+    // But preserve "0" if it's the only digit before decimal point
+    const parts = value.split('.');
+    const integerPart = parts[0] || '';
+    const decimalPart = parts[1];
+    
+    // Remove leading zeros from integer part
+    let cleanedInteger = integerPart.replace(/^0+/, '');
+    
+    // If all zeros were removed, keep one zero
+    if (cleanedInteger === '' && integerPart.length > 0) {
+      cleanedInteger = '0';
+    }
+    
+    // Reconstruct the number
+    return decimalPart !== undefined ? `${cleanedInteger}.${decimalPart}` : cleanedInteger;
+  }, []);
+
   // Unified handler to update display and push normalized raw to parent
   const handleNumericInput = useCallback(
     (fieldName: 'amount' | 'toAmount') =>
       (next: string) => {
-        const { display, normalized, deferCommit } = coerceAndFormatNumber(next);
+        // Remove leading zeros before processing
+        const cleanedInput = removeLeadingZeros(next);
+        const { display, normalized, deferCommit } = coerceAndFormatNumber(cleanedInput);
         if (fieldName === 'amount') {
           setAmountDisplay(display);
           setIsEditingAmount(true);
@@ -422,7 +447,7 @@ export function TransactionModal({
           });
         }
       },
-    [onChange]
+    [onChange, removeLeadingZeros]
   );
 
   // Initialize displays from incoming transaction values and keep in sync (avoid overriding while editing)
