@@ -205,7 +205,11 @@ const Register: React.FC = () => {
         <div className="app-info">
           <h1>Join Us<br />Start Managing<br />Your Finances</h1>
           <div className="app-preview">
-            {/* App preview image will be added via CSS */}
+            <img
+              src="/images/app-preview.webp"
+              alt="Finance App Preview"
+              className="preview-image"
+            />
           </div>
         </div>
 
