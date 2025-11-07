@@ -296,10 +296,19 @@ function TransactionsContent(): JSX.Element {
     const loadTransactions = async () => {
       try {
         setLoadingTransactions(true);
+        console.log('📊 Fetching transactions...', {
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+          categoriesLoaded: categories.length,
+          accountsLoaded: apiAccounts.length,
+        });
+
         const apiTransactions = await transactionService.fetchTransactions({
           startDate: dateRange.start || undefined,
           endDate: dateRange.end || undefined,
         });
+
+        console.log('📊 Received transactions from API:', apiTransactions.length);
 
         // Map API response to TransactionRecord format
         const mappedTransactions: TransactionRecord[] = apiTransactions.map((apiTxn, index) => {
@@ -344,18 +353,17 @@ function TransactionsContent(): JSX.Element {
           typeof txn.id === 'number' && !isNaN(txn.id)
         );
 
+        console.log('📊 Mapped transactions:', validTransactions.length);
         setTransactions(validTransactions);
       } catch (error) {
-        console.error('Failed to fetch transactions:', error);
+        console.error('❌ Failed to fetch transactions:', error);
       } finally {
         setLoadingTransactions(false);
       }
     };
 
-    // Only load if we have categories and accounts loaded
-    if (categories.length > 0 && apiAccounts.length > 0) {
-      void loadTransactions();
-    }
+    // Load transactions immediately - categories and accounts will be mapped when available
+    void loadTransactions();
   }, [dateRange.start, dateRange.end, categories, apiAccounts]);
 
   const filteredTransactions = useMemo(() => {

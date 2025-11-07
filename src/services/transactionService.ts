@@ -73,6 +73,7 @@ export interface TransactionService {
   createTransaction(payload: CreateTransactionRequest): Promise<ApiTransactionResponse>;
   updateTransaction(id: string, payload: UpdateTransactionRequest): Promise<ApiTransactionResponse>;
   deleteTransaction(id: string): Promise<void>;
+  getNextPersonalId(): number;
 }
 
 // Dummy transaction data generator
@@ -187,117 +188,87 @@ const generateDummyTransactions = (): ApiTransactionResponse[] => {
   });
 };
 
+// Store the next personal_id
+let nextPersonalId = 1;
+
 export const transactionService: TransactionService = {
   async fetchTransactions(params = {}) {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = (await apiService.get('/transactions', {
-    //   start_date: params.startDate ?? undefined,
-    //   end_date: params.endDate ?? undefined,
-    //   account_id: params.accountId ?? undefined,
-    //   category_id: params.categoryId ?? undefined,
-    //   type: params.type ?? undefined,
-    //   limit: params.limit ?? undefined,
-    // })) as ApiResponse<ApiTransactionResponse[]> | ApiTransactionResponse[];
+    // API service automatically unwraps the response
+    // Returns the data directly: Array<ApiTransactionResponse>
+    const transactions = (await apiService.get('/transactions', {
+      start_date: params.startDate ?? undefined,
+      end_date: params.endDate ?? undefined,
+      account_id: params.accountId ?? undefined,
+      category_id: params.categoryId ?? undefined,
+      type: params.type ?? undefined,
+      limit: params.limit ?? undefined,
+    })) as ApiTransactionResponse[];
 
-    // For now, return dummy data with simulated network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    let transactions = generateDummyTransactions();
-
-    // Apply filters to dummy data (client-side filtering for now)
-    if (params.startDate) {
-      const startTime = new Date(params.startDate).getTime();
-      transactions = transactions.filter(t => new Date(t.date || 0).getTime() >= startTime);
+    // Update cache for personal_id
+    if (typeof localStorage !== 'undefined' && transactions.length > 0) {
+      const personalIds = transactions.map(txn => Number(txn.personal_id ?? 0)).filter(id => !isNaN(id));
+      const maxPersonalId = personalIds.length > 0 ? Math.max(...personalIds) : 0;
+      nextPersonalId = maxPersonalId + 1;
+      localStorage.setItem('max_transaction_personal_id', maxPersonalId.toString());
+    } else {
+      nextPersonalId = 1;
     }
 
-    if (params.endDate) {
-      const endTime = new Date(params.endDate).getTime();
-      transactions = transactions.filter(t => new Date(t.date || 0).getTime() <= endTime);
-    }
-
-    if (params.accountId) {
-      transactions = transactions.filter(t => t.account_id === params.accountId);
-    }
-
-    if (params.categoryId) {
-      transactions = transactions.filter(t => t.category_id === params.categoryId);
-    }
-
-    if (params.type) {
-      transactions = transactions.filter(t => t.type === params.type);
-    }
-
-    if (params.limit) {
-      transactions = transactions.slice(0, params.limit);
-    }
-
-    // Simulate API response structure
-    // if (isApiResponse<ApiTransactionResponse[]>(response)) {
-    //   return response.data ?? transactions;
-    // }
-
-    return transactions;
+    return Array.isArray(transactions) ? transactions : [];
   },
 
   async fetchTransactionById(id: string) {
-    const response = (await apiService.get(`/transactions/${id}`)) as
-      ApiResponse<ApiTransactionResponse> | ApiTransactionResponse;
-
-    if (isApiResponse<ApiTransactionResponse>(response) && response.data) {
-      return response.data;
-    }
-
-    if ('id' in response && response.id) {
-      return response as ApiTransactionResponse;
-    }
-
-    throw new Error('Failed to fetch transaction');
+    // API service automatically unwraps the response
+    const transaction = (await apiService.get(`/transactions/${id}`)) as ApiTransactionResponse;
+    return transaction;
   },
 
   async createTransaction(payload: CreateTransactionRequest) {
-    const response = (await apiService.post('/transactions', payload)) as
-      ApiResponse<ApiTransactionResponse> | ApiTransactionResponse;
-
-    if (isApiResponse<ApiTransactionResponse>(response) && response.data) {
-      return response.data;
+    // If personal_id not provided, get next one from cache
+    if (!payload.personal_id) {
+      payload.personal_id = this.getNextPersonalId();
     }
 
-    if ('id' in response && response.id) {
-      return response as ApiTransactionResponse;
+    // API service automatically unwraps the response
+    const transaction = (await apiService.post('/transactions', payload)) as ApiTransactionResponse;
+    
+    // Update cache after creation
+    if (transaction.personal_id) {
+      nextPersonalId = Math.max(nextPersonalId, Number(transaction.personal_id) + 1);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('max_transaction_personal_id', String(transaction.personal_id));
+      }
     }
-
-    throw new Error('Failed to create transaction');
+    
+    return transaction;
   },
 
   async updateTransaction(id: string, payload: UpdateTransactionRequest) {
-    const response = (await apiService.put(`/transactions/${id}`, payload)) as
-      ApiResponse<ApiTransactionResponse> | ApiTransactionResponse;
-
-    if (isApiResponse<ApiTransactionResponse>(response) && response.data) {
-      return response.data;
-    }
-
-    if ('id' in response && response.id) {
-      return response as ApiTransactionResponse;
-    }
-
-    throw new Error('Failed to update transaction');
+    // API service automatically unwraps the response
+    const transaction = (await apiService.put(`/transactions/${id}`, payload)) as ApiTransactionResponse;
+    return transaction;
   },
 
   async deleteTransaction(id: string) {
-    try {
-      const response = (await apiService.delete(`/transactions/${id}`)) as ApiResponse<unknown>;
+    // API service automatically unwraps the response and throws on error
+    await apiService.delete(`/transactions/${id}`);
+  },
 
-      if (response.error || (response.success === false)) {
-        const errorMessage = response.error?.message || response.message || 'Failed to delete transaction';
-        throw new Error(errorMessage);
+  getNextPersonalId(): number {
+    // Try to get from localStorage first
+    if (typeof localStorage !== 'undefined') {
+      const cached = localStorage.getItem('max_transaction_personal_id');
+      if (cached) {
+        const maxId = parseInt(cached, 10);
+        if (!isNaN(maxId)) {
+          nextPersonalId = maxId + 1;
+        }
       }
-
-      return;
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      throw error;
     }
+    
+    const result = nextPersonalId;
+    nextPersonalId += 1;
+    return result;
   },
 };
 

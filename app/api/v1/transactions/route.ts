@@ -160,33 +160,29 @@ export async function POST(request: NextRequest) {
       account_id,
       category_id,
       amount,
-      type,
       note,
     } = body;
 
     // Validate required fields
-    if (!personal_id || !date || !account_id || !category_id || !amount || !type) {
+    if (!personal_id || !date || !account_id || !category_id || amount === undefined) {
       return jsonResponse(
-        ApiResponseBuilder.error('Missing required fields: personal_id, date, account_id, category_id, amount, type'),
+        ApiResponseBuilder.error('Missing required fields: personal_id, date, account_id, category_id, amount'),
         400
       );
     }
 
-    // Validate type
-    if (type !== 'INCOME' && type !== 'EXPENSE') {
+    // Validate amount (cannot be 0)
+    const numericAmount = parseFloat(amount);
+    if (numericAmount === 0) {
       return jsonResponse(
-        ApiResponseBuilder.error('Type must be INCOME or EXPENSE'),
+        ApiResponseBuilder.error('Amount cannot be 0'),
         400
       );
     }
 
-    // Validate amount
-    if (amount <= 0) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Amount must be greater than 0'),
-        400
-      );
-    }
+    // Determine type based on amount sign
+    const type = numericAmount > 0 ? 'INCOME' : 'EXPENSE';
+    const absoluteAmount = Math.abs(numericAmount);
 
     // Check for duplicate personal_id
     const existing = await db.transactions.findFirst({
@@ -242,7 +238,7 @@ export async function POST(request: NextRequest) {
         date: new Date(date),
         account_id,
         category_id,
-        amount: parseFloat(amount),
+        amount: absoluteAmount,
         type,
         note: note || null,
         position: null as any,

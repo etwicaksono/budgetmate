@@ -142,20 +142,15 @@ export async function PUT(
       }
     }
 
-    // Validate type if being changed
-    if (body.type && body.type !== 'INCOME' && body.type !== 'EXPENSE') {
-      return jsonResponse(
-        ApiResponseBuilder.error('Type must be INCOME or EXPENSE'),
-        400
-      );
-    }
-
-    // Validate amount if being changed
-    if (body.amount !== undefined && body.amount <= 0) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Amount must be greater than 0'),
-        400
-      );
+    // Validate amount if being changed (cannot be 0)
+    if (body.amount !== undefined) {
+      const numericAmount = parseFloat(body.amount);
+      if (numericAmount === 0) {
+        return jsonResponse(
+          ApiResponseBuilder.error('Amount cannot be 0'),
+          400
+        );
+      }
     }
 
     // Build update data
@@ -166,8 +161,14 @@ export async function PUT(
     if (body.date !== undefined) updateData.date = new Date(body.date);
     if (body.account_id !== undefined) updateData.account_id = body.account_id;
     if (body.category_id !== undefined) updateData.category_id = body.category_id;
-    if (body.amount !== undefined) updateData.amount = parseFloat(body.amount);
-    if (body.type !== undefined) updateData.type = body.type;
+    
+    // Handle amount and type together
+    if (body.amount !== undefined) {
+      const numericAmount = parseFloat(body.amount);
+      updateData.amount = Math.abs(numericAmount);
+      updateData.type = numericAmount > 0 ? 'INCOME' : 'EXPENSE';
+    }
+    
     if (body.note !== undefined) updateData.note = body.note;
 
     // Update transaction
