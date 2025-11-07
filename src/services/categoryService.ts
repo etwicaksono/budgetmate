@@ -161,82 +161,66 @@ export interface CategoryService {
 
 export const categoryService: CategoryService = {
   async fetchCategories(params = {}) {
-    const response = (await apiService.get('/categories', {
+    // API service automatically unwraps the response
+    // Returns the data directly: Array<ApiCategoryResponse>
+    const categories = (await apiService.get('/categories', {
       keyword: params.keyword ?? undefined,
-    })) as ApiResponse<ApiCategoryResponse[]> | ApiCategoryResponse[];
+    })) as ApiCategoryResponse[];
 
-    if (isApiResponse<ApiCategoryResponse[]>(response)) {
-      const { data } = response;
-      return Array.isArray(data) ? data : [];
+    // Update cache for personal_id
+    if (typeof localStorage !== 'undefined' && categories.length > 0) {
+      const maxPersonalId = Math.max(...categories.map(cat => cat.personal_id ?? 0));
+      localStorage.setItem('max_category_personal_id', maxPersonalId.toString());
     }
 
-    if (Array.isArray(response)) {
-      return response;
-    }
-
-    return [];
+    return Array.isArray(categories) ? categories : [];
   },
 
   async createCategory(payload: CategoryCreatePayload) {
     const requestBody = buildCreatePayload(payload);
-    const response = (await apiService.post('/categories', requestBody)) as
-      | ApiResponse<ApiCategoryResponse>
-      | ApiCategoryResponse;
+    
+    // API service automatically unwraps the response
+    // Returns the data directly: ApiCategoryResponse
+    const category = (await apiService.post('/categories', requestBody)) as ApiCategoryResponse;
 
-    return extractMutationResult(response);
+    // Update cache after successful creation
+    if (typeof localStorage !== 'undefined' && category.personal_id) {
+      const currentMax = parseInt(localStorage.getItem('max_category_personal_id') || '0');
+      if (category.personal_id > currentMax) {
+        localStorage.setItem('max_category_personal_id', category.personal_id.toString());
+      }
+    }
+
+    return {
+      category: category ?? null,
+      success: true,
+    };
   },
 
   async updateCategory(id: string, payload: CategoryUpdatePayload) {
     const requestBody = buildUpdatePayload(payload);
-    const response = (await apiService.put(
+    
+    // API service automatically unwraps the response
+    // Returns the data directly: ApiCategoryResponse
+    const category = (await apiService.put(
       `/categories/${encodeURIComponent(String(id))}`,
       requestBody
-    )) as
-      | ApiResponse<ApiCategoryResponse>
-      | ApiCategoryResponse;
+    )) as ApiCategoryResponse;
 
-    return extractMutationResult(response);
+    return {
+      category: category ?? null,
+      success: true,
+    };
   },
 
   async deleteCategory(id: string) {
-    const response = (await apiService.delete(
-      `/categories/${encodeURIComponent(String(id))}`
-    )) as
-      | ApiResponse<unknown>
-      | { message?: string; id?: string | number }
-      | undefined;
+    // API service automatically unwraps the response and throws on error
+    await apiService.delete(`/categories/${encodeURIComponent(String(id))}`);
 
-    const resolveResult = (message?: string, identifier?: unknown) => ({
-      message,
-      categoryId: normalizeIdentifier(identifier),
-    });
-
-    if (isApiResponse<unknown>(response)) {
-      const dataPayload =
-        response.data && typeof response.data === 'object'
-          ? (response.data as { id?: string | number; message?: string })
-          : undefined;
-
-      const resolvedMessage =
-        response.message ??
-        dataPayload?.message ??
-        (typeof response.data === 'string' ? (response.data as string) : undefined);
-
-      const resolvedId =
-        dataPayload?.id ??
-        (typeof response.data === 'string' || typeof response.data === 'number'
-          ? response.data
-          : undefined);
-
-      return resolveResult(resolvedMessage, resolvedId);
-    }
-
-    if (response && typeof response === 'object') {
-      const plainObject = response as { message?: string; id?: string | number };
-      return resolveResult(plainObject.message, plainObject.id);
-    }
-
-    return resolveResult();
+    return {
+      message: 'Category deleted successfully',
+      categoryId: id,
+    };
   },
 };
 

@@ -148,20 +148,28 @@ const generateMockTransactions = (currentBalance: number): TransactionRecord[] =
 
 export const accountService: AccountService = {
   async fetchAccounts() {
-    const response = (await apiService.get('/accounts')) as ApiResponse<ApiAccountResponse[]> | ApiAccountResponse[];
+    // API service automatically unwraps the response
+    // Returns the data directly: Array<ApiAccountResponse>
+    const accounts = (await apiService.get('/accounts')) as ApiAccountResponse[];
 
-    let accounts: ApiAccountResponse[] = [];
-
-    if (isApiResponse<ApiAccountResponse[]>(response) && Array.isArray(response.data)) {
-      accounts = response.data ?? [];
-    } else if (Array.isArray(response)) {
-      accounts = response;
+    // The API also returns meta with max_personal_id, but since response is unwrapped,
+    // we need to calculate it from the accounts or use localStorage cache
+    if (typeof localStorage !== 'undefined') {
+      const cachedMaxId = localStorage.getItem('max_account_personal_id');
+      if (cachedMaxId) {
+        nextPersonalId = parseInt(cachedMaxId) + 1;
+      }
     }
 
-    // Calculate the next personal_id based on the accounts retrieved
+    // Update cache based on current accounts
     if (accounts.length > 0) {
       const maxPersonalId = Math.max(...accounts.map(acc => acc.personal_id ?? 0));
       nextPersonalId = maxPersonalId + 1;
+      
+      // Cache for future use
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('max_account_personal_id', maxPersonalId.toString());
+      }
     } else {
       nextPersonalId = 1;
     }
@@ -170,71 +178,45 @@ export const accountService: AccountService = {
   },
 
   async fetchAccountById(id: string) {
-    const response = (await apiService.get(`/accounts/${id}`)) as ApiResponse<ApiAccountResponse> | ApiAccountResponse;
-
-    if (isApiResponse<ApiAccountResponse>(response) && response.data) {
-      return response.data;
-    }
-
-    if ('id' in response && response.id) {
-      return response as ApiAccountResponse;
-    }
-
-    throw new Error('Failed to fetch account');
+    // API service automatically unwraps the response
+    // Returns the data directly: ApiAccountResponse
+    const account = (await apiService.get(`/accounts/${id}`)) as ApiAccountResponse;
+    return account;
   },
 
   async createAccount(payload: CreateAccountRequest) {
-    const response = (await apiService.post('/accounts', payload)) as ApiResponse<ApiAccountResponse> | ApiAccountResponse;
-
-    if (isApiResponse<ApiAccountResponse>(response) && response.data) {
-      return response.data;
+    // API service automatically unwraps the response
+    // Returns the data directly: ApiAccountResponse
+    const account = (await apiService.post('/accounts', payload)) as ApiAccountResponse;
+    
+    // Update cache after successful creation
+    if (typeof localStorage !== 'undefined' && account.personal_id) {
+      const currentMax = parseInt(localStorage.getItem('max_account_personal_id') || '0');
+      if (account.personal_id > currentMax) {
+        localStorage.setItem('max_account_personal_id', account.personal_id.toString());
+        nextPersonalId = account.personal_id + 1;
+      }
     }
-
-    if ('id' in response && response.id) {
-      return response as ApiAccountResponse;
-    }
-
-    throw new Error('Failed to create account');
+    
+    return account;
   },
 
   async updateAccount(id: string, payload: UpdateAccountRequest) {
-    const response = (await apiService.put(`/accounts/${id}`, payload)) as ApiResponse<ApiAccountResponse> | ApiAccountResponse;
-
-    if (isApiResponse<ApiAccountResponse>(response) && response.data) {
-      return response.data;
-    }
-
-    if ('id' in response && response.id) {
-      return response as ApiAccountResponse;
-    }
-
-    throw new Error('Failed to update account');
+    // API service automatically unwraps the response
+    // Returns the data directly: ApiAccountResponse
+    const account = (await apiService.put(`/accounts/${id}`, payload)) as ApiAccountResponse;
+    return account;
   },
 
   async deleteAccount(id: string) {
-    try {
-      const response = (await apiService.delete(`/accounts/${id}`)) as ApiResponse<unknown>;
-
-      // Check if the response indicates an error
-      if (response.error || (response.success === false)) {
-        const errorMessage = response.error?.message || response.message || 'Failed to delete account';
-        throw new Error(errorMessage);
-      }
-
-      // If response has success field and it's true, or no error field, consider it successful
-      return;
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      throw error;
-    }
+    // API service automatically unwraps the response and throws on error
+    // Returns null for successful deletion
+    await apiService.delete(`/accounts/${id}`);
   },
 
   async swapAccountOrder(payload: SwapOrderRequest) {
-    const response = (await apiService.put('/accounts/swap-order', payload)) as ApiResponse<unknown>;
-
-    if (!response.success && response.error) {
-      throw new Error(response.error.message || 'Failed to swap account order');
-    }
+    // API service automatically unwraps the response and throws on error
+    await apiService.put('/accounts/swap-order', payload);
   },
 
   async fetchAccountTransactions(accountId: string, currentBalance: number) {
