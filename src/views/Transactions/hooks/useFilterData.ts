@@ -7,6 +7,7 @@ import {
   FaCreditCard,
   FaMoneyBillWave,
 } from 'react-icons/fa';
+import Swal from 'sweetalert2';
 import { useCategoryData } from '../useCategoryData';
 import { accountService, type ApiAccountResponse } from '../../../services/accountService';
 import { categoryService } from '../../../services/categoryService';
@@ -63,6 +64,19 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
     amountRange: true,
   });
   const [showFilterVisibilityPanel, setShowFilterVisibilityPanel] = useState<boolean>(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [accountError, setAccountError] = useState<string | null>(null);
+
+  const showFetchErrorAlert = (title: string, message: string): void => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    void Swal.fire({
+      icon: 'error',
+      title,
+      text: message,
+    });
+  };
 
   // Category data
   const {
@@ -102,10 +116,25 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
         const apiCategories = await categoryService.fetchCategories();
         console.log('✅ Categories fetched successfully:', apiCategories.length, apiCategories);
         if (isCancelled) return;
+        if (!apiCategories || apiCategories.length === 0) {
+          const message = 'Categories could not be retrieved. Please try again later.';
+          console.warn('⚠️ Categories API returned no data');
+          setCategoryError(message);
+          showFetchErrorAlert('Category Error', message);
+          categoriesFetchedRef.current = false;
+          return;
+        }
+
         setCategories(apiCategories);
+        setCategoryError(null);
         console.log('📦 Categories set to state');
       } catch (error) {
         console.error('❌ Failed to fetch categories:', error);
+        if (!isCancelled) {
+          const message = 'Failed to retrieve categories. Please refresh the page.';
+          setCategoryError(message);
+          showFetchErrorAlert('Category Error', message);
+        }
         categoriesFetchedRef.current = false; // Reset on error to allow retry
       }
     };
@@ -131,11 +160,24 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
       try {
         const accounts = await accountService.fetchAccounts();
         if (isCancelled) return;
-        if (accounts.length > 0) {
-          setApiAccounts(accounts);
+        if (!accounts || accounts.length === 0) {
+          const message = 'Accounts could not be retrieved. Please try again later.';
+          console.warn('⚠️ Accounts API returned no data');
+          setAccountError(message);
+          showFetchErrorAlert('Account Error', message);
+          accountsFetchedRef.current = false;
+          return;
         }
+
+        setApiAccounts(accounts);
+        setAccountError(null);
       } catch (error) {
         console.error('Failed to fetch accounts:', error);
+        if (!isCancelled) {
+          const message = 'Failed to retrieve accounts. Please refresh the page.';
+          setAccountError(message);
+          showFetchErrorAlert('Account Error', message);
+        }
         accountsFetchedRef.current = false; // Reset on error to allow retry
       }
     };
@@ -269,6 +311,8 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
     accountColors,
     accountIcons,
     accountMetadata,
+    categoryError,
+    accountError,
   };
 }
 
