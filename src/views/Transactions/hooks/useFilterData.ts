@@ -94,21 +94,28 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
 
   // Track if data has been fetched to prevent duplicates
   const categoriesFetchedRef = useRef(false);
+  const categoriesFetchInProgressRef = useRef(false);
   const accountsFetchedRef = useRef(false);
+  const accountsFetchInProgressRef = useRef(false);
 
   // Load categories
   useEffect(() => {
     // Prevent duplicate fetches
-    if (categoriesFetchedRef.current || categories.length > 0) {
-      console.log('🔍 Categories already loaded, skipping fetch', {
+    if (
+      categoriesFetchedRef.current ||
+      categoriesFetchInProgressRef.current ||
+      categories.length > 0
+    ) {
+      console.log('🔍 Categories already loaded or loading, skipping fetch', {
         categoriesFetchedRef: categoriesFetchedRef.current,
+        categoriesFetchInProgressRef: categoriesFetchInProgressRef.current,
         categoriesLength: categories.length,
       });
       return;
     }
 
     let isCancelled = false;
-    categoriesFetchedRef.current = true;
+    categoriesFetchInProgressRef.current = true;
 
     const loadCategories = async () => {
       try {
@@ -121,12 +128,12 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
           console.warn('⚠️ Categories API returned no data');
           setCategoryError(message);
           showFetchErrorAlert('Category Error', message);
-          categoriesFetchedRef.current = false;
           return;
         }
 
         setCategories(apiCategories);
         setCategoryError(null);
+        categoriesFetchedRef.current = true;
         console.log('📦 Categories set to state');
       } catch (error) {
         console.error('❌ Failed to fetch categories:', error);
@@ -136,6 +143,8 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
           showFetchErrorAlert('Category Error', message);
         }
         categoriesFetchedRef.current = false; // Reset on error to allow retry
+      } finally {
+        categoriesFetchInProgressRef.current = false;
       }
     };
 
@@ -143,18 +152,23 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
 
     return () => {
       isCancelled = true;
+      categoriesFetchInProgressRef.current = false;
     };
   }, [categories.length, setCategories]);
 
   // Load accounts
   useEffect(() => {
     // Prevent duplicate fetches
-    if (accountsFetchedRef.current || apiAccounts.length > 0) {
+    if (
+      accountsFetchedRef.current ||
+      accountsFetchInProgressRef.current ||
+      apiAccounts.length > 0
+    ) {
       return;
     }
 
     let isCancelled = false;
-    accountsFetchedRef.current = true;
+    accountsFetchInProgressRef.current = true;
 
     const loadAccounts = async () => {
       try {
@@ -165,12 +179,12 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
           console.warn('⚠️ Accounts API returned no data');
           setAccountError(message);
           showFetchErrorAlert('Account Error', message);
-          accountsFetchedRef.current = false;
           return;
         }
 
         setApiAccounts(accounts);
         setAccountError(null);
+        accountsFetchedRef.current = true;
       } catch (error) {
         console.error('Failed to fetch accounts:', error);
         if (!isCancelled) {
@@ -179,6 +193,8 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
           showFetchErrorAlert('Account Error', message);
         }
         accountsFetchedRef.current = false; // Reset on error to allow retry
+      } finally {
+        accountsFetchInProgressRef.current = false;
       }
     };
 
@@ -186,6 +202,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
 
     return () => {
       isCancelled = true;
+      accountsFetchInProgressRef.current = false;
     };
   }, [apiAccounts.length]);
 
