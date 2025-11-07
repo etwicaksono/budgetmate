@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { generateAccessToken, generateRefreshToken } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import defaultCategories from '../../../../../data/default_categories.json';
+import defaultAccounts from '../../../../../data/default_accounts.json';
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,6 +85,79 @@ export async function POST(request: NextRequest) {
         updated_at: new Date(),
       }
     });
+
+    // Create default categories and accounts for new user
+    try {
+      let categoryPersonalId = 1;
+      
+      // Create categories (parents first, then children)
+      for (const parentCategory of defaultCategories) {
+        // Create parent category
+        const parentCat = await db.categories.create({
+          data: {
+            id: crypto.randomUUID(),
+            user_id: user.id,
+            personal_id: BigInt(categoryPersonalId++),
+            name: parentCategory.name,
+            icon: parentCategory.icon,
+            nature: parentCategory.nature,
+            color: parentCategory.color,
+            is_active: parentCategory.is_active,
+            parent_id: null,
+            position: null as any,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+
+        // Create children categories
+        if (parentCategory.children && Array.isArray(parentCategory.children)) {
+          for (const childCategory of parentCategory.children) {
+            await db.categories.create({
+              data: {
+                id: crypto.randomUUID(),
+                user_id: user.id,
+                personal_id: BigInt(categoryPersonalId++),
+                name: childCategory.name,
+                icon: childCategory.icon,
+                nature: childCategory.nature,
+                color: childCategory.color,
+                is_active: childCategory.is_active,
+                parent_id: parentCat.id,
+                position: null as any,
+                created_at: new Date(),
+                updated_at: new Date(),
+              },
+            });
+          }
+        }
+      }
+
+      // Create default accounts
+      for (const account of defaultAccounts) {
+        await db.accounts.create({
+          data: {
+            id: crypto.randomUUID(),
+            user_id: user.id,
+            personal_id: BigInt(account.personal_id),
+            name: account.name,
+            icon: account.icon,
+            active: account.active,
+            usability: account.usability,
+            account_type: 'GENERAL',
+            color: '#4caf50',
+            initial_amount: 0,
+            group_id: null,
+            position: null as any,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+      }
+    } catch (setupError) {
+      console.error('Error creating default data for new user:', setupError);
+      // Continue even if default data creation fails
+    }
 
     // Generate tokens
     const tokenPayload = {

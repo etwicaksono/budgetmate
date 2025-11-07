@@ -1,0 +1,29 @@
+[
+  {
+    "personal_id": 1,
+    "name": "Cash Wallet",
+    "icon": "wallet",
+    "active": true,
+    "usability": "USABLE",
+    "position": null,
+    "group_id": null
+  },
+  {
+    "personal_id": 2,
+    "name": "Bank Account",
+    "icon": "bank",
+    "active": true,
+    "usability": "USABLE",
+    "position": null,
+    "group_id": null
+  },
+  {
+    "personal_id": 3,
+    "name": "Savings",
+    "icon": "piggy-bank",
+    "active": true,
+    "usability": "USABLE",
+    "position": null,
+    "group_id": null
+  }
+]

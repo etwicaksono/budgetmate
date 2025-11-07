@@ -1,0 +1,768 @@
+[
+  {
+    "name": "Food & Drinks",
+    "icon": "FaUtensils",
+    "nature": "NEED",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Food & Drinks",
+        "icon": "FaUtensils",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Bar, cafe, snack",
+        "icon": "FaCoffee",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Groceries, main meal",
+        "icon": "FaShoppingBasket",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Restaurant, fast-food",
+        "icon": "FaHamburger",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  },
+  {
+    "name": "Shopping",
+    "icon": "FaShoppingBag",
+    "nature": "WANT",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Shopping",
+        "icon": "FaShoppingBag",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Clothes & shoes",
+        "icon": "FaTshirt",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Drug-store, chemist",
+        "icon": "FaPrescriptionBottleAlt",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Electronics, accessories",
+        "icon": "FaMobileAlt",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Toiletries",
+        "icon": "FaPumpSoap",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Gifts, joy",
+        "icon": "FaGift",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Skincare, Make Up",
+        "icon": "FaAirFreshener",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Home, garden",
+        "icon": "FaHome",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Jewels, accessories",
+        "icon": "FaGem",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Kids",
+        "icon": "FaBaby",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Pets, animals",
+        "icon": "FaPaw",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Stationery, tools",
+        "icon": "FaPencilRuler",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  },
+  {
+    "name": "Housing",
+    "icon": "FaHome",
+    "nature": "MUST",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Housing",
+        "icon": "FaHome",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Energy, utilities",
+        "icon": "FaBolt",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Maintenance, repairs",
+        "icon": "FaTools",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Mortgage",
+        "icon": "FaFileInvoiceDollar",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Property insurance",
+        "icon": "FaShieldAlt",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Rent",
+        "icon": "FaKey",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Services",
+        "icon": "FaCogs",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  },
+  {
+    "name": "Transportation",
+    "icon": "FaBus",
+    "nature": "NEED",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Transportation",
+        "icon": "FaBus",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Business trips",
+        "icon": "FaSuitcase",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Long distance",
+        "icon": "FaPlane",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Public transport",
+        "icon": "FaTrain",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Taxi",
+        "icon": "FaTaxi",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  },
+  {
+    "name": "Vehicle",
+    "icon": "FaCar",
+    "nature": "NEED",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Vehicle",
+        "icon": "FaCar",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Fuel",
+        "icon": "FaGasPump",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Leasing",
+        "icon": "FaMoneyBillWave",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Parking",
+        "icon": "FaParking",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Rentals",
+        "icon": "FaCar",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Vehicle insurance",
+        "icon": "FaShieldAlt",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Vehicle maintenance",
+        "icon": "FaWrench",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  },
+  {
+    "name": "Life & entertainment",
+    "icon": "FaSmileBeam",
+    "nature": "WANT",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Life & entertainment",
+        "icon": "FaSmileBeam",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Active sport, fitness",
+        "icon": "FaDumbbell",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Alcohol, tobacco",
+        "icon": "FaWineBottle",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Books, audio, subscriptions",
+        "icon": "FaBookOpen",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Charity, gifts",
+        "icon": "FaHeart",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Culture, sport events",
+        "icon": "FaTicketAlt",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Education, development",
+        "icon": "FaGraduationCap",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Health care, doctor",
+        "icon": "FaStethoscope",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Hobbies",
+        "icon": "FaPuzzlePiece",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Holiday, trips, hotels",
+        "icon": "FaUmbrellaBeach",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Life events",
+        "icon": "FaBirthdayCake",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Lottery, gambling",
+        "icon": "FaDice",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Wellness, beauty",
+        "icon": "FaLeaf",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Movie, TV, Streaming",
+        "icon": "FaFilm",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  },
+  {
+    "name": "Communication, Gadgets",
+    "icon": "FaMobileAlt",
+    "nature": "WANT",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Communication, Gadgets",
+        "icon": "FaMobileAlt",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Internet, phone credit",
+        "icon": "FaWifi",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Laptop, Smartphone",
+        "icon": "FaLaptop",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Postal services",
+        "icon": "FaEnvelope",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Software, apps, games",
+        "icon": "FaGamepad",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  },
+  {
+    "name": "Financial expenses",
+    "icon": "FaUniversity",
+    "nature": "MUST",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Financial expenses",
+        "icon": "FaUniversity",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Advisory",
+        "icon": "FaUserTie",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Charges, Fees",
+        "icon": "FaFileInvoice",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Child Support",
+        "icon": "FaBabyCarriage",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Fines",
+        "icon": "FaGavel",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Insurances",
+        "icon": "FaShieldAlt",
+        "nature": "NEED",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Loan, interests",
+        "icon": "FaMoneyBillWave",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Taxes",
+        "icon": "FaFileInvoiceDollar",
+        "nature": "MUST",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  },
+  {
+    "name": "Investments",
+    "icon": "FaChartLine",
+    "nature": "WANT",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Investments",
+        "icon": "FaChartLine",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Collection",
+        "icon": "FaBoxOpen",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Financial investments",
+        "icon": "FaChartPie",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Realty",
+        "icon": "FaBuilding",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Savings",
+        "icon": "FaPiggyBank",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Vehicles, chattels",
+        "icon": "FaCar",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  },
+  {
+    "name": "Income",
+    "icon": "FaWallet",
+    "nature": "WANT",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Income",
+        "icon": "FaWallet",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Checks, coupons",
+        "icon": "FaTicketAlt",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Child Support",
+        "icon": "FaBabyCarriage",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Dues & grants",
+        "icon": "FaHandshake",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Gifts",
+        "icon": "FaGift",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Interests",
+        "icon": "FaPercentage",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Lending, renting",
+        "icon": "FaExchangeAlt",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Dividens",
+        "icon": "FaCoins",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Refunds (tax, purchase)",
+        "icon": "FaUndoAlt",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Rental income",
+        "icon": "FaHome",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Sale",
+        "icon": "FaTags",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Wage, invoices",
+        "icon": "FaMoneyBillWave",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  },
+  {
+    "name": "Others",
+    "icon": "FaEllipsisH",
+    "nature": "WANT",
+    "color": "#868080",
+    "is_active": true,
+    "position": null,
+    "children": [
+      {
+        "name": "Others",
+        "icon": "FaEllipsisH",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      },
+      {
+        "name": "Missing",
+        "icon": "FaQuestionCircle",
+        "nature": "WANT",
+        "color": "#868080",
+        "is_active": true,
+        "position": null
+      }
+    ]
+  }
+]
