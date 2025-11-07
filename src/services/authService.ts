@@ -95,12 +95,23 @@ export const authService: AuthService = {
 
   // Login user
   async login(credentials) {
-    return apiService.postForm('/auth/login', credentials);
+    // Convert credentials to JSON format for new API
+    const loginData = {
+      email_or_username: credentials.email_or_username || credentials.email || credentials.username,
+      password: credentials.password,
+    };
+    return apiService.post('/auth/login', loginData);
   },
 
   // Register user
   async register(userData) {
-    return apiService.postForm('/auth/register', userData);
+    // Convert userData to JSON format for new API
+    const registerData = {
+      email: userData.email,
+      username: userData.username,
+      password: userData.password,
+    };
+    return apiService.post('/auth/register', registerData);
   },
 
   // Logout user

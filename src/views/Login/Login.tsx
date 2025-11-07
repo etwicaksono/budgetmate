@@ -84,22 +84,23 @@ const Login: React.FC = () => {
       const response = (await authService.login({
         email_or_username: email,
         password,
-      } as LoginFormData)) as AuthResponse;
+      } as LoginFormData)) as any;
       
       // Debug: Log the actual response structure
       console.log('Full API response:', response);
       
-      // Store token and navigate with new response format
-      if (response.data?.access_token) {
+      // After API service unwrapping, response is the data directly
+      // Response structure: { access_token, refresh_token, user }
+      if (response?.access_token) {
         // Clear any existing field errors on successful login
         setFieldErrors({});
         
-        // Call login with full response data for proper token storage
-        await login(response);
+        // Wrap response in data property for login function compatibility
+        await login({ data: response });
         
         // Store user data if available
-        if (response.data?.user) {
-          localStorage.setItem(APP_CONFIG.storageKeys.userData, JSON.stringify(response.data.user));
+        if (response?.user) {
+          localStorage.setItem(APP_CONFIG.storageKeys.userData, JSON.stringify(response.user));
         }
         
         router.replace(from);
