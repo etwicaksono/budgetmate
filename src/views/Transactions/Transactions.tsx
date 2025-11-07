@@ -22,7 +22,7 @@ import {
   FaCheck,
 } from 'react-icons/fa';
 import type { IconType, IconBaseProps } from 'react-icons';
-import { useCategoryData, type CategoryIconName } from './useCategoryData';
+import { type CategoryIconName } from './useCategoryData';
 import { useQuickTransactions, type CategoryReference } from './useQuickTransactions';
 import { CategoryDropdown } from './CategoryDropdown';
 import {
@@ -218,9 +218,9 @@ function TransactionsContent(): JSX.Element {
     accountTree,
     accountColors,
     accountIcons,
+    addCategory,
   } = useFilterData();
   
-  const { addCategory } = useCategoryData();
   const quickTransactionCategories = useMemo<CategoryReference[]>(
     () =>
       categories

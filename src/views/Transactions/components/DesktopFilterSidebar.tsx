@@ -412,20 +412,30 @@ export function DesktopFilterSidebar({
             </Form.Group>
           )}
 
-          {filterVisibility.categories && (
-            <Form.Group className="mb-3" controlId="categoryFilter">
-              <Form.Label>Category</Form.Label>
-              <CategoryDropdown
-                selectedCategories={selectedCategories}
-                setSelectedCategories={onSelectedCategoriesChange}
-                categoryTree={categoryTree}
-                parentCategoryColors={parentCategoryColors}
-                categoryIcons={categoryIcons}
-                allCategories={allCategories}
-                leadingIcon={FaTags}
-              />
-            </Form.Group>
-          )}
+          {filterVisibility.categories && (() => {
+            console.log('🎨 DesktopFilterSidebar - Rendering CategoryDropdown with props:', {
+              categoryTreeKeys: Object.keys(categoryTree),
+              categoryTreeEntries: Object.entries(categoryTree).slice(0, 3),
+              allCategoriesLength: allCategories.length,
+              allCategories: allCategories.slice(0, 10),
+              parentCategoryColorsKeys: Object.keys(parentCategoryColors),
+              categoryIconsKeys: Object.keys(categoryIcons),
+            });
+            return (
+              <Form.Group className="mb-3" controlId="categoryFilter">
+                <Form.Label>Category</Form.Label>
+                <CategoryDropdown
+                  selectedCategories={selectedCategories}
+                  setSelectedCategories={onSelectedCategoriesChange}
+                  categoryTree={categoryTree}
+                  parentCategoryColors={parentCategoryColors}
+                  categoryIcons={categoryIcons}
+                  allCategories={allCategories}
+                  leadingIcon={FaTags}
+                />
+              </Form.Group>
+            );
+          })()}
 
           {filterVisibility.accounts && (
             <Form.Group className="mb-3" controlId="accountFilter">

@@ -72,6 +72,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
     categoryIcons,
     allCategories,
     setCategories,
+    addCategory,
   } = useCategoryData();
 
   // Account data
@@ -85,6 +86,10 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
   useEffect(() => {
     // Prevent duplicate fetches
     if (categoriesFetchedRef.current || categories.length > 0) {
+      console.log('🔍 Categories already loaded, skipping fetch', {
+        categoriesFetchedRef: categoriesFetchedRef.current,
+        categoriesLength: categories.length,
+      });
       return;
     }
 
@@ -93,11 +98,14 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
 
     const loadCategories = async () => {
       try {
+        console.log('📥 Fetching categories from API...');
         const apiCategories = await categoryService.fetchCategories();
+        console.log('✅ Categories fetched successfully:', apiCategories.length, apiCategories);
         if (isCancelled) return;
         setCategories(apiCategories);
+        console.log('📦 Categories set to state');
       } catch (error) {
-        console.error('Failed to fetch categories:', error);
+        console.error('❌ Failed to fetch categories:', error);
         categoriesFetchedRef.current = false; // Reset on error to allow retry
       }
     };
@@ -252,6 +260,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
     categoryIcons,
     allCategories,
     setCategories,
+    addCategory,
 
     // Account data
     apiAccounts,
