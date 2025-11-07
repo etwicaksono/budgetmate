@@ -13,10 +13,10 @@
 
 Before starting any phase:
 - [ ] Read `CONFLICTS_ANALYSIS.md` for complete conflict context
-- [ ] Ensure you have database credentials
+- [ ] Ensure you have database credentials (can find at [Go .env](.env))
 - [ ] Ensure Next.js project is initialized
 - [ ] Confirm Node.js version (>=18.x recommended)
-- [ ] Backup existing code
+- [X] Backup existing code
 
 ---
 
