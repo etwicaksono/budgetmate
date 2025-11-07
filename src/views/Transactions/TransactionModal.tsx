@@ -388,6 +388,20 @@ export function TransactionModal({
   const [isEditingAmount, setIsEditingAmount] = useState<boolean>(false);
   const [isEditingToAmount, setIsEditingToAmount] = useState<boolean>(false);
 
+  const formatAmountDisplayForType = useCallback(
+    (value: string): string => {
+      if (!value) {
+        return value;
+      }
+      const hasSign = value.startsWith('-');
+      if (transaction?.type === 'Expense') {
+        return hasSign ? value : `-${value}`;
+      }
+      return hasSign ? value.slice(1) : value;
+    },
+    [transaction?.type]
+  );
+
   const amountColor = useMemo(() => {
     if (transaction?.type === 'Expense') {
       return '#dc3545'; // Bootstrap danger
@@ -442,7 +456,11 @@ export function TransactionModal({
       (next: string) => {
         // Remove leading zeros before processing
         const cleanedInput = removeLeadingZeros(next);
-        const { display, normalized, deferCommit } = coerceAndFormatNumber(cleanedInput);
+        let { display, normalized, deferCommit } = coerceAndFormatNumber(cleanedInput);
+
+        if (fieldName === 'amount') {
+          display = formatAmountDisplayForType(display);
+        }
         if (fieldName === 'amount') {
           setAmountDisplay(display);
           setAmountNormalized(normalized);
@@ -461,17 +479,18 @@ export function TransactionModal({
           });
         }
       },
-    [onChange, removeLeadingZeros]
+    [onChange, removeLeadingZeros, formatAmountDisplayForType]
   );
 
   // Initialize displays from incoming transaction values and keep in sync (avoid overriding while editing)
   useEffect(() => {
     if (!isEditingAmount) {
-      setAmountDisplay(
-        formatNumberDisplayFromValue(transaction?.amount as unknown as string | number)
+      const formatted = formatNumberDisplayFromValue(
+        transaction?.amount as unknown as string | number
       );
+      setAmountDisplay(formatAmountDisplayForType(formatted));
     }
-  }, [transaction?.amount, isEditingAmount]);
+  }, [transaction?.amount, transaction?.type, isEditingAmount, formatAmountDisplayForType]);
 
   useEffect(() => {
     if (!isEditingToAmount) {
