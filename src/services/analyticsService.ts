@@ -258,6 +258,14 @@ export interface IncomeExpenseTrend {
   [key: string]: string | number;
 }
 
+export interface CashFlowData {
+  name: string;
+  income: number;
+  expense: number;
+  net: number;
+  [key: string]: string | number;
+}
+
 export interface DashboardTransaction {
   id: string;
   description: string;
@@ -273,6 +281,7 @@ export interface AnalyticsService {
   fetchBalanceTrend(params?: AnalyticsQueryParams): Promise<BalanceTrendData>;
   fetchExpensesByCategory(params?: AnalyticsQueryParams): Promise<ExpenseByCategory[]>;
   fetchIncomeExpenseTrend(params?: AnalyticsQueryParams): Promise<IncomeExpenseTrend[]>;
+  fetchCashFlow(params?: AnalyticsQueryParams): Promise<CashFlowData[]>;
   fetchRecentTransactions(limit?: number): Promise<DashboardTransaction[]>;
 }
 
@@ -458,6 +467,28 @@ const generateDummyIncomeExpenseTrend = (): IncomeExpenseTrend[] => {
     { name: 'Apr', income: 16000000, expense: 12500000 },
     { name: 'May', income: 13800000, expense: 10300000 },
     { name: 'Jun', income: 15200000, expense: 11700000 },
+    { name: 'Jul', income: 14500000, expense: 10800000 },
+    { name: 'Aug', income: 15800000, expense: 11500000 },
+    { name: 'Sep', income: 14000000, expense: 10200000 },
+    { name: 'Oct', income: 16500000, expense: 12000000 },
+    { name: 'Nov', income: 14800000, expense: 10900000 },
+    { name: 'Dec', income: 17000000, expense: 13000000 },
+  ];
+};
+
+// Dummy cash flow data generator
+const generateDummyCashFlow = (): CashFlowData[] => {
+  return [
+    { name: 'Jan', income: 12000000, expense: 8500000, net: 3500000 },
+    { name: 'Feb', income: 15500000, expense: 11200000, net: 4300000 },
+    { name: 'Mar', income: 14200000, expense: 9800000, net: 4400000 },
+    { name: 'Apr', income: 16000000, expense: 12500000, net: 3500000 },
+    { name: 'May', income: 13800000, expense: 10300000, net: 3500000 },
+    { name: 'Jun', income: 15200000, expense: 11700000, net: 3500000 },
+    { name: 'Jul', income: 14500000, expense: 10800000, net: 3700000 },
+    { name: 'Aug', income: 15800000, expense: 11500000, net: 4300000 },
+    { name: 'Sep', income: 14000000, expense: 10200000, net: 3800000 },
+    { name: 'Oct', income: 16500000, expense: 12000000, net: 4500000 },
   ];
 };
 
@@ -541,6 +572,166 @@ const generateDummyRecentTransactions = (limit: number = 10): DashboardTransacti
       description: 'Grab - Transportasi',
       amount: 45000,
       date: '2025-10-28',
+      category: 'Transportation',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-11',
+      description: 'Tokopedia - Peralatan rumah',
+      amount: 425000,
+      date: '2025-10-27',
+      category: 'Shopping',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-12',
+      description: 'Konsultasi project',
+      amount: 3500000,
+      date: '2025-10-26',
+      category: 'Freelance',
+      type: 'INCOME',
+    },
+    {
+      id: 'txn-13',
+      description: 'Cafe Coffee Day',
+      amount: 65000,
+      date: '2025-10-26',
+      category: 'Food & Drinks',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-14',
+      description: 'Air PDAM',
+      amount: 125000,
+      date: '2025-10-25',
+      category: 'Housing',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-15',
+      description: 'Alfamart - Belanja harian',
+      amount: 180000,
+      date: '2025-10-25',
+      category: 'Shopping',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-16',
+      description: 'Spotify Premium',
+      amount: 65000,
+      date: '2025-10-24',
+      category: 'Entertainment',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-17',
+      description: 'Bukalapak - Buku pelajaran',
+      amount: 285000,
+      date: '2025-10-24',
+      category: 'Education',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-18',
+      description: 'Bonus proyek tambahan',
+      amount: 1800000,
+      date: '2025-10-23',
+      category: 'Income',
+      type: 'INCOME',
+    },
+    {
+      id: 'txn-19',
+      description: 'GoJek - Transportasi',
+      amount: 38000,
+      date: '2025-10-23',
+      category: 'Transportation',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-20',
+      description: 'Warteg Bahari',
+      amount: 55000,
+      date: '2025-10-22',
+      category: 'Food & Drinks',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-21',
+      description: 'Pharmasi - Obat-obatan',
+      amount: 145000,
+      date: '2025-10-22',
+      category: 'Healthcare',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-22',
+      description: 'Internet IndiHome',
+      amount: 375000,
+      date: '2025-10-21',
+      category: 'Housing',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-23',
+      description: 'Jual barang bekas',
+      amount: 650000,
+      date: '2025-10-21',
+      category: 'Income',
+      type: 'INCOME',
+    },
+    {
+      id: 'txn-24',
+      description: 'Starbucks - Meeting client',
+      amount: 195000,
+      date: '2025-10-20',
+      category: 'Food & Drinks',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-25',
+      description: 'Lazada - Pakaian',
+      amount: 550000,
+      date: '2025-10-20',
+      category: 'Shopping',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-26',
+      description: 'Bensin Shell',
+      amount: 175000,
+      date: '2025-10-19',
+      category: 'Transportation',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-27',
+      description: 'Bank Bunga Tabungan',
+      amount: 85000,
+      date: '2025-10-19',
+      category: 'Investment',
+      type: 'INCOME',
+    },
+    {
+      id: 'txn-28',
+      description: 'Cinema XXI - Tiket film',
+      amount: 120000,
+      date: '2025-10-18',
+      category: 'Entertainment',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-29',
+      description: 'KFC - Makan malam',
+      amount: 95000,
+      date: '2025-10-18',
+      category: 'Food & Drinks',
+      type: 'EXPENSE',
+    },
+    {
+      id: 'txn-30',
+      description: 'Parkir mall',
+      amount: 15000,
+      date: '2025-10-17',
       category: 'Transportation',
       type: 'EXPENSE',
     },
@@ -640,6 +831,27 @@ export const analyticsService: AnalyticsService = {
 
     // Simulate API response structure
     // if (isApiResponse<IncomeExpenseTrend[]>(response)) {
+    //   return response.data ?? dummyData;
+    // }
+
+    return dummyData;
+  },
+
+  async fetchCashFlow(params = {}) {
+    // TODO: Replace with actual API call when backend is ready
+    // const response = (await apiService.get('/analytics/cash-flow', {
+    //   start_date: params.startDate ?? undefined,
+    //   end_date: params.endDate ?? undefined,
+    //   account_id: params.accountId ?? undefined,
+    // })) as ApiResponse<CashFlowData[]> | CashFlowData[];
+
+    // For now, return dummy data with simulated network delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const dummyData = generateDummyCashFlow();
+
+    // Simulate API response structure
+    // if (isApiResponse<CashFlowData[]>(response)) {
     //   return response.data ?? dummyData;
     // }
 

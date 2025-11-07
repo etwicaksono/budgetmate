@@ -12,7 +12,7 @@ import type { BalanceDataPoint } from '../services/analyticsService';
 
 interface BalanceTrendChartProps {
   data: BalanceDataPoint[];
-  height?: number;
+  height?: number | `${number}%`;
   lineColor?: string;
   formatValue?: (value: number) => string;
 }

@@ -215,7 +215,7 @@ const DashboardContent: React.FC = () => {
           accountService.fetchAccounts(),
           analyticsService.fetchExpensesByCategory(),
           analyticsService.fetchIncomeExpenseTrend(),
-          analyticsService.fetchRecentTransactions(4),
+          analyticsService.fetchRecentTransactions(20),
           budgetService.fetchBudgetStatus(),
         ]);
 
@@ -309,16 +309,20 @@ const DashboardContent: React.FC = () => {
       title: 'Income vs Expenses',
       component: loading ? (
         <div className="text-center py-5">Loading...</div>
+      ) : incomeExpenseData.length === 0 ? (
+        <div className="text-center text-muted py-5">No income/expense data available</div>
       ) : (
-        <IncomeExpenseBarChart
-          data={incomeExpenseData}
-          formatValue={formatCurrency}
-          height={300}
-          incomeColor="#2ecc71"
-          expenseColor="#e74c3c"
-          incomeLabel="Income"
-          expenseLabel="Expense"
-        />
+        <div style={{ padding: '1rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <IncomeExpenseBarChart
+            data={incomeExpenseData}
+            formatValue={formatCurrency}
+            height="100%"
+            incomeColor="#2ecc71"
+            expenseColor="#e74c3c"
+            incomeLabel="Income"
+            expenseLabel="Expense"
+          />
+        </div>
       ),
     },
     recentTransactions: {
@@ -330,6 +334,7 @@ const DashboardContent: React.FC = () => {
           transactions={recentTransactions}
           formatCurrency={formatCurrency}
           emptyMessage="No recent transactions"
+          height="100%"
         />
       ),
     },
@@ -458,8 +463,8 @@ const DashboardContent: React.FC = () => {
                   <Dropdown.Toggle
                     as="button"
                     style={{
-                      width: '40px',
-                      height: '40px',
+                      width: '100px',
+                      height: '100px',
                       borderRadius: '8px',
                       backgroundColor: 'transparent',
                       border: 'none',
@@ -579,7 +584,7 @@ const DashboardContent: React.FC = () => {
               accountService.fetchAccounts(),
               analyticsService.fetchExpensesByCategory(),
               analyticsService.fetchIncomeExpenseTrend(),
-              analyticsService.fetchRecentTransactions(4),
+              analyticsService.fetchRecentTransactions(30),
               budgetService.fetchBudgetStatus(),
             ]);
 

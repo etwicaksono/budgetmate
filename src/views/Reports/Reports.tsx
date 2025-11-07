@@ -17,7 +17,12 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { RiListSettingsLine } from 'react-icons/ri';
-import analyticsService, { type ExpenseByCategory, type DashboardTransaction } from '../../services/analyticsService';
+import analyticsService, {
+  type ExpenseByCategory,
+  type DashboardTransaction,
+  type IncomeExpenseTrend,
+  type CashFlowData,
+} from '../../services/analyticsService';
 import budgetService, { type BudgetStatus } from '../../services/budgetService';
 import CategoryPieChart from '../../components/CategoryPieChart';
 import IncomeExpenseBarChart from '../../components/IncomeExpenseBarChart';
@@ -31,50 +36,6 @@ import PeriodNavigation, {
 } from '../../components/PeriodNavigation';
 import PeriodRangeSelector from '../../components/PeriodRangeSelector';
 import { SortableWidgetCard, WidgetCard } from '../../components/WidgetCards';
-
-// Type definitions
-interface IncomeExpenseData {
-  name: string;
-  income: number;
-  expense: number;
-  [key: string]: string | number;
-}
-
-interface CashFlowData {
-  name: string;
-  income: number;
-  expense: number;
-  net: number;
-  [key: string]: string | number;
-}
-
-const INCOME_EXPENSE_DATA: IncomeExpenseData[] = [
-  { name: 'Jan', income: 4000, expense: 2400 },
-  { name: 'Feb', income: 3000, expense: 1398 },
-  { name: 'Mar', income: 2000, expense: 9800 },
-  { name: 'Apr', income: 2780, expense: 3908 },
-  { name: 'May', income: 1890, expense: 4800 },
-  { name: 'Jun', income: 2390, expense: 3800 },
-  { name: 'Jul', income: 3490, expense: 4300 },
-  { name: 'Aug', income: 3200, expense: 2800 },
-  { name: 'Sep', income: 2800, expense: 3100 },
-  { name: 'Oct', income: 4000, expense: 2200 },
-  { name: 'Nov', income: 3700, expense: 2900 },
-  { name: 'Dec', income: 4500, expense: 3500 },
-];
-
-const CASH_FLOW_DATA: CashFlowData[] = [
-  { name: 'Jan', income: 4000, expense: 2400, net: 1600 },
-  { name: 'Feb', income: 3000, expense: 1398, net: 1602 },
-  { name: 'Mar', income: 2000, expense: 9800, net: -7800 },
-  { name: 'Apr', income: 2780, expense: 3908, net: -1128 },
-  { name: 'May', income: 1890, expense: 4800, net: -2910 },
-  { name: 'Jun', income: 2390, expense: 3800, net: -1410 },
-  { name: 'Jul', income: 3490, expense: 4300, net: -810 },
-  { name: 'Aug', income: 3200, expense: 2800, net: 400 },
-  { name: 'Sep', income: 2800, expense: 3100, net: -300 },
-  { name: 'Oct', income: 4000, expense: 2200, net: 1800 },
-];
 
 const COLORS: readonly string[] = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B', '#4ECDC4', '#95E1D3'];
 
@@ -139,6 +100,8 @@ const formatCurrency = (value: number): string => {
 
 const ReportsContent: React.FC = () => {
   const [expensesFromService, setExpensesFromService] = useState<ExpenseByCategory[]>([]);
+  const [incomeExpenseData, setIncomeExpenseData] = useState<IncomeExpenseTrend[]>([]);
+  const [cashFlowData, setCashFlowData] = useState<CashFlowData[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<DashboardTransaction[]>([]);
   const [budgetStatus, setBudgetStatus] = useState<BudgetStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -225,12 +188,16 @@ const ReportsContent: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [expenses, transactions, budgets] = await Promise.all([
+        const [expenses, incomeExpense, cashFlow, transactions, budgets] = await Promise.all([
           analyticsService.fetchExpensesByCategory(),
-          analyticsService.fetchRecentTransactions(10),
+          analyticsService.fetchIncomeExpenseTrend(),
+          analyticsService.fetchCashFlow(),
+          analyticsService.fetchRecentTransactions(30),
           budgetService.fetchBudgetStatus(),
         ]);
         setExpensesFromService(expenses);
+        setIncomeExpenseData(incomeExpense);
+        setCashFlowData(cashFlow);
         setRecentTransactions(transactions);
         setBudgetStatus(budgets);
       } catch (error) {
@@ -280,32 +247,44 @@ const ReportsContent: React.FC = () => {
     },
     incomeVsExpenses: {
       title: 'Income vs Expenses (Yearly)',
-      component: (
-        <IncomeExpenseBarChart
-          data={INCOME_EXPENSE_DATA}
-          formatValue={(value) => formatCurrencyTooltip(value)[0]}
-          height={350}
-          incomeColor="#2ecc71"
-          expenseColor="#e74c3c"
-          incomeLabel="Income"
-          expenseLabel="Expense"
-        />
+      component: loading ? (
+        <div className="text-center py-5">Loading...</div>
+      ) : incomeExpenseData.length === 0 ? (
+        <div className="text-center text-muted py-5">No income/expense data available</div>
+      ) : (
+        <div style={{ padding: '1rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <IncomeExpenseBarChart
+            data={incomeExpenseData}
+            formatValue={(value) => formatCurrencyTooltip(value)[0]}
+            height="100%"
+            incomeColor="#2ecc71"
+            expenseColor="#e74c3c"
+            incomeLabel="Income"
+            expenseLabel="Expense"
+          />
+        </div>
       ),
     },
     cashFlow: {
       title: 'Cash Flow Analysis',
-      component: (
-        <CashFlowChart
-          data={CASH_FLOW_DATA}
-          formatValue={(value) => formatCurrencyTooltip(value)[0]}
-          height={350}
-          incomeColor="#2ecc71"
-          expenseColor="#e74c3c"
-          netColor="#000000"
-          incomeLabel="Income"
-          expenseLabel="Expense"
-          netLabel="Cash flow"
-        />
+      component: loading ? (
+        <div className="text-center py-5">Loading...</div>
+      ) : cashFlowData.length === 0 ? (
+        <div className="text-center text-muted py-5">No cash flow data available</div>
+      ) : (
+        <div style={{ padding: '1rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <CashFlowChart
+            data={cashFlowData}
+            formatValue={(value) => formatCurrencyTooltip(value)[0]}
+            height="100%"
+            incomeColor="#2ecc71"
+            expenseColor="#e74c3c"
+            netColor="#000000"
+            incomeLabel="Income"
+            expenseLabel="Expense"
+            netLabel="Cash flow"
+          />
+        </div>
       ),
     },
     recentTransactions: {
@@ -317,6 +296,7 @@ const ReportsContent: React.FC = () => {
           transactions={recentTransactions}
           formatCurrency={formatCurrency}
           emptyMessage="No recent transactions"
+          height="100%"
         />
       ),
     },

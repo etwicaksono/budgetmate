@@ -23,7 +23,7 @@ export interface CashFlowChartData {
 interface CashFlowChartProps {
   data: CashFlowChartData[];
   formatValue?: (value: number) => string;
-  height?: number;
+  height?: number | `${number}%`;
   incomeColor?: string;
   expenseColor?: string;
   netColor?: string;

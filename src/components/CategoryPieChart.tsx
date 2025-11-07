@@ -12,7 +12,7 @@ interface CategoryPieChartProps {
   data: CategoryPieChartData[];
   colors?: string[];
   formatValue?: (value: number) => string;
-  height?: number;
+  height?: number | `${number}%`;
   outerRadius?: number;
 }
 
@@ -81,29 +81,34 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({
     return data.reduce((sum, item) => sum + item.value, 0);
   }, [data]);
 
+  // Calculate dynamic outerRadius based on height when using percentage
+  const computedOuterRadius = typeof height === 'string' ? '80%' : outerRadius;
+
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          labelLine={true}
-          outerRadius={outerRadius}
-          fill="#8884d8"
-          dataKey="value"
-          label={(props: PieLabelRenderProps) => {
-            const percent = Number(props.percent ?? 0);
-            return `${props.name ?? ''} ${(percent * 100).toFixed(0)}%`;
-          }}
-        >
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-          ))}
-        </Pie>
-        <Tooltip content={<CustomTooltip formatValue={valueFormatter} total={total} />} />
-      </PieChart>
-    </ResponsiveContainer>
+    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <ResponsiveContainer width="100%" height={height}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            labelLine={true}
+            outerRadius={computedOuterRadius}
+            fill="#8884d8"
+            dataKey="value"
+            label={(props: PieLabelRenderProps) => {
+              const percent = Number(props.percent ?? 0);
+              return `${props.name ?? ''} ${(percent * 100).toFixed(0)}%`;
+            }}
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+            ))}
+          </Pie>
+          <Tooltip content={<CustomTooltip formatValue={valueFormatter} total={total} />} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
   );
 };
 

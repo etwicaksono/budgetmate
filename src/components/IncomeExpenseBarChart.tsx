@@ -27,7 +27,7 @@ export interface IncomeExpenseChartData {
 interface IncomeExpenseBarChartProps {
   data: IncomeExpenseChartData[];
   formatValue?: (value: number) => string;
-  height?: number;
+  height?: number | `${number}%`;
   incomeColor?: string;
   expenseColor?: string;
   incomeLabel?: string;

@@ -438,11 +438,7 @@ html.accounts-dragging * {
   height: 100%;
 }
 
-/* Transaction table enhancements */
-.transaction-list {
-  max-height: 400px;
-  overflow-y: auto;
-}
+
 
 .transaction-item {
   padding: 10px 0;

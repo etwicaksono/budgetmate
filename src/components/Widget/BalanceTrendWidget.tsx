@@ -66,9 +66,9 @@ const BalanceTrendWidget: React.FC<BalanceTrendWidgetProps> = ({
   const isPositive = data.percentChange >= 0;
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', padding: '1rem' }}>
       {/* Balance Summary */}
-      <div className="mb-4">
+      <div className="mb-4" style={{ flexShrink: 0 }}>
         <div className="d-flex align-items-center justify-content-between">
           <div>
             <h5 className="mb-1" style={{ fontSize: '14px', color: '#6c757d', fontWeight: 'normal' }}>
@@ -106,10 +106,10 @@ const BalanceTrendWidget: React.FC<BalanceTrendWidgetProps> = ({
       </div>
 
       {/* Balance Trend Chart */}
-      <div>
+      <div style={{ flex: 1, minHeight: 0, width: '100%' }}>
         <BalanceTrendChart
           data={data.balanceData}
-          height={height}
+          height="100%"
           lineColor={lineColor}
           formatValue={currencyFormatter}
         />
