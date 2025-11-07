@@ -204,19 +204,13 @@ const Register: React.FC = () => {
       <div className="register-content">
         <div className="app-info">
           <h1>Join Us<br />Start Managing<br />Your Finances</h1>
-          <div className="app-preview">
-            <img
-              src="/images/app-preview.webp"
-              alt="Finance App Preview"
-              className="preview-image"
-            />
-          </div>
+          <div className="app-preview"></div>
         </div>
 
         <div className="register-form-container">
           <h2>Sign Up</h2>
 
-          <div className="social-buttons">
+          {/* <div className="social-buttons">
             <button className="social-button google" type="button">
               <FaGoogle size={24} aria-hidden="true" />
               Sign up with Google
@@ -233,7 +227,7 @@ const Register: React.FC = () => {
 
           <div className="divider">
             <span>or</span>
-          </div>
+          </div> */} {/* TODO: implement for the future */}
 
           <Form noValidate validated={validated} onSubmit={handleSubmit}>
             <Form.Group className="mb-3" controlId="name">

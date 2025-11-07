@@ -33,10 +33,16 @@
 
 .app-preview {
    flex: 1;
-   background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.15));
-   min-height: 300px;
-   border: 2px dashed rgba(255, 255, 255, 0.5);
+   min-height: clamp(220px, 40vw, 560px);
    border-radius: 12px;
+   border: none;
+   outline: none;
+   box-shadow: none;
+   background-color: transparent;
+   background-image: url('/images/app-preview.webp');
+   background-size: contain;
+   background-position: center;
+   background-repeat: no-repeat;
 }
 
 .register-form-container {
@@ -75,6 +81,19 @@
 .social-button img {
    width: 24px;
    height: 24px;
+}
+
+/* Provider-specific icon colors only */
+.social-button.google svg {
+   color: #4285F4;
+}
+
+.social-button.facebook svg {
+   color: #1877F2;
+}
+
+.social-button.apple svg {
+   color: #111111;
 }
 
 .social-button:hover {
@@ -289,7 +308,7 @@
    }
 
    .app-preview {
-      min-height: 200px;
+      min-height: clamp(180px, 50vw, 360px);
    }
 
    .register-form-container {

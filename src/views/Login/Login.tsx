@@ -183,15 +183,13 @@ const Login: React.FC = () => {
       <div className="login-content">
         <div className="app-info">
           <h1>Your Finances<br />in One Place</h1>
-          <div className="app-preview">
-            {/* App preview image will be added via CSS */}
-          </div>
+          <div className="app-preview"></div>
         </div>
 
         <div className="login-form-container">
           <h2>Log In</h2>
 
-          <div className="social-buttons">
+          {/* <div className="social-buttons">
             <button className="social-button google" type="button">
               <FaGoogle size={24} aria-hidden="true" />
               Sign in with Google
@@ -208,7 +206,7 @@ const Login: React.FC = () => {
 
           <div className="divider">
             <span>or</span>
-          </div>
+          </div> */} {/* TODO: implement for the future */}
 
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3" controlId="email">
