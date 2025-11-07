@@ -742,10 +742,24 @@ function TransactionsContent(): JSX.Element {
     let createdTransaction: any = null;
 
     // Prepare the base API payload
-    const normalizedAmount =
+    let normalizedAmount =
       typeof transactionRecord.amount === 'number'
         ? transactionRecord.amount
         : Number(transactionRecord.amount);
+
+    // Apply sign based on transaction type
+    // Expense: negative, Income: positive
+    const originalAmount = normalizedAmount;
+    if (currentTransaction.type === 'Expense') {
+      normalizedAmount = -Math.abs(normalizedAmount);
+    } else if (currentTransaction.type === 'Income') {
+      normalizedAmount = Math.abs(normalizedAmount);
+    }
+    console.log(`💰 Amount sign adjustment:`, {
+      type: currentTransaction.type,
+      originalAmount,
+      adjustedAmount: normalizedAmount
+    });
 
     // Format the date properly for Go backend (RFC3339 with seconds and timezone)
     const formattedDate = formatDateForBackend(currentTransaction.dateTime || currentTransaction.date);

@@ -666,9 +666,23 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
       // Prepare the API payload with properly formatted date
       const formattedDate = formatDateForBackend(currentTransaction.dateTime || currentTransaction.date);
       
-      const normalizedAmount = typeof transactionRecord.amount === 'number' 
+      let normalizedAmount = typeof transactionRecord.amount === 'number' 
         ? transactionRecord.amount 
         : parseFloat(String(transactionRecord.amount));
+
+      // Apply sign based on transaction type
+      // Expense: negative, Income: positive
+      const originalAmount = normalizedAmount;
+      if (currentTransaction.type === 'Expense') {
+        normalizedAmount = -Math.abs(normalizedAmount);
+      } else if (currentTransaction.type === 'Income') {
+        normalizedAmount = Math.abs(normalizedAmount);
+      }
+      console.log(`💰 [Context] Amount sign adjustment:`, {
+        type: currentTransaction.type,
+        originalAmount,
+        adjustedAmount: normalizedAmount
+      });
 
       // Retry loop
       while (attempt < maxRetries && !createdTransaction) {

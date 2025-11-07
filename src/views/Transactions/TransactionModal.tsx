@@ -383,6 +383,8 @@ export function TransactionModal({
   // Local display state for Amount fields with thousand/decimal separators
   const [amountDisplay, setAmountDisplay] = useState<string>('');
   const [toAmountDisplay, setToAmountDisplay] = useState<string>('');
+  const [amountNormalized, setAmountNormalized] = useState<string>('');
+  const [toAmountNormalized, setToAmountNormalized] = useState<string>('');
   const [isEditingAmount, setIsEditingAmount] = useState<boolean>(false);
   const [isEditingToAmount, setIsEditingToAmount] = useState<boolean>(false);
 
@@ -433,9 +435,11 @@ export function TransactionModal({
         const { display, normalized, deferCommit } = coerceAndFormatNumber(cleanedInput);
         if (fieldName === 'amount') {
           setAmountDisplay(display);
+          setAmountNormalized(normalized);
           setIsEditingAmount(true);
         } else {
           setToAmountDisplay(display);
+          setToAmountNormalized(normalized);
           setIsEditingToAmount(true);
         }
         if (!deferCommit) {
@@ -989,8 +993,12 @@ export function TransactionModal({
                             value={amountDisplay}
                             onChange={(event) => handleNumericInput('amount')(event.target.value)}
                             onBlur={() => {
-                              const { normalized } = coerceAndFormatNumber(amountDisplay);
-                              onChange?.({ target: { name: 'amount', value: normalized } });
+                              console.log('💰 Transfer Amount onBlur:', {
+                                amountDisplay,
+                                amountNormalized,
+                                willSend: amountNormalized
+                              });
+                              onChange?.({ target: { name: 'amount', value: amountNormalized } });
                               setIsEditingAmount(false);
                             }}
                             placeholder="Enter amount"
@@ -1017,8 +1025,12 @@ export function TransactionModal({
                             value={toAmountDisplay}
                             onChange={(event) => handleNumericInput('toAmount')(event.target.value)}
                             onBlur={() => {
-                              const { normalized } = coerceAndFormatNumber(toAmountDisplay);
-                              onChange?.({ target: { name: 'toAmount', value: normalized } });
+                              console.log('💰 Transfer ToAmount onBlur:', {
+                                toAmountDisplay,
+                                toAmountNormalized,
+                                willSend: toAmountNormalized
+                              });
+                              onChange?.({ target: { name: 'toAmount', value: toAmountNormalized } });
                               setIsEditingToAmount(false);
                             }}
                             placeholder="Enter amount"
@@ -1041,8 +1053,12 @@ export function TransactionModal({
                         value={amountDisplay}
                         onChange={(event) => handleNumericInput('amount')(event.target.value)}
                         onBlur={() => {
-                          const { normalized } = coerceAndFormatNumber(amountDisplay);
-                          onChange?.({ target: { name: 'amount', value: normalized } });
+                          console.log('💰 Amount onBlur:', {
+                            amountDisplay,
+                            amountNormalized,
+                            willSend: amountNormalized
+                          });
+                          onChange?.({ target: { name: 'amount', value: amountNormalized } });
                           setIsEditingAmount(false);
                         }}
                         placeholder="Enter amount"
