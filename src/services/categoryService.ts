@@ -147,6 +147,15 @@ export interface CategoryQueryParams {
   keyword?: string;
 }
 
+export interface OrderMapItem {
+  id: string;
+  personal_id: number;
+}
+
+export interface SwapOrderRequest {
+  order_map: OrderMapItem[];
+}
+
 export interface CategoryService {
   fetchCategories(params?: CategoryQueryParams): Promise<ApiCategoryResponse[]>;
   createCategory(payload: CategoryCreatePayload): Promise<CategoryMutationResult>;
@@ -157,7 +166,12 @@ export interface CategoryService {
   deleteCategory(
     id: string
   ): Promise<{ message?: string; categoryId?: string }>;
+  swapCategoryOrder(payload: SwapOrderRequest): Promise<void>;
+  getNextPersonalId(): number;
 }
+
+// Store the next personal_id
+let nextPersonalId = 1;
 
 export const categoryService: CategoryService = {
   async fetchCategories(params = {}) {
@@ -170,7 +184,10 @@ export const categoryService: CategoryService = {
     // Update cache for personal_id
     if (typeof localStorage !== 'undefined' && categories.length > 0) {
       const maxPersonalId = Math.max(...categories.map(cat => cat.personal_id ?? 0));
+      nextPersonalId = maxPersonalId + 1;
       localStorage.setItem('max_category_personal_id', maxPersonalId.toString());
+    } else {
+      nextPersonalId = 1;
     }
 
     return Array.isArray(categories) ? categories : [];
@@ -188,6 +205,7 @@ export const categoryService: CategoryService = {
       const currentMax = parseInt(localStorage.getItem('max_category_personal_id') || '0');
       if (category.personal_id > currentMax) {
         localStorage.setItem('max_category_personal_id', category.personal_id.toString());
+        nextPersonalId = category.personal_id + 1;
       }
     }
 
@@ -221,6 +239,15 @@ export const categoryService: CategoryService = {
       message: 'Category deleted successfully',
       categoryId: id,
     };
+  },
+
+  async swapCategoryOrder(payload: SwapOrderRequest) {
+    // API service automatically unwraps the response and throws on error
+    await apiService.put('/categories/swap-order', payload);
+  },
+
+  getNextPersonalId() {
+    return nextPersonalId;
   },
 };
 
