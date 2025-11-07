@@ -1,7 +1,16 @@
 import { NextRequest } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+
+type SortValue =
+  | 'timeAsc'
+  | 'timeDesc'
+  | 'amountAsc'
+  | 'amountDesc'
+  | 'absAmountAsc'
+  | 'absAmountDesc';
 
 // GET /api/v1/transactions - List transactions with filters
 export async function GET(request: NextRequest) {
@@ -15,24 +24,75 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
+    const parseListParam = (value: string | null): string[] =>
+      value
+        ? value
+            .split(',')
+            .map((item) => item.trim())
+            .filter((item) => item.length > 0)
+        : [];
     const account_id = searchParams.get('account_id');
+    const accountIdsParam = parseListParam(searchParams.get('account_ids'));
+    const accountNamesParam = parseListParam(searchParams.get('account_names'));
     const category_id = searchParams.get('category_id');
+    const categoryIdsParam = parseListParam(searchParams.get('category_ids'));
+    const categoryNamesParam = parseListParam(searchParams.get('category_names'));
     const type = searchParams.get('type');
     const start_date = searchParams.get('start_date');
     const end_date = searchParams.get('end_date');
     const min_amount = searchParams.get('min_amount');
     const max_amount = searchParams.get('max_amount');
-    const keyword = searchParams.get('keyword');
+    const search = searchParams.get('search');
+    const keywordParam = search ?? searchParams.get('keyword');
+    const keyword = keywordParam && keywordParam.length > 0 ? keywordParam : undefined;
+    const sort = (searchParams.get('sort') as SortValue | null) ?? 'timeDesc';
     const limit = parseInt(searchParams.get('limit') || '100');
     const offset = parseInt(searchParams.get('offset') || '0');
+
+    const accountIdFilters = new Set<string>();
+    if (account_id) accountIdFilters.add(account_id);
+    accountIdsParam.forEach((id) => accountIdFilters.add(id));
+    if (accountNamesParam.length > 0) {
+      const matchingAccounts = await db.accounts.findMany({
+        where: {
+          user_id: user.user_id,
+          name: { in: accountNamesParam },
+        },
+        select: { id: true },
+      });
+      matchingAccounts.forEach((account) => accountIdFilters.add(String(account.id)));
+    }
+
+    const categoryIdFilters = new Set<string>();
+    if (category_id) categoryIdFilters.add(category_id);
+    categoryIdsParam.forEach((id) => categoryIdFilters.add(id));
+    if (categoryNamesParam.length > 0) {
+      const matchingCategories = await db.categories.findMany({
+        where: {
+          user_id: user.user_id,
+          name: { in: categoryNamesParam },
+        },
+        select: { id: true },
+      });
+      matchingCategories.forEach((category) => categoryIdFilters.add(String(category.id)));
+    }
 
     // Build where clause
     const where: any = {
       user_id: user.user_id,
     };
 
-    if (account_id) where.account_id = account_id;
-    if (category_id) where.category_id = category_id;
+    if (accountIdFilters.size === 1) {
+      where.account_id = Array.from(accountIdFilters)[0];
+    } else if (accountIdFilters.size > 1) {
+      where.account_id = { in: Array.from(accountIdFilters) };
+    }
+
+    if (categoryIdFilters.size === 1) {
+      where.category_id = Array.from(categoryIdFilters)[0];
+    } else if (categoryIdFilters.size > 1) {
+      where.category_id = { in: Array.from(categoryIdFilters) };
+    }
     if (type) where.type = type;
 
     // Date range filter
@@ -57,16 +117,45 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    let orderBy: Array<Record<string, 'asc' | 'desc'>> = [];
+    switch (sort) {
+      case 'timeAsc':
+        orderBy = [
+          { date: 'asc' },
+          { created_at: 'asc' },
+        ];
+        break;
+      case 'amountAsc':
+        orderBy = [{ amount: 'asc' }];
+        break;
+      case 'amountDesc':
+        orderBy = [{ amount: 'desc' }];
+        break;
+      case 'timeDesc':
+      case 'absAmountAsc':
+      case 'absAmountDesc':
+      default:
+        orderBy = [
+          { date: 'desc' },
+          { created_at: 'desc' },
+        ];
+        break;
+    }
+
     // Get transactions
     const transactions = await db.transactions.findMany({
       where,
-      orderBy: [
-        { date: 'desc' },
-        { created_at: 'desc' },
-      ],
+      orderBy,
       skip: offset,
       take: limit,
     });
+
+    if (sort === 'absAmountAsc' || sort === 'absAmountDesc') {
+      transactions.sort((a, b) => {
+        const diff = Math.abs(Number(a.amount)) - Math.abs(Number(b.amount));
+        return sort === 'absAmountAsc' ? diff : -diff;
+      });
+    }
 
     // Get max personal_id for caching
     const maxPersonalIdResult = await db.transactions.findFirst({

@@ -217,7 +217,7 @@ export function DesktopFilterSidebar({
   onFilterVisibilityChange = noopDispatch as any,
   searchTerm = '',
   onSearchTermChange = noop,
-  sortOption = 'amountAsc',
+  sortOption = 'timeDesc',
   onSortOptionChange = noop,
   selectedCategories = [],
   onSelectedCategoriesChange = noopDispatch,

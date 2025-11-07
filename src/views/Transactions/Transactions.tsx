@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { useCallback, useEffect, useMemo, useState, createElement } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, createElement } from 'react';
 import type { ChangeEvent, ComponentType } from 'react';
 import {
   Container,
@@ -55,6 +55,7 @@ import {
 import {
   transactionService,
   type CreateTransactionRequest,
+  type ApiTransactionResponse,
 } from '../../services/transactionService';
 import { formatDateForBackend } from '../../utils/dateFormatter';
 import AmountRangeFilter from '../../components/AmountRangeFilter';
@@ -94,6 +95,8 @@ type QuickTransactionPresetInput = Partial<QuickTransactionPreset> &
 
 const DEFAULT_CATEGORY_COLOR = '#6c757d';
 const DEFAULT_CATEGORY_ICON: CategoryIconName = 'FaGift';
+const DEFAULT_MIN_AMOUNT = 0;
+const DEFAULT_MAX_AMOUNT = 20000000;
 
 type ApiCategoryEntity = ApiCategoryResponse & {
   id: string;
@@ -253,7 +256,7 @@ function TransactionsContent(): JSX.Element {
     [quickTransactions]
   );
 
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [apiTransactions, setApiTransactions] = useState<ApiTransactionResponse[]>([]);
   const [currentTransaction, setCurrentTransaction] = useState<TransactionFormValues>(
     createTransactionTemplate()
   );
@@ -266,6 +269,8 @@ function TransactionsContent(): JSX.Element {
   const [showFilterSidebar, setShowFilterSidebar] = useState<boolean>(false);
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<number[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState<boolean>(false);
+  const lastFetchSignatureRef = useRef<string | null>(null);
+  const inflightFetchSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     const open = searchParams?.get('openTransactionModal');
@@ -292,131 +297,126 @@ function TransactionsContent(): JSX.Element {
     state: { dateRange, periodLabel, activePeriod, customRangeDraft },
   } = usePeriodNavigation();
 
-  // Fetch transactions from service
-  useEffect(() => {
-    const loadTransactions = async () => {
-      try {
-        setLoadingTransactions(true);
-        console.log('📊 Fetching transactions...', {
-          startDate: dateRange.start,
-          endDate: dateRange.end,
-          categoriesLoaded: categories.length,
-          accountsLoaded: apiAccounts.length,
-        });
+  const mapApiTransactions = useCallback(
+    (apiTransactions: ApiTransactionResponse[]): TransactionRecord[] => {
+      const mappedTransactions: TransactionRecord[] = apiTransactions.map((apiTxn, index) => {
+        const category = categories.find((cat) => cat.id === apiTxn.category_id);
+        const account = apiAccounts.find((acc) => acc.id === apiTxn.account_id);
 
+        let numericId = index;
+        if (apiTxn.id) {
+          const extracted = parseInt(apiTxn.id.replace(/\D/g, ''), 10);
+          numericId = Number.isNaN(extracted) ? index : extracted;
+        }
+
+        return {
+          id: numericId,
+          templateId: '',
+          type: apiTxn.type || 'Expense',
+          description: apiTxn.note || `Transaction ${apiTxn.id}`,
+          amount: apiTxn.amount || 0,
+          currency: 'IDR',
+          date: apiTxn.date ? new Date(apiTxn.date).toISOString().slice(0, 10) : '',
+          dateTime: apiTxn.date || '',
+          category: category?.name || 'Unknown',
+          categoryId: apiTxn.category_id || '',
+          account: account?.name || 'Unknown',
+          accountName: account?.name || 'Unknown',
+          toAccount: '',
+          toAmount: '',
+          toCurrency: 'IDR',
+          labels: '',
+          createTemplate: false,
+          notes: apiTxn.note || '',
+          payer: '',
+          paymentType: 'Cash',
+          paymentStatus: 'Cleared',
+        };
+      });
+
+      return mappedTransactions.filter(
+        (txn) => typeof txn.id === 'number' && !Number.isNaN(txn.id)
+      );
+    },
+    [apiAccounts, categories]
+  );
+
+  const transactions = useMemo(
+    () => mapApiTransactions(apiTransactions),
+    [apiTransactions, mapApiTransactions]
+  );
+
+  const fetchTransactionsFromServer = useCallback(
+    async (options: { force?: boolean } = {}): Promise<boolean> => {
+      const { force = false } = options;
+      const trimmedSearch = searchTerm.trim();
+      const minAmountParam =
+        minAmount !== DEFAULT_MIN_AMOUNT ? minAmount : undefined;
+      const maxAmountParam =
+        maxAmount !== DEFAULT_MAX_AMOUNT ? maxAmount : undefined;
+      const signaturePayload = {
+        startDate: dateRange.start || null,
+        endDate: dateRange.end || null,
+        accounts: [...selectedAccounts].sort(),
+        categories: [...selectedCategories].sort(),
+        minAmount: minAmountParam ?? null,
+        maxAmount: maxAmountParam ?? null,
+        search: trimmedSearch || null,
+        sort: sortOption,
+      };
+      const signature = JSON.stringify(signaturePayload);
+
+      if (!force) {
+        if (signature === inflightFetchSignatureRef.current) {
+          return false;
+        }
+        if (signature === lastFetchSignatureRef.current) {
+          return true;
+        }
+      }
+
+      inflightFetchSignatureRef.current = signature;
+      setLoadingTransactions(true);
+      try {
         const apiTransactions = await transactionService.fetchTransactions({
           startDate: dateRange.start || undefined,
           endDate: dateRange.end || undefined,
+          accountNames: selectedAccounts.length > 0 ? selectedAccounts : undefined,
+          categoryNames: selectedCategories.length > 0 ? selectedCategories : undefined,
+          minAmount: minAmountParam,
+          maxAmount: maxAmountParam,
+          search: trimmedSearch || undefined,
+          sort: sortOption,
         });
 
-        console.log('📊 Received transactions from API:', apiTransactions.length);
-
-        // Map API response to TransactionRecord format
-        const mappedTransactions: TransactionRecord[] = apiTransactions.map((apiTxn, index) => {
-          // Find category and account names
-          const category = categories.find(cat => cat.id === apiTxn.category_id);
-          const account = apiAccounts.find(acc => acc.id === apiTxn.account_id);
-
-          // Extract numeric ID from string (e.g., 'txn-1' -> 1) or use index
-          let numericId = index; // Default to index
-          if (apiTxn.id) {
-            const extracted = parseInt(apiTxn.id.replace(/\D/g, ''), 10);
-            numericId = !isNaN(extracted) ? extracted : index;
-          }
-
-          return {
-            id: numericId,
-            templateId: '',
-            type: apiTxn.type || 'Expense',
-            description: apiTxn.note || `Transaction ${apiTxn.id}`,
-            amount: apiTxn.amount || 0,
-            currency: 'IDR',
-            date: apiTxn.date ? new Date(apiTxn.date).toISOString().slice(0, 10) : '',
-            dateTime: apiTxn.date || '',
-            category: category?.name || 'Unknown',
-            categoryId: apiTxn.category_id || '',
-            account: account?.name || 'Unknown',
-            accountName: account?.name || 'Unknown',
-            toAccount: '',
-            toAmount: '',
-            toCurrency: 'IDR',
-            labels: '',
-            createTemplate: false,
-            notes: apiTxn.note || '',
-            payer: '',
-            paymentType: 'Cash',
-            paymentStatus: 'Cleared',
-          };
-        });
-
-        // Filter out any transactions with invalid IDs as a safeguard
-        const validTransactions = mappedTransactions.filter(txn =>
-          typeof txn.id === 'number' && !isNaN(txn.id)
-        );
-
-        console.log('📊 Mapped transactions:', validTransactions.length);
-        setTransactions(validTransactions);
+        setApiTransactions(apiTransactions);
+        lastFetchSignatureRef.current = signature;
+        return true;
       } catch (error) {
-        console.error('❌ Failed to fetch transactions:', error);
+        console.error('? Failed to fetch transactions:', error);
+        return false;
       } finally {
+        inflightFetchSignatureRef.current = null;
         setLoadingTransactions(false);
       }
-    };
+    },
+    [
+      dateRange.end,
+      dateRange.start,
+      maxAmount,
+      minAmount,
+      searchTerm,
+      selectedAccounts,
+      selectedCategories,
+      sortOption,
+    ]
+  );
 
-    // Load transactions immediately - categories and accounts will be mapped when available
-    void loadTransactions();
-  }, [dateRange.start, dateRange.end, categories, apiAccounts]);
+  useEffect(() => {
+    void fetchTransactionsFromServer();
+  }, [fetchTransactionsFromServer]);
 
-  const filteredTransactions = useMemo(() => {
-    const filtered = transactions.filter((transaction) => {
-      const matchesSearch =
-        searchTerm.trim().length === 0 ||
-        transaction.description.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesCategory =
-        selectedCategories.length === 0 || selectedCategories.includes(transaction.category);
-
-      const matchesAccount = selectedAccounts.length === 0 || selectedAccounts.includes(transaction.accountName || transaction.account);
-
-      const matchesDate = (() => {
-        if (!dateRange.start && !dateRange.end) {
-          return true;
-        }
-        const transactionTime = new Date(transaction.date).getTime();
-        const afterStart = dateRange.start ? transactionTime >= new Date(dateRange.start).getTime() : true;
-        const beforeEnd = dateRange.end ? transactionTime <= new Date(dateRange.end).getTime() : true;
-        return afterStart && beforeEnd;
-      })();
-
-      const matchesAmount = (() => {
-        const absoluteAmount = Math.abs(Number(transaction.amount ?? 0));
-        return absoluteAmount >= minAmount && absoluteAmount <= maxAmount;
-      })();
-
-      return matchesSearch && matchesCategory && matchesAccount && matchesDate && matchesAmount;
-    });
-
-    const comparator = (a: TransactionRecord, b: TransactionRecord) => {
-      switch (sortOption) {
-        case 'timeAsc':
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
-        case 'timeDesc':
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
-        case 'amountAsc':
-          return Number(a.amount ?? 0) - Number(b.amount ?? 0);
-        case 'amountDesc':
-          return Number(b.amount ?? 0) - Number(a.amount ?? 0);
-        case 'absAmountAsc':
-          return Math.abs(Number(a.amount ?? 0)) - Math.abs(Number(b.amount ?? 0));
-        case 'absAmountDesc':
-          return Math.abs(Number(b.amount ?? 0)) - Math.abs(Number(a.amount ?? 0));
-        default:
-          return 0;
-      }
-    };
-
-    return [...filtered].sort(comparator);
-  }, [transactions, searchTerm, selectedCategories, selectedAccounts, dateRange, sortOption, minAmount, maxAmount]);
+  const filteredTransactions = transactions;
   useEffect(() => {
     setSelectedTransactionIds((previous) =>
       previous.filter((id) =>
@@ -846,63 +846,21 @@ function TransactionsContent(): JSX.Element {
     // Success! Continue with the rest of the logic
     try {
 
-      // Refresh transactions from API
-      try {
-        const apiTransactions = await transactionService.fetchTransactions({
-          startDate: dateRange.start || undefined,
-          endDate: dateRange.end || undefined,
-        });
-
-        const mappedTransactions: TransactionRecord[] = apiTransactions.map((apiTxn, index) => {
-          const category = categories.find(cat => cat.id === apiTxn.category_id);
-          const account = apiAccounts.find(acc => acc.id === apiTxn.account_id);
-
-          // Extract numeric ID from string (e.g., 'txn-1' -> 1) or use index
-          let numericId = index; // Default to index
-          if (apiTxn.id) {
-            const extracted = parseInt(apiTxn.id.replace(/\D/g, ''), 10);
-            numericId = !isNaN(extracted) ? extracted : index;
-          }
-
-          return {
-            id: numericId,
-            templateId: '',
-            type: apiTxn.type || 'Expense',
-            description: apiTxn.note || `Transaction ${apiTxn.id}`,
-            amount: apiTxn.amount || 0,
-            currency: 'IDR',
-            date: apiTxn.date ? new Date(apiTxn.date).toISOString().slice(0, 10) : '',
-            dateTime: apiTxn.date || '',
-            category: category?.name || 'Unknown',
-            categoryId: apiTxn.category_id || '',
-            account: account?.name || 'Unknown',
-            accountName: account?.name || 'Unknown',
-            toAccount: '',
-            toAmount: '',
-            toCurrency: 'IDR',
-            labels: '',
-            createTemplate: false,
-            notes: apiTxn.note || '',
-            payer: '',
-            paymentType: 'Cash',
-            paymentStatus: 'Cleared',
-          };
-        });
-
-        // Filter out any transactions with invalid IDs as a safeguard
-        const validTransactions = mappedTransactions.filter(txn =>
-          typeof txn.id === 'number' && !isNaN(txn.id)
-        );
-
-        setTransactions(validTransactions);
-      } catch (refreshError) {
-        console.error('Failed to refresh transactions:', refreshError);
-        // Fallback to adding locally if refresh fails
-        if (typeof transactionRecord.id === 'number' && !isNaN(transactionRecord.id)) {
-          setTransactions((previous) => [transactionRecord, ...previous]);
-        } else {
-          console.error('Cannot add transaction with invalid ID:', transactionRecord.id);
-        }
+      const refreshed = await fetchTransactionsFromServer({ force: true });
+      if (!refreshed) {
+        console.error('Failed to refresh transactions after save; falling back to local state.');
+        setApiTransactions((previous) => [
+          {
+            id: String(transactionRecord.id),
+            date: transactionRecord.dateTime || transactionRecord.date,
+            account_id: accountId,
+            category_id: categoryId ? String(categoryId) : undefined,
+            amount: Number(transactionRecord.amount ?? 0),
+            type: transactionRecord.type,
+            note: transactionRecord.notes || transactionRecord.description,
+          },
+          ...previous,
+        ]);
       }
 
       setLastTransaction(transactionRecord);

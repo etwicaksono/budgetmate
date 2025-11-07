@@ -55,9 +55,17 @@ export interface TransactionQueryParams {
   startDate?: string;
   endDate?: string;
   accountId?: string;
+  accountIds?: string[];
+  accountNames?: string[];
   categoryId?: string;
+  categoryIds?: string[];
+  categoryNames?: string[];
   type?: string;
   limit?: number;
+  search?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  sort?: string;
 }
 
 const isApiResponse = <T,>(value: unknown): value is ApiResponse<T> =>
@@ -199,9 +207,32 @@ export const transactionService: TransactionService = {
       start_date: params.startDate ?? undefined,
       end_date: params.endDate ?? undefined,
       account_id: params.accountId ?? undefined,
+      account_ids:
+        Array.isArray(params.accountIds) && params.accountIds.length > 0
+          ? params.accountIds.join(',')
+          : undefined,
+      account_names:
+        Array.isArray(params.accountNames) && params.accountNames.length > 0
+          ? params.accountNames.join(',')
+          : undefined,
       category_id: params.categoryId ?? undefined,
+      category_ids:
+        Array.isArray(params.categoryIds) && params.categoryIds.length > 0
+          ? params.categoryIds.join(',')
+          : undefined,
+      category_names:
+        Array.isArray(params.categoryNames) && params.categoryNames.length > 0
+          ? params.categoryNames.join(',')
+          : undefined,
       type: params.type ?? undefined,
       limit: params.limit ?? undefined,
+      search: params.search ?? undefined,
+      min_amount:
+        typeof params.minAmount === 'number' ? params.minAmount : undefined,
+      max_amount:
+        typeof params.maxAmount === 'number' ? params.maxAmount : undefined,
+      sort: params.sort ?? undefined,
+      keyword: params.search ?? undefined,
     })) as ApiTransactionResponse[];
 
     // Update cache for personal_id
