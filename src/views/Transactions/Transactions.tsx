@@ -7,21 +7,11 @@ import {
   Col,
   Card,
   Button,
-  Form,
   Modal,
 } from 'react-bootstrap';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
-import {
-  FaFilter,
-  FaUniversity,
-  FaPiggyBank,
-  FaCreditCard,
-  FaMoneyBillWave,
-  FaTags,
-  FaPlus,
-  FaCheck,
-} from 'react-icons/fa';
+import { FaFilter, FaPlus } from 'react-icons/fa';
 import type { IconType, IconBaseProps } from 'react-icons';
 import { type CategoryIconName } from './useCategoryData';
 import { useQuickTransactions, type CategoryReference } from './useQuickTransactions';
@@ -65,16 +55,18 @@ import {
   SortDropdown,
   renderIcon,
   type SortValue,
-  type IconRenderable,
   type DropdownIconMap,
 } from './components/DesktopFilterSidebar';
 import { useFilterData } from './hooks/useFilterData';
+import { RecordsHeader, RecordsList } from '../../components/Records';
+import type {
+  GroupedTransactions,
+  TransactionRecord as RecordsTransaction,
+} from '../../types/transaction';
 
 type TransactionType = 'Expense' | 'Income' | 'Transfer' | string;
 
 type TransactionRecord = TransactionFormValues & { id: number };
-
-type TagTone = 'neutral' | 'want' | 'need' | 'credit' | 'debt';
 
 interface AccountMetadataEntry {
   color: string;
@@ -129,13 +121,6 @@ const normalizeApiCategory = (item: ApiCategoryEntity): ApiCategoryResponse => (
 
 const ACCOUNT_METADATA_STORAGE_KEY = 'finance-app-account-metadata';
 const FILTER_VISIBILITY_STORAGE_KEY = 'finance-app-filter-visibility';
-
-const accountIconComponents: Record<string, IconRenderable> = {
-  FaUniversity,
-  FaPiggyBank,
-  FaCreditCard,
-  FaMoneyBillWave,
-};
 
 const getLocalDateTimeString = (): string => {
   const now = new Date();
@@ -417,6 +402,67 @@ function TransactionsContent(): JSX.Element {
   }, [fetchTransactionsFromServer]);
 
   const filteredTransactions = transactions;
+
+  const groupedTransactionRecords = useMemo<GroupedTransactions>(() => {
+    const grouped: GroupedTransactions = {};
+
+    filteredTransactions.forEach((transaction) => {
+      const sourceDate = transaction.dateTime || transaction.date || '';
+      const dateObj = sourceDate ? new Date(sourceDate) : null;
+      const isValidDate = dateObj && !Number.isNaN(dateObj.getTime());
+      const dateKey = isValidDate
+        ? dateObj.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        : 'Unknown date';
+      const timeLabel = isValidDate
+        ? dateObj.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          })
+        : '';
+
+      const categoryMeta = transaction.category
+        ? categoryByName[transaction.category]
+        : undefined;
+      const categoryIconName = categoryMeta?.icon ?? DEFAULT_CATEGORY_ICON;
+      const categoryColor = categoryMeta?.color ?? DEFAULT_CATEGORY_COLOR;
+      const rawAmount = Number(transaction.amount ?? 0);
+      const normalizedType =
+        String(transaction.type ?? '').toLowerCase() === 'income'
+          ? 'INCOME'
+          : 'EXPENSE';
+
+      const record: RecordsTransaction = {
+        id: String(transaction.id),
+        date: dateKey,
+        time: timeLabel,
+        categoryName: transaction.category || 'Uncategorized',
+        categoryIcon: categoryIconName,
+        categoryIconColor: categoryColor,
+        accountName:
+          transaction.accountName ||
+          (typeof transaction.account === 'string'
+            ? transaction.account
+            : String(transaction.account ?? 'Account')),
+        description: transaction.description || '',
+        payer:
+          typeof transaction.payer === 'string' ? transaction.payer : '',
+        amount: Number.isNaN(rawAmount) ? 0 : Math.abs(rawAmount),
+        type: normalizedType === 'INCOME' ? 'INCOME' : 'EXPENSE',
+      };
+
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(record);
+    });
+
+    return grouped;
+  }, [categoryByName, filteredTransactions]);
   useEffect(() => {
     setSelectedTransactionIds((previous) =>
       previous.filter((id) =>
@@ -425,8 +471,15 @@ function TransactionsContent(): JSX.Element {
     );
   }, [filteredTransactions]);
   const selectedIdsSet = useMemo(() => new Set(selectedTransactionIds), [selectedTransactionIds]);
-  const allSelected = filteredTransactions.length > 0 && filteredTransactions.every((transaction) => selectedIdsSet.has(transaction.id));
-  const hasSelection = selectedTransactionIds.length > 0;
+  const selectedRecordIds = useMemo(
+    () => new Set(selectedTransactionIds.map((id) => String(id))),
+    [selectedTransactionIds]
+  );
+  const selectedCount = selectedTransactionIds.length;
+  const allSelected =
+    filteredTransactions.length > 0 &&
+    filteredTransactions.every((transaction) => selectedIdsSet.has(transaction.id));
+  const hasSelection = selectedCount > 0;
   const totalAmount = useMemo(
     () =>
       filteredTransactions.reduce(
@@ -457,28 +510,10 @@ function TransactionsContent(): JSX.Element {
     },
     []
   );
-
-  const formatTransactionDate = useCallback((dateValue?: string, dateTimeValue?: string): string => {
-    const source = dateTimeValue || dateValue;
-    if (!source) {
-      return '';
-    }
-    const parsed = new Date(source);
-    if (Number.isNaN(parsed.getTime())) {
-      return source;
-    }
-    const dateLabel = new Intl.DateTimeFormat('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-    }).format(parsed);
-    const timeLabel = new Intl.DateTimeFormat('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    }).format(parsed);
-    return `${dateLabel} ${timeLabel}`;
-  }, []);
+  const formatRecordCurrency = useCallback(
+    (value: number): string => formatCurrency(value),
+    [formatCurrency]
+  );
 
   const handleToggleTransactionSelect = useCallback((transactionId: number): void => {
     setSelectedTransactionIds((previous) => {
@@ -489,63 +524,59 @@ function TransactionsContent(): JSX.Element {
     });
   }, []);
 
-  const handleToggleSelectAll = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const { checked } = event.target;
-      if (checked) {
-        setSelectedTransactionIds(filteredTransactions.map((transaction) => transaction.id));
-      } else {
-        setSelectedTransactionIds([]);
+  const handleRecordsSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedTransactionIds([]);
+      return;
+    }
+    setSelectedTransactionIds(filteredTransactions.map((transaction) => transaction.id));
+  }, [allSelected, filteredTransactions]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedTransactionIds([]);
+  }, []);
+
+  const handleRecordSelection = useCallback(
+    (recordId: string) => {
+      const numericId = Number(recordId);
+      if (Number.isNaN(numericId)) {
+        return;
       }
+      handleToggleTransactionSelect(numericId);
     },
-    [filteredTransactions]
+    [handleToggleTransactionSelect]
   );
 
-  const getSurfaceColor = useCallback((hexColor: string | null | undefined, alpha = 0.12): string => {
-    if (!hexColor || typeof hexColor !== 'string') {
-      return `rgba(15, 23, 42, ${alpha})`;
-    }
-    let normalized = hexColor.trim();
-    if (normalized.startsWith('#')) {
-      normalized = normalized.slice(1);
-    }
-    if (normalized.length === 3) {
-      normalized = normalized
-        .split('')
-        .map((char) => char + char)
-        .join('');
-    }
-    if (normalized.length !== 6) {
-      return `rgba(15, 23, 42, ${alpha})`;
-    }
-    const r = Number.parseInt(normalized.slice(0, 2), 16);
-    const g = Number.parseInt(normalized.slice(2, 4), 16);
-    const b = Number.parseInt(normalized.slice(4, 6), 16);
-    if ([r, g, b].some((value) => Number.isNaN(value))) {
-      return `rgba(15, 23, 42, ${alpha})`;
-    }
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }, []);
+  const handleRecordEdit = useCallback(
+    (record: RecordsTransaction) => {
+      const sourceTransaction = filteredTransactions.find(
+        (transaction) => String(transaction.id) === record.id
+      );
+      if (!sourceTransaction) {
+        return;
+      }
+      setCurrentTransaction(createTransactionTemplate(sourceTransaction));
+      setShowTransactionModal(true);
+    },
+    [filteredTransactions, setCurrentTransaction, setShowTransactionModal]
+  );
 
-  const resolveTagTone = useCallback((label: string | null | undefined): TagTone => {
-    if (!label) {
-      return 'neutral';
-    }
-    const normalized = label.toString().toLowerCase();
-    if (['want', 'wishlist'].includes(normalized)) {
-      return 'want';
-    }
-    if (['need', 'pending', 'due'].includes(normalized)) {
-      return 'need';
-    }
-    if (['credit', 'income', 'bonus'].includes(normalized)) {
-      return 'credit';
-    }
-    if (['debt', 'loan', 'owed'].includes(normalized)) {
-      return 'debt';
-    }
-    return 'neutral';
-  }, []);
+  const handleBulkAction = useCallback(
+    (action: 'edit' | 'export' | 'delete') => {
+      if (!hasSelection) {
+        return;
+      }
+      void Swal.fire({
+        icon: 'info',
+        title: 'Bulk action coming soon',
+        text: `Bulk ${action} for ${selectedCount} transaction${
+          selectedCount === 1 ? '' : 's'
+        } will be available in a future update.`,
+        confirmButtonColor: '#00a86b',
+      });
+    },
+    [hasSelection, selectedCount]
+  );
 
   const ensureCategoryExists = useCallback(
     async (categoryName: string): Promise<ApiCategoryResponse | undefined> => {
@@ -1048,170 +1079,29 @@ function TransactionsContent(): JSX.Element {
           </PeriodNavigation>
           <Card className="transactions-ledger-card">
             <Card.Body className="transactions-ledger-card__body">
-              <div className="transactions-ledger__header">
-                <div className="transactions-ledger__header-left">
-                  <span className="transactions-ledger__count">
-                    {`Found ${filteredTransactions.length} ${filteredTransactions.length === 1 ? 'record' : 'records'}`}
-                  </span>
-                  <Form.Check
-                    type="checkbox"
-                    id="transactions-select-all"
-                    label="Select all"
-                    className="transactions-ledger__select-all"
-                    checked={allSelected}
-                    onChange={handleToggleSelectAll}
-                  />
-                </div>
-                <div className="transactions-ledger__header-right">
-                  <span className="transactions-ledger__total-label">Net total</span>
-                  <span className={`transactions-ledger__total-value ${totalAmount >= 0 ? 'is-income' : 'is-expense'}`}>
-                    {formatCurrency(totalAmount)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="transactions-ledger__actions">
-                <Button
-                  type="button"
-                  variant="outline-secondary"
-                  size="sm"
-                  className="transactions-ledger__action-btn"
-                  disabled={!hasSelection}
-                >
-                  Edit
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline-secondary"
-                  size="sm"
-                  className="transactions-ledger__action-btn"
-                  disabled={!hasSelection}
-                >
-                  Export
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline-secondary"
-                  size="sm"
-                  className="transactions-ledger__action-btn"
-                  disabled={!hasSelection}
-                >
-                  Delete
-                </Button>
-              </div>
-
-              <div className="transactions-ledger__list">
-                {filteredTransactions.length === 0 ? (
-                  <div className="transactions-ledger__empty">
-                    No transactions found for this filter.
-                  </div>
-                ) : (
-                  filteredTransactions.map((transaction) => {
-                    const CategoryIcon = (categoryIcons[transaction.category] || FaTags) as IconRenderable;
-                    const categoryColor =
-                      categoryByName[transaction.category]?.color || '#3b82f6';
-                    const categorySurface = getSurfaceColor(categoryColor);
-                    const accountColor = accountColors[transaction.accountName || transaction.account] || '#6b7280';
-                    const isSelected = selectedIdsSet.has(transaction.id);
-                    const amountValue = Number(transaction.amount) || 0;
-                    const amountClass = amountValue >= 0 ? 'is-income' : 'is-expense';
-                    const formattedAmount = formatCurrency(amountValue, transaction.currency || 'IDR');
-                    const dateLabel = formatTransactionDate(transaction.date, transaction.dateTime);
-                    const isCleared = (transaction.paymentStatus || '').toLowerCase() === 'cleared';
-                    const labelEntries: string[] = [];
-                    const labelsValue = transaction.labels as unknown;
-                    if (typeof labelsValue === 'string') {
-                      labelsValue
-                        .split(',')
-                        .map((label) => label.trim())
-                        .filter(Boolean)
-                        .forEach((label) => labelEntries.push(label));
-                    } else if (Array.isArray(labelsValue)) {
-                      labelsValue
-                        .filter(Boolean)
-                        .forEach((label) => labelEntries.push(String(label)));
-                    }
-                    if (transaction.paymentStatus && transaction.paymentStatus.toLowerCase() !== 'cleared') {
-                      labelEntries.push(transaction.paymentStatus);
-                    }
-
-                    return (
-                      <div
-                        key={transaction.id}
-                        className={`transaction-row ${isSelected ? 'transaction-row--selected' : ''}`}
-                      >
-                        <Form.Check
-                          type="checkbox"
-                          id={`transaction-${transaction.id}`}
-                          className="transaction-row__checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleTransactionSelect(transaction.id)}
-                        />
-                        <div
-                          className="transaction-row__icon-wrapper"
-                          style={{ backgroundColor: categorySurface, color: categoryColor }}
-                        >
-                          {renderIcon(CategoryIcon, { size: 18 })}
-                          {isCleared && (
-                            <span className="transaction-row__icon-status">
-                              {renderIcon(FaCheck, { size: 10 })}
-                            </span>
-                          )}
-                        </div>
-                        <div className="transaction-row__content">
-                          <div className="transaction-row__heading">
-                            <span className="transaction-row__title">
-                              {transaction.description || 'Untitled transaction'}
-                            </span>
-                            <div className="transaction-row__tags">
-                              {labelEntries.map((label) => {
-                                const tone = resolveTagTone(label);
-                                return (
-                                  <span
-                                    key={`${transaction.id}-${tone}-${label}`}
-                                    className={`transaction-row__tag transaction-row__tag--${tone}`}
-                                  >
-                                    {label}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          <div className="transaction-row__meta">
-                            <span className="transaction-row__meta-item">{transaction.category}</span>
-                            <span className="transaction-row__separator" />
-                            <span className="transaction-row__meta-item transaction-row__meta-account">
-                              <span
-                                className="transaction-row__account-dot"
-                                style={{ backgroundColor: accountColor }}
-                                aria-hidden="true"
-                              />
-                              {transaction.accountName || transaction.account}
-                            </span>
-                            {transaction.payer && (
-                              <>
-                                <span className="transaction-row__separator" />
-                                <span className="transaction-row__meta-item">{transaction.payer}</span>
-                              </>
-                            )}
-                          </div>
-                          {transaction.notes && transaction.notes.trim().length > 0 && (
-                            <div className="transaction-row__notes">
-                              {transaction.notes}
-                            </div>
-                          )}
-                        </div>
-                        <div className="transaction-row__amount">
-                          <div className={`transaction-row__value ${amountClass}`}>
-                            {formattedAmount}
-                          </div>
-                          <div className="transaction-row__date">{dateLabel}</div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+              <RecordsHeader
+                selectedCount={selectedCount}
+                totalCount={filteredTransactions.length}
+                allSelected={allSelected}
+                onSelectAll={handleRecordsSelectAll}
+                onClearSelection={handleClearSelection}
+                onBulkEdit={hasSelection ? () => handleBulkAction('edit') : undefined}
+                onBulkExport={hasSelection ? () => handleBulkAction('export') : undefined}
+                onBulkDelete={hasSelection ? () => handleBulkAction('delete') : undefined}
+                summaryText={`Net total ${formatCurrency(totalAmount)}`}
+              />
+              <RecordsList
+                groupedTransactions={groupedTransactionRecords}
+                selectedRecords={selectedRecordIds}
+                accountName="All accounts"
+                onSelectRecord={handleRecordSelection}
+                onEditRecord={handleRecordEdit}
+                formatCurrency={formatRecordCurrency}
+                showCheckboxes
+                showDropdownMenu={false}
+                showPayer
+                showType
+              />
             </Card.Body>
           </Card>
         </Col>
