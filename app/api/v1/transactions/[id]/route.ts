@@ -163,9 +163,10 @@ export async function PUT(
     if (body.category_id !== undefined) updateData.category_id = body.category_id;
     
     // Handle amount and type together
+    // Store signed amount: negative for EXPENSE, positive for INCOME
     if (body.amount !== undefined) {
       const numericAmount = parseFloat(body.amount);
-      updateData.amount = Math.abs(numericAmount);
+      updateData.amount = numericAmount; // Store signed amount
       updateData.type = numericAmount > 0 ? 'INCOME' : 'EXPENSE';
     }
     

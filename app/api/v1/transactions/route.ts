@@ -181,8 +181,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine type based on amount sign
+    // Store the signed amount: negative for EXPENSE, positive for INCOME
     const type = numericAmount > 0 ? 'INCOME' : 'EXPENSE';
-    const absoluteAmount = Math.abs(numericAmount);
 
     // Check for duplicate personal_id
     const existing = await db.transactions.findFirst({
@@ -229,7 +229,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create transaction
+    // Create transaction with signed amount
+    // Negative for EXPENSE, positive for INCOME
     const transaction = await db.transactions.create({
       data: {
         id: crypto.randomUUID(),
@@ -238,7 +239,7 @@ export async function POST(request: NextRequest) {
         date: new Date(date),
         account_id,
         category_id,
-        amount: absoluteAmount,
+        amount: numericAmount, // Store signed amount
         type,
         note: note || null,
         position: null as any,
