@@ -65,7 +65,8 @@ export function coerceAndFormatNumber(input: string): CoerceResult {
   const display =
     sign + (grouped || (useDecimal ? '0' : '')) + (useDecimal ? '.' + fractionCandidate : '');
 
-  const normalized = sign + (intDigits || '') + (fractionCandidate ? '.' + fractionCandidate : '');
+  const normalized =
+    sign + (intDigits || '') + (useDecimal && fractionCandidate ? '.' + fractionCandidate : '');
 
   const deferCommit = endsWithSep && fractionCandidate.length === 0;
 

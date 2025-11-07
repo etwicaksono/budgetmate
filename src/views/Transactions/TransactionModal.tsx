@@ -388,6 +388,16 @@ export function TransactionModal({
   const [isEditingAmount, setIsEditingAmount] = useState<boolean>(false);
   const [isEditingToAmount, setIsEditingToAmount] = useState<boolean>(false);
 
+  const amountColor = useMemo(() => {
+    if (transaction?.type === 'Expense') {
+      return '#dc3545'; // Bootstrap danger
+    }
+    if (transaction?.type === 'Income') {
+      return '#198754'; // Bootstrap success
+    }
+    return '#212529'; // Default body text (near black)
+  }, [transaction?.type]);
+
   // Local state for Payer to ensure the field is immediately editable
   const [payerInput, setPayerInput] = useState<string>('');
   useEffect(() => {
@@ -1004,6 +1014,8 @@ export function TransactionModal({
                             placeholder="Enter amount"
                             autoComplete="off"
                             inputMode="decimal"
+                            className="text-end"
+                            style={{ color: amountColor }}
                           />
                         </InputGroup>
                       </Col>
@@ -1036,6 +1048,7 @@ export function TransactionModal({
                             placeholder="Enter amount"
                             autoComplete="off"
                             inputMode="decimal"
+                            className="text-end"
                           />
                         </InputGroup>
                       </Col>
@@ -1064,7 +1077,8 @@ export function TransactionModal({
                         placeholder="Enter amount"
                         autoComplete="off"
                         inputMode="decimal"
-                        style={{ paddingRight: '2.5rem' }}
+                        className="text-end"
+                        style={{ paddingRight: '2.5rem', color: amountColor }}
                         isInvalid={!!validationErrors.amount}
                       />
                       <InputClearButton
