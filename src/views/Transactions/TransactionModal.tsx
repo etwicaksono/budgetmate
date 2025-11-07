@@ -1080,10 +1080,10 @@ export function TransactionModal({
                       transaction.category ? [transaction.category] : []
                     }
                     setSelectedCategories={handleCategorySelect}
-                    categoryTree={resolvedCategoryTree}
-                    parentCategoryColors={resolvedCategoryColorsMap}
+                    categoryTree={apiCategoryTree}
+                    parentCategoryColors={apiCategoryColorsMap}
                     categoryIcons={categoryIconsForSelect}
-                    allCategories={resolvedCategoryOptions}
+                    allCategories={apiCategoryOptions}
                     entityLabelSingular="category"
                     entityLabelPlural="categories"
                     searchPlaceholder="Search category..."

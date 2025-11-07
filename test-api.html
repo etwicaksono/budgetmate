@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Categories API</title>
+</head>
+<body>
+    <h1>Test Categories API</h1>
+    <button onclick="testCategories()">Test /api/v1/categories</button>
+    <pre id="output"></pre>
+
+    <script>
+        async function testCategories() {
+            const output = document.getElementById('output');
+            output.textContent = 'Loading...';
+            
+            try {
+                // Get token from localStorage
+                const token = localStorage.getItem('access_token');
+                
+                const response = await fetch('http://localhost:3000/api/v1/categories', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                output.textContent = JSON.stringify(data, null, 2);
+                console.log('Categories API response:', data);
+            } catch (error) {
+                output.textContent = 'Error: ' + error.message;
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

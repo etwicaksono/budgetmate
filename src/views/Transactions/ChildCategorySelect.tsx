@@ -184,6 +184,7 @@ export const ChildCategorySelect: React.FC<ChildCategorySelectProps> = ({
         .map((child) => createChildEntry(parent, child));
 
       if (!searchTerm) {
+        // If parent has children, show them
         if (normalizedChildren.length > 0) {
           results.push({
             key: `parent-${parent}`,
@@ -191,6 +192,21 @@ export const ChildCategorySelect: React.FC<ChildCategorySelectProps> = ({
             parentColor: parentCategoryColors?.[parent] ?? DEFAULT_COLOR,
             parentIcon: coerceIconComponent(categoryIcons?.[parent]),
             children: normalizedChildren,
+          });
+        } else {
+          // If parent has no children, make the parent itself selectable
+          results.push({
+            key: `parent-${parent}`,
+            parent,
+            parentColor: parentCategoryColors?.[parent] ?? DEFAULT_COLOR,
+            parentIcon: coerceIconComponent(categoryIcons?.[parent]),
+            children: [{
+              value: parent,
+              label: parent,
+              parent: null,
+              color: parentCategoryColors?.[parent] ?? DEFAULT_COLOR,
+              Icon: coerceIconComponent(categoryIcons?.[parent]),
+            }],
           });
         }
         return;
@@ -202,12 +218,23 @@ export const ChildCategorySelect: React.FC<ChildCategorySelectProps> = ({
       );
 
       if (parentMatches || filteredChildren.length > 0) {
+        // If parent matches but has no children, make parent selectable
+        const childrenToShow = parentMatches && normalizedChildren.length === 0
+          ? [{
+              value: parent,
+              label: parent,
+              parent: null,
+              color: parentCategoryColors?.[parent] ?? DEFAULT_COLOR,
+              Icon: coerceIconComponent(categoryIcons?.[parent]),
+            }]
+          : parentMatches ? normalizedChildren : filteredChildren;
+        
         results.push({
           key: `parent-${parent}`,
           parent,
           parentColor: parentCategoryColors?.[parent] ?? DEFAULT_COLOR,
           parentIcon: coerceIconComponent(categoryIcons?.[parent]),
-          children: parentMatches ? normalizedChildren : filteredChildren,
+          children: childrenToShow,
         });
       }
     });
