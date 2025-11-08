@@ -225,13 +225,15 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
   };
 
   const handleSelectRecord = (recordId: string): void => {
-    const newSelected = new Set(selectedRecords);
-    if (newSelected.has(recordId)) {
-      newSelected.delete(recordId);
-    } else {
-      newSelected.add(recordId);
-    }
-    setSelectedRecords(newSelected);
+    setSelectedRecords((previousSelected) => {
+      const nextSelected = new Set(previousSelected);
+      if (nextSelected.has(recordId)) {
+        nextSelected.delete(recordId);
+      } else {
+        nextSelected.add(recordId);
+      }
+      return nextSelected;
+    });
   };
 
   const handleSelectAllRecords = (): void => {
