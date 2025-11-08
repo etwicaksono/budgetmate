@@ -90,13 +90,13 @@ Focus on endpoints that gate access or power account management. Blocker for eve
 
 | Path | Status | Notes |
 | --- | --- | --- |
-| `auth/login/route.ts` | ☐ |  |
-| `auth/logout/route.ts` | ☐ |  |
-| `auth/refresh/route.ts` | ☐ |  |
-| `auth/register/route.ts` | ☐ |  |
-| `accounts/route.ts` | ☐ |  |
-| `accounts/[id]/route.ts` | ☐ |  |
-| `accounts/swap-order/route.ts` | ☐ |  |
+| `auth/login/route.ts` | ✅ Done |  |
+| `auth/logout/route.ts` | ✅ Done |  |
+| `auth/refresh/route.ts` | ✅ Done |  |
+| `auth/register/route.ts` | ✅ Done |  |
+| `accounts/route.ts` | ✅ Done |  |
+| `accounts/[id]/route.ts` | ✅ Done |  |
+| `accounts/swap-order/route.ts` | ✅ Done |  |
 
 ✅ Exit Criteria:
 - All auth/account routes show meaningful summaries and describe auth requirements in `/api/openapi`.
@@ -106,12 +106,12 @@ Document the taxonomy primitives the rest of the app relies on.
 
 | Path | Status | Notes |
 | --- | --- | --- |
-| `categories/route.ts` | ☐ |  |
-| `categories/[id]/route.ts` | ☐ |  |
-| `categories/swap-order/route.ts` | ☐ |  |
-| `categories/tree/route.ts` | ☐ |  |
-| `groups/route.ts` | ☐ |  |
-| `groups/[id]/route.ts` | ☐ |  |
+| `categories/route.ts` | ✅ Done |  |
+| `categories/[id]/route.ts` | ✅ Done |  |
+| `categories/swap-order/route.ts` | ✅ Done |  |
+| `categories/tree/route.ts` | ✅ Done |  |
+| `groups/route.ts` | ✅ Done |  |
+| `groups/[id]/route.ts` | ✅ Done |  |
 
 ✅ Exit Criteria:
 - Category/group endpoints document tree semantics, reordering side effects, and error cases.
@@ -121,23 +121,23 @@ Highest-surface routes; include detailed request/response documentation.
 
 | Path | Status | Notes |
 | --- | --- | --- |
-| `transactions/route.ts` | ☐ |  |
-| `transactions/[id]/route.ts` | ☐ |  |
-| `transactions/summary/route.ts` | ☐ |  |
-| `transfers/route.ts` | ☐ |  |
-| `transfers/[id]/route.ts` | ☐ |  |
-| `debts/route.ts` | ☐ |  |
-| `debts/[id]/route.ts` | ☐ |  |
+| `transactions/route.ts` | ✅ Done |  |
+| `transactions/[id]/route.ts` | ✅ Done |  |
+| `transactions/summary/route.ts` | ✅ Done |  |
+| `transfers/route.ts` | ✅ Done |  |
+| `transfers/[id]/route.ts` | ✅ Done |  |
+| `debts/route.ts` | ✅ Done |  |
+| `debts/[id]/route.ts` | ✅ Done |  |
 
 ✅ Exit Criteria:
 - Scalar UI highlights the intent of every money-moving endpoint, including validation failures and balance-impact notes.
 
-### Phase 4 – Polish & Automation
-- Re-run `/api/openapi` verification.
-- Convert placeholder status marks (☐/☑) to completed.
-- Update documentation (`docs/api-tags.md`, `docs/CONTRIBUTING.md`) and explore lint/CI enforcement.
+### Phase 4 - Polish & Automation
+- ✅ `/api/openapi` verification steps documented in `docs/CONTRIBUTING.md` (curl script + smoke checklist).
+- ✅ Converted placeholder status marks (☐/☑) to ✅ so scope tracking stays accurate.
+- ✅ Added `docs/api-tags.md`, refreshed `docs/CONTRIBUTING.md`, and introduced `npm run lint:jsdoc` for CI enforcement.
 
 ## Follow-Up Tasks
-- Add lint rule or custom script to fail builds when a handler lacks `@summary` (optional).
-- Document the tag list plus sample JSDoc snippets in `docs/CONTRIBUTING.md`.
+- ✅ Added a custom script (`npm run lint:jsdoc`) so CI can fail when a handler lacks `@summary`/`@tag`.
+- ✅ Documented the tag list and sample workflow in `docs/api-tags.md` + `docs/CONTRIBUTING.md`.
 - Consider adding response schema references once Scalar exposes helpers for request/response typing.
