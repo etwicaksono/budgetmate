@@ -5,10 +5,9 @@ import React, {
   useRef,
   useState,
   type ChangeEvent,
-  type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { Form } from 'react-bootstrap';
-import { FaCaretDown, FaCheck, FaTimesCircle } from 'react-icons/fa';
+import { FaCaretDown, FaCheck } from 'react-icons/fa';
 import { InputClearButton } from '../../components/InputClearButton';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
@@ -66,7 +65,6 @@ const coerceIconComponent = (
 
 const CaretDownIcon = coerceIconComponent(FaCaretDown);
 const CheckIcon = coerceIconComponent(FaCheck);
-const TimesCircleIcon = coerceIconComponent(FaTimesCircle);
 
 const findParentForCategory = (category: string, categoryTree: CategoryTree): string | null => {
   for (const [parent, children] of Object.entries(categoryTree ?? {})) {

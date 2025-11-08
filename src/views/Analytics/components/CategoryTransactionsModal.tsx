@@ -10,18 +10,14 @@ interface CategoryTransactionsModalProps {
   show: boolean;
   onHide: () => void;
   categoryId: string | null;
-  categoryName: string;
   monthType: 'current' | 'previous';
-  monthName: string;
 }
 
 const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
   show,
   onHide,
   categoryId,
-  categoryName,
   monthType,
-  monthName,
 }) => {
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [loading, setLoading] = useState(false);

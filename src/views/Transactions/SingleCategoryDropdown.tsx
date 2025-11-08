@@ -7,7 +7,7 @@ import React, {
   type ComponentType,
 } from 'react';
 import { Form } from 'react-bootstrap';
-import { FaCaretDown, FaCheck, FaTimesCircle } from 'react-icons/fa';
+import { FaCaretDown, FaCheck } from 'react-icons/fa';
 import type { IconBaseProps, IconType } from 'react-icons';
 import { InputClearButton } from '../../components/InputClearButton';
 

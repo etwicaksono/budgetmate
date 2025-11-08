@@ -9,7 +9,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { LoginRequestSchema, type LoginRequest } from '@/types/schemas';
 import { APP_CONFIG } from '../../config';
 import './Login.css';
-import { FaGoogle, FaFacebook, FaApple } from 'react-icons/fa';
 
 // Type definitions
 interface ApiError {
@@ -146,25 +145,6 @@ const Login: React.FC = () => {
 
         <div className="login-form-container">
           <h2>Log In</h2>
-
-          {/* <div className="social-buttons">
-            <button className="social-button google" type="button">
-              <FaGoogle size={24} aria-hidden="true" />
-              Sign in with Google
-            </button>
-            <button className="social-button facebook" type="button">
-              <FaFacebook size={24} aria-hidden="true" />
-              Sign in with Facebook
-            </button>
-            <button className="social-button apple" type="button">
-              <FaApple size={24} aria-hidden="true" />
-              Sign in with Apple
-            </button>
-          </div>
-
-          <div className="divider">
-            <span>or</span>
-          </div> */} {/* TODO: implement for the future */}
 
           <Form onSubmit={handleFormSubmit(onSubmit)}>
             <Form.Group className="mb-3" controlId="email_or_username">

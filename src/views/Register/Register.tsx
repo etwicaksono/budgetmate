@@ -3,7 +3,6 @@ import { Form, Button, Modal } from 'react-bootstrap';
 import Link from 'next/link';
 import { authService } from '../../services';
 import './Register.css';
-import { FaGoogle, FaFacebook, FaApple } from 'react-icons/fa';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RegisterRequestSchema, type RegisterRequest } from '@/types/schemas';
@@ -150,25 +149,6 @@ const Register: React.FC = () => {
 
         <div className="register-form-container">
           <h2>Sign Up</h2>
-
-          {/* <div className="social-buttons">
-            <button className="social-button google" type="button">
-              <FaGoogle size={24} aria-hidden="true" />
-              Sign up with Google
-            </button>
-            <button className="social-button facebook" type="button">
-              <FaFacebook size={24} aria-hidden="true" />
-              Sign up with Facebook
-            </button>
-            <button className="social-button apple" type="button">
-              <FaApple size={24} aria-hidden="true" />
-              Sign up with Apple
-            </button>
-          </div>
-
-          <div className="divider">
-            <span>or</span>
-          </div> */} {/* TODO: implement for the future */}
 
           <Form onSubmit={handleFormSubmit(onSubmit)} noValidate>
             <Form.Group className="mb-3" controlId="name">

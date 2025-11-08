@@ -70,7 +70,6 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({ currentMo
     id: string;
     name: string;
     monthType: 'current' | 'previous';
-    monthName: string;
   } | null>(null);
 
   useEffect(() => {
@@ -118,12 +117,10 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({ currentMo
     event: React.MouseEvent
   ) => {
     event.stopPropagation();
-    const monthName = monthType === 'current' ? data?.currentMonthName : data?.previousMonthName;
     setSelectedCategory({
       id: categoryId,
       name: categoryName,
       monthType,
-      monthName: monthName || '',
     });
     setShowModal(true);
   };
@@ -457,9 +454,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({ currentMo
         show={showModal}
         onHide={handleCloseModal}
         categoryId={selectedCategory?.id || null}
-        categoryName={selectedCategory?.name || ''}
         monthType={selectedCategory?.monthType || 'current'}
-        monthName={selectedCategory?.monthName || ''}
       />
     </div>
   );
