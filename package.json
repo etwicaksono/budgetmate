@@ -22,7 +22,7 @@
     "@floating-ui/react": "^0.27.16",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6.19.0",
-    "@scalar/nextjs-openapi": "^0.2.25",
+    "@scalar/nextjs-openapi": "0.2.20",
     "bcryptjs": "^3.0.3",
     "bootstrap": "^5.3.8",
     "dotenv": "^17.2.3",
@@ -43,7 +43,7 @@
     "recharts": "^3.3.0",
     "sweetalert2": "^11.26.3",
     "web-vitals": "^5.1.0",
-    "zod": "^4.1.12"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
