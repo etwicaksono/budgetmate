@@ -38,7 +38,7 @@ export const calculateNetAmount = (totalIncome: number, totalExpense: number): n
  * Calculate average transaction amount
  */
 export const calculateAverageTransaction = (transactions: TransactionRecord[]): number => {
-  if (transactions.length === 0) return 0;
+  if (transactions.length === 0) {return 0;}
   const total = transactions.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
   return total / transactions.length;
 };
@@ -113,8 +113,8 @@ export const getTransactionSign = (type: string): string => {
  * Get transaction amount with proper sign
  */
 export const getSignedAmount = (amount: number, type: string): number => {
-  if (type === 'Income') return Math.abs(amount);
-  if (type === 'Expense') return -Math.abs(amount);
+  if (type === 'Income') {return Math.abs(amount);}
+  if (type === 'Expense') {return -Math.abs(amount);}
   return amount;
 };
 
@@ -122,7 +122,7 @@ export const getSignedAmount = (amount: number, type: string): number => {
  * Calculate percentage of total
  */
 export const calculatePercentage = (value: number, total: number): number => {
-  if (total === 0) return 0;
+  if (total === 0) {return 0;}
   return (value / total) * 100;
 };
 
@@ -146,7 +146,7 @@ export const calculateDailyAverage = (
   transactions: TransactionRecord[],
   daysInPeriod: number
 ): number => {
-  if (daysInPeriod === 0) return 0;
+  if (daysInPeriod === 0) {return 0;}
   const totalExpense = calculateTotalExpense(transactions);
   return totalExpense / daysInPeriod;
 };

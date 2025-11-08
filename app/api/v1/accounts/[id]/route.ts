@@ -151,14 +151,14 @@ export async function PUT(
       updated_at: new Date(),
     };
 
-    if (body.name !== undefined) updateData.name = body.name;
-    if (body.icon !== undefined) updateData.icon = body.icon;
-    if (body.active !== undefined) updateData.active = body.active;
-    if (body.usability !== undefined) updateData.usability = body.usability;
-    if (body.account_type !== undefined) updateData.account_type = body.account_type;
-    if (body.color !== undefined) updateData.color = body.color;
-    if (body.initial_amount !== undefined) updateData.initial_amount = body.initial_amount;
-    if (body.group_id !== undefined) updateData.group_id = body.group_id;
+    if (body.name !== undefined) {updateData.name = body.name;}
+    if (body.icon !== undefined) {updateData.icon = body.icon;}
+    if (body.active !== undefined) {updateData.active = body.active;}
+    if (body.usability !== undefined) {updateData.usability = body.usability;}
+    if (body.account_type !== undefined) {updateData.account_type = body.account_type;}
+    if (body.color !== undefined) {updateData.color = body.color;}
+    if (body.initial_amount !== undefined) {updateData.initial_amount = body.initial_amount;}
+    if (body.group_id !== undefined) {updateData.group_id = body.group_id;}
 
     // Update account
     const account = await db.accounts.update({

@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const accountIdFilters = new Set<string>();
-    if (account_id) accountIdFilters.add(account_id);
+    if (account_id) {accountIdFilters.add(account_id);}
     accountIdsParam.forEach((id) => accountIdFilters.add(id));
     if (accountNamesParam.length > 0) {
       const matchingAccounts = await db.accounts.findMany({
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     }
 
     const categoryIdFilters = new Set<string>();
-    if (category_id) categoryIdFilters.add(category_id);
+    if (category_id) {categoryIdFilters.add(category_id);}
     categoryIdsParam.forEach((id) => categoryIdFilters.add(id));
     if (categoryNamesParam.length > 0) {
       const matchingCategories = await db.categories.findMany({
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     } else if (categoryIdFilters.size > 1) {
       where.category_id = { in: Array.from(categoryIdFilters) };
     }
-    if (type) where.type = type;
+    if (type) {where.type = type;}
 
     // Date range filter
     if (start_date || end_date) {

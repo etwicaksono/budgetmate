@@ -284,7 +284,7 @@ const Accounts: React.FC = () => {
         const sorted = [...apiAccounts].sort((a, b) => {
           const ap = (a.position ?? 0);
           const bp = (b.position ?? 0);
-          if (ap !== bp) return ap - bp;
+          if (ap !== bp) {return ap - bp;}
           return ((a.personal_id ?? 0) - (b.personal_id ?? 0));
         });
 
@@ -378,7 +378,7 @@ const Accounts: React.FC = () => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
 
-        if (oldIndex === -1 || newIndex === -1) return items;
+        if (oldIndex === -1 || newIndex === -1) {return items;}
 
         // Get the accounts being swapped before reordering
         const draggedAccount = items[oldIndex];
@@ -511,7 +511,7 @@ const Accounts: React.FC = () => {
       const sorted = [...apiAccounts].sort((a, b) => {
         const ap = (a.position ?? 0);
         const bp = (b.position ?? 0);
-        if (ap !== bp) return ap - bp;
+        if (ap !== bp) {return ap - bp;}
         return ((a.personal_id ?? 0) - (b.personal_id ?? 0));
       });
 

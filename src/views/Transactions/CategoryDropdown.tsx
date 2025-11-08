@@ -257,10 +257,10 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (!isOpen) return;
+      if (!isOpen) {return;}
 
       const target = event.target as Node | null;
-      if (!target) return;
+      if (!target) {return;}
 
       const isClickOnReference = referenceRef.current && referenceRef.current.contains(target);
       const isClickOnFloating = floatingRef.current && floatingRef.current.contains(target);

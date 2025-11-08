@@ -145,7 +145,7 @@ function SortDropdown({ id, value, onChange }: SortDropdownProps): JSX.Element {
             'w-100',
             'bg-white',
           ];
-          if (isSelected) itemClasses.push('selected');
+          if (isSelected) {itemClasses.push('selected');}
           return (
             <Dropdown.Item
               key={option.value}

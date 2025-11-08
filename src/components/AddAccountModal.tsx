@@ -165,8 +165,8 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmi
 
   const openColorPicker = (event?: React.MouseEvent): void => {
     const picker = colorPickerInputRef.current;
-    if (!picker) return;
-    if (event) event.preventDefault();
+    if (!picker) {return;}
+    if (event) {event.preventDefault();}
     picker.click();
   };
 
@@ -222,7 +222,7 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({ show, onHide, onSubmi
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const trimmedName = newAccountForm.name.trim();
-    if (!trimmedName) return;
+    if (!trimmedName) {return;}
 
     setError(null);
     setIsLoading(true);

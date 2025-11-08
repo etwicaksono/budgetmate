@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
       user_id: user.user_id,
     };
 
-    if (account_id) where.account_id = account_id;
-    if (type) where.type = type;
+    if (account_id) {where.account_id = account_id;}
+    if (type) {where.type = type;}
 
     // Keyword search in name
     if (keyword) {

@@ -261,7 +261,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
     // Convert 12-hour time format to 24-hour for datetime-local input
     const convertTo24Hour = (time12h: string): string => {
       const match = time12h.match(/(\d{1,2}):(\d{2})\s?(AM|PM)/i);
-      if (!match) return '00:00';
+      if (!match) {return '00:00';}
 
       let hours = parseInt(match[1]);
       const minutes = match[2];
@@ -328,12 +328,12 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
   };
 
   const handleEditModalChange = (event: any): void => {
-    if (!editingTransaction) return;
+    if (!editingTransaction) {return;}
 
     const { name, value, checked, type: inputType } = event.target;
 
     setEditingTransaction((prev) => {
-      if (!prev) return prev;
+      if (!prev) {return prev;}
 
       return {
         ...prev,
@@ -346,7 +346,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
     createAnother: boolean,
     context?: TransactionModalSaveContext
   ): void => {
-    if (!editingTransaction) return;
+    if (!editingTransaction) {return;}
 
     // TODO: Implement API call to save the transaction
     setShowEditModal(false);

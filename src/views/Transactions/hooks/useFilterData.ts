@@ -110,7 +110,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
       try {
         console.log('?? Fetching categories from API...');
         const apiCategories = await categoryService.fetchCategories();
-        if (isCancelled) return;
+        if (isCancelled) {return;}
         if (!apiCategories || apiCategories.length === 0) {
           const message = 'Categories could not be retrieved. Please try again later.';
           console.warn('?? Categories API returned no data');
@@ -124,7 +124,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
         categoriesFetchedRef.current = true;
         console.log('?? Categories set to state');
       } catch (error) {
-        if (isCancelled) return;
+        if (isCancelled) {return;}
         console.error('? Failed to fetch categories:', error);
         const message = 'Failed to retrieve categories. Please refresh the page.';
         setCategoryError(message);
@@ -154,7 +154,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
     const loadAccounts = async () => {
       try {
         const accounts = await accountService.fetchAccounts();
-        if (isCancelled) return;
+        if (isCancelled) {return;}
         if (!accounts || accounts.length === 0) {
           const message = 'Accounts could not be retrieved. Please try again later.';
           console.warn('?? Accounts API returned no data');
@@ -167,7 +167,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
         setAccountError(null);
         accountsFetchedRef.current = true;
       } catch (error) {
-        if (isCancelled) return;
+        if (isCancelled) {return;}
         console.error('Failed to fetch accounts:', error);
         const message = 'Failed to retrieve accounts. Please refresh the page.';
         setAccountError(message);

@@ -7,10 +7,10 @@ export const DEFAULT_ACCOUNT_ICON_KEY = 'FaWallet';
 const resolveIconComponent = (
   iconName: string | null | undefined
 ): React.ComponentType<{ size?: number }> | undefined => {
-  if (!iconName) return undefined;
+  if (!iconName) {return undefined;}
   const iconsLibrary = FaIcons as unknown as Record<string, IconType>;
   const IconComp = iconsLibrary[iconName];
-  if (!IconComp) return undefined;
+  if (!IconComp) {return undefined;}
   return IconComp as unknown as React.ComponentType<{ size?: number }>;
 };
 

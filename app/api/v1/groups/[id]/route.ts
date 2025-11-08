@@ -146,7 +146,7 @@ export async function PUT(
       updated_at: new Date(),
     };
 
-    if (body.name !== undefined) updateData.name = body.name.trim();
+    if (body.name !== undefined) {updateData.name = body.name.trim();}
 
     // Update group
     const group = await db.groups.update({

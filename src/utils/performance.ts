@@ -100,7 +100,7 @@ export class PerformanceMonitor {
    */
   getAverageRenderTime(componentName: string): number | null {
     const times = this.measurements.get(componentName);
-    if (!times || times.length === 0) return null;
+    if (!times || times.length === 0) {return null;}
 
     const average = times.reduce((sum, time) => sum + time, 0) / times.length;
     return average;

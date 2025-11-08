@@ -61,7 +61,7 @@ export const filterBySearchTerm = (
   transactions: TransactionRecord[],
   searchTerm: string
 ): TransactionRecord[] => {
-  if (!searchTerm) return transactions;
+  if (!searchTerm) {return transactions;}
   
   const lowerSearch = searchTerm.toLowerCase();
   return transactions.filter(transaction => 
@@ -78,7 +78,7 @@ export const filterByType = (
   transactions: TransactionRecord[],
   selectedTypes: Set<TransactionType>
 ): TransactionRecord[] => {
-  if (selectedTypes.size === 0) return transactions;
+  if (selectedTypes.size === 0) {return transactions;}
   return transactions.filter(transaction => 
     selectedTypes.has(transaction.type as TransactionType)
   );
@@ -91,7 +91,7 @@ export const filterByCategories = (
   transactions: TransactionRecord[],
   selectedCategories: Set<string>
 ): TransactionRecord[] => {
-  if (selectedCategories.size === 0) return transactions;
+  if (selectedCategories.size === 0) {return transactions;}
   return transactions.filter(transaction => 
     transaction.category && selectedCategories.has(transaction.category)
   );
@@ -104,7 +104,7 @@ export const filterByAccounts = (
   transactions: TransactionRecord[],
   selectedAccounts: Set<string>
 ): TransactionRecord[] => {
-  if (selectedAccounts.size === 0) return transactions;
+  if (selectedAccounts.size === 0) {return transactions;}
   return transactions.filter(transaction => 
     transaction.account && selectedAccounts.has(transaction.account)
   );
@@ -131,7 +131,7 @@ export const filterByDateRange = (
   transactions: TransactionRecord[],
   dateRange: { start: Date | null; end: Date | null }
 ): TransactionRecord[] => {
-  if (!dateRange.start && !dateRange.end) return transactions;
+  if (!dateRange.start && !dateRange.end) {return transactions;}
   
   return transactions.filter(transaction => {
     const transactionDate = new Date(transaction.date);

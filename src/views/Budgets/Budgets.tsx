@@ -45,13 +45,13 @@ const createEmptyBudgetForm = (): CurrentBudgetForm => ({
 });
 
 const calculatePercentage = (spent: number, budgeted: number): number => {
-  if (budgeted === 0) return 0;
+  if (budgeted === 0) {return 0;}
   return Math.min(100, (spent / budgeted) * 100);
 };
 
 const getStatusVariant = (percentage: number): 'success' | 'warning' | 'danger' => {
-  if (percentage >= 100) return 'danger';
-  if (percentage >= 80) return 'warning';
+  if (percentage >= 100) {return 'danger';}
+  if (percentage >= 80) {return 'warning';}
   return 'success';
 };
 

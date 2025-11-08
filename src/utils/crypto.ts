@@ -8,7 +8,7 @@ const isBrowserCryptoAvailable = (): boolean =>
   typeof window !== 'undefined' && typeof window.crypto !== 'undefined';
 
 const isSecureContext = (): boolean => {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') {return false;}
   // Check if we're in a secure context (HTTPS or localhost)
   return window.isSecureContext === true;
 };

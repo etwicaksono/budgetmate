@@ -210,9 +210,9 @@ export async function PUT(
       updated_at: new Date(),
     };
 
-    if (body.name !== undefined) updateData.name = body.name.trim();
-    if (body.type !== undefined) updateData.type = body.type;
-    if (body.account_id !== undefined) updateData.account_id = body.account_id;
+    if (body.name !== undefined) {updateData.name = body.name.trim();}
+    if (body.type !== undefined) {updateData.type = body.type;}
+    if (body.account_id !== undefined) {updateData.account_id = body.account_id;}
 
     // Update debt
     const debt = await db.debts.update({

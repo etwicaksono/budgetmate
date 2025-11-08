@@ -212,11 +212,11 @@ export async function PUT(
         updated_at: new Date(),
       };
 
-      if (body.date !== undefined) transferUpdateData.date = new Date(body.date);
-      if (body.from_account_id !== undefined) transferUpdateData.from_account = body.from_account_id;
-      if (body.to_account_id !== undefined) transferUpdateData.to_account = body.to_account_id;
-      if (body.amount !== undefined) transferUpdateData.amount = parseFloat(body.amount);
-      if (body.note !== undefined) transferUpdateData.note = body.note;
+      if (body.date !== undefined) {transferUpdateData.date = new Date(body.date);}
+      if (body.from_account_id !== undefined) {transferUpdateData.from_account = body.from_account_id;}
+      if (body.to_account_id !== undefined) {transferUpdateData.to_account = body.to_account_id;}
+      if (body.amount !== undefined) {transferUpdateData.amount = parseFloat(body.amount);}
+      if (body.note !== undefined) {transferUpdateData.note = body.note;}
 
       // Update transfer
       const transfer = await prisma.transfers.update({
@@ -249,9 +249,9 @@ export async function PUT(
         updated_at: new Date(),
       };
 
-      if (body.date !== undefined) txnUpdateData.date = new Date(body.date);
-      if (body.amount !== undefined) txnUpdateData.amount = parseFloat(body.amount);
-      if (body.note !== undefined) txnUpdateData.note = body.note;
+      if (body.date !== undefined) {txnUpdateData.date = new Date(body.date);}
+      if (body.amount !== undefined) {txnUpdateData.amount = parseFloat(body.amount);}
+      if (body.note !== undefined) {txnUpdateData.note = body.note;}
 
       // Update EXPENSE transaction (from account)
       if (body.from_account_id !== undefined) {

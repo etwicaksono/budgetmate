@@ -121,7 +121,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
     // Convert 12-hour time format to 24-hour for datetime-local input
     const convertTo24Hour = (time12h: string): string => {
       const match = time12h.match(/(\d{1,2}):(\d{2})\s?(AM|PM)/i);
-      if (!match) return '00:00';
+      if (!match) {return '00:00';}
 
       let hours = parseInt(match[1]);
       const minutes = match[2];
@@ -181,7 +181,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
   };
 
   const handleTransactionChange = (event: any) => {
-    if (!editingTransaction) return;
+    if (!editingTransaction) {return;}
 
     const { name, value } = event.target;
     setEditingTransaction({

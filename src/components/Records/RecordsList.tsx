@@ -34,7 +34,7 @@ const RecordsList: React.FC<RecordsListProps> = ({
   const resolveIconComponent = (
     iconName?: string
   ): React.ComponentType<{ size?: number }> | undefined => {
-    if (!iconName) return undefined;
+    if (!iconName) {return undefined;}
     const iconsLibrary = FaIcons as unknown as Record<string, React.ComponentType<{ size?: number }>>;
     const IconComp = iconsLibrary[iconName];
     return IconComp ? (IconComp as React.ComponentType<{ size?: number }>) : undefined;

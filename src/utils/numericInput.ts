@@ -11,7 +11,7 @@ export interface CoerceResult {
 }
 
 export function formatNumberDisplayFromValue(val: string | number | null | undefined): string {
-  if (val === null || val === undefined || val === '') return '';
+  if (val === null || val === undefined || val === '') {return '';}
   const raw = String(val).trim();
 
   const sign = raw.startsWith('-') ? '-' : '';
@@ -40,7 +40,7 @@ export function formatNumberDisplayFromValue(val: string | number | null | undef
 }
 
 export function coerceAndFormatNumber(input: string): CoerceResult {
-  if (!input) return { display: '', normalized: '', deferCommit: false };
+  if (!input) {return { display: '', normalized: '', deferCommit: false };}
 
   let s = input.replace(/[^\d.,-]/g, '');
   s = s.replace(/(?!^)-/g, '');

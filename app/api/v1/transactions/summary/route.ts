@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
     // Date range filter
     if (start_date || end_date) {
       where.date = {};
-      if (start_date) where.date.gte = new Date(start_date);
-      if (end_date) where.date.lte = new Date(end_date);
+      if (start_date) {where.date.gte = new Date(start_date);}
+      if (end_date) {where.date.lte = new Date(end_date);}
     }
 
     // Get all transactions for the period

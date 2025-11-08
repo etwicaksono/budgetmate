@@ -190,9 +190,9 @@ export async function PUT(
       updated_at: new Date(),
     };
 
-    if (body.date !== undefined) updateData.date = new Date(body.date);
-    if (body.account_id !== undefined) updateData.account_id = body.account_id;
-    if (body.category_id !== undefined) updateData.category_id = body.category_id;
+    if (body.date !== undefined) {updateData.date = new Date(body.date);}
+    if (body.account_id !== undefined) {updateData.account_id = body.account_id;}
+    if (body.category_id !== undefined) {updateData.category_id = body.category_id;}
     
     // Handle amount and type together
     // Store signed amount: negative for EXPENSE, positive for INCOME
@@ -202,7 +202,7 @@ export async function PUT(
       updateData.type = numericAmount > 0 ? 'INCOME' : 'EXPENSE';
     }
     
-    if (body.note !== undefined) updateData.note = body.note;
+    if (body.note !== undefined) {updateData.note = body.note;}
 
     // Update transaction
     const transaction = await db.transactions.update({

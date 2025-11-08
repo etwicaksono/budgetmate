@@ -358,7 +358,7 @@ export function TransactionModal({
 
   const openDateTimePicker = useCallback(() => {
     const input = dateTimeInputRef.current;
-    if (!input) return;
+    if (!input) {return;}
 
     // Focus first for browsers that show picker on focus
     input.focus();
@@ -439,7 +439,7 @@ export function TransactionModal({
   // Helper to remove leading zeros (e.g., "0012345" -> "12345")
   const removeLeadingZeros = useCallback((value: string): string => {
     // Handle empty or invalid input
-    if (!value) return value;
+    if (!value) {return value;}
     
     // If the value starts with digits, remove leading zeros
     // But preserve "0" if it's the only digit before decimal point

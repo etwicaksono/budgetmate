@@ -57,7 +57,7 @@ const DEFAULT_WIDGET_ORDER = [
 
 // Helper function to load widget order from localStorage
 const loadWidgetOrder = (): string[] => {
-  if (typeof window === 'undefined') return DEFAULT_WIDGET_ORDER;
+  if (typeof window === 'undefined') {return DEFAULT_WIDGET_ORDER;}
   
   try {
     const stored = localStorage.getItem(WIDGET_ORDER_STORAGE_KEY);
@@ -177,7 +177,7 @@ const DashboardContent: React.FC = () => {
         const oldIndex = items.findIndex((item) => item === active.id);
         const newIndex = items.findIndex((item) => item === over.id);
 
-        if (oldIndex === -1 || newIndex === -1) return items;
+        if (oldIndex === -1 || newIndex === -1) {return items;}
 
         return arrayMove(items, oldIndex, newIndex);
       });

@@ -26,7 +26,7 @@ export function InputClearButton({
   colorClass = 'text-muted',
   positionAbsolute = true,
 }: InputClearButtonProps): JSX.Element | null {
-  if (!show) return null;
+  if (!show) {return null;}
 
   const classes = positionAbsolute
     ? `${className} position-absolute top-50 end-0 translate-middle-y ${colorClass}`

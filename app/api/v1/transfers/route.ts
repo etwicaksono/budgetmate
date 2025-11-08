@@ -42,21 +42,21 @@ export async function GET(request: NextRequest) {
       user_id: user.user_id,
     };
 
-    if (from_account_id) where.from_account = from_account_id;
-    if (to_account_id) where.to_account = to_account_id;
+    if (from_account_id) {where.from_account = from_account_id;}
+    if (to_account_id) {where.to_account = to_account_id;}
 
     // Date range filter
     if (start_date || end_date) {
       where.date = {};
-      if (start_date) where.date.gte = new Date(start_date);
-      if (end_date) where.date.lte = new Date(end_date);
+      if (start_date) {where.date.gte = new Date(start_date);}
+      if (end_date) {where.date.lte = new Date(end_date);}
     }
 
     // Amount range filter
     if (min_amount || max_amount) {
       where.amount = {};
-      if (min_amount) where.amount.gte = parseFloat(min_amount);
-      if (max_amount) where.amount.lte = parseFloat(max_amount);
+      if (min_amount) {where.amount.gte = parseFloat(min_amount);}
+      if (max_amount) {where.amount.lte = parseFloat(max_amount);}
     }
 
     // Keyword search in notes

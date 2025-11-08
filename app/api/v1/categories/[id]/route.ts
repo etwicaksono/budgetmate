@@ -157,12 +157,12 @@ export async function PUT(
       updated_at: new Date(),
     };
 
-    if (body.name !== undefined) updateData.name = body.name;
-    if (body.icon !== undefined) updateData.icon = body.icon;
-    if (body.color !== undefined) updateData.color = body.color;
-    if (body.nature !== undefined) updateData.nature = body.nature;
-    if (body.parent_id !== undefined) updateData.parent_id = body.parent_id;
-    if (body.is_active !== undefined) updateData.is_active = body.is_active;
+    if (body.name !== undefined) {updateData.name = body.name;}
+    if (body.icon !== undefined) {updateData.icon = body.icon;}
+    if (body.color !== undefined) {updateData.color = body.color;}
+    if (body.nature !== undefined) {updateData.nature = body.nature;}
+    if (body.parent_id !== undefined) {updateData.parent_id = body.parent_id;}
+    if (body.is_active !== undefined) {updateData.is_active = body.is_active;}
 
     // Update category
     const category = await db.categories.update({
