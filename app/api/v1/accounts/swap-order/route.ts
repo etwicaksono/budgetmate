@@ -5,17 +5,17 @@ import { requireAuth } from '@/lib/auth';
 
 // PUT /api/v1/accounts/swap-order - Reorder accounts
 /**
- * @summary Reorder account personal ids.
- * @description Accepts an authenticated request containing an `order_map` array of `{ id, personal_id }`, validates ownership, and performs a two-phase update so unique constraints are not violated.
+ * @summary Reorder accounts
+ * @description Updates the display order of accounts by modifying personal_id values. Accepts an array mapping account IDs to new personal_id positions. Uses a two-phase transaction to avoid unique constraint violations. Only account owner can reorder.
  * @tag Accounts
  * @security bearerAuth
- * @bodyContent {Object} { order_map: Array<{ id: string, personal_id: number }> }
- * @param request Authenticated Next.js request describing the new ordering.
- * @response 200 - Accounts reordered successfully.
- * @response 400 - Invalid or incomplete `order_map` payload.
- * @response 401 - Authentication failed.
- * @response 404 - One or more accounts do not belong to the user.
- * @response 500 - Server error while swapping order.
+ * @bodyContent {application/json} { order_map: Array<{ id: string, personal_id: number }> }
+ * @param request Authenticated request with order mapping
+ * @response 200 - Accounts reordered successfully: `{ success: true, message: "Accounts reordered successfully", data: { updated_count: number } }`
+ * @response 400 - Validation failure: `{ success: false, message: "order_map must be a non-empty array" }` or `{ success: false, message: "Each item must have id and personal_id" }`
+ * @response 401 - Authentication failed: `{ success: false, message: "Unauthorized" }`
+ * @response 404 - One or more accounts not found: `{ success: false, message: "One or more accounts not found or do not belong to you" }`
+ * @response 500 - Internal server error: `{ success: false, message: "Internal server error" }`
  */
 export async function PUT(request: NextRequest) {
   try {

@@ -230,15 +230,15 @@ Focus on endpoints that gate access or power account management. Blocker for eve
 
 | Path | Status | Notes |
 | --- | --- | --- |
-| `auth/login/route.ts` | [ ] Done |  |
-| `auth/logout/route.ts` | [ ] Done |  |
-| `auth/refresh/route.ts` | [ ] Done |  |
-| `auth/register/route.ts` | [ ] Done |  |
-| `accounts/route.ts` | [ ] Done |  |
-| `accounts/[id]/route.ts` | [ ] Done |  |
-| `accounts/swap-order/route.ts` | [ ] Done |  |
+| `auth/login/route.ts` | [x] Done | Updated with detailed response structures |
+| `auth/logout/route.ts` | [x] Done | Updated with detailed response structures |
+| `auth/refresh/route.ts` | [x] Done | Updated with detailed response structures |
+| `auth/register/route.ts` | [x] Done | Updated with detailed response structures |
+| `accounts/route.ts` | [x] Done | GET and POST with full response data |
+| `accounts/[id]/route.ts` | [x] Done | GET, PUT, DELETE with full response data |
+| `accounts/swap-order/route.ts` | [x] Done | Updated with detailed response structures |
 
-[ ] Exit Criteria:
+[x] Exit Criteria:
 - All auth/account routes show meaningful summaries and describe auth requirements in `/api/openapi`.
 - Each handler has the correct `@tag` (Auth or Accounts).
 - Response structures are fully documented (e.g., login returns `{ token: string, user: User }`, account list returns `{ data: Account[] }`).

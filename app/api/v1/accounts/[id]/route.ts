@@ -5,16 +5,16 @@ import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/accounts/:id - Get account detail
 /**
- * @summary Retrieve an account by id.
- * @description Ensures the requester owns the account, aggregates transaction history to compute the live balance, and returns the hydrated account detail.
+ * @summary Get account by ID
+ * @description Retrieves a specific account by ID for the authenticated user. Calculates current balance by aggregating all transactions (INCOME adds, EXPENSE subtracts) with the initial amount. Only returns accounts owned by the current user.
  * @tag Accounts
  * @security bearerAuth
- * @param request Authenticated Next.js request.
- * @param params Promise resolving to `{ id: string }` identifying the account.
- * @response 200 - Account retrieved successfully with current balance.
- * @response 401 - Authentication failed.
- * @response 404 - Account does not exist for the current user.
- * @response 500 - Server error while loading the account.
+ * @param request Authenticated request
+ * @param params Route params with account ID
+ * @response 200 - Account retrieved successfully: `{ success: true, message: "Account retrieved successfully", data: { id: string, user_id: string, personal_id: number, name: string, icon: string, active: boolean, usability: string, account_type: string, color: string, initial_amount: number, balance: number, group_id: string|null, position: any, created_at: string, updated_at: string } }`
+ * @response 401 - Authentication failed: `{ success: false, message: "Unauthorized" }`
+ * @response 404 - Account not found: `{ success: false, message: "Account not found" }`
+ * @response 500 - Internal server error: `{ success: false, message: "Internal server error" }`
  */
 export async function GET(
   request: NextRequest,
@@ -89,17 +89,17 @@ export async function GET(
 
 // PUT /api/v1/accounts/:id - Update account
 /**
- * @summary Update account attributes.
- * @description Authenticates the user, checks ownership, applies any provided field updates (name, icon, status, etc.), and returns the refreshed account plus balance.
+ * @summary Update account details
+ * @description Updates an existing account's attributes. Only the account owner can update. Supports partial updates - only provided fields are modified. Returns updated account with recalculated balance.
  * @tag Accounts
  * @security bearerAuth
- * @bodyContent {Object} Partial<Account> containing editable fields such as `name`, `icon`, `active`, `usability`, `account_type`, `color`, `initial_amount`, or `group_id`.
- * @param request Authenticated Next.js request with the update payload.
- * @param params Promise resolving to `{ id: string }` identifying the account.
- * @response 200 - Account updated successfully.
- * @response 401 - Authentication failed.
- * @response 404 - Account not found for the user.
- * @response 500 - Server error while updating the account.
+ * @bodyContent {application/json} { name?: string, icon?: string, active?: boolean, usability?: string, account_type?: string, color?: string, initial_amount?: number, group_id?: string }
+ * @param request Authenticated request with update data
+ * @param params Route params with account ID
+ * @response 200 - Account updated successfully: `{ success: true, message: "Account updated successfully", data: { id: string, user_id: string, personal_id: number, name: string, icon: string, active: boolean, usability: string, account_type: string, color: string, initial_amount: number, balance: number, group_id: string|null, position: any, created_at: string, updated_at: string } }`
+ * @response 401 - Authentication failed: `{ success: false, message: "Unauthorized" }`
+ * @response 404 - Account not found: `{ success: false, message: "Account not found" }`
+ * @response 500 - Internal server error: `{ success: false, message: "Internal server error" }`
  */
 export async function PUT(
   request: NextRequest,
@@ -195,17 +195,17 @@ export async function PUT(
 
 // DELETE /api/v1/accounts/:id - Delete account
 /**
- * @summary Delete an account.
- * @description Authenticates the request, ensures the account belongs to the user, validates it has no transactions, and removes it from the database.
+ * @summary Delete account
+ * @description Permanently deletes an account. Only the account owner can delete. Validates that no transactions exist for the account before deletion. This action cannot be undone.
  * @tag Accounts
  * @security bearerAuth
- * @param request Authenticated Next.js request.
- * @param params Promise resolving to `{ id: string }` identifying the account to delete.
- * @response 200 - Account deleted successfully.
- * @response 400 - Account cannot be deleted because transactions exist.
- * @response 401 - Authentication failed.
- * @response 404 - Account not found.
- * @response 500 - Server error while deleting the account.
+ * @param request Authenticated request
+ * @param params Route params with account ID
+ * @response 200 - Account deleted successfully: `{ success: true, message: "Account deleted successfully", data: null }`
+ * @response 400 - Cannot delete account with transactions: `{ success: false, message: "Cannot delete account with existing transactions" }`
+ * @response 401 - Authentication failed: `{ success: false, message: "Unauthorized" }`
+ * @response 404 - Account not found: `{ success: false, message: "Account not found" }`
+ * @response 500 - Internal server error: `{ success: false, message: "Internal server error" }`
  */
 export async function DELETE(
   request: NextRequest,

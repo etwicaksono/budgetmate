@@ -1,18 +1,19 @@
 import { NextRequest } from 'next/server';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import type { ApiResponse, ApiErrorResponse } from '@/types/api-responses';
 
 /**
- * @summary Invalidate the active session.
- * @description Requires a valid bearer token, verifies it via `requireAuth`, and instructs the client to discard locally stored credentials (JWT blacklist hooks can be added here).
+ * @summary User logout
+ * @description Invalidates the current user session. Requires a valid bearer token. In stateless JWT systems, logout is primarily client-side; the client should delete stored tokens. Future implementations may include token blacklisting via Redis.
  * @tag Auth
  * @security bearerAuth
- * @param request Authenticated request containing the bearer token.
- * @response 200 - Logout acknowledged; client should delete local tokens.
- * @response 401 - Authentication failed or token is missing.
- * @response 500 - Server error terminating the session.
+ * @param request Authenticated request containing bearer token
+ * @response 200 - Logout successful: `{ success: true, message: "Logout successful", data: null }`
+ * @response 401 - Authentication failed: `{ success: false, message: "Unauthorized" }`
+ * @response 500 - Internal server error: `{ success: false, message: "Internal server error" }`
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     // Verify authentication
     const authResult = await requireAuth(request);
@@ -25,13 +26,13 @@ export async function POST(request: NextRequest) {
     // If you implement token blacklisting with Redis, add that logic here
 
     return jsonResponse(
-      ApiResponseBuilder.success('Logout successful', null),
+      ApiResponseBuilder.success('Logout successful', null) as ApiResponse<null>,
       200
     );
   } catch (error) {
     console.error('Logout error:', error);
     return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
+      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
       500
     );
   }

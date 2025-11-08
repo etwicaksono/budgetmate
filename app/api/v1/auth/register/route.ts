@@ -5,19 +5,20 @@ import { generateAccessToken, generateRefreshToken } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 import defaultCategories from '../../../../../data/default_categories.json';
 import defaultAccounts from '../../../../../data/default_accounts.json';
+import type { ApiResponse, ApiErrorResponse, LoginResponse } from '@/types/api-responses';
 
 /**
- * @summary Register a new user account.
- * @description Validates `email`, `username`, and `password`, ensures uniqueness, creates the user record, seeds default categories/accounts, and returns the initial access and refresh tokens with profile metadata.
+ * @summary Register new user
+ * @description Creates a new user account with email, username, and password. Validates email format, username (3-20 alphanumeric/underscore), and password (min 6 chars). Automatically seeds default categories and accounts for the new user. Returns access and refresh tokens.
  * @tag Auth
- * @bodyContent {Object} { email: string, username: string, password: string }
- * @param request Next.js request containing the registration payload.
- * @response 201 - User created and tokens issued.
- * @response 400 - Input validation failed (email format, username rules, password length).
- * @response 409 - Email or username already exists.
- * @response 500 - Internal server error while creating the account.
+ * @bodyContent {application/json} { email: string, username: string, password: string }
+ * @param request Next.js request containing registration data
+ * @response 201 - User registered successfully: `{ success: true, message: "User registered successfully", data: { access_token: string, refresh_token: string, user: { id: string, email: string, username: string, created_at: string, updated_at: string } } }`
+ * @response 400 - Validation failure: `{ success: false, message: "Email, username, and password are required" }` or `{ success: false, message: "Invalid email format" }` or `{ success: false, message: "Username must be 3-20 characters (alphanumeric and underscore only)" }` or `{ success: false, message: "Password must be at least 6 characters" }`
+ * @response 409 - Conflict: `{ success: false, message: "Email already registered" }` or `{ success: false, message: "Username already taken" }`
+ * @response 500 - Internal server error: `{ success: false, message: "Internal server error" }`
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     const body = await request.json();
     const { email, username, password } = body;
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!email || !username || !password) {
       return jsonResponse(
-        ApiResponseBuilder.error('Email, username, and password are required'),
+        ApiResponseBuilder.error('Email, username, and password are required') as ApiErrorResponse,
         400
       );
     }
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return jsonResponse(
-        ApiResponseBuilder.error('Invalid email format'),
+        ApiResponseBuilder.error('Invalid email format') as ApiErrorResponse,
         400
       );
     }
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
     if (!usernameRegex.test(username)) {
       return jsonResponse(
-        ApiResponseBuilder.error('Username must be 3-20 characters (alphanumeric and underscore only)'),
+        ApiResponseBuilder.error('Username must be 3-20 characters (alphanumeric and underscore only)') as ApiErrorResponse,
         400
       );
     }
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     // Validate password length
     if (password.length < 6) {
       return jsonResponse(
-        ApiResponseBuilder.error('Password must be at least 6 characters'),
+        ApiResponseBuilder.error('Password must be at least 6 characters') as ApiErrorResponse,
         400
       );
     }
@@ -69,13 +70,13 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       if (existingUser.email === email) {
         return jsonResponse(
-          ApiResponseBuilder.error('Email already registered'),
+          ApiResponseBuilder.error('Email already registered') as ApiErrorResponse,
           409
         );
       }
       if (existingUser.username === username) {
         return jsonResponse(
-          ApiResponseBuilder.error('Username already taken'),
+          ApiResponseBuilder.error('Username already taken') as ApiErrorResponse,
           409
         );
       }
@@ -192,13 +193,13 @@ export async function POST(request: NextRequest) {
           created_at: user.created_at.toISOString(),
           updated_at: user.updated_at?.toISOString() || user.created_at.toISOString(),
         }
-      }),
+      }) as ApiResponse<LoginResponse>,
       201
     );
   } catch (error) {
     console.error('Registration error:', error);
     return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
+      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
       500
     );
   }

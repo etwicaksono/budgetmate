@@ -1,19 +1,20 @@
 import { NextRequest } from 'next/server';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '@/lib/auth';
+import type { ApiResponse, ApiErrorResponse, RefreshTokenResponse } from '@/types/api-responses';
 
 /**
- * @summary Refresh a user's JWT pair.
- * @description Accepts a `refresh_token` string, validates it via `verifyRefreshToken`, and returns a new access token plus refresh token with their expiration timestamps.
+ * @summary Refresh access token
+ * @description Validates a refresh token and issues a new access token and refresh token pair. Returns expiration timestamps for both tokens. Access tokens expire after 24 hours, refresh tokens after 7 days.
  * @tag Auth
- * @bodyContent {Object} { refresh_token: string }
- * @param request Next.js request containing the refresh token payload.
- * @response 200 - Token refreshed successfully with new expiration metadata.
- * @response 400 - Missing refresh token in the request body.
- * @response 401 - Supplied refresh token is invalid or expired.
- * @response 500 - Internal error while rotating tokens.
+ * @bodyContent {application/json} { refresh_token: string }
+ * @param request Next.js request containing refresh token
+ * @response 200 - Token refreshed successfully: `{ success: true, message: "Token refreshed successfully", data: { access_token: string, refresh_token: string, expired_at: string, refreshable_until: string } }`
+ * @response 400 - Missing refresh token: `{ success: false, message: "Refresh token is required" }`
+ * @response 401 - Invalid or expired token: `{ success: false, message: "Invalid or expired refresh token" }`
+ * @response 500 - Internal server error: `{ success: false, message: "Internal server error" }`
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     const body = await request.json();
     const { refresh_token } = body;
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!refresh_token) {
       return jsonResponse(
-        ApiResponseBuilder.error('Refresh token is required'),
+        ApiResponseBuilder.error('Refresh token is required') as ApiErrorResponse,
         400
       );
     }
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     const payload = await verifyRefreshToken(refresh_token);
     if (!payload) {
       return jsonResponse(
-        ApiResponseBuilder.error('Invalid or expired refresh token'),
+        ApiResponseBuilder.error('Invalid or expired refresh token') as ApiErrorResponse,
         401
       );
     }
@@ -57,13 +58,13 @@ export async function POST(request: NextRequest) {
         refresh_token: newRefreshToken,
         expired_at: new Date(accessTokenExpiry * 1000).toISOString(),
         refreshable_until: new Date(refreshTokenExpiry * 1000).toISOString(),
-      }),
+      }) as ApiResponse<RefreshTokenResponse>,
       200
     );
   } catch (error) {
     console.error('Token refresh error:', error);
     return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
+      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
       500
     );
   }

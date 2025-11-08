@@ -2,19 +2,20 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import type { ApiResponse, ApiErrorResponse, Account, AccountListMeta } from '@/types/api-responses';
 
 // GET /api/v1/accounts - List accounts with optional search
 /**
- * @summary List a user's accounts.
- * @description Requires bearer auth, supports `keyword`, `limit`, and `offset` query params, and returns each account with its calculated balance plus pagination metadata.
+ * @summary List all user accounts
+ * @description Retrieves all financial accounts for the authenticated user. Supports filtering by keyword (searches account name), pagination with limit/offset. Each account includes calculated balance based on initial amount and transaction history. Results ordered by personal_id.
  * @tag Accounts
  * @security bearerAuth
- * @param request Authenticated Next.js request with optional query parameters.
- * @response 200 - Accounts retrieved successfully with pagination hints.
- * @response 401 - Authentication failed.
- * @response 500 - Unable to load accounts due to server error.
+ * @param request Authenticated request with query params: ?keyword=text&limit=100&offset=0
+ * @response 200 - Accounts retrieved successfully: `{ success: true, message: "Accounts retrieved successfully", data: Array<{ id: string, user_id: string, personal_id: number, name: string, icon: string, active: boolean, usability: string, account_type: string, color: string, initial_amount: number, balance: number, group_id: string|null, position: any, created_at: string, updated_at: string }>, meta: { max_personal_id: number, total: number, limit: number, offset: number } }`
+ * @response 401 - Authentication failed: `{ success: false, message: "Unauthorized" }`
+ * @response 500 - Internal server error: `{ success: false, message: "Internal server error" }`
  */
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<Response> {
   try {
     // Verify authentication
     const authResult = await requireAuth(request);
@@ -110,13 +111,13 @@ export async function GET(request: NextRequest) {
         total: accountsWithBalance.length,
         limit,
         offset,
-      }),
+      }) as ApiResponse<Account[]> & { meta: AccountListMeta },
       200
     );
   } catch (error) {
     console.error('Get accounts error:', error);
     return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
+      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
       500
     );
   }
@@ -124,19 +125,19 @@ export async function GET(request: NextRequest) {
 
 // POST /api/v1/accounts - Create new account
 /**
- * @summary Create a new account record.
- * @description Authenticates the user, validates account fields, ensures `personal_id` uniqueness, and persists the account with its starting balance.
+ * @summary Create new account
+ * @description Creates a new financial account for the authenticated user. Validates required fields (personal_id, name, icon, account_type, color) and checks for personal_id uniqueness per user. Initial balance defaults to 0 if not provided.
  * @tag Accounts
  * @security bearerAuth
- * @bodyContent {Object} { personal_id: number, name: string, icon: string, account_type: string, color: string, ... }
- * @param request Authenticated Next.js request with the account payload.
- * @response 201 - Account created successfully and returned with computed balance.
- * @response 400 - Missing required fields in the payload.
- * @response 401 - Authentication failed.
- * @response 409 - An account with the same `personal_id` already exists.
- * @response 500 - Server error while creating the account.
+ * @bodyContent {application/json} { personal_id: number, name: string, icon: string, active?: boolean, usability?: string, account_type: string, color: string, initial_amount?: number, group_id?: string }
+ * @param request Authenticated request with account data
+ * @response 201 - Account created successfully: `{ success: true, message: "Account created successfully", data: { id: string, user_id: string, personal_id: number, name: string, icon: string, active: boolean, usability: string, account_type: string, color: string, initial_amount: number, balance: number, group_id: string|null, position: any, created_at: string, updated_at: string } }`
+ * @response 400 - Validation failure: `{ success: false, message: "Missing required fields: personal_id, name, icon, account_type, color" }`
+ * @response 401 - Authentication failed: `{ success: false, message: "Unauthorized" }`
+ * @response 409 - Conflict: `{ success: false, message: "An account with this personal_id already exists" }`
+ * @response 500 - Internal server error: `{ success: false, message: "Internal server error" }`
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     // Verify authentication
     const authResult = await requireAuth(request);
@@ -161,7 +162,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!personal_id || !name || !icon || !account_type || !color) {
       return jsonResponse(
-        ApiResponseBuilder.error('Missing required fields: personal_id, name, icon, account_type, color'),
+        ApiResponseBuilder.error('Missing required fields: personal_id, name, icon, account_type, color') as ApiErrorResponse,
         400
       );
     }
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       return jsonResponse(
-        ApiResponseBuilder.error('An account with this personal_id already exists'),
+        ApiResponseBuilder.error('An account with this personal_id already exists') as ApiErrorResponse,
         409
       );
     }
@@ -218,13 +219,13 @@ export async function POST(request: NextRequest) {
         position: account.position,
         created_at: account.created_at.toISOString(),
         updated_at: account.updated_at?.toISOString() || account.created_at.toISOString(),
-      }),
+      }) as ApiResponse<Account>,
       201
     );
   } catch (error) {
     console.error('Create account error:', error);
     return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
+      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
       500
     );
   }
