@@ -4,6 +4,19 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // PUT /api/v1/categories/swap-order - Reorder categories
+/**
+ * @summary Reorder category personal ids.
+ * @description Accepts an authenticated request with an `order_map` array, validates each id belongs to the user, and performs a two-phase update to avoid unique constraint conflicts.
+ * @tag Categories
+ * @security bearerAuth
+ * @bodyContent {Object} { order_map: Array<{ id: string, personal_id: number }> }
+ * @param request Authenticated Next.js request describing the new ordering.
+ * @response 200 - Categories reordered successfully.
+ * @response 400 - Invalid or empty `order_map`.
+ * @response 401 - Authentication failed.
+ * @response 404 - One or more categories do not belong to the user.
+ * @response 500 - Server error while reordering categories.
+ */
 export async function PUT(request: NextRequest) {
   try {
     // Verify authentication

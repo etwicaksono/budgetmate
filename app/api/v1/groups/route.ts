@@ -4,6 +4,16 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/groups - List groups
+/**
+ * @summary List the user's account groups.
+ * @description Requires bearer auth, optionally filters by `keyword`, and returns each group with account counts plus the highest `personal_id` for syncing.
+ * @tag Groups
+ * @security bearerAuth
+ * @param request Authenticated Next.js request with optional query params.
+ * @response 200 - Groups retrieved successfully with metadata.
+ * @response 401 - Authentication failed.
+ * @response 500 - Server error while loading groups.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
@@ -81,6 +91,19 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/v1/groups - Create new group
+/**
+ * @summary Create a new group.
+ * @description Validates ownership, ensures `personal_id` uniqueness, trims the name, and persists the group so accounts can be organized.
+ * @tag Groups
+ * @security bearerAuth
+ * @bodyContent {Object} { personal_id: number, name: string }
+ * @param request Authenticated Next.js request with the group payload.
+ * @response 201 - Group created successfully.
+ * @response 400 - Missing `personal_id` or valid name.
+ * @response 401 - Authentication failed.
+ * @response 409 - `personal_id` already used in another group.
+ * @response 500 - Server error while creating the group.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication

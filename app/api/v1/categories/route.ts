@@ -4,6 +4,16 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/categories - List categories
+/**
+ * @summary List the user's categories.
+ * @description Requires bearer auth, supports `keyword`, `limit`, and `offset` filters, and returns flat category records plus pagination/meta information for client-side caching.
+ * @tag Categories
+ * @security bearerAuth
+ * @param request Authenticated Next.js request with optional query params.
+ * @response 200 - Categories retrieved successfully with pagination metadata.
+ * @response 401 - Authentication failed.
+ * @response 500 - Server error fetching categories.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
@@ -87,6 +97,20 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/v1/categories - Create new category
+/**
+ * @summary Create a new category.
+ * @description Authenticates the user, validates `personal_id`, `name`, and `icon`, optionally links to a parent, and inserts the record while ensuring personal ids remain unique.
+ * @tag Categories
+ * @security bearerAuth
+ * @bodyContent {Object} { personal_id: number, name: string, icon: string, color?: string, nature?: string, parent_id?: string, is_active?: boolean }
+ * @param request Authenticated Next.js request containing the category payload.
+ * @response 201 - Category created successfully.
+ * @response 400 - Required fields missing or invalid parent assignment.
+ * @response 401 - Authentication failed.
+ * @response 404 - Parent category not found.
+ * @response 409 - `personal_id` already in use.
+ * @response 500 - Server error while creating the category.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication

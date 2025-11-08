@@ -4,6 +4,18 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/categories/:id - Get category detail
+/**
+ * @summary Retrieve a category by id.
+ * @description Confirms the authenticated user owns the category and returns the record with metadata such as personal id and timestamps.
+ * @tag Categories
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }` identifying the category.
+ * @response 200 - Category retrieved successfully.
+ * @response 401 - Authentication failed.
+ * @response 404 - Category not found for the user.
+ * @response 500 - Server error while fetching the category.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -60,6 +72,20 @@ export async function GET(
 }
 
 // PUT /api/v1/categories/:id - Update category
+/**
+ * @summary Update category attributes.
+ * @description Validates ownership, prevents circular parent references, and applies provided field changes such as `name`, `icon`, `color`, `nature`, or `parent_id`.
+ * @tag Categories
+ * @security bearerAuth
+ * @bodyContent {Object} Partial<Category> fields to update (e.g. `name`, `icon`, `color`, `nature`, `parent_id`, `is_active`).
+ * @param request Authenticated Next.js request with the update payload.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Category updated successfully.
+ * @response 400 - Invalid update (self-parenting).
+ * @response 401 - Authentication failed.
+ * @response 404 - Category or parent not found.
+ * @response 500 - Server error while updating the category.
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -160,6 +186,19 @@ export async function PUT(
 }
 
 // DELETE /api/v1/categories/:id - Delete category
+/**
+ * @summary Delete a category.
+ * @description Ensures the category belongs to the user, has no children or linked transactions, and removes it from the catalog.
+ * @tag Categories
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Category deleted successfully.
+ * @response 400 - Cannot delete due to child categories or related transactions.
+ * @response 401 - Authentication failed.
+ * @response 404 - Category not found.
+ * @response 500 - Server error while deleting the category.
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

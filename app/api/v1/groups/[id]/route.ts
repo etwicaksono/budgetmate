@@ -4,6 +4,18 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/groups/:id - Get group detail with accounts
+/**
+ * @summary Retrieve a group with its accounts.
+ * @description Authenticates the user, ensures ownership, and returns the group plus a list of account stubs ordered by `personal_id`.
+ * @tag Groups
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Group retrieved successfully with account summaries.
+ * @response 401 - Authentication failed.
+ * @response 404 - Group not found.
+ * @response 500 - Server error while fetching the group.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -74,6 +86,20 @@ export async function GET(
 }
 
 // PUT /api/v1/groups/:id - Update group
+/**
+ * @summary Update group metadata.
+ * @description Verifies ownership, enforces non-empty names, and persists the trimmed name update while returning the latest account count.
+ * @tag Groups
+ * @security bearerAuth
+ * @bodyContent {Object} { name?: string }
+ * @param request Authenticated Next.js request with the update body.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Group updated successfully.
+ * @response 400 - Name provided but empty after trimming.
+ * @response 401 - Authentication failed.
+ * @response 404 - Group not found.
+ * @response 500 - Server error while updating the group.
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -152,6 +178,19 @@ export async function PUT(
 }
 
 // DELETE /api/v1/groups/:id - Delete group
+/**
+ * @summary Delete a group.
+ * @description Authenticates the user, ensures the group has no linked accounts, and removes it from the catalog.
+ * @tag Groups
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Group deleted successfully.
+ * @response 400 - Group still contains accounts.
+ * @response 401 - Authentication failed.
+ * @response 404 - Group not found.
+ * @response 500 - Server error while deleting the group.
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

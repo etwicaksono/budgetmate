@@ -44,6 +44,16 @@ function buildCategoryTree(
 }
 
 // GET /api/v1/categories/tree - Get category hierarchy
+/**
+ * @summary Return the hierarchical category tree.
+ * @description Authenticates the user, loads every category ordered by `personal_id`, and returns a nested tree structure so clients can render parent/child relationships.
+ * @tag Categories
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @response 200 - Category tree retrieved successfully with node counts.
+ * @response 401 - Authentication failed.
+ * @response 500 - Server error while building the tree.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
