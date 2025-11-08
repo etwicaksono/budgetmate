@@ -4,6 +4,16 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/accounts - List accounts with optional search
+/**
+ * @summary List a user's accounts.
+ * @description Requires bearer auth, supports `keyword`, `limit`, and `offset` query params, and returns each account with its calculated balance plus pagination metadata.
+ * @tag Accounts
+ * @security bearerAuth
+ * @param request Authenticated Next.js request with optional query parameters.
+ * @response 200 - Accounts retrieved successfully with pagination hints.
+ * @response 401 - Authentication failed.
+ * @response 500 - Unable to load accounts due to server error.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
@@ -113,6 +123,19 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/v1/accounts - Create new account
+/**
+ * @summary Create a new account record.
+ * @description Authenticates the user, validates account fields, ensures `personal_id` uniqueness, and persists the account with its starting balance.
+ * @tag Accounts
+ * @security bearerAuth
+ * @bodyContent {Object} { personal_id: number, name: string, icon: string, account_type: string, color: string, ... }
+ * @param request Authenticated Next.js request with the account payload.
+ * @response 201 - Account created successfully and returned with computed balance.
+ * @response 400 - Missing required fields in the payload.
+ * @response 401 - Authentication failed.
+ * @response 409 - An account with the same `personal_id` already exists.
+ * @response 500 - Server error while creating the account.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication

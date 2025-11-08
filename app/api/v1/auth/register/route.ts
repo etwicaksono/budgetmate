@@ -6,6 +6,17 @@ import bcrypt from 'bcryptjs';
 import defaultCategories from '../../../../../data/default_categories.json';
 import defaultAccounts from '../../../../../data/default_accounts.json';
 
+/**
+ * @summary Register a new user account.
+ * @description Validates `email`, `username`, and `password`, ensures uniqueness, creates the user record, seeds default categories/accounts, and returns the initial access and refresh tokens with profile metadata.
+ * @tag Auth
+ * @bodyContent {Object} { email: string, username: string, password: string }
+ * @param request Next.js request containing the registration payload.
+ * @response 201 - User created and tokens issued.
+ * @response 400 - Input validation failed (email format, username rules, password length).
+ * @response 409 - Email or username already exists.
+ * @response 500 - Internal server error while creating the account.
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

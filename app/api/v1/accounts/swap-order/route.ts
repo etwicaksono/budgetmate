@@ -4,6 +4,19 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // PUT /api/v1/accounts/swap-order - Reorder accounts
+/**
+ * @summary Reorder account personal ids.
+ * @description Accepts an authenticated request containing an `order_map` array of `{ id, personal_id }`, validates ownership, and performs a two-phase update so unique constraints are not violated.
+ * @tag Accounts
+ * @security bearerAuth
+ * @bodyContent {Object} { order_map: Array<{ id: string, personal_id: number }> }
+ * @param request Authenticated Next.js request describing the new ordering.
+ * @response 200 - Accounts reordered successfully.
+ * @response 400 - Invalid or incomplete `order_map` payload.
+ * @response 401 - Authentication failed.
+ * @response 404 - One or more accounts do not belong to the user.
+ * @response 500 - Server error while swapping order.
+ */
 export async function PUT(request: NextRequest) {
   try {
     // Verify authentication

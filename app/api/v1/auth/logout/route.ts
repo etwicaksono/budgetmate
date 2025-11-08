@@ -2,6 +2,16 @@ import { NextRequest } from 'next/server';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
+/**
+ * @summary Invalidate the active session.
+ * @description Requires a valid bearer token, verifies it via `requireAuth`, and instructs the client to discard locally stored credentials (JWT blacklist hooks can be added here).
+ * @tag Auth
+ * @security bearerAuth
+ * @param request Authenticated request containing the bearer token.
+ * @response 200 - Logout acknowledged; client should delete local tokens.
+ * @response 401 - Authentication failed or token is missing.
+ * @response 500 - Server error terminating the session.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication

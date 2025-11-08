@@ -2,6 +2,17 @@ import { NextRequest } from 'next/server';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '@/lib/auth';
 
+/**
+ * @summary Refresh a user's JWT pair.
+ * @description Accepts a `refresh_token` string, validates it via `verifyRefreshToken`, and returns a new access token plus refresh token with their expiration timestamps.
+ * @tag Auth
+ * @bodyContent {Object} { refresh_token: string }
+ * @param request Next.js request containing the refresh token payload.
+ * @response 200 - Token refreshed successfully with new expiration metadata.
+ * @response 400 - Missing refresh token in the request body.
+ * @response 401 - Supplied refresh token is invalid or expired.
+ * @response 500 - Internal error while rotating tokens.
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
