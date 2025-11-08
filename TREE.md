@@ -1,6 +1,6 @@
 # Directory Tree: .
 
-- Generated at: 2025-11-08T08:24:07Z
+- Generated at: 2025-11-08T18:44:41Z
 - Max depth: unlimited
 - Follow symlinks: false
 - Use .gitignore: true
@@ -61,6 +61,7 @@ finance-web/
 │   │           ├── [id]/
 │   │           │   └── route.ts
 │   │           └── route.ts
+│   ├── api-docs/
 │   ├── budgets/
 │   │   └── page.tsx
 │   ├── components/
@@ -88,7 +89,10 @@ finance-web/
 │   ├── default_accounts.json
 │   └── default_categories.json
 ├── docs/
+│   ├── add-jsdoc.md
+│   ├── api-tags.md
 │   ├── API_COMPLETE_REFERENCE.md
+│   ├── CONTRIBUTING.md
 │   ├── DEPLOYMENT_GUIDE.md
 │   ├── IMPLEMENTATION_COMPLETE.md
 │   ├── MIGRATION_GUIDE.md
@@ -115,6 +119,7 @@ finance-web/
 │   │       ├── fix-code-quality-issues.md
 │   │       └── fix-dependencies-concerns.md
 │   ├── README.md
+│   ├── refactor-route-plan.md
 │   ├── refactor-to-fullstack/
 │   │   ├── API_IMPLEMENTATION_GUIDE.md
 │   │   ├── CONFLICTS_ANALYSIS.md
@@ -142,6 +147,7 @@ finance-web/
 │   └── tracing/
 │       └── categories-accounts-transaction-page-data-flow.md
 ├── generated/
+├── lib/
 ├── Makefile
 ├── next-env.d.ts
 ├── next.config.js
@@ -161,6 +167,9 @@ finance-web/
 ├── README.md
 ├── reference/
 │   └── finance-api.yaml
+├── schemas/
+├── scripts/
+│   └── check-jsdoc.mjs
 ├── src/
 │   ├── components/
 │   │   ├── AddAccountModal.tsx
@@ -295,9 +304,11 @@ finance-web/
 ├── TREE.md
 ├── tsconfig.json
 ├── tsconfig.tsbuildinfo
+├── types/
+│   └── api-responses.ts
 └── vercel.json
 ```
 
-- Directories: 83
-- Files: 206
+- Directories: 88
+- Files: 212
 - Symlinks: 0
