@@ -265,6 +265,7 @@ function TransactionsContent(): JSX.Element {
   );
   const [, setLastTransaction] = useState<TransactionFormValues | null>(null);
   const [showTransactionModal, setShowTransactionModal] = useState<boolean>(false);
+  const [isEditingTransaction, setIsEditingTransaction] = useState<boolean>(false);
   const [showQuickTransactionModal, setShowQuickTransactionModal] =
     useState<boolean>(false);
   const [newQuickTransaction, setNewQuickTransaction] =
@@ -278,6 +279,8 @@ function TransactionsContent(): JSX.Element {
   useEffect(() => {
     const open = searchParams?.get('openTransactionModal');
     if (open) {
+      setIsEditingTransaction(false);
+      setCurrentTransaction(createTransactionTemplate());
       setShowTransactionModal(true);
       const params = new URLSearchParams(searchParams?.toString() ?? '');
       params.delete('openTransactionModal');
@@ -285,6 +288,17 @@ function TransactionsContent(): JSX.Element {
       router.replace(next ? `${pathname}?${next}` : pathname);
     }
   }, [searchParams, pathname, router]);
+
+  const openCreateTransactionModal = useCallback(() => {
+    setIsEditingTransaction(false);
+    setCurrentTransaction(createTransactionTemplate());
+    setShowTransactionModal(true);
+  }, [setCurrentTransaction]);
+
+  const handleCloseTransactionModal = useCallback(() => {
+    setShowTransactionModal(false);
+    setIsEditingTransaction(false);
+  }, []);
 
   const categoryByName = useMemo<CategoryMap>(
     () =>
@@ -618,10 +632,11 @@ function TransactionsContent(): JSX.Element {
       if (!sourceTransaction) {
         return;
       }
+      setIsEditingTransaction(true);
       setCurrentTransaction(createTransactionTemplate(sourceTransaction));
       setShowTransactionModal(true);
     },
-    [filteredTransactions, setCurrentTransaction, setShowTransactionModal]
+    [filteredTransactions, setCurrentTransaction, setShowTransactionModal, setIsEditingTransaction]
   );
 
   const ensureCategoryExists = useCallback(
@@ -971,7 +986,7 @@ function TransactionsContent(): JSX.Element {
         return;
       }
 
-      setShowTransactionModal(false);
+      handleCloseTransactionModal();
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Error refreshing transactions after creation:', error);
@@ -984,7 +999,7 @@ function TransactionsContent(): JSX.Element {
         confirmButtonText: 'OK',
         confirmButtonColor: '#00a86b'
       });
-      setShowTransactionModal(false);
+      handleCloseTransactionModal();
     }
   };
 
@@ -1075,7 +1090,7 @@ function TransactionsContent(): JSX.Element {
               type="button"
               variant="outline-secondary"
               className="me-2 d-lg-none"
-              onClick={() => setShowTransactionModal(true)}
+              onClick={openCreateTransactionModal}
               aria-label="Add transaction"
             >
               {renderIcon(FaPlus, { size: 18 })}
@@ -1109,7 +1124,7 @@ function TransactionsContent(): JSX.Element {
             onMinAmountChange={setMinAmount}
             onMaxAmountChange={setMaxAmount}
             onFilterVisibilityChange={setFilterVisibility}
-            onShowTransactionModal={() => setShowTransactionModal(true)}
+            onShowTransactionModal={openCreateTransactionModal}
             showAddTransactionButton={true}
             SortDropdownComponent={SortDropdown}
           />
@@ -1183,7 +1198,8 @@ function TransactionsContent(): JSX.Element {
 
       <TransactionModal
         show={showTransactionModal}
-        onHide={() => setShowTransactionModal(false)}
+        onHide={handleCloseTransactionModal}
+        isEditMode={isEditingTransaction}
         transaction={currentTransaction}
         onChange={handleTransactionChange}
         onSave={handleSaveTransaction}

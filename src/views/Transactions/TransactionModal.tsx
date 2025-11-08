@@ -120,6 +120,7 @@ export interface TransactionModalProps {
   accountColors?: ColorMapping;
   accountIcons?: IconMapping;
   validationErrors?: Record<string, string>;
+  isEditMode?: boolean;
 }
 
 const TYPE_OPTIONS: TypeOption[] = [
@@ -315,6 +316,7 @@ export function TransactionModal({
   accountColors,
   accountIcons,
   validationErrors = {},
+  isEditMode = false,
 }: TransactionModalProps): JSX.Element | null {
   const [apiCategories, setApiCategories] = useState<ApiCategoryResponse[]>([]);
   const [categoryFetchState, setCategoryFetchState] = useState<
@@ -902,6 +904,9 @@ export function TransactionModal({
     return null;
   }
 
+  const modalTitle = isEditMode ? 'Edit record' : 'Add record';
+  const primaryButtonLabel = isEditMode ? 'Save changes' : 'Add record';
+
   return (
     <Modal
       show={show}
@@ -912,7 +917,7 @@ export function TransactionModal({
       keyboard={false}
     >
       <Modal.Header closeButton>
-        <Modal.Title>Add record</Modal.Title>
+        <Modal.Title>{modalTitle}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Form>
@@ -1336,16 +1341,18 @@ export function TransactionModal({
             className="w-100"
             onClick={() => handleSave(false)}
           >
-            Add record
+            {primaryButtonLabel}
           </Button>
-          <Button
-            type="button"
-            variant="outline-primary"
-            className="w-100"
-            onClick={() => handleSave(true)}
-          >
-            Add and create another
-          </Button>
+          {!isEditMode && (
+            <Button
+              type="button"
+              variant="outline-primary"
+              className="w-100"
+              onClick={() => handleSave(true)}
+            >
+              Add and create another
+            </Button>
+          )}
           <Button
             variant="outline-secondary"
             className="w-100 w-lg-auto"

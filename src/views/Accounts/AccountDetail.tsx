@@ -549,6 +549,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
         onSave={handleEditModalSave}
         availableAccounts={[account.name]}
         availableCategories={[]}
+        isEditMode={Boolean(editingTransaction)}
       />
 
       {/* Account Edit Modal */}
