@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { ComponentType } from 'react';
 import type { IconType, IconBaseProps } from 'react-icons';
 import {
@@ -67,7 +67,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [accountError, setAccountError] = useState<string | null>(null);
 
-  const showFetchErrorAlert = (title: string, message: string): void => {
+  const showFetchErrorAlert = useCallback((title: string, message: string): void => {
     if (typeof window === 'undefined') {
       return;
     }
@@ -76,7 +76,7 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
       title,
       text: message,
     });
-  };
+  }, []);
 
   // Category data
   const {
@@ -89,28 +89,17 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
     addCategory,
   } = useCategoryData();
 
+
   // Account data
   const [apiAccounts, setApiAccounts] = useState<ApiAccountResponse[]>([]);
 
-  // Track if data has been fetched to prevent duplicates
   const categoriesFetchedRef = useRef(false);
   const categoriesFetchInProgressRef = useRef(false);
   const accountsFetchedRef = useRef(false);
   const accountsFetchInProgressRef = useRef(false);
 
-  // Load categories
   useEffect(() => {
-    // Prevent duplicate fetches
-    if (
-      categoriesFetchedRef.current ||
-      categoriesFetchInProgressRef.current ||
-      categories.length > 0
-    ) {
-      console.log('🔍 Categories already loaded or loading, skipping fetch', {
-        categoriesFetchedRef: categoriesFetchedRef.current,
-        categoriesFetchInProgressRef: categoriesFetchInProgressRef.current,
-        categoriesLength: categories.length,
-      });
+    if (categoriesFetchedRef.current || categoriesFetchInProgressRef.current) {
       return;
     }
 
@@ -119,30 +108,28 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
 
     const loadCategories = async () => {
       try {
-        console.log('📥 Fetching categories from API...');
+        console.log('?? Fetching categories from API...');
         const apiCategories = await categoryService.fetchCategories();
-        console.log('✅ Categories fetched successfully:', apiCategories.length, apiCategories);
         if (isCancelled) return;
         if (!apiCategories || apiCategories.length === 0) {
           const message = 'Categories could not be retrieved. Please try again later.';
-          console.warn('⚠️ Categories API returned no data');
+          console.warn('?? Categories API returned no data');
           setCategoryError(message);
           showFetchErrorAlert('Category Error', message);
+          categoriesFetchedRef.current = false;
           return;
         }
-
         setCategories(apiCategories);
         setCategoryError(null);
         categoriesFetchedRef.current = true;
-        console.log('📦 Categories set to state');
+        console.log('?? Categories set to state');
       } catch (error) {
-        console.error('❌ Failed to fetch categories:', error);
-        if (!isCancelled) {
-          const message = 'Failed to retrieve categories. Please refresh the page.';
-          setCategoryError(message);
-          showFetchErrorAlert('Category Error', message);
-        }
-        categoriesFetchedRef.current = false; // Reset on error to allow retry
+        if (isCancelled) return;
+        console.error('? Failed to fetch categories:', error);
+        const message = 'Failed to retrieve categories. Please refresh the page.';
+        setCategoryError(message);
+        showFetchErrorAlert('Category Error', message);
+        categoriesFetchedRef.current = false;
       } finally {
         categoriesFetchInProgressRef.current = false;
       }
@@ -154,16 +141,10 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
       isCancelled = true;
       categoriesFetchInProgressRef.current = false;
     };
-  }, [categories.length, setCategories]);
+  }, [setCategories, showFetchErrorAlert]);
 
-  // Load accounts
   useEffect(() => {
-    // Prevent duplicate fetches
-    if (
-      accountsFetchedRef.current ||
-      accountsFetchInProgressRef.current ||
-      apiAccounts.length > 0
-    ) {
+    if (accountsFetchedRef.current || accountsFetchInProgressRef.current) {
       return;
     }
 
@@ -176,23 +157,22 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
         if (isCancelled) return;
         if (!accounts || accounts.length === 0) {
           const message = 'Accounts could not be retrieved. Please try again later.';
-          console.warn('⚠️ Accounts API returned no data');
+          console.warn('?? Accounts API returned no data');
           setAccountError(message);
           showFetchErrorAlert('Account Error', message);
+          accountsFetchedRef.current = false;
           return;
         }
-
         setApiAccounts(accounts);
         setAccountError(null);
         accountsFetchedRef.current = true;
       } catch (error) {
+        if (isCancelled) return;
         console.error('Failed to fetch accounts:', error);
-        if (!isCancelled) {
-          const message = 'Failed to retrieve accounts. Please refresh the page.';
-          setAccountError(message);
-          showFetchErrorAlert('Account Error', message);
-        }
-        accountsFetchedRef.current = false; // Reset on error to allow retry
+        const message = 'Failed to retrieve accounts. Please refresh the page.';
+        setAccountError(message);
+        showFetchErrorAlert('Account Error', message);
+        accountsFetchedRef.current = false;
       } finally {
         accountsFetchInProgressRef.current = false;
       }
@@ -204,8 +184,8 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
       isCancelled = true;
       accountsFetchInProgressRef.current = false;
     };
-  }, [apiAccounts.length]);
-
+  }, [setApiAccounts, showFetchErrorAlert]);
+
   // Account metadata
   const accountMetadata = useMemo<AccountMetadata>(() => {
     let storedMetadata: Record<string, unknown> = {};
