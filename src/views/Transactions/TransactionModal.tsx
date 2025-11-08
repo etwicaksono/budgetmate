@@ -1028,7 +1028,7 @@ export function TransactionModal({
                             thousandSeparator=","
                             decimalSeparator="."
                             decimalScale={2}
-                            allowNegative={false}
+                            allowNegative
                             allowLeadingZeros={false}
                             inputMode="decimal"
                             name="amount"
@@ -1039,7 +1039,7 @@ export function TransactionModal({
                             style={{ color: amountColor }}
                             customInput={NumericFormControl}
                             onValueChange={(values) =>
-                              handleNumericInput('amount')(values.formattedValue)
+                              handleNumericInput('amount')(values.value)
                             }
                             onBlur={() => {
                               console.log('💰 Transfer Amount onBlur:', {
@@ -1070,7 +1070,7 @@ export function TransactionModal({
                             thousandSeparator=","
                             decimalSeparator="."
                             decimalScale={2}
-                            allowNegative={false}
+                            allowNegative
                             allowLeadingZeros={false}
                             inputMode="decimal"
                             name="toAmount"
@@ -1080,7 +1080,7 @@ export function TransactionModal({
                             className="text-end"
                             customInput={NumericFormControl}
                             onValueChange={(values) =>
-                              handleNumericInput('toAmount')(values.formattedValue)
+                              handleNumericInput('toAmount')(values.value)
                             }
                             onBlur={() => {
                               console.log('💰 Transfer ToAmount onBlur:', {
