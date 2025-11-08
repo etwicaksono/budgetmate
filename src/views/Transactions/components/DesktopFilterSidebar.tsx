@@ -240,6 +240,16 @@ export function DesktopFilterSidebar({
   SortDropdownComponent = SortDropdown,
 }: DesktopFilterSidebarProps): JSX.Element {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+
+  const handleResetFilters = () => {
+    onSearchTermChange('');
+    onSortOptionChange('timeDesc');
+    onSelectedCategoriesChange([]);
+    onSelectedAccountsChange([]);
+    onMinAmountChange(0);
+    onMaxAmountChange(20000000);
+  };
+
   return (
     <Card>
       <Card.Header className="d-flex align-items-center justify-content-between">
@@ -470,6 +480,11 @@ export function DesktopFilterSidebar({
             />
           )}
         </Form>
+        <div className="d-grid mt-3">
+          <Button variant="outline-secondary" onClick={handleResetFilters}>
+            Reset filters
+          </Button>
+        </div>
       </Card.Body>
     </Card>
   );
