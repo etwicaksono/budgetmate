@@ -129,18 +129,11 @@ class ApiService {
             return this.request<T>(endpoint, options, attempt + 1);
           } catch (refreshError) {
             this.handleRefreshFailure(refreshError);
-            const message =
-              (refreshError as FetchError)?.response?.data?.message ??
-              extractErrorMessage(refreshError) ??
-              'Session expired. Please log in again.';
-
-            const sessionError = new Error(message) as FetchError;
-            sessionError.code = 'SESSION_EXPIRED';
-            sessionError.response = (refreshError as FetchError)?.response ?? {
-              data: errorData,
-              status: response.status,
-            };
-            throw sessionError;
+            this.throwSessionExpiredError(
+              refreshError,
+              errorData,
+              response.status
+            );
           }
         }
 
@@ -166,6 +159,26 @@ class ApiService {
           
           // If wrapped response indicates failure, throw error
           if (!wrappedResponse.success) {
+            if (
+              attempt === 0 &&
+              this.isInvalidOrExpiredTokenMessage(wrappedResponse.message)
+            ) {
+              try {
+                await this.refreshAccessToken();
+                return this.request<T>(endpoint, options, attempt + 1);
+              } catch (refreshError) {
+                this.handleRefreshFailure(refreshError);
+                this.throwSessionExpiredError(
+                  refreshError,
+                  {
+                    message: wrappedResponse.message,
+                    errors: wrappedResponse.errors,
+                  } as ApiErrorResponse,
+                  response.status
+                );
+              }
+            }
+
             const error = new Error(wrappedResponse.message || 'API request failed') as FetchError;
             error.response = {
               data: {
@@ -286,6 +299,16 @@ class ApiService {
     }
   }
 
+  private isInvalidOrExpiredTokenMessage(message?: string | null): boolean {
+    if (!message) {
+      return false;
+    }
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('invalid token') || normalized.includes('expired token')
+    );
+  }
+
   private shouldAttemptTokenRefresh(
     status: number,
     errorData: ApiErrorResponse,
@@ -308,15 +331,15 @@ class ApiService {
     }
 
     const code = (errorData?.code ?? '').toString().toUpperCase();
-    const message = (errorData?.message ?? '').toString().toLowerCase();
-    const authError = (errorData?.errors?.Authorization ?? '')
-      .toString()
-      .toLowerCase();
+    const message = (errorData?.message ?? '').toString();
+    const authError = (errorData?.errors?.Authorization ?? '').toString();
+    const nestedErrorMessage = (errorData?.error?.message ?? '').toString();
 
     return (
       code === 'UNAUTHORIZED' ||
-      message.includes('invalid token') ||
-      authError.includes('invalid token')
+      this.isInvalidOrExpiredTokenMessage(message) ||
+      this.isInvalidOrExpiredTokenMessage(authError) ||
+      this.isInvalidOrExpiredTokenMessage(nestedErrorMessage)
     );
   }
 
@@ -413,6 +436,25 @@ class ApiService {
       console.error('Failed to store token:', error);
       throw new Error('Failed to store authentication token');
     }
+  }
+
+  private throwSessionExpiredError(
+    refreshError: unknown,
+    fallbackData: ApiErrorResponse,
+    status?: number
+  ): never {
+    const message =
+      (refreshError as FetchError)?.response?.data?.message ??
+      extractErrorMessage(refreshError) ??
+      'Session expired. Please log in again.';
+
+    const sessionError = new Error(message) as FetchError;
+    sessionError.code = 'SESSION_EXPIRED';
+    sessionError.response = (refreshError as FetchError)?.response ?? {
+      data: fallbackData,
+      status,
+    };
+    throw sessionError;
   }
 
   private handleRefreshFailure(error: unknown): void {
