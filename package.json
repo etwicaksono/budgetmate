@@ -9,7 +9,7 @@
     "start": "next start",
     "build:staging": "NODE_ENV=production next build",
     "start:staging": "NODE_ENV=production next start",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint": "eslint app src --ext .js,.jsx,.ts,.tsx",
     "lint:jsdoc": "node scripts/check-jsdoc.mjs",
     "analyze": "cross-env ANALYZE=true next build",
     "analyze:server": "cross-env BUNDLE_ANALYZE=server next build",
