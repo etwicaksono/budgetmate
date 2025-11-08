@@ -8,6 +8,7 @@ import {
   InputGroup,
   ButtonGroup,
 } from 'react-bootstrap';
+import type { FormControlProps } from 'react-bootstrap/FormControl';
 import { FaPlus, FaArrowRight } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { ChangeEvent, ComponentType } from 'react';
@@ -25,6 +26,7 @@ import {
 } from '../../services/accountService';
 import type { CategoryIconName } from './useCategoryData';
 import { formatNumberDisplayFromValue, coerceAndFormatNumber } from '../../utils/numericInput';
+import { NumericFormat } from 'react-number-format';
 
 type TransactionType = 'Expense' | 'Income' | 'Transfer' | string;
 type IconComponent = ComponentType<IconBaseProps>;
@@ -147,6 +149,11 @@ const renderIcon = (
 
 const DEFAULT_CATEGORY_COLOR = '#6c757d';
 const DEFAULT_CATEGORY_ICON: CategoryIconName = 'FaGift';
+
+const NumericFormControl = React.forwardRef<HTMLInputElement, FormControlProps>(
+  (props, ref) => <Form.Control {...props} ref={ref} />
+);
+NumericFormControl.displayName = 'NumericFormControl';
 
 const resolveIconComponent = (
   iconName: string | null | undefined
@@ -1016,11 +1023,24 @@ export function TransactionModal({
                       <Col xs={12} md={5}>
                         <Form.Label>Amount</Form.Label>
                         <InputGroup>
-                          <Form.Control
-                            type="text"
-                            name="amount"
+                          <NumericFormat
                             value={amountDisplay}
-                            onChange={(event) => handleNumericInput('amount')(event.target.value)}
+                            thousandSeparator=","
+                            decimalSeparator="."
+                            decimalScale={2}
+                            allowNegative={false}
+                            allowLeadingZeros={false}
+                            inputMode="decimal"
+                            name="amount"
+                            placeholder="Enter amount"
+                            autoComplete="off"
+                            valueIsNumericString={false}
+                            className="text-end"
+                            style={{ color: amountColor }}
+                            customInput={NumericFormControl}
+                            onValueChange={(values) =>
+                              handleNumericInput('amount')(values.formattedValue)
+                            }
                             onBlur={() => {
                               console.log('💰 Transfer Amount onBlur:', {
                                 amountDisplay,
@@ -1030,11 +1050,6 @@ export function TransactionModal({
                               onChange?.({ target: { name: 'amount', value: amountNormalized } });
                               setIsEditingAmount(false);
                             }}
-                            placeholder="Enter amount"
-                            autoComplete="off"
-                            inputMode="decimal"
-                            className="text-end"
-                            style={{ color: amountColor }}
                           />
                         </InputGroup>
                       </Col>
@@ -1050,11 +1065,23 @@ export function TransactionModal({
                       <Col xs={12} md={5}>
                         <Form.Label>Amount received</Form.Label>
                         <InputGroup>
-                          <Form.Control
-                            type="text"
-                            name="toAmount"
+                          <NumericFormat
                             value={toAmountDisplay}
-                            onChange={(event) => handleNumericInput('toAmount')(event.target.value)}
+                            thousandSeparator=","
+                            decimalSeparator="."
+                            decimalScale={2}
+                            allowNegative={false}
+                            allowLeadingZeros={false}
+                            inputMode="decimal"
+                            name="toAmount"
+                            placeholder="Enter amount"
+                            autoComplete="off"
+                            valueIsNumericString={false}
+                            className="text-end"
+                            customInput={NumericFormControl}
+                            onValueChange={(values) =>
+                              handleNumericInput('toAmount')(values.formattedValue)
+                            }
                             onBlur={() => {
                               console.log('💰 Transfer ToAmount onBlur:', {
                                 toAmountDisplay,
@@ -1064,10 +1091,6 @@ export function TransactionModal({
                               onChange?.({ target: { name: 'toAmount', value: toAmountNormalized } });
                               setIsEditingToAmount(false);
                             }}
-                            placeholder="Enter amount"
-                            autoComplete="off"
-                            inputMode="decimal"
-                            className="text-end"
                           />
                         </InputGroup>
                       </Col>
