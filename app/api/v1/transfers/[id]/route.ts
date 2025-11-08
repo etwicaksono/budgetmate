@@ -4,6 +4,18 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/transfers/:id - Get transfer detail with linked transactions
+/**
+ * @summary Retrieve a transfer and its transactions.
+ * @description Requires bearer auth, ensures ownership, and responds with the transfer plus linked EXPENSE/INCOME transactions and account metadata.
+ * @tag Transfers
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Transfer retrieved successfully with linked transactions.
+ * @response 401 - Authentication failed.
+ * @response 404 - Transfer not found.
+ * @response 500 - Server error while fetching the transfer.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -91,6 +103,20 @@ export async function GET(
 }
 
 // PUT /api/v1/transfers/:id - Update transfer and linked transactions
+/**
+ * @summary Update a transfer and its mirrored transactions.
+ * @description Validates account ids and amount when provided, runs an atomic transaction to update both the transfer row and related EXPENSE/INCOME entries, and returns the refreshed transfer.
+ * @tag Transfers
+ * @security bearerAuth
+ * @bodyContent {Object} Partial transfer payload (`date`, `from_account_id`, `to_account_id`, `amount`, `note`).
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Transfer updated successfully.
+ * @response 400 - Invalid amount or same accounts when moving funds.
+ * @response 401 - Authentication failed.
+ * @response 404 - Transfer or accounts not found.
+ * @response 500 - Server error while updating the transfer.
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -287,6 +313,18 @@ export async function PUT(
 }
 
 // DELETE /api/v1/transfers/:id - Delete transfer and linked transactions
+/**
+ * @summary Delete a transfer and its linked transactions.
+ * @description Ensures the transfer belongs to the authenticated user, deletes the EXPENSE/INCOME transactions first, and then removes the transfer to keep referential integrity.
+ * @tag Transfers
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Transfer deleted successfully.
+ * @response 401 - Authentication failed.
+ * @response 404 - Transfer not found.
+ * @response 500 - Server error while deleting the transfer.
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

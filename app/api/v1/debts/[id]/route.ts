@@ -4,6 +4,18 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/debts/:id - Get debt detail with linked transactions
+/**
+ * @summary Retrieve a debt and linked transactions.
+ * @description Requires bearer auth, ensures ownership, aggregates linked transactions to compute balance, and returns metadata plus transaction summaries.
+ * @tag Debts
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Debt retrieved successfully with transactions.
+ * @response 401 - Authentication failed.
+ * @response 404 - Debt not found.
+ * @response 500 - Server error while fetching the debt.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -113,6 +125,20 @@ export async function GET(
 }
 
 // PUT /api/v1/debts/:id - Update debt
+/**
+ * @summary Update debt metadata.
+ * @description Validates optional changes to `name`, `type`, or `account_id`, ensures referenced account belongs to the user, and recalculates balance/transaction counts.
+ * @tag Debts
+ * @security bearerAuth
+ * @bodyContent {Object} { name?: string, type?: 'PAYABLE' | 'RECEIVABLE', account_id?: string }
+ * @param request Authenticated Next.js request with the update payload.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Debt updated successfully with refreshed balance.
+ * @response 400 - Invalid updates (empty name, unsupported type).
+ * @response 401 - Authentication failed.
+ * @response 404 - Debt or account not found.
+ * @response 500 - Server error while updating the debt.
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -247,6 +273,19 @@ export async function PUT(
 }
 
 // DELETE /api/v1/debts/:id - Delete debt
+/**
+ * @summary Delete a debt record.
+ * @description Authenticates the user, ensures the debt has no linked transactions, and removes it from the ledger.
+ * @tag Debts
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Debt deleted successfully.
+ * @response 400 - Debt still has linked transactions.
+ * @response 401 - Authentication failed.
+ * @response 404 - Debt not found.
+ * @response 500 - Server error while deleting the debt.
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -4,6 +4,18 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/transactions/:id - Get transaction detail
+/**
+ * @summary Retrieve a transaction by id.
+ * @description Requires bearer auth, checks ownership, and returns the transaction with account and category labels.
+ * @tag Transactions
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Transaction retrieved successfully.
+ * @response 401 - Authentication failed.
+ * @response 404 - Transaction not found.
+ * @response 500 - Server error while fetching the transaction.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -78,6 +90,19 @@ export async function GET(
 }
 
 // PUT /api/v1/transactions/:id - Update transaction
+/**
+ * @summary Update transaction details.
+ * @description Validates ownership, allows changing the account, category, amount (auto-adjusting the type), date, and note, and returns the refreshed record.
+ * @tag Transactions
+ * @security bearerAuth
+ * @bodyContent {Object} Partial transaction fields (`date`, `account_id`, `category_id`, `amount`, `note`).
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Transaction updated successfully.
+ * @response 401 - Authentication failed.
+ * @response 404 - Transaction, account, or category not found for the user.
+ * @response 500 - Server error while updating the transaction.
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -223,6 +248,19 @@ export async function PUT(
 }
 
 // DELETE /api/v1/transactions/:id - Delete transaction
+/**
+ * @summary Delete a transaction.
+ * @description Authenticates the user, prevents deleting transactions that belong to transfers, and removes the entry if eligible.
+ * @tag Transactions
+ * @security bearerAuth
+ * @param request Authenticated Next.js request.
+ * @param params Promise resolving to `{ id: string }`.
+ * @response 200 - Transaction deleted successfully.
+ * @response 400 - Transaction is part of a transfer and cannot be removed directly.
+ * @response 401 - Authentication failed.
+ * @response 404 - Transaction not found.
+ * @response 500 - Server error while deleting the transaction.
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

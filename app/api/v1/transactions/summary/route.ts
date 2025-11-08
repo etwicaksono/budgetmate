@@ -4,6 +4,16 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/transactions/summary - Get transaction statistics
+/**
+ * @summary Return aggregate transaction stats.
+ * @description Requires bearer auth, filters by optional `start_date`/`end_date`, and responds with totals, net balance, and breakdowns by category/account/type.
+ * @tag Transactions
+ * @security bearerAuth
+ * @param request Authenticated Next.js request carrying optional date range query params.
+ * @response 200 - Summary metrics returned successfully.
+ * @response 401 - Authentication failed.
+ * @response 500 - Server error while computing the summary.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication

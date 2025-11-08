@@ -4,6 +4,16 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/debts - List debts
+/**
+ * @summary List payable/receivable debts.
+ * @description Requires bearer auth, supports filtering by `account_id`, debt `type`, and keyword, and returns each debt with computed balance and transaction counts.
+ * @tag Debts
+ * @security bearerAuth
+ * @param request Authenticated Next.js request with optional query params.
+ * @response 200 - Debts retrieved successfully with balances.
+ * @response 401 - Authentication failed.
+ * @response 500 - Server error while loading debts.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
@@ -133,6 +143,20 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/v1/debts - Create new debt
+/**
+ * @summary Create a debt tracker.
+ * @description Authenticates the user, validates `personal_id`, `account_id`, `name`, and `type` (PAYABLE/RECEIVABLE), and persists the debt record.
+ * @tag Debts
+ * @security bearerAuth
+ * @bodyContent {Object} { personal_id: number, account_id: string, name: string, type: 'PAYABLE' | 'RECEIVABLE' }
+ * @param request Authenticated Next.js request containing the debt payload.
+ * @response 201 - Debt created successfully with initial balance metadata.
+ * @response 400 - Missing fields or invalid type/name.
+ * @response 401 - Authentication failed.
+ * @response 404 - Account not found.
+ * @response 409 - `personal_id` already exists.
+ * @response 500 - Server error while creating the debt.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication

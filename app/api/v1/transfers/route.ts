@@ -4,6 +4,16 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/v1/transfers - List transfers
+/**
+ * @summary List transfers between accounts.
+ * @description Authenticates the user, supports filtering by source/destination account, date or amount ranges, keyword search, plus pagination, and returns transfer records with account metadata.
+ * @tag Transfers
+ * @security bearerAuth
+ * @param request Authenticated Next.js request with optional query params such as `from_account_id`, `to_account_id`, `start_date`, `end_date`, `min_amount`, `max_amount`, `keyword`, `limit`, and `offset`.
+ * @response 200 - Transfers retrieved successfully with pagination hints.
+ * @response 401 - Authentication failed.
+ * @response 500 - Server error while listing transfers.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
@@ -133,6 +143,20 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/v1/transfers - Create transfer (with 2 linked transactions)
+/**
+ * @summary Create a transfer and mirrored transactions.
+ * @description Validates account ownership, amount, and `personal_id`, then wraps the transfer plus the associated EXPENSE/INCOME transactions in a DB transaction for atomicity.
+ * @tag Transfers
+ * @security bearerAuth
+ * @bodyContent {Object} { personal_id: number, date: string, from_account_id: string, to_account_id: string, amount: number, note?: string }
+ * @param request Authenticated Next.js request containing the transfer payload.
+ * @response 201 - Transfer created successfully with linked transaction ids.
+ * @response 400 - Invalid payload (missing fields, same accounts, non-positive amount).
+ * @response 401 - Authentication failed.
+ * @response 404 - Source or destination account not found.
+ * @response 409 - `personal_id` already exists.
+ * @response 500 - Server error while creating the transfer or transactions.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication

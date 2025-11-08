@@ -12,6 +12,16 @@ type SortValue =
   | 'absAmountDesc';
 
 // GET /api/v1/transactions - List transactions with filters
+/**
+ * @summary List transactions with advanced filters.
+ * @description Requires bearer auth and honors query parameters for accounts, categories, date/amount ranges, keyword search, sort order, and pagination, returning formatted transactions plus metadata.
+ * @tag Transactions
+ * @security bearerAuth
+ * @param request Authenticated Next.js request containing query params such as `account_ids`, `category_ids`, `type`, `start_date`, `end_date`, `sort`, `limit`, and `offset`.
+ * @response 200 - Transactions retrieved successfully with pagination summary.
+ * @response 401 - Authentication failed.
+ * @response 500 - Server error while querying transactions.
+ */
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
@@ -275,6 +285,20 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/v1/transactions - Create new transaction
+/**
+ * @summary Create a transaction record.
+ * @description Authenticates the user, validates `personal_id`, `date`, `account_id`, `category_id`, and signed `amount`, infers the transaction type from the amount, and persists the entry with related account/category info.
+ * @tag Transactions
+ * @security bearerAuth
+ * @bodyContent {Object} { personal_id: number, date: string (YYYY-MM-DD), account_id: string, category_id: string, amount: number, note?: string }
+ * @param request Authenticated Next.js request containing the transaction payload.
+ * @response 201 - Transaction created successfully and returned with hydrated account/category labels.
+ * @response 400 - Missing or invalid transaction attributes (e.g., zero amount).
+ * @response 401 - Authentication failed.
+ * @response 404 - Account or category not found.
+ * @response 409 - `personal_id` already used.
+ * @response 500 - Server error while creating the transaction.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
