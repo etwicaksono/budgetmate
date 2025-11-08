@@ -1,16 +1,4 @@
-import apiService from './api';
 import type { TransactionRecord } from '../types/transaction';
-
-export interface ApiResponse<T> {
-  success?: boolean;
-  message?: string;
-  data?: T;
-  error?: { message?: string } | null;
-  errors?: Record<string, unknown> | null;
-  meta?: unknown;
-  status?: string;
-  [key: string]: unknown;
-}
 
 export interface CategoryReport {
   id: string;
@@ -38,21 +26,6 @@ export interface AnalyticsQueryParams {
   endDate?: string;
   accountId?: string;
 }
-
-const isApiResponse = <T,>(value: unknown): value is ApiResponse<T> => {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const objectValue = value as Record<string, unknown>;
-  return (
-    'data' in objectValue ||
-    'message' in objectValue ||
-    'error' in objectValue ||
-    'errors' in objectValue ||
-    'success' in objectValue
-  );
-};
 
 // Dummy data generator
 const generateDummyIncomeExpenseReport = (): IncomeExpenseReport => {

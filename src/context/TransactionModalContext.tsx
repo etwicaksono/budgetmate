@@ -260,14 +260,6 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
     [apiAccounts]
   );
 
-  // List of selectable account IDs
-  const selectableAccountIds = useMemo<string[]>(
-    () => apiAccounts
-      .filter((account) => account.id && account.name && account.active !== false)
-      .map((account) => account.id as string),
-    [apiAccounts]
-  );
-
   // List of account names for backward compatibility with UI components
   const selectableAccounts = useMemo<string[]>(
     () => apiAccounts
@@ -301,15 +293,6 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
     }
   }, [accountMetadata]);
 
-  // Account tree using IDs as keys
-  const accountTreeById = useMemo<CategoryTree>(
-    () =>
-      Object.fromEntries(
-        selectableAccountIds.map((accountId) => [accountId, [] as string[]])
-      ),
-    [selectableAccountIds]
-  );
-
   // Account tree using names as keys (for backward compatibility)
   const accountTree = useMemo<CategoryTree>(
     () =>
@@ -317,21 +300,6 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
         selectableAccounts.map((account) => [account, [] as string[]])
       ),
     [selectableAccounts]
-  );
-
-  // Account colors by ID
-  const accountColorsById = useMemo<CategoryColorMap>(
-    () => {
-      const colorMap: Record<string, string> = {};
-      selectableAccountIds.forEach((accountId) => {
-        const apiAccount = apiAccounts.find((a) => a.id === accountId);
-        const accountName = accountIdToName[accountId];
-        const color = apiAccount?.color ?? accountMetadata[accountName]?.color ?? '#6c757d';
-        colorMap[accountId] = color;
-      });
-      return colorMap;
-    },
-    [selectableAccountIds, apiAccounts, accountMetadata, accountIdToName]
   );
 
   // Account colors by name (for backward compatibility)
@@ -346,25 +314,6 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
       return colorMap;
     },
     [selectableAccounts, apiAccounts, accountMetadata]
-  );
-
-  // Account icons by ID
-  const accountIconsById = useMemo<Record<string, IconType | null>>(
-    () => {
-      const iconMap: Record<string, IconType | null> = {};
-      selectableAccountIds.forEach((accountId) => {
-        const apiAccount = apiAccounts.find((a) => a.id === accountId);
-        const accountName = accountIdToName[accountId];
-        const iconKey = apiAccount?.icon ?? accountMetadata[accountName]?.icon;
-        const iconComponent =
-          iconKey && iconKey in accountIconComponents
-            ? accountIconComponents[iconKey as keyof typeof accountIconComponents]
-            : null;
-        iconMap[accountId] = iconComponent;
-      });
-      return iconMap;
-    },
-    [selectableAccountIds, apiAccounts, accountMetadata, accountIdToName]
   );
 
   // Account icons by name (for backward compatibility)

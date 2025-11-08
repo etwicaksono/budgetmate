@@ -7,7 +7,6 @@ import type { TransactionRecord, GroupedTransactions } from '../../types/transac
 interface RecordsListProps {
   groupedTransactions: GroupedTransactions;
   selectedRecords: Set<string>;
-  accountName: string;
   onSelectRecord: (recordId: string) => void;
   onEditRecord: (record: TransactionRecord) => void;
   onDeleteRecord?: (recordId: string) => void;
@@ -21,7 +20,6 @@ interface RecordsListProps {
 const RecordsList: React.FC<RecordsListProps> = ({
   groupedTransactions,
   selectedRecords,
-  accountName,
   onSelectRecord,
   onEditRecord,
   onDeleteRecord,

@@ -1155,7 +1155,6 @@ function TransactionsContent(): JSX.Element {
               <RecordsList
                 groupedTransactions={groupedTransactionRecords}
                 selectedRecords={selectedRecordIds}
-                accountName="All accounts"
                 onSelectRecord={handleRecordSelection}
                 onEditRecord={handleRecordEdit}
                 formatCurrency={formatRecordCurrency}

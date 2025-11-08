@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Spinner } from 'react-bootstrap';
+import { Spinner } from 'react-bootstrap';
 import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import analyticsService, { type BalanceTrendData } from '../../services/analyticsService';
 import BalanceTrendChart from '../BalanceTrendChart';

@@ -148,7 +148,7 @@ export interface WidgetCardProps {
 
 export const WidgetCard: React.FC<WidgetCardProps> = ({ widgetId, widget, visibility }) => {
   return (
-    <div style={{ width: '350px', height: '400px' }}>
+    <div style={{ width: '350px', height: '400px' }} data-widget-id={widgetId}>
       <Card className="h-100 w-100">
         <Card.Header className="d-flex justify-content-between align-items-center">
           <span>{widget.title}</span>

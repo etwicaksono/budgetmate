@@ -517,7 +517,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
                 <RecordsList
                   groupedTransactions={groupedTransactions}
                   selectedRecords={selectedRecords}
-                  accountName={account.name}
                   onSelectRecord={handleSelectRecord}
                   onEditRecord={handleEditRecord}
                   formatCurrency={formatCurrency}

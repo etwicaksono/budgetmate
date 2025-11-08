@@ -58,13 +58,13 @@ export default function AccountDetailPage(): JSX.Element {
     }
   };
 
-  const handleEdit = (editedAccount: Account): void => {
+  const handleEdit = (): void => {
     // TODO: Implement edit functionality with API call
     // For now, just go back to the list
     router.push('/accounts');
   };
 
-  const handleDelete = (deletedAccountId: string): void => {
+  const handleDelete = (): void => {
     // TODO: Implement delete functionality with API call
     if (from === 'dashboard') {
       router.push('/');

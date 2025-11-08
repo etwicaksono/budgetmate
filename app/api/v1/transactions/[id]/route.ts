@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 import { validateBody, validatePathParams, handleValidationError } from '@/lib/validation';
-import { UpdateTransactionRequestSchema, TransactionSchema } from '@/schemas/transactions/transaction.schema';
+import { UpdateTransactionRequestSchema } from '@/schemas/transactions/transaction.schema';
 import { z } from 'zod';
 
 // GET /api/v1/transactions/:id - Get transaction detail

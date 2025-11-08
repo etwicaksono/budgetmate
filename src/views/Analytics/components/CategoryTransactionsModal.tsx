@@ -271,7 +271,6 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
           <RecordsList
             groupedTransactions={groupedTransactions}
             selectedRecords={selectedRecords}
-            accountName={categoryName}
             onSelectRecord={handleSelectRecord}
             onEditRecord={handleEditRecord}
             formatCurrency={formatCurrency}

@@ -1,7 +1,7 @@
-import React, { useState, ChangeEvent, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Row, Col, Card, Container, Form, Dropdown } from 'react-bootstrap';
-import { FaUniversity, FaCreditCard, FaWallet, FaPiggyBank, FaPencilAlt } from 'react-icons/fa';
+import { FaPencilAlt, FaWallet } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
 import {
   DndContext,
@@ -39,11 +39,6 @@ import RecentTransactionsList from '../../components/RecentTransactionsList';
 import BudgetStatusList from '../../components/BudgetStatusList';
 import BalanceTrendWidget from '../../components/Widget/BalanceTrendWidget';
 import { SortableWidgetCard, WidgetCard } from '../../components/WidgetCards';
-
-type AccountType = 'Bank' | 'Credit Card' | 'Cash';
-type AccountTypeIcons = {
-  [K in AccountType]: React.ComponentType<{ size?: number }>;
-};
 
 // LocalStorage key for widget order
 const WIDGET_ORDER_STORAGE_KEY = 'dashboard-widget-order';
