@@ -13,7 +13,10 @@ import type { QuickTransactionFormValues } from '../QuickTransactionModal';
 // Transaction Types
 export type TransactionType = 'Expense' | 'Income' | 'Transfer' | string;
 
-export type TransactionRecord = TransactionFormValues & { id: number };
+export type TransactionRecord = TransactionFormValues & {
+  id: number;
+  recordTimestamp?: string;
+};
 
 // Sorting Types
 export type SortValue =

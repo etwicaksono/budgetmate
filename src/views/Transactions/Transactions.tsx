@@ -47,7 +47,7 @@ import {
   type CreateTransactionRequest,
   type ApiTransactionResponse,
 } from '../../services/transactionService';
-import { formatDateForBackend } from '../../utils/dateFormatter';
+import { formatDateForBackend, formatDateForInput } from '../../utils/dateFormatter';
 import AmountRangeFilter from '../../components/AmountRangeFilter';
 import { MobileFilterOffcanvas, type FilterVisibility } from './components/MobileFilterOffcanvas';
 import {
@@ -66,7 +66,10 @@ import type {
 
 type TransactionType = 'Expense' | 'Income' | 'Transfer' | string;
 
-type TransactionRecord = TransactionFormValues & { id: number };
+type TransactionRecord = TransactionFormValues & {
+  id: number;
+  recordTimestamp?: string;
+};
 
 interface AccountMetadataEntry {
   color: string;
@@ -127,6 +130,20 @@ const getLocalDateTimeString = (): string => {
   const timezoneOffset = now.getTimezoneOffset();
   const localTime = new Date(now.getTime() - timezoneOffset * 60000);
   return localTime.toISOString().slice(0, 16);
+};
+
+const pickFirstValidDateValue = (
+  ...values: Array<string | null | undefined>
+): string | undefined => {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+  return undefined;
 };
 
 const createTransactionTemplate = (
@@ -294,6 +311,30 @@ function TransactionsContent(): JSX.Element {
           numericId = Number.isNaN(extracted) ? index : extracted;
         }
 
+        let recordTimestamp = pickFirstValidDateValue(
+          apiTxn.date_time,
+          apiTxn.created_at,
+          apiTxn.updated_at
+        );
+
+        if (!recordTimestamp && typeof apiTxn.date === 'string' && apiTxn.date.trim().length > 0) {
+          recordTimestamp = `${apiTxn.date.trim().slice(0, 10)}T00:00:00`;
+        }
+
+        const normalizedDate =
+          typeof apiTxn.date === 'string' && apiTxn.date.trim().length > 0
+            ? apiTxn.date.trim().slice(0, 10)
+            : recordTimestamp
+              ? new Date(recordTimestamp).toISOString().slice(0, 10)
+              : '';
+
+        const dateTimeValue =
+          recordTimestamp
+            ? formatDateForInput(recordTimestamp)
+            : normalizedDate
+              ? `${normalizedDate}T00:00`
+              : getLocalDateTimeString();
+
         return {
           id: numericId,
           templateId: '',
@@ -301,8 +342,9 @@ function TransactionsContent(): JSX.Element {
           description: apiTxn.note || `Transaction ${apiTxn.id}`,
           amount: apiTxn.amount || 0,
           currency: 'IDR',
-          date: apiTxn.date ? new Date(apiTxn.date).toISOString().slice(0, 10) : '',
-          dateTime: apiTxn.date || '',
+          date: normalizedDate,
+          dateTime: dateTimeValue,
+          recordTimestamp: recordTimestamp,
           category: category?.name || 'Unknown',
           categoryId: apiTxn.category_id || '',
           account: account?.name || 'Unknown',
@@ -407,9 +449,24 @@ function TransactionsContent(): JSX.Element {
     const grouped: GroupedTransactions = {};
 
     filteredTransactions.forEach((transaction) => {
-      const sourceDate = transaction.dateTime || transaction.date || '';
-      const dateObj = sourceDate ? new Date(sourceDate) : null;
+      const dateSource =
+        (typeof transaction.date === 'string' && transaction.date.length > 0
+          ? transaction.date
+          : undefined) ||
+        transaction.recordTimestamp ||
+        transaction.dateTime ||
+        '';
+      const dateObj = dateSource ? new Date(dateSource) : null;
       const isValidDate = dateObj && !Number.isNaN(dateObj.getTime());
+
+      const timeSource =
+        transaction.recordTimestamp ||
+        transaction.dateTime ||
+        transaction.date ||
+        '';
+      const timeObj = timeSource ? new Date(timeSource) : null;
+      const isValidTime = timeObj && !Number.isNaN(timeObj.getTime());
+
       const dateKey = isValidDate
         ? dateObj.toLocaleDateString('en-US', {
             year: 'numeric',
@@ -417,8 +474,8 @@ function TransactionsContent(): JSX.Element {
             day: 'numeric',
           })
         : 'Unknown date';
-      const timeLabel = isValidDate
-        ? dateObj.toLocaleTimeString('en-US', {
+      const timeLabel = isValidTime
+        ? timeObj.toLocaleTimeString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
             hour12: true,

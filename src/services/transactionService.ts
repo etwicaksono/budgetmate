@@ -13,6 +13,7 @@ export interface ApiTransactionResponse {
   id?: string;
   user_id?: string;
   date?: string;
+  date_time?: string | null;
   account_id?: string;
   category_id?: string;
   amount?: number;
