@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { validateBody, validatePathParams, handleValidationError } from '@/lib/validation';
+import { UpdateCategoryRequestSchema, CategorySchema } from '@/schemas/categories/category.schema';
+import { z } from 'zod';
 
 // GET /api/v1/categories/:id - Get category detail
 /**
@@ -28,7 +31,10 @@ export async function GET(
     }
     const { user } = authResult;
 
-    const { id: categoryId } = await params;
+    const { id: categoryId } = validatePathParams(
+      await params,
+      z.object({ id: z.string().uuid() })
+    );
 
     // Get category
     const category = await db.categories.findFirst({
@@ -45,29 +51,30 @@ export async function GET(
       );
     }
 
+    const responseData = {
+      id: category.id,
+      user_id: category.user_id,
+      personal_id: Number(category.personal_id),
+      parent_id: category.parent_id,
+      name: category.name,
+      icon: category.icon,
+      color: category.color,
+      nature: category.nature,
+      is_active: category.is_active,
+      position: category.position,
+      created_at: category.created_at.toISOString(),
+      updated_at: category.updated_at?.toISOString() || category.created_at.toISOString(),
+    };
+
+    const validatedData = CategorySchema.parse(responseData);
+
     return jsonResponse(
-      ApiResponseBuilder.success('Category retrieved successfully', {
-        id: category.id,
-        user_id: category.user_id,
-        personal_id: Number(category.personal_id),
-        parent_id: category.parent_id,
-        name: category.name,
-        icon: category.icon,
-        color: category.color,
-        nature: category.nature,
-        is_active: category.is_active,
-        position: category.position,
-        created_at: category.created_at.toISOString(),
-        updated_at: category.updated_at?.toISOString() || category.created_at.toISOString(),
-      }),
+      ApiResponseBuilder.success('Category retrieved successfully', validatedData),
       200
     );
   } catch (error) {
     console.error('Get category error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -98,8 +105,12 @@ export async function PUT(
     }
     const { user } = authResult;
 
-    const { id: categoryId } = await params;
-    const body = await request.json();
+    const { id: categoryId } = validatePathParams(
+      await params,
+      z.object({ id: z.string().uuid() })
+    );
+
+    const body = await validateBody(request, UpdateCategoryRequestSchema);
 
     // Check if category exists and belongs to user
     const existingCategory = await db.categories.findFirst({
@@ -159,29 +170,30 @@ export async function PUT(
       data: updateData,
     });
 
+    const responseData = {
+      id: category.id,
+      user_id: category.user_id,
+      personal_id: Number(category.personal_id),
+      parent_id: category.parent_id,
+      name: category.name,
+      icon: category.icon,
+      color: category.color,
+      nature: category.nature,
+      is_active: category.is_active,
+      position: category.position,
+      created_at: category.created_at.toISOString(),
+      updated_at: category.updated_at?.toISOString() || category.created_at.toISOString(),
+    };
+
+    const validatedData = CategorySchema.parse(responseData);
+
     return jsonResponse(
-      ApiResponseBuilder.success('Category updated successfully', {
-        id: category.id,
-        user_id: category.user_id,
-        personal_id: Number(category.personal_id),
-        parent_id: category.parent_id,
-        name: category.name,
-        icon: category.icon,
-        color: category.color,
-        nature: category.nature,
-        is_active: category.is_active,
-        position: category.position,
-        created_at: category.created_at.toISOString(),
-        updated_at: category.updated_at?.toISOString() || category.created_at.toISOString(),
-      }),
+      ApiResponseBuilder.success('Category updated successfully', validatedData),
       200
     );
   } catch (error) {
     console.error('Update category error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -211,7 +223,10 @@ export async function DELETE(
     }
     const { user } = authResult;
 
-    const { id: categoryId } = await params;
+    const { id: categoryId } = validatePathParams(
+      await params,
+      z.object({ id: z.string().uuid() })
+    );
 
     // Check if category exists and belongs to user
     const category = await db.categories.findFirst({
@@ -263,9 +278,6 @@ export async function DELETE(
     );
   } catch (error) {
     console.error('Delete category error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

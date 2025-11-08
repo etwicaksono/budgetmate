@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { handleValidationError } from '@/lib/validation';
 
 interface CategoryNode {
   id: string;
@@ -84,9 +85,6 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('Get category tree error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

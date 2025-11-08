@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder } from '@/lib/api-response';
 import { generateAccessToken, generateRefreshToken } from '@/lib/auth';
+import { validateBody, handleValidationError } from '@/lib/validation';
+import { LoginRequestSchema, LoginResponseSchema } from '@/schemas/auth/login.schema';
 import bcrypt from 'bcryptjs';
 import type { ApiResponse, ApiErrorResponse, LoginResponse } from '@/types/api-responses';
 
@@ -18,16 +20,9 @@ import type { ApiResponse, ApiErrorResponse, LoginResponse } from '@/types/api-r
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const body = await request.json();
+    // Validate request body with Zod
+    const body = await validateBody(request, LoginRequestSchema);
     const { email_or_username, password } = body;
-
-    // Validate required fields
-    if (!email_or_username || !password) {
-      return Response.json(
-        ApiResponseBuilder.error('Email/username and password are required') as ApiErrorResponse,
-        { status: 400 }
-      );
-    }
 
     // Find user by email or username
     const user = await db.users.findFirst({
@@ -65,26 +60,29 @@ export async function POST(request: NextRequest): Promise<Response> {
     const accessToken = await generateAccessToken(tokenPayload);
     const refreshToken = await generateRefreshToken(tokenPayload);
 
+    // Prepare response data
+    const responseData = {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        created_at: user.created_at.toISOString(),
+        updated_at: user.updated_at?.toISOString() || user.created_at.toISOString(),
+      }
+    };
+
+    // Validate response with Zod
+    const validatedResponse = LoginResponseSchema.parse(responseData);
+
     // Return response
     return Response.json(
-      ApiResponseBuilder.success('Login successful', {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        user: {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          created_at: user.created_at.toISOString(),
-          updated_at: user.updated_at?.toISOString() || user.created_at.toISOString(),
-        }
-      }) as ApiResponse<LoginResponse>,
+      ApiResponseBuilder.success('Login successful', validatedResponse) as ApiResponse<LoginResponse>,
       { status: 200 }
     );
   } catch (error) {
-    console.error('Login error:', error);
-    return Response.json(
-      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
-      { status: 500 }
-    );
+    // Handle validation errors
+    return handleValidationError(error);
   }
 }

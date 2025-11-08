@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { validateBody, validatePathParams, handleValidationError } from '@/lib/validation';
+import { UpdateAccountRequestSchema, AccountSchema } from '@/schemas/accounts/account.schema';
+import { z } from 'zod';
 
 // GET /api/v1/accounts/:id - Get account detail
 /**
@@ -28,7 +31,11 @@ export async function GET(
     }
     const { user } = authResult;
 
-    const { id: accountId } = await params;
+    // Validate path params
+    const { id: accountId } = validatePathParams(
+      await params,
+      z.object({ id: z.string().uuid() })
+    );
 
     // Get account
     const account = await db.accounts.findFirst({
@@ -58,32 +65,34 @@ export async function GET(
       return txn.type === 'INCOME' ? sum + txn.amount : sum - txn.amount;
     }, account.initial_amount || 0);
 
+    const responseData = {
+      id: account.id,
+      user_id: account.user_id,
+      personal_id: Number(account.personal_id),
+      name: account.name,
+      icon: account.icon,
+      active: account.active,
+      usability: account.usability,
+      account_type: account.account_type,
+      color: account.color,
+      initial_amount: account.initial_amount,
+      balance,
+      group_id: account.group_id,
+      position: account.position,
+      created_at: account.created_at.toISOString(),
+      updated_at: account.updated_at?.toISOString() || account.created_at.toISOString(),
+    };
+
+    // Validate response data
+    const validatedData = AccountSchema.parse(responseData);
+
     return jsonResponse(
-      ApiResponseBuilder.success('Account retrieved successfully', {
-        id: account.id,
-        user_id: account.user_id,
-        personal_id: Number(account.personal_id),
-        name: account.name,
-        icon: account.icon,
-        active: account.active,
-        usability: account.usability,
-        account_type: account.account_type,
-        color: account.color,
-        initial_amount: account.initial_amount,
-        balance,
-        group_id: account.group_id,
-        position: account.position,
-        created_at: account.created_at.toISOString(),
-        updated_at: account.updated_at?.toISOString() || account.created_at.toISOString(),
-      }),
+      ApiResponseBuilder.success('Account retrieved successfully', validatedData),
       200
     );
   } catch (error) {
     console.error('Get account error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -113,8 +122,14 @@ export async function PUT(
     }
     const { user } = authResult;
 
-    const { id: accountId } = await params;
-    const body = await request.json();
+    // Validate path params
+    const { id: accountId } = validatePathParams(
+      await params,
+      z.object({ id: z.string().uuid() })
+    );
+
+    // Validate request body
+    const body = await validateBody(request, UpdateAccountRequestSchema);
 
     // Check if account exists and belongs to user
     const existingAccount = await db.accounts.findFirst({
@@ -164,32 +179,34 @@ export async function PUT(
       return txn.type === 'INCOME' ? sum + txn.amount : sum - txn.amount;
     }, account.initial_amount || 0);
 
+    const responseData = {
+      id: account.id,
+      user_id: account.user_id,
+      personal_id: Number(account.personal_id),
+      name: account.name,
+      icon: account.icon,
+      active: account.active,
+      usability: account.usability,
+      account_type: account.account_type,
+      color: account.color,
+      initial_amount: account.initial_amount,
+      balance,
+      group_id: account.group_id,
+      position: account.position,
+      created_at: account.created_at.toISOString(),
+      updated_at: account.updated_at?.toISOString() || account.created_at.toISOString(),
+    };
+
+    // Validate response data
+    const validatedData = AccountSchema.parse(responseData);
+
     return jsonResponse(
-      ApiResponseBuilder.success('Account updated successfully', {
-        id: account.id,
-        user_id: account.user_id,
-        personal_id: Number(account.personal_id),
-        name: account.name,
-        icon: account.icon,
-        active: account.active,
-        usability: account.usability,
-        account_type: account.account_type,
-        color: account.color,
-        initial_amount: account.initial_amount,
-        balance,
-        group_id: account.group_id,
-        position: account.position,
-        created_at: account.created_at.toISOString(),
-        updated_at: account.updated_at?.toISOString() || account.created_at.toISOString(),
-      }),
+      ApiResponseBuilder.success('Account updated successfully', validatedData),
       200
     );
   } catch (error) {
     console.error('Update account error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -219,7 +236,11 @@ export async function DELETE(
     }
     const { user } = authResult;
 
-    const { id: accountId } = await params;
+    // Validate path params
+    const { id: accountId } = validatePathParams(
+      await params,
+      z.object({ id: z.string().uuid() })
+    );
 
     // Check if account exists and belongs to user
     const account = await db.accounts.findFirst({
@@ -259,9 +280,6 @@ export async function DELETE(
     );
   } catch (error) {
     console.error('Delete account error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

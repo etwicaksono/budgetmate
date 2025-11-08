@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { validateBody, handleValidationError } from '@/lib/validation';
+import { SwapOrderRequestSchema } from '@/schemas/accounts/account.schema';
 
 // PUT /api/v1/accounts/swap-order - Reorder accounts
 /**
@@ -26,26 +28,9 @@ export async function PUT(request: NextRequest) {
     }
     const { user } = authResult;
 
-    const body = await request.json();
+    // Validate request body
+    const body = await validateBody(request, SwapOrderRequestSchema);
     const { order_map } = body;
-
-    // Validate order_map
-    if (!Array.isArray(order_map) || order_map.length === 0) {
-      return jsonResponse(
-        ApiResponseBuilder.error('order_map must be a non-empty array'),
-        400
-      );
-    }
-
-    // Validate each item has id and personal_id
-    for (const item of order_map) {
-      if (!item.id || item.personal_id === undefined) {
-        return jsonResponse(
-          ApiResponseBuilder.error('Each item must have id and personal_id'),
-          400
-        );
-      }
-    }
 
     // Verify all accounts belong to user
     const accountIds = order_map.map((item: any) => item.id);
@@ -105,9 +90,6 @@ export async function PUT(request: NextRequest) {
     );
   } catch (error) {
     console.error('Swap order error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

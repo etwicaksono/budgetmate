@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '@/lib/auth';
+import { validateBody, handleValidationError } from '@/lib/validation';
+import { RefreshTokenRequestSchema, RefreshTokenResponseSchema } from '@/schemas/auth/refresh.schema';
 import type { ApiResponse, ApiErrorResponse, RefreshTokenResponse } from '@/types/api-responses';
 
 /**
@@ -16,19 +18,11 @@ import type { ApiResponse, ApiErrorResponse, RefreshTokenResponse } from '@/type
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const body = await request.json();
-    const { refresh_token } = body;
-
-    // Validate required fields
-    if (!refresh_token) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Refresh token is required') as ApiErrorResponse,
-        400
-      );
-    }
+    // Validate request body
+    const body = await validateBody(request, RefreshTokenRequestSchema);
 
     // Verify refresh token
-    const payload = await verifyRefreshToken(refresh_token);
+    const payload = await verifyRefreshToken(body.refresh_token);
     if (!payload) {
       return jsonResponse(
         ApiResponseBuilder.error('Invalid or expired refresh token') as ApiErrorResponse,
@@ -51,21 +45,22 @@ export async function POST(request: NextRequest): Promise<Response> {
     const accessTokenExpiry = now + (24 * 60 * 60); // 24 hours
     const refreshTokenExpiry = now + (7 * 24 * 60 * 60); // 7 days
 
-    // Return response
+    const responseData = {
+      access_token: newAccessToken,
+      refresh_token: newRefreshToken,
+      expired_at: new Date(accessTokenExpiry * 1000).toISOString(),
+      refreshable_until: new Date(refreshTokenExpiry * 1000).toISOString(),
+    };
+
+    // Validate response data
+    const validatedData = RefreshTokenResponseSchema.parse(responseData);
+
     return jsonResponse(
-      ApiResponseBuilder.success('Token refreshed successfully', {
-        access_token: newAccessToken,
-        refresh_token: newRefreshToken,
-        expired_at: new Date(accessTokenExpiry * 1000).toISOString(),
-        refreshable_until: new Date(refreshTokenExpiry * 1000).toISOString(),
-      }) as ApiResponse<RefreshTokenResponse>,
+      ApiResponseBuilder.success('Token refreshed successfully', validatedData) as ApiResponse<RefreshTokenResponse>,
       200
     );
   } catch (error) {
     console.error('Token refresh error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
-      500
-    );
+    return handleValidationError(error);
   }
 }

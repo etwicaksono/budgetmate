@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { validateBody, validatePathParams, handleValidationError } from '@/lib/validation';
+import { UpdateTransactionRequestSchema, TransactionSchema } from '@/schemas/transactions/transaction.schema';
+import { z } from 'zod';
 
 // GET /api/v1/transactions/:id - Get transaction detail
 /**
@@ -28,7 +31,10 @@ export async function GET(
     }
     const { user } = authResult;
 
-    const { id: transactionId } = await params;
+    const { id: transactionId } = validatePathParams(
+      await params,
+      z.object({ id: z.string().uuid() })
+    );
 
     // Get transaction
     const transaction = await db.transactions.findFirst({
@@ -82,10 +88,7 @@ export async function GET(
     );
   } catch (error) {
     console.error('Get transaction error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -115,8 +118,12 @@ export async function PUT(
     }
     const { user } = authResult;
 
-    const { id: transactionId } = await params;
-    const body = await request.json();
+    const { id: transactionId } = validatePathParams(
+      await params,
+      z.object({ id: z.string().uuid() })
+    );
+
+    const body = await validateBody(request, UpdateTransactionRequestSchema);
 
     // Check if transaction exists and belongs to user
     const existingTransaction = await db.transactions.findFirst({
@@ -240,10 +247,7 @@ export async function PUT(
     );
   } catch (error) {
     console.error('Update transaction error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -273,7 +277,10 @@ export async function DELETE(
     }
     const { user } = authResult;
 
-    const { id: transactionId } = await params;
+    const { id: transactionId } = validatePathParams(
+      await params,
+      z.object({ id: z.string().uuid() })
+    );
 
     // Check if transaction exists and belongs to user
     const transaction = await db.transactions.findFirst({
@@ -309,9 +316,6 @@ export async function DELETE(
     );
   } catch (error) {
     console.error('Delete transaction error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

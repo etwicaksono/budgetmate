@@ -277,10 +277,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('Get transactions error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -308,7 +305,8 @@ export async function POST(request: NextRequest) {
     }
     const { user } = authResult;
 
-    const body = await request.json();
+    // Validate request body
+    const body = await validateBody(request, CreateTransactionRequestSchema);
     const {
       personal_id,
       date,
@@ -318,22 +316,7 @@ export async function POST(request: NextRequest) {
       note,
     } = body;
 
-    // Validate required fields
-    if (!personal_id || !date || !account_id || !category_id || amount === undefined) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Missing required fields: personal_id, date, account_id, category_id, amount'),
-        400
-      );
-    }
-
-    // Validate amount (cannot be 0)
-    const numericAmount = parseFloat(amount);
-    if (numericAmount === 0) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Amount cannot be 0'),
-        400
-      );
-    }
+    const numericAmount = amount;
 
     // Determine type based on amount sign
     // Store the signed amount: negative for EXPENSE, positive for INCOME
@@ -431,9 +414,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Create transaction error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

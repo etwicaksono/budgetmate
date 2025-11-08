@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { validateBody, validateQuery, handleValidationError } from '@/lib/validation';
+import { CreateCategoryRequestSchema, CategorySchema, CategoryFiltersSchema } from '@/schemas/categories/category.schema';
 
 // GET /api/v1/categories - List categories
 /**
@@ -23,11 +25,8 @@ export async function GET(request: NextRequest) {
     }
     const { user } = authResult;
 
-    // Get query parameters
-    const searchParams = request.nextUrl.searchParams;
-    const keyword = searchParams.get('keyword') || '';
-    const limit = parseInt(searchParams.get('limit') || '100');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    // Validate query parameters
+    const { keyword, limit, offset } = validateQuery(request, CategoryFiltersSchema);
 
     // Build where clause
     const where: any = {
@@ -63,20 +62,23 @@ export async function GET(request: NextRequest) {
       ? Number(maxPersonalIdResult.personal_id)
       : 0;
 
-    const formattedCategories = categories.map((cat) => ({
-      id: cat.id,
-      user_id: cat.user_id,
-      personal_id: Number(cat.personal_id),
-      parent_id: cat.parent_id,
-      name: cat.name,
-      icon: cat.icon,
-      color: cat.color,
-      nature: cat.nature,
-      is_active: cat.is_active,
-      position: cat.position,
-      created_at: cat.created_at.toISOString(),
-      updated_at: cat.updated_at?.toISOString() || cat.created_at.toISOString(),
-    }));
+    const formattedCategories = categories.map((cat) => {
+      const data = {
+        id: cat.id,
+        user_id: cat.user_id,
+        personal_id: Number(cat.personal_id),
+        parent_id: cat.parent_id,
+        name: cat.name,
+        icon: cat.icon,
+        color: cat.color,
+        nature: cat.nature,
+        is_active: cat.is_active,
+        position: cat.position,
+        created_at: cat.created_at.toISOString(),
+        updated_at: cat.updated_at?.toISOString() || cat.created_at.toISOString(),
+      };
+      return CategorySchema.parse(data);
+    });
 
     return jsonResponse(
       ApiResponseBuilder.success('Categories retrieved successfully', formattedCategories, {
@@ -89,10 +91,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('Get categories error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -120,7 +119,8 @@ export async function POST(request: NextRequest) {
     }
     const { user } = authResult;
 
-    const body = await request.json();
+    // Validate request body
+    const body = await validateBody(request, CreateCategoryRequestSchema);
     const {
       personal_id,
       name,
@@ -130,14 +130,6 @@ export async function POST(request: NextRequest) {
       parent_id,
       is_active,
     } = body;
-
-    // Validate required fields
-    if (!personal_id || !name || !icon) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Missing required fields: personal_id, name, icon'),
-        400
-      );
-    }
 
     // Check for duplicate personal_id
     const existing = await db.categories.findFirst({
@@ -189,28 +181,29 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const responseData = {
+      id: category.id,
+      user_id: category.user_id,
+      personal_id: Number(category.personal_id),
+      parent_id: category.parent_id,
+      name: category.name,
+      icon: category.icon,
+      color: category.color,
+      nature: category.nature,
+      is_active: category.is_active,
+      position: category.position,
+      created_at: category.created_at.toISOString(),
+      updated_at: category.updated_at?.toISOString() || category.created_at.toISOString(),
+    };
+
+    const validatedData = CategorySchema.parse(responseData);
+
     return jsonResponse(
-      ApiResponseBuilder.success('Category created successfully', {
-        id: category.id,
-        user_id: category.user_id,
-        personal_id: Number(category.personal_id),
-        parent_id: category.parent_id,
-        name: category.name,
-        icon: category.icon,
-        color: category.color,
-        nature: category.nature,
-        is_active: category.is_active,
-        position: category.position,
-        created_at: category.created_at.toISOString(),
-        updated_at: category.updated_at?.toISOString() || category.created_at.toISOString(),
-      }),
+      ApiResponseBuilder.success('Category created successfully', validatedData),
       201
     );
   } catch (error) {
     console.error('Create category error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

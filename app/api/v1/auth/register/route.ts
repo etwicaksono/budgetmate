@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { generateAccessToken, generateRefreshToken } from '@/lib/auth';
+import { validateBody, handleValidationError } from '@/lib/validation';
+import { RegisterRequestSchema } from '@/schemas/auth/register.schema';
+import { LoginResponseSchema } from '@/schemas/auth/login.schema';
 import bcrypt from 'bcryptjs';
 import defaultCategories from '../../../../../data/default_categories.json';
 import defaultAccounts from '../../../../../data/default_accounts.json';
@@ -9,53 +12,20 @@ import type { ApiResponse, ApiErrorResponse, LoginResponse } from '@/types/api-r
 
 /**
  * @summary Register new user
- * @description Creates a new user account with email, username, and password. Validates email format, username (3-20 alphanumeric/underscore), and password (min 6 chars). Automatically seeds default categories and accounts for the new user. Returns access and refresh tokens.
+ * @description Creates a new user account with email, username, and password. Validates email format, username (3-36 alphanumeric/underscore/hyphen), and password (min 8 chars). Automatically seeds default categories and accounts for the new user. Returns access and refresh tokens.
  * @tag Auth
  * @bodyContent {application/json} { email: string, username: string, password: string }
  * @param request Next.js request containing registration data
  * @response 201 - User registered successfully: `{ success: true, message: "User registered successfully", data: { access_token: string, refresh_token: string, user: { id: string, email: string, username: string, created_at: string, updated_at: string } } }`
- * @response 400 - Validation failure: `{ success: false, message: "Email, username, and password are required" }` or `{ success: false, message: "Invalid email format" }` or `{ success: false, message: "Username must be 3-20 characters (alphanumeric and underscore only)" }` or `{ success: false, message: "Password must be at least 6 characters" }`
+ * @response 400 - Validation failure from Zod schema
  * @response 409 - Conflict: `{ success: false, message: "Email already registered" }` or `{ success: false, message: "Username already taken" }`
  * @response 500 - Internal server error: `{ success: false, message: "Internal server error" }`
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const body = await request.json();
+    // Validate request body with Zod
+    const body = await validateBody(request, RegisterRequestSchema);
     const { email, username, password } = body;
-
-    // Validate required fields
-    if (!email || !username || !password) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Email, username, and password are required') as ApiErrorResponse,
-        400
-      );
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Invalid email format') as ApiErrorResponse,
-        400
-      );
-    }
-
-    // Validate username (alphanumeric, underscore, 3-20 chars)
-    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-    if (!usernameRegex.test(username)) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Username must be 3-20 characters (alphanumeric and underscore only)') as ApiErrorResponse,
-        400
-      );
-    }
-
-    // Validate password length
-    if (password.length < 6) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Password must be at least 6 characters') as ApiErrorResponse,
-        400
-      );
-    }
 
     // Check if user already exists
     const existingUser = await db.users.findFirst({
@@ -181,26 +151,29 @@ export async function POST(request: NextRequest): Promise<Response> {
     const accessToken = await generateAccessToken(tokenPayload);
     const refreshToken = await generateRefreshToken(tokenPayload);
 
+    // Prepare response data
+    const responseData = {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        created_at: user.created_at.toISOString(),
+        updated_at: user.updated_at?.toISOString() || user.created_at.toISOString(),
+      }
+    };
+
+    // Validate response with Zod
+    const validatedResponse = LoginResponseSchema.parse(responseData);
+
     // Return response
     return jsonResponse(
-      ApiResponseBuilder.success('User registered successfully', {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        user: {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          created_at: user.created_at.toISOString(),
-          updated_at: user.updated_at?.toISOString() || user.created_at.toISOString(),
-        }
-      }) as ApiResponse<LoginResponse>,
+      ApiResponseBuilder.success('User registered successfully', validatedResponse) as ApiResponse<LoginResponse>,
       201
     );
   } catch (error) {
-    console.error('Registration error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
-      500
-    );
+    // Handle validation errors
+    return handleValidationError(error);
   }
 }

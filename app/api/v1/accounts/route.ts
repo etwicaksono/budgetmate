@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { validateBody, validateQuery, handleValidationError } from '@/lib/validation';
+import { CreateAccountRequestSchema, AccountSchema } from '@/schemas/accounts/account.schema';
+import { PaginationQuerySchema } from '@/schemas/common/pagination.schema';
 import type { ApiResponse, ApiErrorResponse, Account, AccountListMeta } from '@/types/api-responses';
 
 // GET /api/v1/accounts - List accounts with optional search
@@ -24,11 +27,9 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
     const { user } = authResult;
 
-    // Get query parameters
-    const searchParams = request.nextUrl.searchParams;
-    const keyword = searchParams.get('keyword') || '';
-    const limit = parseInt(searchParams.get('limit') || '100');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    // Validate query parameters
+    const query = validateQuery(request, PaginationQuerySchema);
+    const { keyword = '', limit, offset } = query;
 
     // Build where clause
     const where: any = {
@@ -105,21 +106,20 @@ export async function GET(request: NextRequest): Promise<Response> {
       })
     );
 
+    // Validate each account response
+    const validatedAccounts = accountsWithBalance.map(acc => AccountSchema.parse(acc));
+
     return jsonResponse(
-      ApiResponseBuilder.success('Accounts retrieved successfully', accountsWithBalance, {
+      ApiResponseBuilder.success('Accounts retrieved successfully', validatedAccounts, {
         max_personal_id: maxPersonalId,
-        total: accountsWithBalance.length,
+        total: validatedAccounts.length,
         limit,
         offset,
       }) as ApiResponse<Account[]> & { meta: AccountListMeta },
       200
     );
   } catch (error) {
-    console.error('Get accounts error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -146,7 +146,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
     const { user } = authResult;
 
-    const body = await request.json();
+    // Validate request body
+    const body = await validateBody(request, CreateAccountRequestSchema);
     const {
       personal_id,
       name,
@@ -158,14 +159,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       initial_amount,
       group_id,
     } = body;
-
-    // Validate required fields
-    if (!personal_id || !name || !icon || !account_type || !color) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Missing required fields: personal_id, name, icon, account_type, color') as ApiErrorResponse,
-        400
-      );
-    }
 
     // Check for duplicate personal_id
     const existing = await db.accounts.findFirst({
@@ -202,31 +195,33 @@ export async function POST(request: NextRequest): Promise<Response> {
       },
     });
 
+    // Prepare response data
+    const responseData = {
+      id: account.id,
+      user_id: account.user_id,
+      personal_id: Number(account.personal_id),
+      name: account.name,
+      icon: account.icon,
+      active: account.active,
+      usability: account.usability,
+      account_type: account.account_type,
+      color: account.color,
+      initial_amount: account.initial_amount,
+      balance: account.initial_amount || 0,
+      group_id: account.group_id,
+      position: account.position,
+      created_at: account.created_at.toISOString(),
+      updated_at: account.updated_at?.toISOString() || account.created_at.toISOString(),
+    };
+
+    // Validate response
+    const validatedAccount = AccountSchema.parse(responseData);
+
     return jsonResponse(
-      ApiResponseBuilder.success('Account created successfully', {
-        id: account.id,
-        user_id: account.user_id,
-        personal_id: Number(account.personal_id),
-        name: account.name,
-        icon: account.icon,
-        active: account.active,
-        usability: account.usability,
-        account_type: account.account_type,
-        color: account.color,
-        initial_amount: account.initial_amount,
-        balance: account.initial_amount || 0,
-        group_id: account.group_id,
-        position: account.position,
-        created_at: account.created_at.toISOString(),
-        updated_at: account.updated_at?.toISOString() || account.created_at.toISOString(),
-      }) as ApiResponse<Account>,
+      ApiResponseBuilder.success('Account created successfully', validatedAccount) as ApiResponse<Account>,
       201
     );
   } catch (error) {
-    console.error('Create account error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
-      500
-    );
+    return handleValidationError(error);
   }
 }
