@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
+import { ApiResponseBuilder } from '@/lib/api-response';
 import { generateAccessToken, generateRefreshToken } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
@@ -22,9 +22,9 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!email_or_username || !password) {
-      return jsonResponse(
+      return Response.json(
         ApiResponseBuilder.error('Email/username and password are required'),
-        400
+        { status: 400 }
       );
     }
 
@@ -39,18 +39,18 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return jsonResponse(
+      return Response.json(
         ApiResponseBuilder.error('Invalid credentials'),
-        401
+        { status: 401 }
       );
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return jsonResponse(
+      return Response.json(
         ApiResponseBuilder.error('Invalid credentials'),
-        401
+        { status: 401 }
       );
     }
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const refreshToken = await generateRefreshToken(tokenPayload);
 
     // Return response
-    return jsonResponse(
+    return Response.json(
       ApiResponseBuilder.success('Login successful', {
         access_token: accessToken,
         refresh_token: refreshToken,
@@ -77,13 +77,13 @@ export async function POST(request: NextRequest) {
           updated_at: user.updated_at?.toISOString() || user.created_at.toISOString(),
         }
       }),
-      200
+      { status: 200 }
     );
   } catch (error) {
     console.error('Login error:', error);
-    return jsonResponse(
+    return Response.json(
       ApiResponseBuilder.error('Internal server error'),
-      500
+      { status: 500 }
     );
   }
 }
