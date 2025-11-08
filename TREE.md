@@ -1,6 +1,6 @@
 # Directory Tree: .
 
-- Generated at: 2025-11-06T01:03:44Z
+- Generated at: 2025-11-08T08:24:07Z
 - Max depth: unlimited
 - Follow symlinks: false
 - Use .gitignore: true
@@ -15,6 +15,52 @@ finance-web/
 │   │   └── page.tsx
 │   ├── analytics/
 │   │   └── page.tsx
+│   ├── api/
+│   │   ├── openapi/
+│   │   │   └── [[...openapi]]/
+│   │   │       └── route.ts
+│   │   └── v1/
+│   │       ├── accounts/
+│   │       │   ├── [id]/
+│   │       │   │   └── route.ts
+│   │       │   ├── route.ts
+│   │       │   └── swap-order/
+│   │       │       └── route.ts
+│   │       ├── auth/
+│   │       │   ├── login/
+│   │       │   │   └── route.ts
+│   │       │   ├── logout/
+│   │       │   │   └── route.ts
+│   │       │   ├── refresh/
+│   │       │   │   └── route.ts
+│   │       │   └── register/
+│   │       │       └── route.ts
+│   │       ├── categories/
+│   │       │   ├── [id]/
+│   │       │   │   └── route.ts
+│   │       │   ├── route.ts
+│   │       │   ├── swap-order/
+│   │       │   │   └── route.ts
+│   │       │   └── tree/
+│   │       │       └── route.ts
+│   │       ├── debts/
+│   │       │   ├── [id]/
+│   │       │   │   └── route.ts
+│   │       │   └── route.ts
+│   │       ├── groups/
+│   │       │   ├── [id]/
+│   │       │   │   └── route.ts
+│   │       │   └── route.ts
+│   │       ├── transactions/
+│   │       │   ├── [id]/
+│   │       │   │   └── route.ts
+│   │       │   ├── route.ts
+│   │       │   └── summary/
+│   │       │       └── route.ts
+│   │       └── transfers/
+│   │           ├── [id]/
+│   │           │   └── route.ts
+│   │           └── route.ts
 │   ├── budgets/
 │   │   └── page.tsx
 │   ├── components/
@@ -38,15 +84,24 @@ finance-web/
 │   └── transactions/
 │       └── page.tsx
 ├── CLAUDE.md
+├── data/
+│   ├── default_accounts.json
+│   └── default_categories.json
 ├── docs/
-│   ├── PERFORMANCE_FEATURES_COMPLETE.md
-│   ├── PERFORMANCE_OPTIMIZATIONS.md
+│   ├── API_COMPLETE_REFERENCE.md
+│   ├── DEPLOYMENT_GUIDE.md
+│   ├── IMPLEMENTATION_COMPLETE.md
+│   ├── MIGRATION_GUIDE.md
 │   ├── plan/
 │   │   ├── done/
 │   │   │   ├── 01-implement-error-boundaries.md
 │   │   │   └── 02-split-large-components.md
 │   │   ├── progress/
 │   │   │   └── 03-performance-optimizations.md
+│   │   ├── result/
+│   │   │   ├── PERFORMANCE_FEATURES_COMPLETE.md
+│   │   │   ├── PERFORMANCE_OPTIMIZATIONS.md
+│   │   │   └── PROJECT_ANALYSIS.md
 │   │   └── todo/
 │   │       ├── 04-security-enhancements.md
 │   │       ├── 05-bundle-size-reduction.md
@@ -59,13 +114,43 @@ finance-web/
 │   │       ├── ANALYSIS_SUMMARY.md
 │   │       ├── fix-code-quality-issues.md
 │   │       └── fix-dependencies-concerns.md
-│   └── PROJECT_ANALYSIS.md
+│   ├── README.md
+│   ├── refactor-to-fullstack/
+│   │   ├── API_IMPLEMENTATION_GUIDE.md
+│   │   ├── CONFLICTS_ANALYSIS.md
+│   │   ├── database.ts
+│   │   ├── DATABASE_SCHEMA_GUIDE.md
+│   │   ├── httpClient.ts
+│   │   ├── READ_ME_FIRST.txt
+│   │   ├── REFACTOR_PLAN.md
+│   │   ├── reference/
+│   │   │   ├── finance-api.sql
+│   │   │   └── Implemented-api.md
+│   │   ├── result/
+│   │   │   ├── api-migration-guide.md
+│   │   │   ├── phase1-auth-testing.md
+│   │   │   ├── phase1-fix-token-handling.md
+│   │   │   ├── phase2-account-testing.md
+│   │   │   ├── phase3-category-testing.md
+│   │   │   ├── phase4-group-implementation.md
+│   │   │   ├── phase6-transfer-implementation.md
+│   │   │   └── phase7-debt-implementation.md
+│   │   ├── route.ts
+│   │   ├── SCHEMA_UPDATE_SUMMARY.txt
+│   │   └── transactionService.updated.ts
+│   ├── TESTING_GUIDE.md
+│   └── tracing/
+│       └── categories-accounts-transaction-page-data-flow.md
+├── generated/
 ├── Makefile
 ├── next-env.d.ts
 ├── next.config.js
 ├── package-lock.json
 ├── package.json
 ├── PERFORMANCE_VERIFICATION_REPORT.md
+├── prisma/
+│   └── schema.prisma
+├── prisma.config.ts
 ├── public/
 │   ├── icon-192.png
 │   ├── images/
@@ -80,18 +165,14 @@ finance-web/
 │   ├── components/
 │   │   ├── AddAccountModal.tsx
 │   │   ├── AmountRangeFilter.tsx
-│   │   ├── AsyncErrorBoundary.tsx
 │   │   ├── BalanceTrendChart.tsx
 │   │   ├── BudgetStatusList.tsx
 │   │   ├── CashFlowChart.tsx
 │   │   ├── CategoryPieChart.tsx
 │   │   ├── ErrorBoundary.tsx
-│   │   ├── FeatureErrorBoundary.tsx
 │   │   ├── Header.tsx
 │   │   ├── IncomeExpenseBarChart.tsx
 │   │   ├── InputClearButton.tsx
-│   │   ├── Logo.tsx
-│   │   ├── Pagination.tsx
 │   │   ├── PeriodNavigation.tsx
 │   │   ├── periodNavigationContext.tsx
 │   │   ├── PeriodRangeSelector.tsx
@@ -103,9 +184,6 @@ finance-web/
 │   │   │   └── RecordsList.tsx
 │   │   ├── ServiceWorkerRegistration.tsx
 │   │   ├── ToastAlert.tsx
-│   │   ├── TransactionList/
-│   │   │   ├── index.ts
-│   │   │   └── TransactionList.tsx
 │   │   ├── WebVitalsReporter.tsx
 │   │   ├── Widget/
 │   │   │   ├── BalanceTrendWidget.tsx
@@ -119,10 +197,12 @@ finance-web/
 │   │   ├── ToastContext.tsx
 │   │   └── TransactionModalContext.tsx
 │   ├── hooks/
-│   │   ├── useDebouncedSearch.ts
-│   │   ├── useErrorHandler.ts
-│   │   ├── usePagination.ts
-│   │   └── useThrottle.ts
+│   │   ├── useBulkActionHandler.ts
+│   │   └── useErrorHandler.ts
+│   ├── lib/
+│   │   ├── api-response.ts
+│   │   ├── auth.ts
+│   │   └── db.ts
 │   ├── services/
 │   │   ├── accountService.ts
 │   │   ├── analyticsService.ts
@@ -136,17 +216,15 @@ finance-web/
 │   │   ├── App.css
 │   │   └── main.css
 │   ├── types/
+│   │   ├── api.ts
 │   │   ├── react-color.d.ts
 │   │   └── transaction.ts
 │   ├── utils/
 │   │   ├── accountUtils.ts
 │   │   ├── crypto.ts
-│   │   ├── dataPrefetcher.ts
 │   │   ├── dateFormatter.ts
-│   │   ├── logger.ts
 │   │   ├── numericInput.ts
-│   │   ├── performance.ts
-│   │   └── requestBatcher.ts
+│   │   └── performance.ts
 │   └── views/
 │       ├── Accounts/
 │       │   ├── AccountDetail.tsx
@@ -213,12 +291,13 @@ finance-web/
 │           └── utils/
 │               ├── transactionCalculations.ts
 │               └── transactionHelpers.ts
+├── test-api.html
 ├── TREE.md
 ├── tsconfig.json
 ├── tsconfig.tsbuildinfo
 └── vercel.json
 ```
 
-- Directories: 50
-- Files: 160
+- Directories: 83
+- Files: 206
 - Symlinks: 0
