@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import type { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
@@ -98,15 +97,45 @@ export async function GET(request: NextRequest) {
     // Date range filter
     if (start_date || end_date) {
       where.date = {};
-      if (start_date) where.date.gte = new Date(start_date);
-      if (end_date) where.date.lte = new Date(end_date);
+      if (start_date) {
+        const start = new Date(start_date);
+        start.setHours(0, 0, 0, 0);
+        where.date.gte = start;
+      }
+      if (end_date) {
+        const end = new Date(end_date);
+        end.setHours(23, 59, 59, 999);
+        where.date.lte = end;
+      }
     }
 
     // Amount range filter
     if (min_amount || max_amount) {
-      where.amount = {};
-      if (min_amount) where.amount.gte = parseFloat(min_amount);
-      if (max_amount) where.amount.lte = parseFloat(max_amount);
+      const minVal = min_amount ? parseFloat(min_amount) : undefined;
+      const maxVal = max_amount ? parseFloat(max_amount) : undefined;
+      const amountFilters: Array<Record<string, unknown>> = [];
+
+      if (minVal !== undefined) {
+        amountFilters.push({
+          OR: [
+            { amount: { gte: minVal } },
+            { amount: { lte: -minVal } },
+          ],
+        });
+      }
+
+      if (maxVal !== undefined) {
+        amountFilters.push({
+          OR: [
+            { amount: { lte: maxVal } },
+            { amount: { gte: -maxVal } },
+          ],
+        });
+      }
+
+      if (amountFilters.length > 0) {
+        where.AND = [...(where.AND ?? []), ...amountFilters];
+      }
     }
 
     // Keyword search in notes
@@ -142,6 +171,13 @@ export async function GET(request: NextRequest) {
         break;
     }
 
+    console.log('[transactions] executing findMany with:', {
+      where,
+      orderBy,
+      skip: offset,
+      take: limit,
+    });
+
     // Get transactions
     const transactions = await db.transactions.findMany({
       where,
@@ -149,6 +185,7 @@ export async function GET(request: NextRequest) {
       skip: offset,
       take: limit,
     });
+    console.log('[transactions] prisma returned count:', transactions.length);
 
     if (sort === 'absAmountAsc' || sort === 'absAmountDesc') {
       transactions.sort((a, b) => {
@@ -158,6 +195,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get max personal_id for caching
+    console.log('[transactions] maxPersonalId query params:', {
+      userId: user.user_id,
+      limit: 1,
+      offset: 0,
+    });
     const maxPersonalIdResult = await db.transactions.findFirst({
       where: { user_id: user.user_id },
       orderBy: { personal_id: 'desc' },
