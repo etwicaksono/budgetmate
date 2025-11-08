@@ -336,7 +336,7 @@ function TransactionsContent(): JSX.Element {
       const { force = false } = options;
       const trimmedSearch = searchTerm.trim();
       const minAmountParam =
-        minAmount !== DEFAULT_MIN_AMOUNT ? minAmount : undefined;
+        typeof minAmount === 'number' ? minAmount : DEFAULT_MIN_AMOUNT;
       const maxAmountParam =
         maxAmount !== DEFAULT_MAX_AMOUNT ? maxAmount : undefined;
       const signaturePayload = {
@@ -344,7 +344,7 @@ function TransactionsContent(): JSX.Element {
         endDate: dateRange.end || null,
         accounts: [...selectedAccounts].sort(),
         categories: [...selectedCategories].sort(),
-        minAmount: minAmountParam ?? null,
+        minAmount: minAmountParam,
         maxAmount: maxAmountParam ?? null,
         search: trimmedSearch || null,
         sort: sortOption,
