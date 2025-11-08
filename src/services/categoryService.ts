@@ -1,57 +1,25 @@
+import { z } from 'zod';
 import apiService from './api';
+import {
+  ApiResponseSchema,
+  CategorySchema,
+  CreateCategoryRequestSchema,
+  PaginatedResponseSchema,
+  SwapOrderRequestSchema,
+  UpdateCategoryRequestSchema,
+  type Category,
+  type CreateCategoryRequest,
+  type SwapOrderRequest,
+  type UpdateCategoryRequest,
+} from '@/types/schemas';
 
-export interface ApiResponse<T> {
-  success?: boolean;
-  message?: string;
-  data?: T;
-  error?: { message?: string } | null;
-  errors?: Record<string, unknown> | null;
-  meta?: unknown;
-  status?: string;
-  [key: string]: unknown;
-}
-
-export interface ApiCategoryResponse {
-  id?: string;
-  personal_id?: number;
-  user_id?: string;
-  parent_id?: string | null;
-  name?: string;
-  icon?: string;
-  color?: string | null;
-  nature?: 'WANT' | 'NEED' | 'MUST' | string | null;
-  is_active?: boolean;
+export type ApiCategoryResponse = Category;
+export type CategoryCreatePayload = CreateCategoryRequest & {
   position?: Record<string, unknown> | null;
-  created_at?: string;
-  created_by?: string | null;
-  updated_at?: string | null;
-  updated_by?: string | null;
-  is_parent?: boolean;
-  [key: string]: unknown;
-}
-
-export type CategoryNature = 'WANT' | 'NEED' | 'MUST' | string;
-
-export interface CategoryCreatePayload {
-  personal_id: number;
-  parent_id?: string | null;
-  name: string;
-  icon: string;
-  color: string;
-  nature: CategoryNature;
-  is_active?: boolean;
+};
+export type CategoryUpdatePayload = UpdateCategoryRequest & {
   position?: Record<string, unknown> | null;
-}
-
-export interface CategoryUpdatePayload {
-  parent_id?: string | null;
-  name?: string;
-  icon?: string;
-  color?: string;
-  nature?: CategoryNature;
-  is_active?: boolean;
-  position?: Record<string, unknown> | null;
-}
+};
 
 interface CategoryMutationResult {
   category: ApiCategoryResponse | null;
@@ -60,180 +28,139 @@ interface CategoryMutationResult {
   meta?: unknown;
 }
 
-const isApiResponse = <T,>(value: unknown): value is ApiResponse<T> => {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const objectValue = value as Record<string, unknown>;
-  return (
-    'data' in objectValue ||
-    'message' in objectValue ||
-    'error' in objectValue ||
-    'errors' in objectValue ||
-    'success' in objectValue
-  );
-};
-
-const normalizeParentId = (
-  value: string | number | null | undefined
-): string | null => {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  const normalized = String(value);
-  return normalized.length > 0 ? normalized : null;
-};
-
-const normalizePosition = (
-  value: Record<string, unknown> | null | undefined
-): Record<string, unknown> | undefined => (value ?? undefined);
-
-const buildCreatePayload = (
-  payload: CategoryCreatePayload
-): Record<string, unknown> => {
-  const { parent_id, position, ...rest } = payload;
-  return {
-    ...rest,
-    parent_id: normalizeParentId(parent_id),
-    position: normalizePosition(position),
-  };
-};
-
-const buildUpdatePayload = (
-  payload: CategoryUpdatePayload
-): Record<string, unknown> => {
-  const { parent_id, position, ...rest } = payload;
-  const normalized: Record<string, unknown> = { ...rest };
-
-  if (parent_id !== undefined) {
-    normalized.parent_id = normalizeParentId(parent_id);
-  }
-
-  if (position !== undefined) {
-    normalized.position = normalizePosition(position);
-  }
-
-  return normalized;
-};
-
-const normalizeIdentifier = (value: unknown): string | undefined => {
-  if (value === null || value === undefined) {
-    return undefined;
-  }
-
-  const normalized = String(value);
-  return normalized.length > 0 ? normalized : undefined;
-};
-
-const extractMutationResult = (
-  response: ApiResponse<ApiCategoryResponse> | ApiCategoryResponse
-): CategoryMutationResult => {
-  if (isApiResponse<ApiCategoryResponse>(response)) {
-    return {
-      category: response.data ?? null,
-      message: response.message,
-      success: response.success,
-      meta: response.meta,
-    };
-  }
-
-  return {
-    category: response ?? null,
-  };
-};
+const categoryListSchema = PaginatedResponseSchema(CategorySchema);
+const categoryResponseSchema = ApiResponseSchema(CategorySchema);
+const emptyResponseSchema = ApiResponseSchema(z.null());
+const swapOrderSchema = SwapOrderRequestSchema;
 
 export interface CategoryQueryParams {
   keyword?: string;
 }
 
-export interface OrderMapItem {
-  id: string;
-  personal_id: number;
-}
-
-export interface SwapOrderRequest {
-  order_map: OrderMapItem[];
-}
-
 export interface CategoryService {
   fetchCategories(params?: CategoryQueryParams): Promise<ApiCategoryResponse[]>;
   createCategory(payload: CategoryCreatePayload): Promise<CategoryMutationResult>;
-  updateCategory(
-    id: string,
-    payload: CategoryUpdatePayload
-  ): Promise<CategoryMutationResult>;
-  deleteCategory(
-    id: string
-  ): Promise<{ message?: string; categoryId?: string }>;
+  updateCategory(id: string, payload: CategoryUpdatePayload): Promise<CategoryMutationResult>;
+  deleteCategory(id: string): Promise<{ message?: string; categoryId?: string }>;
   swapCategoryOrder(payload: SwapOrderRequest): Promise<void>;
   getNextPersonalId(): number;
 }
 
-// Store the next personal_id
 let nextPersonalId = 1;
+const LOCAL_STORAGE_KEY = 'max_category_personal_id';
+
+const querySchema = z.object({
+  keyword: z.string().optional(),
+});
+
+function normalizeParentId(value: unknown): string | null {
+  if (value == null) {
+    return null;
+  }
+  const normalized = String(value).trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function sanitizeCreatePayload(payload: CategoryCreatePayload): CreateCategoryRequest {
+  const { position: _position, parent_id, color, ...rest } = payload;
+  return CreateCategoryRequestSchema.parse({
+    ...rest,
+    color: color ?? undefined,
+    parent_id: normalizeParentId(parent_id),
+  });
+}
+
+function sanitizeUpdatePayload(payload: CategoryUpdatePayload): UpdateCategoryRequest {
+  const { position: _position, parent_id, color, ...rest } = payload;
+  const base: Record<string, unknown> = { ...rest };
+
+  if (color !== undefined) {
+    base.color = color ?? null;
+  }
+
+  if (parent_id !== undefined) {
+    base.parent_id = normalizeParentId(parent_id);
+  }
+
+  return UpdateCategoryRequestSchema.parse(base);
+}
+
+function updatePersonalIdCache(personalId: number | null | undefined): void {
+  if (typeof window === 'undefined' || personalId == null) {
+    return;
+  }
+  const cached = Number(localStorage.getItem(LOCAL_STORAGE_KEY) ?? '0');
+  const maxId = Math.max(cached, personalId);
+  localStorage.setItem(LOCAL_STORAGE_KEY, maxId.toString());
+  nextPersonalId = maxId + 1;
+}
+
+function resetPersonalIdCache(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  }
+  nextPersonalId = 1;
+}
 
 export const categoryService: CategoryService = {
   async fetchCategories(params = {}) {
-    // API service automatically unwraps the response
-    // Returns the data directly: Array<ApiCategoryResponse>
-    const categories = (await apiService.get('/categories', {
-      keyword: params.keyword ?? undefined,
-    })) as ApiCategoryResponse[];
+    const query = querySchema.parse(params);
+    const response = await apiService.get<Category[]>('/categories', query, { returnRaw: true });
+    const validated = categoryListSchema.parse(response);
 
-    // Update cache for personal_id
-    if (typeof localStorage !== 'undefined' && categories.length > 0) {
-      const maxPersonalId = Math.max(...categories.map(cat => cat.personal_id ?? 0));
-      nextPersonalId = maxPersonalId + 1;
-      localStorage.setItem('max_category_personal_id', maxPersonalId.toString());
-    } else {
-      nextPersonalId = 1;
+    const maxPersonalId = validated.meta.max_personal_id ?? 0;
+    if (validated.data.length === 0) {
+      resetPersonalIdCache();
+    } else if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, maxPersonalId.toString());
     }
+    nextPersonalId = Math.max(1, maxPersonalId + 1);
 
-    return Array.isArray(categories) ? categories : [];
+    return validated.data;
   },
 
-  async createCategory(payload: CategoryCreatePayload) {
-    const requestBody = buildCreatePayload(payload);
-    
-    // API service automatically unwraps the response
-    // Returns the data directly: ApiCategoryResponse
-    const category = (await apiService.post('/categories', requestBody)) as ApiCategoryResponse;
+  async createCategory(payload) {
+    const request = sanitizeCreatePayload(payload);
+    const response = await apiService.post<Category>('/categories', request, { returnRaw: true });
+    const validated = categoryResponseSchema.parse(response);
 
-    // Update cache after successful creation
-    if (typeof localStorage !== 'undefined' && category.personal_id) {
-      const currentMax = parseInt(localStorage.getItem('max_category_personal_id') || '0');
-      if (category.personal_id > currentMax) {
-        localStorage.setItem('max_category_personal_id', category.personal_id.toString());
-        nextPersonalId = category.personal_id + 1;
-      }
-    }
+    const category = validated.data ?? null;
+    updatePersonalIdCache(category?.personal_id);
 
     return {
-      category: category ?? null,
-      success: true,
+      category,
+      success: validated.success,
+      message: validated.message,
+      meta: validated.meta,
     };
   },
 
-  async updateCategory(id: string, payload: CategoryUpdatePayload) {
-    const requestBody = buildUpdatePayload(payload);
-    
-    // API service automatically unwraps the response
-    // Returns the data directly: ApiCategoryResponse
-    const category = (await apiService.put(
-      `/categories/${encodeURIComponent(String(id))}`,
-      requestBody
-    )) as ApiCategoryResponse;
+  async updateCategory(id, payload) {
+    const request = sanitizeUpdatePayload(payload);
+    const response = await apiService.put<Category>(
+      `/categories/${encodeURIComponent(id)}`,
+      request,
+      { returnRaw: true }
+    );
+    const validated = categoryResponseSchema.parse(response);
+
+    const category = validated.data ?? null;
+    updatePersonalIdCache(category?.personal_id);
 
     return {
-      category: category ?? null,
-      success: true,
+      category,
+      success: validated.success,
+      message: validated.message,
+      meta: validated.meta,
     };
   },
 
-  async deleteCategory(id: string) {
-    // API service automatically unwraps the response and throws on error
-    await apiService.delete(`/categories/${encodeURIComponent(String(id))}`);
+  async deleteCategory(id) {
+    const response = await apiService.delete<null>(
+      `/categories/${encodeURIComponent(id)}`,
+      { returnRaw: true }
+    );
+    emptyResponseSchema.parse(response);
 
     return {
       message: 'Category deleted successfully',
@@ -241,9 +168,14 @@ export const categoryService: CategoryService = {
     };
   },
 
-  async swapCategoryOrder(payload: SwapOrderRequest) {
-    // API service automatically unwraps the response and throws on error
-    await apiService.put('/categories/swap-order', payload);
+  async swapCategoryOrder(payload) {
+    const validatedRequest = swapOrderSchema.parse(payload);
+    const response = await apiService.put<null>(
+      '/categories/swap-order',
+      validatedRequest,
+      { returnRaw: true }
+    );
+    emptyResponseSchema.parse(response);
   },
 
   getNextPersonalId() {

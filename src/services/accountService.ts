@@ -1,89 +1,62 @@
+import { z } from 'zod';
 import apiService from './api';
 import type { TransactionRecord } from '../types/transaction';
+import {
+  AccountSchema,
+  ApiResponseSchema,
+  CreateAccountRequestSchema,
+  PaginatedResponseSchema,
+  SwapOrderRequestSchema,
+  UpdateAccountRequestSchema,
+  type Account,
+  type CreateAccountRequest,
+  type SwapOrderRequest,
+  type UpdateAccountRequest,
+} from '@/types/schemas';
 
-export interface ApiResponse<T> {
-  success?: boolean;
-  code?: string;
-  message?: string;
-  data?: T;
-  error?: { message?: string };
-  meta?: unknown;
-}
+export type ApiAccountResponse = Account;
+export type { CreateAccountRequest, UpdateAccountRequest, SwapOrderRequest };
 
-export type Usability = 'USABLE' | 'PROTECTED';
-
-export interface ApiAccountResponse {
-  id?: string;
-  user_id?: string;
-  personal_id?: number;
-  name?: string;
-  icon?: string | null;
-  color?: string | null;
-  active?: boolean;
-  usability?: Usability | string | null;
-  account_type?: string | null;
-  initial_amount?: number | null;
-  position?: number | null;
-  group_id?: string | null;
-  created_at?: string | null;
-  created_by?: string | null;
-  updated_at?: string | null;
-  updated_by?: string | null;
-  // Allow extra fields without breaking
-  [key: string]: unknown;
-}
-
-export interface CreateAccountRequest {
-  personal_id: number;
-  name: string;
-  icon: string;
-  color: string;
-  active: boolean;
-  account_type: string;
-  initial_amount: number;
-  usability: Usability;
-  group_id: string | null;
-}
-
-export interface UpdateAccountRequest {
-  name: string;
-  icon: string;
-  color: string;
-  active: boolean;
-  account_type: string;
-  initial_amount: number;
-  usability: Usability;
-  group_id: string | null;
-}
-
-const isApiResponse = <T,>(value: unknown): value is ApiResponse<T> =>
-  typeof value === 'object' && value !== null && ('data' in (value as Record<string, unknown>) || 'message' in (value as Record<string, unknown>) || 'error' in (value as Record<string, unknown>));
-
-export interface OrderMapItem {
-  id: string;
-  personal_id: number;
-}
-
-export interface SwapOrderRequest {
-  order_map: OrderMapItem[];
-}
+const accountListSchema = PaginatedResponseSchema(AccountSchema);
+const accountResponseSchema = ApiResponseSchema(AccountSchema);
+const emptyResponseSchema = ApiResponseSchema(z.null());
 
 export interface AccountService {
-  fetchAccounts(): Promise<ApiAccountResponse[]>;
-  fetchAccountById(id: string): Promise<ApiAccountResponse>;
-  createAccount(payload: CreateAccountRequest): Promise<ApiAccountResponse>;
-  updateAccount(id: string, payload: UpdateAccountRequest): Promise<ApiAccountResponse>;
+  fetchAccounts(): Promise<Account[]>;
+  fetchAccountById(id: string): Promise<Account>;
+  createAccount(payload: CreateAccountRequest): Promise<Account>;
+  updateAccount(id: string, payload: UpdateAccountRequest): Promise<Account>;
   deleteAccount(id: string): Promise<void>;
   swapAccountOrder(payload: SwapOrderRequest): Promise<void>;
   fetchAccountTransactions(accountId: string, currentBalance: number): Promise<TransactionRecord[]>;
   getNextPersonalId(): number;
 }
 
-// Store the next personal_id
 let nextPersonalId = 1;
+const LOCAL_STORAGE_KEY = 'max_account_personal_id';
 
-// Generate mock transaction records
-const generateMockTransactions = (currentBalance: number): TransactionRecord[] => {
+function updatePersonalIdCache(personalId: number | null | undefined): void {
+  if (typeof window === 'undefined' || personalId == null) {
+    return;
+  }
+  const cached = Number(localStorage.getItem(LOCAL_STORAGE_KEY) ?? '0');
+  const maxId = Math.max(cached, personalId);
+  localStorage.setItem(LOCAL_STORAGE_KEY, maxId.toString());
+  nextPersonalId = maxId + 1;
+}
+
+function loadCachedPersonalId(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const cached = Number(localStorage.getItem(LOCAL_STORAGE_KEY) ?? '0');
+  if (cached > 0) {
+    nextPersonalId = cached + 1;
+  }
+}
+
+function generateMockTransactions(currentBalance: number): TransactionRecord[] {
+  void currentBalance;
   const categories = [
     { name: 'Loans, interests', icon: 'FaHandshake', iconColor: '#F97316', payer: 'Ibuk Fatim' },
     { name: 'Missing', icon: 'FaQuestionCircle', iconColor: '#6B7280', payer: '' },
@@ -109,15 +82,14 @@ const generateMockTransactions = (currentBalance: number): TransactionRecord[] =
   const transactions: TransactionRecord[] = [];
   const today = new Date();
 
-  // Generate transactions for the last 30 days
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 50; i += 1) {
     const daysAgo = Math.floor(Math.random() * 30);
     const date = new Date(today);
     date.setDate(date.getDate() - daysAgo);
 
     const category = categories[Math.floor(Math.random() * categories.length)];
     const amount = Math.floor(Math.random() * 500000) + 10000;
-    const isExpense = Math.random() > 0.3; // 70% expenses, 30% income
+    const isExpense = Math.random() > 0.3;
 
     const hours = Math.floor(Math.random() * 24);
     const minutes = Math.floor(Math.random() * 60);
@@ -125,7 +97,7 @@ const generateMockTransactions = (currentBalance: number): TransactionRecord[] =
     const hours12 = hours % 12 || 12;
     const time = `${String(hours12).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
 
-    const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const dateString = date.toISOString().split('T')[0];
 
     transactions.push({
       id: `trans-${i}`,
@@ -137,99 +109,80 @@ const generateMockTransactions = (currentBalance: number): TransactionRecord[] =
       accountName: accounts[Math.floor(Math.random() * accounts.length)],
       description: descriptions[Math.floor(Math.random() * descriptions.length)],
       payer: category.payer,
-      amount: amount,
+      amount,
       type: isExpense ? 'EXPENSE' : 'INCOME',
     });
   }
 
-  // Sort by date descending (most recent first)
   return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-};
+}
 
 export const accountService: AccountService = {
   async fetchAccounts() {
-    // API service automatically unwraps the response
-    // Returns the data directly: Array<ApiAccountResponse>
-    const accounts = (await apiService.get('/accounts')) as ApiAccountResponse[];
+    const response = await apiService.get<Account[]>('/accounts', {}, { returnRaw: true });
+    const validated = accountListSchema.parse(response);
 
-    // The API also returns meta with max_personal_id, but since response is unwrapped,
-    // we need to calculate it from the accounts or use localStorage cache
-    if (typeof localStorage !== 'undefined') {
-      const cachedMaxId = localStorage.getItem('max_account_personal_id');
-      if (cachedMaxId) {
-        nextPersonalId = parseInt(cachedMaxId) + 1;
-      }
+    const maxPersonalId = validated.meta.max_personal_id ?? 0;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, maxPersonalId.toString());
     }
+    nextPersonalId = Math.max(1, maxPersonalId + 1);
 
-    // Update cache based on current accounts
-    if (accounts.length > 0) {
-      const maxPersonalId = Math.max(...accounts.map(acc => acc.personal_id ?? 0));
-      nextPersonalId = maxPersonalId + 1;
-      
-      // Cache for future use
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('max_account_personal_id', maxPersonalId.toString());
-      }
-    } else {
-      nextPersonalId = 1;
-    }
-
-    return accounts;
+    return validated.data;
   },
 
   async fetchAccountById(id: string) {
-    // API service automatically unwraps the response
-    // Returns the data directly: ApiAccountResponse
-    const account = (await apiService.get(`/accounts/${id}`)) as ApiAccountResponse;
-    return account;
+    const response = await apiService.get<Account>(`/accounts/${encodeURIComponent(id)}`, {}, { returnRaw: true });
+    const validated = accountResponseSchema.parse(response);
+    if (!validated.data) {
+      throw new Error('Account not found');
+    }
+    return validated.data;
   },
 
   async createAccount(payload: CreateAccountRequest) {
-    // API service automatically unwraps the response
-    // Returns the data directly: ApiAccountResponse
-    const account = (await apiService.post('/accounts', payload)) as ApiAccountResponse;
-    
-    // Update cache after successful creation
-    if (typeof localStorage !== 'undefined' && account.personal_id) {
-      const currentMax = parseInt(localStorage.getItem('max_account_personal_id') || '0');
-      if (account.personal_id > currentMax) {
-        localStorage.setItem('max_account_personal_id', account.personal_id.toString());
-        nextPersonalId = account.personal_id + 1;
-      }
+    const validatedRequest = CreateAccountRequestSchema.parse(payload);
+    const response = await apiService.post<Account>('/accounts', validatedRequest, { returnRaw: true });
+    const validated = accountResponseSchema.parse(response);
+    if (!validated.data) {
+      throw new Error('Failed to create account');
     }
-    
-    return account;
+
+    updatePersonalIdCache(validated.data.personal_id);
+    return validated.data;
   },
 
   async updateAccount(id: string, payload: UpdateAccountRequest) {
-    // API service automatically unwraps the response
-    // Returns the data directly: ApiAccountResponse
-    const account = (await apiService.put(`/accounts/${id}`, payload)) as ApiAccountResponse;
-    return account;
+    const validatedRequest = UpdateAccountRequestSchema.parse(payload);
+    const response = await apiService.put<Account>(`/accounts/${encodeURIComponent(id)}`, validatedRequest, { returnRaw: true });
+    const validated = accountResponseSchema.parse(response);
+    if (!validated.data) {
+      throw new Error('Failed to update account');
+    }
+
+    updatePersonalIdCache(validated.data.personal_id);
+    return validated.data;
   },
 
   async deleteAccount(id: string) {
-    // API service automatically unwraps the response and throws on error
-    // Returns null for successful deletion
-    await apiService.delete(`/accounts/${id}`);
+    const response = await apiService.delete<null>(`/accounts/${encodeURIComponent(id)}`, { returnRaw: true });
+    emptyResponseSchema.parse(response);
   },
 
   async swapAccountOrder(payload: SwapOrderRequest) {
-    // API service automatically unwraps the response and throws on error
-    await apiService.put('/accounts/swap-order', payload);
+    const validatedRequest = SwapOrderRequestSchema.parse(payload);
+    const response = await apiService.put<null>('/accounts/swap-order', validatedRequest, { returnRaw: true });
+    emptyResponseSchema.parse(response);
   },
 
   async fetchAccountTransactions(accountId: string, currentBalance: number) {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = (await apiService.get(`/accounts/${accountId}/transactions`)) as ApiResponse<TransactionRecord[]> | TransactionRecord[];
-
-    // For now, return mock data with simulated network delay
+    void accountId;
     await new Promise(resolve => setTimeout(resolve, 300));
-
     return generateMockTransactions(currentBalance);
   },
 
   getNextPersonalId() {
+    loadCachedPersonalId();
     return nextPersonalId;
   },
 };

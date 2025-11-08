@@ -43,6 +43,7 @@ interface FetchError extends Error {
 
 interface ApiRequestOptions extends RequestInitWithBody {
   headers?: RequestHeaders;
+  returnRaw?: boolean;
 }
 
 type QueryParams = Record<string, string | number | boolean | undefined | null>;
@@ -104,13 +105,24 @@ class ApiService {
 
   async request<T = unknown>(
     endpoint: string,
+    options: ApiRequestOptions & { returnRaw: true },
+    attempt?: number
+  ): Promise<ApiResponse<T>>;
+  async request<T = unknown>(
+    endpoint: string,
+    options?: ApiRequestOptions,
+    attempt?: number
+  ): Promise<T>;
+  async request<T = unknown>(
+    endpoint: string,
     options: ApiRequestOptions = {},
     attempt = 0
-  ): Promise<T> {
+  ): Promise<T | ApiResponse<T>> {
     const url = buildUrl(this.baseURL, endpoint);
-    const config: ApiRequestOptions = {
-      ...options,
-      headers: initHeaders(options.headers),
+    const { returnRaw = false, headers, ...restOptions } = options;
+    const config: RequestInitWithBody & { headers?: RequestHeaders } = {
+      ...restOptions,
+      headers: initHeaders(headers),
     };
 
     await this.applyAuthHeader(config);
@@ -147,7 +159,7 @@ class ApiService {
       const contentType = response.headers.get('content-type');
       if (isJsonResponse(contentType)) {
         const jsonData = await response.json();
-        
+
         // Check if response is wrapped in {success, message, data, meta} format
         if (
           typeof jsonData === 'object' &&
@@ -156,7 +168,7 @@ class ApiService {
           'data' in jsonData
         ) {
           const wrappedResponse = jsonData as ApiResponse<T>;
-          
+
           // If wrapped response indicates failure, throw error
           if (!wrappedResponse.success) {
             if (
@@ -178,7 +190,6 @@ class ApiService {
                 );
               }
             }
-
             const error = new Error(wrappedResponse.message || 'API request failed') as FetchError;
             error.response = {
               data: {
@@ -189,11 +200,12 @@ class ApiService {
             };
             throw error;
           }
-          
-          // Unwrap and return data
-          return wrappedResponse.data as T;
+
+          return returnRaw
+            ? (wrappedResponse as ApiResponse<T>)
+            : (wrappedResponse.data as T);
         }
-        
+
         // Return raw response if not wrapped
         return jsonData as T;
       }
@@ -207,18 +219,39 @@ class ApiService {
 
   async get<T = unknown>(
     endpoint: string,
-    params: QueryParams = {}
-  ): Promise<T> {
+    params: QueryParams,
+    options: ApiRequestOptions & { returnRaw: true }
+  ): Promise<ApiResponse<T>>;
+  async get<T = unknown>(
+    endpoint: string,
+    params?: QueryParams,
+    options?: ApiRequestOptions
+  ): Promise<T>;
+  async get<T = unknown>(
+    endpoint: string,
+    params: QueryParams = {},
+    options: ApiRequestOptions = {}
+  ): Promise<T | ApiResponse<T>> {
     const query = serialiseQuery(params);
     const url = query ? `${endpoint}?${query}` : endpoint;
-    return this.request<T>(url, { method: 'GET' });
+    return this.request<T>(url, { method: 'GET', ...options });
   }
 
   async post<T = unknown, B extends object = JsonRecord>(
     endpoint: string,
+    data: B,
+    options: ApiRequestOptions & { returnRaw: true }
+  ): Promise<ApiResponse<T>>;
+  async post<T = unknown, B extends object = JsonRecord>(
+    endpoint: string,
+    data?: B,
+    options?: ApiRequestOptions
+  ): Promise<T>;
+  async post<T = unknown, B extends object = JsonRecord>(
+    endpoint: string,
     data: B = {} as B,
     options: ApiRequestOptions = {}
-  ): Promise<T> {
+  ): Promise<T | ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -228,44 +261,94 @@ class ApiService {
 
   async postForm<T = unknown>(
     endpoint: string,
-    data: FormBody = {}
-  ): Promise<T> {
+    data: FormBody,
+    options: ApiRequestOptions & { returnRaw: true }
+  ): Promise<ApiResponse<T>>;
+  async postForm<T = unknown>(
+    endpoint: string,
+    data?: FormBody,
+    options?: ApiRequestOptions
+  ): Promise<T>;
+  async postForm<T = unknown>(
+    endpoint: string,
+    data: FormBody = {},
+    options: ApiRequestOptions = {}
+  ): Promise<T | ApiResponse<T>> {
+    const { headers: optionHeaders, ...restOptions } = options;
+
     return this.request<T>(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        ...(optionHeaders ?? {}),
       },
       body: toUrlEncoded(data),
+      ...restOptions,
     });
   }
 
   async put<T = unknown, B extends object = JsonRecord>(
     endpoint: string,
-    data: B = {} as B
-  ): Promise<T> {
+    data: B,
+    options: ApiRequestOptions & { returnRaw: true }
+  ): Promise<ApiResponse<T>>;
+  async put<T = unknown, B extends object = JsonRecord>(
+    endpoint: string,
+    data?: B,
+    options?: ApiRequestOptions
+  ): Promise<T>;
+  async put<T = unknown, B extends object = JsonRecord>(
+    endpoint: string,
+    data: B = {} as B,
+    options: ApiRequestOptions = {}
+  ): Promise<T | ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
+      ...options,
     });
   }
 
   async putForm<T = unknown>(
     endpoint: string,
-    data: FormBody = {}
-  ): Promise<T> {
+    data: FormBody,
+    options: ApiRequestOptions & { returnRaw: true }
+  ): Promise<ApiResponse<T>>;
+  async putForm<T = unknown>(
+    endpoint: string,
+    data?: FormBody,
+    options?: ApiRequestOptions
+  ): Promise<T>;
+  async putForm<T = unknown>(
+    endpoint: string,
+    data: FormBody = {},
+    options: ApiRequestOptions = {}
+  ): Promise<T | ApiResponse<T>> {
+    const { headers: optionHeaders, ...restOptions } = options;
+
     return this.request<T>(endpoint, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        ...(optionHeaders ?? {}),
       },
       body: toUrlEncoded(data),
+      ...restOptions,
     });
   }
 
   async delete<T = unknown>(
     endpoint: string,
+    options: ApiRequestOptions & { returnRaw: true }
+  ): Promise<ApiResponse<T>>;
+  async delete<T = unknown>(
+    endpoint: string,
+    options?: ApiRequestOptions
+  ): Promise<T>;
+  async delete<T = unknown>(
+    endpoint: string,
     options: ApiRequestOptions = {}
-  ): Promise<T> {
+  ): Promise<T | ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'DELETE',
       ...options,

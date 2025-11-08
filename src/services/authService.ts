@@ -1,6 +1,19 @@
+import { z } from 'zod';
 import apiService from './api';
 import tokenCrypto from '../utils/crypto';
 import { APP_CONFIG } from '../config';
+import {
+  ApiResponseSchema,
+  LoginRequestSchema,
+  LoginResponseSchema,
+  RegisterRequestSchema,
+  RefreshTokenRequestSchema,
+  RefreshTokenResponseSchema,
+  UserProfileSchema,
+  type LoginResponse,
+  type RefreshTokenResponse,
+  type UserProfile,
+} from '@/types/schemas';
 
 type FormValue = string | number | boolean | null | undefined;
 
@@ -28,6 +41,17 @@ type ErrorWithResponse = Error & {
     status?: number;
   };
 };
+
+const loginResponseSchema = ApiResponseSchema(LoginResponseSchema);
+const registerResponseSchema = ApiResponseSchema(z.null());
+const logoutResponseSchema = ApiResponseSchema(z.null());
+const refreshResponseSchema = ApiResponseSchema(RefreshTokenResponseSchema);
+const profileResponseSchema = ApiResponseSchema(UserProfileSchema);
+const updateProfileRequestSchema = z.record(z.unknown());
+const changePasswordRequestSchema = z.record(z.unknown());
+const forgotPasswordRequestSchema = z.object({ email: z.string().email() });
+const resetPasswordRequestSchema = z.record(z.unknown());
+const genericSuccessSchema = ApiResponseSchema(z.null());
 
 const isErrorWithResponse = (error: unknown): error is ErrorWithResponse => {
   return (
@@ -95,23 +119,39 @@ export const authService: AuthService = {
 
   // Login user
   async login(credentials) {
-    // Convert credentials to JSON format for new API
-    const loginData = {
-      email_or_username: credentials.email_or_username || credentials.email || credentials.username,
+    const loginData = LoginRequestSchema.parse({
+      email_or_username:
+        credentials.email_or_username || credentials.email || credentials.username,
       password: credentials.password,
-    };
-    return apiService.post('/auth/login', loginData);
+    });
+
+    const response = await apiService.post<LoginResponse>(
+      '/auth/login',
+      loginData,
+      { returnRaw: true }
+    );
+    const validated = loginResponseSchema.parse(response);
+
+    if (!validated.data) {
+      throw new Error('Authentication failed.');
+    }
+
+    return validated.data;
   },
 
   // Register user
   async register(userData) {
-    // Convert userData to JSON format for new API
-    const registerData = {
+    const registerData = RegisterRequestSchema.parse({
       email: userData.email,
       username: userData.username,
       password: userData.password,
-    };
-    return apiService.post('/auth/register', registerData);
+    });
+
+    const response = await apiService.post<null>('/auth/register', registerData, {
+      returnRaw: true,
+    });
+
+    return registerResponseSchema.parse(response);
   },
 
   // Logout user
@@ -121,13 +161,23 @@ export const authService: AuthService = {
       const refreshToken = await this.getRefreshToken();
 
       const requestBody = refreshToken
-        ? { refresh_token: refreshToken }
+        ? RefreshTokenRequestSchema.parse({ refresh_token: refreshToken })
         : {};
 
-      const response = await apiService.post('/auth/logout', requestBody);
+      const response = await apiService.post<null>(
+        '/auth/logout',
+        requestBody,
+        { returnRaw: true }
+      );
+      const validated = logoutResponseSchema.parse(response);
       // Clear local storage
       this.clearAuthData();
-      return response as LogoutResponse;
+      return {
+        success: validated.success,
+        message: validated.message,
+        data: validated.data ?? undefined,
+        meta: validated.meta ?? undefined,
+      } as LogoutResponse;
     } catch (error) {
       // Even if API call fails, clear local storage
       this.clearAuthData();
@@ -152,8 +202,19 @@ export const authService: AuthService = {
       if (!refreshToken) {
         throw new Error('Missing refresh token.');
       }
-      const response = await apiService.post('/auth/refresh', { refresh_token: refreshToken });
-      return response;
+      const request = RefreshTokenRequestSchema.parse({ refresh_token: refreshToken });
+      const response = await apiService.post<RefreshTokenResponse>(
+        '/auth/refresh',
+        request,
+        { returnRaw: true }
+      );
+      const validated = refreshResponseSchema.parse(response);
+
+      if (!validated.data) {
+        throw new Error('Token refresh failed.');
+      }
+
+      return validated.data;
     } catch (error) {
       if (isErrorWithResponse(error)) {
         const data = error.response?.data ?? {};
@@ -176,8 +237,12 @@ export const authService: AuthService = {
   // Get current user profile
   async getCurrentUser() {
     try {
-      const response = await apiService.get('/auth/me');
-      return response;
+      const response = await apiService.get<UserProfile>('/auth/me', {}, { returnRaw: true });
+      const validated = profileResponseSchema.parse(response);
+      if (!validated.data) {
+        throw new Error('User profile not found.');
+      }
+      return validated.data;
     } catch (error) {
       throw new Error(extractMessage(error, 'Failed to fetch user profile.'));
     }
@@ -186,8 +251,17 @@ export const authService: AuthService = {
   // Update user profile
   async updateProfile(userData) {
     try {
-      const response = await apiService.put('/auth/profile', userData);
-      return response;
+      const request = updateProfileRequestSchema.parse(userData ?? {});
+      const response = await apiService.put<UserProfile>(
+        '/auth/profile',
+        request,
+        { returnRaw: true }
+      );
+      const validated = profileResponseSchema.parse(response);
+      if (!validated.data) {
+        throw new Error('Failed to update profile.');
+      }
+      return validated.data;
     } catch (error) {
       throw new Error(extractMessage(error, 'Failed to update profile.'));
     }
@@ -196,8 +270,13 @@ export const authService: AuthService = {
   // Change password
   async changePassword(passwords) {
     try {
-      const response = await apiService.post('/auth/change-password', passwords);
-      return response;
+      const request = changePasswordRequestSchema.parse(passwords ?? {});
+      const response = await apiService.post<null>(
+        '/auth/change-password',
+        request,
+        { returnRaw: true }
+      );
+      return genericSuccessSchema.parse(response);
     } catch (error) {
       throw new Error(extractMessage(error, 'Failed to change password.'));
     }
@@ -206,8 +285,13 @@ export const authService: AuthService = {
   // forgot password
   async forgotPassword(email) {
     try {
-      const response = await apiService.post('/auth/forgot-password', { email });
-      return response;
+      const request = forgotPasswordRequestSchema.parse({ email });
+      const response = await apiService.post<null>(
+        '/auth/forgot-password',
+        request,
+        { returnRaw: true }
+      );
+      return genericSuccessSchema.parse(response);
     } catch (error) {
       throw new Error(extractMessage(error, 'Failed to send password reset email.'));
     }
@@ -216,8 +300,13 @@ export const authService: AuthService = {
   // Reset password
   async resetPassword(resetData) {
     try {
-      const response = await apiService.post('/auth/reset-password', resetData);
-      return response;
+      const request = resetPasswordRequestSchema.parse(resetData ?? {});
+      const response = await apiService.post<null>(
+        '/auth/reset-password',
+        request,
+        { returnRaw: true }
+      );
+      return genericSuccessSchema.parse(response);
     } catch (error) {
       throw new Error(extractMessage(error, 'Failed to reset password.'));
     }

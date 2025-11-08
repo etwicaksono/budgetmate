@@ -1,47 +1,24 @@
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Button, Modal } from 'react-bootstrap';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services';
-import type { AuthFormData } from '../../services';
-import type { LoginResponse, LoginResponseData } from '../../context/AuthContext';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { LoginRequestSchema, type LoginRequest } from '@/types/schemas';
 import { APP_CONFIG } from '../../config';
 import './Login.css';
 import { FaGoogle, FaFacebook, FaApple } from 'react-icons/fa';
 
 // Type definitions
-interface FieldError {
-  field: string;
-  message: string;
-}
-
-interface FieldErrors {
-  [fieldName: string]: FieldError | undefined;
-}
-
-interface LoginFormData extends AuthFormData {
-  email_or_username: string;
-  password: string;
-}
-
-interface AuthResponse extends LoginResponse {
-  data: (LoginResponseData & {
-    access_token: string;
-    refresh_token?: string;
-    message?: string;
-  }) & {
-    user?: Record<string, unknown>;
-  };
-}
-
 interface ApiError {
   response?: {
     data?: {
       error?: {
         code?: string;
         message?: string;
-        fields?: FieldErrors;
+        fields?: Record<string, { message?: string }>;
       };
     };
   };
@@ -49,13 +26,22 @@ interface ApiError {
 }
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
   const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const {
+    register,
+    handleSubmit: handleFormSubmit,
+    setError,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginRequest>({
+    resolver: zodResolver(LoginRequestSchema),
+    defaultValues: {
+      email_or_username: '',
+      password: '',
+    },
+  });
   
   const { login } = useAuth();
   const router = useRouter();
@@ -72,101 +58,73 @@ const Login: React.FC = () => {
     }
   }, [showErrorModal]);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault();
-    setLoading(true);
-    setFieldErrors({});
+  const onSubmit = async (formData: LoginRequest): Promise<void> => {
+    setErrorMessage('');
+    setShowErrorModal(false);
 
     try {
-      console.log('Login attempt with:', { email, password });
-      
-      // Make actual API call using centralized service
-      const response = (await authService.login({
-        email_or_username: email,
-        password,
-      } as LoginFormData)) as any;
-      
-      // Debug: Log the actual response structure
-      console.log('Full API response:', response);
-      
-      // After API service unwrapping, response is the data directly
-      // Response structure: { access_token, refresh_token, user }
-      if (response?.access_token) {
-        // Clear any existing field errors on successful login
-        setFieldErrors({});
-        
-        // Wrap response in data property for login function compatibility
-        await login({ data: response });
-        
-        // Store user data if available
-        if (response?.user) {
-          localStorage.setItem(APP_CONFIG.storageKeys.userData, JSON.stringify(response.user));
-        }
-        
-        router.replace(from);
-      } else {
-        throw new Error('No access token received from server');
+      const response = await authService.login(formData);
+
+      await login({ data: response });
+
+      if (response?.user) {
+        localStorage.setItem(APP_CONFIG.storageKeys.userData, JSON.stringify(response.user));
       }
+
+      reset();
+      router.replace(from);
     } catch (err) {
       const error = err as ApiError;
       console.error('Login failed:', error);
-      
-      // Handle validation errors with specific field information
-      if (error.response?.data?.error?.fields) {
-        const fields = error.response.data.error.fields;
-        setFieldErrors(fields);
-        
-        // Create a generic error message that mentions which fields have errors
-        const fieldNames = Object.keys(fields);
-        const fieldList = fieldNames.length > 1 
-          ? fieldNames.slice(0, -1).join(', ') + ' and ' + fieldNames[fieldNames.length - 1]
-          : fieldNames[0];
-        
-        const errorMsg = `Please check your ${fieldList} field${fieldNames.length > 1 ? 's' : ''}`;
-        setErrorMessage(errorMsg);
-      } else {
-        // Handle general authentication errors - show as field errors for better UX
-        const errorMessage = error.response?.data?.error?.message || error.message || 'Invalid credentials';
-        
-        // For UNAUTHORIZED errors, show as field errors on both fields
-        if (error.response?.data?.error?.code === 'UNAUTHORIZED') {
-          setFieldErrors({
-            email_or_username: {
-              field: 'email_or_username',
-              message: errorMessage
-            },
-            password: {
-              field: 'password', 
-              message: errorMessage
-            }
-          });
-          setErrorMessage('Invalid email/username or password');
-        } else {
-          // Handle other general errors
-          setFieldErrors({});
-          setErrorMessage(errorMessage);
+
+      let message = error.response?.data?.error?.message || error.message || 'Invalid credentials';
+
+      const fieldErrors = error.response?.data?.error?.fields;
+      if (fieldErrors && typeof fieldErrors === 'object') {
+        const mappedFields = Object.entries(fieldErrors as Record<string, { message?: string }>);
+        const collected: string[] = [];
+        mappedFields.forEach(([field, value]) => {
+          const fieldMap: Record<string, keyof LoginRequest> = {
+            email: 'email_or_username',
+            username: 'email_or_username',
+            email_or_username: 'email_or_username',
+            password: 'password',
+          };
+          const normalized = fieldMap[field];
+          if (normalized) {
+            collected.push(normalized);
+            setError(normalized, {
+              type: 'server',
+              message: value?.message || 'Invalid value',
+            });
+          }
+        });
+
+        if (collected.length > 0) {
+          const uniqueFields = Array.from(new Set(collected));
+          const readableFields = uniqueFields.map(name =>
+            name === 'email_or_username' ? 'email or username' : name
+          );
+          const fieldList = readableFields.length > 1
+            ? `${readableFields.slice(0, -1).join(', ')} and ${readableFields[readableFields.length - 1]}`
+            : readableFields[0];
+          message = `Please check your ${fieldList} field${readableFields.length > 1 ? 's' : ''}`;
         }
+      } else if (error.response?.data?.error?.code === 'UNAUTHORIZED') {
+        const unauthorizedMessage = message || 'Invalid credentials';
+        setError('email_or_username', {
+          type: 'server',
+          message: unauthorizedMessage,
+        });
+        setError('password', {
+          type: 'server',
+          message: unauthorizedMessage,
+        });
+        message = 'Invalid email/username or password';
       }
-      
+
+      setErrorMessage(message || 'Login failed');
       setShowErrorModal(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    setEmail(e.target.value);
-    // Clear field errors when user starts typing
-    if (fieldErrors.email_or_username) {
-      setFieldErrors(prev => ({ ...prev, email_or_username: undefined }));
-    }
-  };
-
-  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    setPassword(e.target.value);
-    // Clear field errors when user starts typing
-    if (fieldErrors.password) {
-      setFieldErrors(prev => ({ ...prev, password: undefined }));
     }
   };
 
@@ -208,20 +166,19 @@ const Login: React.FC = () => {
             <span>or</span>
           </div> */} {/* TODO: implement for the future */}
 
-          <Form onSubmit={handleSubmit}>
-            <Form.Group className="mb-3" controlId="email">
+          <Form onSubmit={handleFormSubmit(onSubmit)}>
+            <Form.Group className="mb-3" controlId="email_or_username">
               <Form.Label>E-mail or Username</Form.Label>
               <Form.Control
                 type="text"
                 placeholder="Enter your email or username"
-                value={email}
-                onChange={handleEmailChange}
-                required
-                isInvalid={!!fieldErrors.email_or_username}
+                disabled={isSubmitting}
+                isInvalid={Boolean(errors.email_or_username)}
+                {...register('email_or_username')}
               />
-              {fieldErrors.email_or_username && (
+              {errors.email_or_username && (
                 <div className="invalid-feedback-custom">
-                  {fieldErrors.email_or_username.message}
+                  {errors.email_or_username.message}
                 </div>
               )}
             </Form.Group>
@@ -232,10 +189,9 @@ const Login: React.FC = () => {
                 <Form.Control
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  required
-                  isInvalid={!!fieldErrors.password}
+                  disabled={isSubmitting}
+                  isInvalid={Boolean(errors.password)}
+                  {...register('password')}
                 />
                 <Button
                   variant="outline-secondary"
@@ -257,9 +213,9 @@ const Login: React.FC = () => {
                   )}
                 </Button>
               </div>
-              {fieldErrors.password && (
+              {errors.password && (
                 <div className="invalid-feedback-custom">
-                  {fieldErrors.password.message}
+                  {errors.password.message}
                 </div>
               )}
             </Form.Group>
@@ -268,9 +224,9 @@ const Login: React.FC = () => {
               className="login-button"
               type="submit"
               variant="primary"
-              disabled={loading}
+              disabled={isSubmitting}
             >
-              {loading ? 'Logging in...' : 'Log in'}
+              {isSubmitting ? 'Logging in...' : 'Log in'}
             </Button>
           </Form>
 

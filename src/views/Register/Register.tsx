@@ -1,27 +1,27 @@
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Button, Modal } from 'react-bootstrap';
 import Link from 'next/link';
 import { authService } from '../../services';
-import type { AuthFormData } from '../../services';
 import './Register.css';
 import { FaGoogle, FaFacebook, FaApple } from 'react-icons/fa';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { RegisterRequestSchema, type RegisterRequest } from '@/types/schemas';
+import { z } from 'zod';
+
+const registerFormSchema = RegisterRequestSchema.extend({
+  name: z.string().min(1, 'Full name is required'),
+  confirm_password: z
+    .string()
+    .min(8, 'Confirm password must be at least 8 characters long'),
+}).refine((data) => data.password === data.confirm_password, {
+  message: 'Passwords do not match.',
+  path: ['confirm_password'],
+});
+
+type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
 // Type definitions
-interface FieldError {
-  message: string;
-}
-
-interface FieldErrors {
-  [fieldName: string]: FieldError | undefined;
-}
-
-interface RegisterFormData extends AuthFormData {
-  email: string;
-  name: string;
-  username: string;
-  password: string;
-}
-
 interface ApiError {
   response?: {
     data?: {
@@ -33,21 +33,27 @@ interface ApiError {
 }
 
 const Register: React.FC = () => {
-  const [email, setEmail] = useState<string>('');
-  const [name, setName] = useState<string>('');
-  const [username, setUsername] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [validated, setValidated] = useState<boolean>(false);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [passwordValid, setPasswordValid] = useState<boolean>(false);
-  const [passwordsMatchValid, setPasswordsMatchValid] = useState<boolean>(false);
+  const {
+    register,
+    handleSubmit: handleFormSubmit,
+    setError,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerFormSchema),
+    defaultValues: {
+      name: '',
+      username: '',
+      email: '',
+      password: '',
+      confirm_password: '',
+    },
+  });
 
   // Auto-dismiss error modal after 3 seconds
   useEffect(() => {
@@ -59,49 +65,21 @@ const Register: React.FC = () => {
     }
   }, [showErrorModal]);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
-    const form = e.currentTarget;
-    const isValid = form.checkValidity();
-    
-    // Additional custom validation for password match and length
-    const passwordValidCheck = password.length >= 6;
-    const passwordsMatch = password === confirmPassword;
-
-    // Prevent form submission if validation fails
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Set validated state to show Bootstrap validation feedback
-    setValidated(true);
-
-    // Check if form is valid with our custom validations
-    if (!isValid || !passwordValidCheck || !passwordsMatch) {
-      return;
-    }
-
-    setLoading(true);
+  const onSubmit = async (formData: RegisterFormValues): Promise<void> => {
+    setErrorMessage('');
+    setShowErrorModal(false);
 
     try {
-      const userData: RegisterFormData = {
-        email,
-        name,
-        username,
-        password,
+      const { confirm_password, name: _name, ...request } = formData;
+      const registerRequest: RegisterRequest = {
+        email: request.email,
+        username: request.username,
+        password: request.password,
       };
+      await authService.register(registerRequest);
 
-      await authService.register(userData);
-      
       setShowSuccessModal(true);
-      setValidated(false); // Reset validation state on success
-      setFieldErrors({}); // Clear field errors on success
-      setPasswordValid(false); // Reset password validation
-      setPasswordsMatchValid(false); // Reset password match validation
-      // Reset form after successful registration
-      setName('');
-      setEmail('');
-      setUsername('');
-      setPassword('');
-      setConfirmPassword('');
+      reset();
     } catch (err) {
       const error = err as ApiError;
       console.error('Registration failed:', error);
@@ -109,78 +87,41 @@ const Register: React.FC = () => {
       const apiError = error.response?.data;
 
       if (apiError?.errors && typeof apiError.errors === 'object') {
-        const formattedFields = Object.entries(apiError.errors).reduce((acc, [field, message]) => {
-          acc[field] = { message };
-          return acc;
-        }, {} as FieldErrors);
-
-        setFieldErrors(formattedFields);
+        Object.entries(apiError.errors).forEach(([field, message]) => {
+          const fieldMap: Record<string, keyof RegisterFormValues> = {
+            email: 'email',
+            name: 'name',
+            username: 'username',
+            password: 'password',
+          };
+          const normalized = fieldMap[field];
+          if (normalized) {
+            setError(normalized, {
+              type: 'server',
+              message: message || 'Invalid value',
+            });
+          }
+        });
 
         const fieldNames = Object.keys(apiError.errors);
-        const fieldList = fieldNames.length > 1
-          ? `${fieldNames.slice(0, -1).join(', ')} and ${fieldNames[fieldNames.length - 1]}`
-          : fieldNames[0];
+        const readable = fieldNames.map((field) =>
+          field === 'confirm_password' ? 'confirm password' : field.replace('_', ' ')
+        );
+        const fieldList = readable.length > 1
+          ? `${readable.slice(0, -1).join(', ')} and ${readable[readable.length - 1]}`
+          : readable[0];
 
-        setErrorMessage(apiError.message || `Please fix the errors in the ${fieldList} field${fieldNames.length > 1 ? 's' : ''}`);
+        setErrorMessage(
+          apiError.message || `Please fix the errors in the ${fieldList} field${readable.length > 1 ? 's' : ''}`
+        );
       } else {
-        setFieldErrors({});
-        setErrorMessage(apiError?.message || error.message || 'Registration failed. Please check your information and try again.');
+        setErrorMessage(
+          apiError?.message || error.message || 'Registration failed. Please check your information and try again.'
+        );
       }
 
       setShowErrorModal(true);
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const handleNameChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    setName(e.target.value);
-    // Clear name field error when user starts typing
-    if (fieldErrors.name) {
-      setFieldErrors(prev => ({ ...prev, name: undefined }));
-    }
-  };
-
-  const handleUsernameChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    setUsername(e.target.value);
-    // Clear username field error when user starts typing
-    if (fieldErrors.username) {
-      setFieldErrors(prev => ({ ...prev, username: undefined }));
-    }
-  };
-
-  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    setEmail(e.target.value);
-    // Clear email field error when user starts typing
-    if (fieldErrors.email) {
-      setFieldErrors(prev => ({ ...prev, email: undefined }));
-    }
-  };
-
-  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const newPassword = e.target.value;
-    setPassword(newPassword);
-    // Clear password field error when user starts typing
-    if (fieldErrors.password) {
-      setFieldErrors(prev => ({ ...prev, password: undefined }));
-    }
-    // Update validation state
-    setPasswordValid(newPassword.length >= 6);
-    // Update password match validation if confirm password exists
-    if (confirmPassword) {
-      setPasswordsMatchValid(newPassword === confirmPassword);
-    }
-  };
-
-  const handleConfirmPasswordChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const newConfirmPassword = e.target.value;
-    setConfirmPassword(newConfirmPassword);
-    // Clear confirmPassword field error when user starts typing
-    if (fieldErrors.confirmPassword) {
-      setFieldErrors(prev => ({ ...prev, confirmPassword: undefined }));
-    }
-    // Update password match validation
-    setPasswordsMatchValid(newConfirmPassword === password);
   };
 
   const handlePasswordToggle = (): void => {
@@ -229,26 +170,20 @@ const Register: React.FC = () => {
             <span>or</span>
           </div> */} {/* TODO: implement for the future */}
 
-          <Form noValidate validated={validated} onSubmit={handleSubmit}>
+          <Form onSubmit={handleFormSubmit(onSubmit)} noValidate>
             <Form.Group className="mb-3" controlId="name">
               <Form.Label>Full Name</Form.Label>
               <Form.Control
                 type="text"
                 placeholder="John Doe"
-                value={name}
-                onChange={handleNameChange}
-                required
-                isInvalid={!!fieldErrors.name}
+                disabled={isSubmitting}
+                isInvalid={Boolean(errors.name)}
+                {...register('name')}
               />
-              {fieldErrors.name && (
+              {errors.name && (
                 <div className="invalid-feedback-custom">
-                  {fieldErrors.name.message}
+                  {errors.name.message}
                 </div>
-              )}
-              {!fieldErrors.name && validated && (
-                <Form.Control.Feedback type="invalid">
-                  Please provide your full name.
-                </Form.Control.Feedback>
               )}
             </Form.Group>
 
@@ -257,20 +192,14 @@ const Register: React.FC = () => {
               <Form.Control
                 type="text"
                 placeholder="johndoe"
-                value={username}
-                onChange={handleUsernameChange}
-                required
-                isInvalid={!!fieldErrors.username}
+                disabled={isSubmitting}
+                isInvalid={Boolean(errors.username)}
+                {...register('username')}
               />
-              {fieldErrors.username && (
+              {errors.username && (
                 <div className="invalid-feedback-custom">
-                  {fieldErrors.username.message}
+                  {errors.username.message}
                 </div>
-              )}
-              {!fieldErrors.username && validated && (
-                <Form.Control.Feedback type="invalid">
-                  Please provide a username.
-                </Form.Control.Feedback>
               )}
             </Form.Group>
 
@@ -279,20 +208,14 @@ const Register: React.FC = () => {
               <Form.Control
                 type="email"
                 placeholder="john.doe@budgetbakers.com"
-                value={email}
-                onChange={handleEmailChange}
-                required
-                isInvalid={!!fieldErrors.email}
+                disabled={isSubmitting}
+                isInvalid={Boolean(errors.email)}
+                {...register('email')}
               />
-              {fieldErrors.email && (
+              {errors.email && (
                 <div className="invalid-feedback-custom">
-                  {fieldErrors.email.message}
+                  {errors.email.message}
                 </div>
-              )}
-              {!fieldErrors.email && validated && (
-                <Form.Control.Feedback type="invalid">
-                  Please provide a valid email address.
-                </Form.Control.Feedback>
               )}
             </Form.Group>
 
@@ -302,11 +225,9 @@ const Register: React.FC = () => {
                 <Form.Control
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  required
-                  isValid={passwordValid && !fieldErrors.password}
-                  isInvalid={!!fieldErrors.password}
+                  disabled={isSubmitting}
+                  isInvalid={Boolean(errors.password)}
+                  {...register('password')}
                 />
                 <Button
                   variant="outline-secondary"
@@ -328,30 +249,22 @@ const Register: React.FC = () => {
                   )}
                 </Button>
               </div>
-              {fieldErrors.password && (
+              {errors.password && (
                 <div className="invalid-feedback-custom">
-                  {fieldErrors.password.message}
+                  {errors.password.message}
                 </div>
-              )}
-              {!fieldErrors.password && password.length > 0 && !passwordValid && (
-                <Form.Control.Feedback type="invalid">
-                  Password must be at least 6 characters long.
-                </Form.Control.Feedback>
               )}
             </Form.Group>
 
-            <Form.Group className="mb-3" controlId="confirmPassword">
+            <Form.Group className="mb-3" controlId="confirm_password">
               <Form.Label>Confirm Password</Form.Label>
               <div className="password-input-container">
                 <Form.Control
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={handleConfirmPasswordChange}
-                  required
-                  className={confirmPassword && password !== confirmPassword ? 'is-invalid-custom' : ''}
-                  isValid={passwordsMatchValid && confirmPassword.length > 0 && !fieldErrors.confirmPassword}
-                  isInvalid={!!fieldErrors.confirmPassword}
+                  disabled={isSubmitting}
+                  isInvalid={Boolean(errors.confirm_password)}
+                  {...register('confirm_password')}
                 />
                 <Button
                   variant="outline-secondary"
@@ -373,14 +286,9 @@ const Register: React.FC = () => {
                   )}
                 </Button>
               </div>
-              {fieldErrors.confirmPassword && (
+              {errors.confirm_password && (
                 <div className="invalid-feedback-custom">
-                  {fieldErrors.confirmPassword.message}
-                </div>
-              )}
-              {!fieldErrors.confirmPassword && confirmPassword && password !== confirmPassword && (
-                <div className="invalid-feedback-custom">
-                  Passwords do not match.
+                  {errors.confirm_password.message}
                 </div>
               )}
             </Form.Group>
@@ -389,9 +297,9 @@ const Register: React.FC = () => {
               className="register-button"
               type="submit"
               variant="primary"
-              disabled={loading}
+              disabled={isSubmitting}
             >
-              {loading ? 'Creating Account...' : 'Sign Up'}
+              {isSubmitting ? 'Creating Account...' : 'Sign Up'}
             </Button>
           </Form>
 
