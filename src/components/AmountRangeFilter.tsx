@@ -1,7 +1,9 @@
 import React from 'react';
+import { useEffect, useState } from 'react';
 import { Form } from 'react-bootstrap';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
+import { coerceAndFormatNumber, formatNumberDisplayFromValue } from '../utils/numericInput';
 
 interface AmountRangeFilterProps {
   minAmount: number;
@@ -26,28 +28,77 @@ const AmountRangeFilter: React.FC<AmountRangeFilterProps> = ({
   step = 100000,
   controlId = 'amountFilter',
 }) => {
+  const [minInputValue, setMinInputValue] = useState<string>(
+    formatNumberDisplayFromValue(minAmount)
+  );
+  const [maxInputValue, setMaxInputValue] = useState<string>(
+    formatNumberDisplayFromValue(maxAmount)
+  );
+  const [dynamicMaxLimit, setDynamicMaxLimit] = useState<number>(maxLimit);
+
+  useEffect(() => {
+    setMinInputValue(formatNumberDisplayFromValue(minAmount));
+  }, [minAmount]);
+
+  useEffect(() => {
+    setMaxInputValue(formatNumberDisplayFromValue(maxAmount));
+    setDynamicMaxLimit((previous) => Math.max(previous, maxAmount, maxLimit));
+  }, [maxAmount, maxLimit]);
+
+  useEffect(() => {
+    setDynamicMaxLimit((previous) => (maxLimit > previous ? maxLimit : previous));
+  }, [maxLimit]);
+
+  const clampValue = (value: number, min: number, max: number): number =>
+    Math.min(Math.max(value, min), max);
+
+  const commitMinAmount = (normalized?: string) => {
+    const numericValue = normalized && normalized.length > 0 ? Number(normalized) : minLimit;
+    const safeNumeric = Number.isFinite(numericValue) ? numericValue : minLimit;
+    const upperBound = Math.max(
+      minLimit,
+      Math.min(dynamicMaxLimit, Math.max(maxAmount, minLimit))
+    );
+    const clamped = clampValue(safeNumeric, minLimit, upperBound);
+    setMinInputValue(formatNumberDisplayFromValue(clamped));
+    onMinAmountChange(clamped);
+  };
+
+  const commitMaxAmount = (normalized?: string) => {
+    const floor = Math.max(minAmount, minLimit);
+    const numericValue = normalized && normalized.length > 0 ? Number(normalized) : floor;
+    const safeNumeric = Number.isFinite(numericValue) ? numericValue : floor;
+    const upperBound = Math.max(dynamicMaxLimit, safeNumeric, floor);
+    const clamped = clampValue(safeNumeric, floor, upperBound);
+    setDynamicMaxLimit((previous) => Math.max(previous, clamped));
+    setMaxInputValue(formatNumberDisplayFromValue(clamped));
+    onMaxAmountChange(clamped);
+  };
+
   const handleSliderChange = (values: number | number[]) => {
     if (Array.isArray(values)) {
       onMinAmountChange(values[0]);
       onMaxAmountChange(values[1]);
+      setMinInputValue(formatNumberDisplayFromValue(values[0]));
+      setMaxInputValue(formatNumberDisplayFromValue(values[1]));
     }
   };
 
   const handleMinInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '' || value === '-') {
-      onMinAmountChange(minLimit);
-    } else {
-      onMinAmountChange(Math.max(minLimit, Number(value)));
+    const { value } = e.target;
+    const { display, normalized, deferCommit } = coerceAndFormatNumber(value);
+    setMinInputValue(display);
+    if (!deferCommit) {
+      commitMinAmount(normalized);
     }
   };
 
   const handleMaxInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '' || value === '-') {
-      onMaxAmountChange(maxLimit);
-    } else {
-      onMaxAmountChange(Math.max(minLimit, Number(value)));
+    const { value } = e.target;
+    const { display, normalized, deferCommit } = coerceAndFormatNumber(value);
+    setMaxInputValue(display);
+    if (!deferCommit) {
+      commitMaxAmount(normalized);
     }
   };
 
@@ -62,7 +113,7 @@ const AmountRangeFilter: React.FC<AmountRangeFilterProps> = ({
         <Slider
           range
           min={minLimit}
-          max={maxLimit}
+          max={dynamicMaxLimit}
           step={step}
           value={[minAmount, maxAmount]}
           onChange={handleSliderChange}
@@ -84,12 +135,19 @@ const AmountRangeFilter: React.FC<AmountRangeFilterProps> = ({
       <div className="d-flex gap-2">
         <div className="flex-grow-1">
           <Form.Control
-            type="number"
+            type="text"
             placeholder="Min"
-            value={minAmount}
+            value={minInputValue}
             onChange={handleMinInputChange}
+            onBlur={() => {
+              const { normalized } = coerceAndFormatNumber(minInputValue);
+              commitMinAmount(normalized);
+            }}
             min={minLimit}
             step={step}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
           />
           <small className="text-muted d-block mt-1">
             {currency} {minAmount.toLocaleString('en-US')}
@@ -97,12 +155,19 @@ const AmountRangeFilter: React.FC<AmountRangeFilterProps> = ({
         </div>
         <div className="flex-grow-1">
           <Form.Control
-            type="number"
+            type="text"
             placeholder="Max"
-            value={maxAmount}
+            value={maxInputValue}
             onChange={handleMaxInputChange}
+            onBlur={() => {
+              const { normalized } = coerceAndFormatNumber(maxInputValue);
+              commitMaxAmount(normalized);
+            }}
             min={minLimit}
             step={step}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
           />
           <small className="text-muted d-block mt-1">
             {currency} {maxAmount.toLocaleString('en-US')}
