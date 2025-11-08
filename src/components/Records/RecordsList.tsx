@@ -50,18 +50,59 @@ const RecordsList: React.FC<RecordsListProps> = ({
 
   return (
     <div className="account-detail-records__list">
-      {Object.entries(groupedTransactions).map(([dateKey, dayTransactions]) => (
-        <div key={dateKey} className="account-detail-records__day-group">
-          <div
-            className="account-detail-records__day-header"
-            style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 10,
-            }}
-          >
-            <h4>{dateKey}</h4>
-          </div>
+      {Object.entries(groupedTransactions).map(([dateKey, dayTransactions]) => {
+        const dayHasCheckboxes = showCheckboxes && dayTransactions.length > 0;
+        const dayHasSelections =
+          dayHasCheckboxes &&
+          dayTransactions.some((transaction) => selectedRecords.has(transaction.id));
+        const areAllDayRecordsSelected =
+          dayHasCheckboxes &&
+          dayTransactions.every((transaction) => selectedRecords.has(transaction.id));
+        const dayCheckboxId = `day-select-${dateKey.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`;
+        const shouldShowDayCheckbox = dayHasCheckboxes && dayHasSelections;
+
+        const handleDaySelectionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+          event.stopPropagation();
+          if (!dayHasCheckboxes) {
+            return;
+          }
+
+          const shouldSelectAll = !areAllDayRecordsSelected;
+          dayTransactions.forEach((transaction) => {
+            const isSelected = selectedRecords.has(transaction.id);
+            if (shouldSelectAll && !isSelected) {
+              onSelectRecord(transaction.id);
+            } else if (!shouldSelectAll && isSelected) {
+              onSelectRecord(transaction.id);
+            }
+          });
+        };
+
+        return (
+          <div key={dateKey} className="account-detail-records__day-group">
+            <div
+              className="account-detail-records__day-header"
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+              }}
+            >
+              <div className="account-detail-records__day-header-left">
+                {shouldShowDayCheckbox ? (
+                  <Form.Check
+                    type="checkbox"
+                    id={dayCheckboxId}
+                    className="account-detail-records__day-select"
+                    checked={areAllDayRecordsSelected}
+                    onChange={handleDaySelectionChange}
+                  />
+                ) : (
+                  <span className="account-detail-records__day-select account-detail-records__day-select--placeholder" />
+                )}
+                <h4>{dateKey}</h4>
+              </div>
+            </div>
 
           <div className="account-detail-records__transactions">
             {dayTransactions.map((transaction) => {
@@ -189,9 +230,10 @@ const RecordsList: React.FC<RecordsListProps> = ({
                 </Card>
               );
             })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

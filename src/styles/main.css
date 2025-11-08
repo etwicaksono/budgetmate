@@ -1654,6 +1654,13 @@ html.accounts-dragging * {
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid #f3f4f6;
+  gap: 0.5rem;
+}
+
+.account-detail-records__day-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .account-detail-records__day-header h4 {
@@ -1670,6 +1677,18 @@ html.accounts-dragging * {
   font-weight: 600;
   color: #6b7280;
   font-variant-numeric: tabular-nums;
+}
+
+.account-detail-records__day-select {
+  margin: 0;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.account-detail-records__day-select--placeholder {
+  display: inline-block;
+  border: 1px solid transparent;
 }
 
 .account-detail-records__transactions {
