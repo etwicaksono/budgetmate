@@ -58,7 +58,6 @@ const RecordsList: React.FC<RecordsListProps> = ({
               position: 'sticky',
               top: 0,
               zIndex: 10,
-              backgroundColor: '#fff',
             }}
           >
             <h4>{dateKey}</h4>
