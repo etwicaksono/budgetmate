@@ -1144,10 +1144,10 @@ function TransactionsContent(): JSX.Element {
                 onSelectRecord={handleRecordSelection}
                 onEditRecord={handleRecordEdit}
                 formatCurrency={formatRecordCurrency}
-                showCheckboxes
-                showDropdownMenu={false}
-                showPayer
-                showType
+                showCheckboxes={true}
+                showDropdownMenu={true}
+                showPayer={true}
+                showType={true}
               />
             </Card.Body>
           </Card>
