@@ -22,6 +22,7 @@ import type { Account } from './Accounts';
 import { accountService } from '../../services/accountService';
 import { RecordsHeader, RecordsList } from '../../components/Records';
 import type { TransactionRecord, GroupedTransactions } from '../../types/transaction';
+import { useBulkActionHandler } from '../../hooks/useBulkActionHandler';
 
 interface BalanceData {
   date: string;
@@ -242,24 +243,13 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
     }
   };
 
-  const handleBulkEdit = (): void => {
-    // TODO: Implement bulk edit functionality
-  };
-
-  const handleBulkExport = (): void => {
-    // TODO: Implement bulk export functionality
-  };
-
-  const handleBulkDelete = (): void => {
-    if (
-      window.confirm(
-        `Are you sure you want to delete ${selectedRecords.size} record(s)?`
-      )
-    ) {
-      // TODO: Implement bulk delete functionality
-      setSelectedRecords(new Set());
-    }
-  };
+  const selectedCount = selectedRecords.size;
+  const hasSelection = selectedCount > 0;
+  const handleBulkAction = useBulkActionHandler({
+    hasSelection,
+    selectedCount,
+    entityLabel: 'record',
+  });
 
   const clearSelection = (): void => {
     setSelectedRecords(new Set());
@@ -514,9 +504,9 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
                   allSelected={selectedRecords.size === transactions.length}
                   onSelectAll={handleSelectAllRecords}
                   onClearSelection={clearSelection}
-                  onBulkEdit={handleBulkEdit}
-                  onBulkExport={handleBulkExport}
-                  onBulkDelete={handleBulkDelete}
+                  onBulkEdit={() => handleBulkAction('edit')}
+                  onBulkExport={() => handleBulkAction('export')}
+                  onBulkDelete={() => handleBulkAction('delete')}
                   summaryText={formatCurrency(account.balance)}
                   showBulkActions={true}
                 />
@@ -532,7 +522,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({
                   showCheckboxes={true}
                   showDropdownMenu={true}
                   showPayer={true}
-                  showType={false}
+                  showType={true}
                 />
               </Card.Body>
             </Card>

@@ -59,6 +59,7 @@ import {
 } from './components/DesktopFilterSidebar';
 import { useFilterData } from './hooks/useFilterData';
 import { RecordsHeader, RecordsList } from '../../components/Records';
+import { useBulkActionHandler } from '../../hooks/useBulkActionHandler';
 import type {
   GroupedTransactions,
   TransactionRecord as RecordsTransaction,
@@ -537,6 +538,11 @@ function TransactionsContent(): JSX.Element {
     filteredTransactions.length > 0 &&
     filteredTransactions.every((transaction) => selectedIdsSet.has(transaction.id));
   const hasSelection = selectedCount > 0;
+  const handleBulkAction = useBulkActionHandler({
+    hasSelection,
+    selectedCount,
+    entityLabel: 'transaction',
+  });
   const totalAmount = useMemo(
     () =>
       filteredTransactions.reduce(
@@ -616,23 +622,6 @@ function TransactionsContent(): JSX.Element {
       setShowTransactionModal(true);
     },
     [filteredTransactions, setCurrentTransaction, setShowTransactionModal]
-  );
-
-  const handleBulkAction = useCallback(
-    (action: 'edit' | 'export' | 'delete') => {
-      if (!hasSelection) {
-        return;
-      }
-      void Swal.fire({
-        icon: 'info',
-        title: 'Bulk action coming soon',
-        text: `Bulk ${action} for ${selectedCount} transaction${
-          selectedCount === 1 ? '' : 's'
-        } will be available in a future update.`,
-        confirmButtonColor: '#00a86b',
-      });
-    },
-    [hasSelection, selectedCount]
   );
 
   const ensureCategoryExists = useCallback(
@@ -1142,10 +1131,11 @@ function TransactionsContent(): JSX.Element {
                 allSelected={allSelected}
                 onSelectAll={handleRecordsSelectAll}
                 onClearSelection={handleClearSelection}
-                onBulkEdit={hasSelection ? () => handleBulkAction('edit') : undefined}
-                onBulkExport={hasSelection ? () => handleBulkAction('export') : undefined}
-                onBulkDelete={hasSelection ? () => handleBulkAction('delete') : undefined}
+                onBulkEdit={() => handleBulkAction('edit')}
+                onBulkExport={() => handleBulkAction('export')}
+                onBulkDelete={() => handleBulkAction('delete')}
                 summaryText={`Net total ${formatCurrency(totalAmount)}`}
+                showBulkActions
               />
               <RecordsList
                 groupedTransactions={groupedTransactionRecords}
