@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Dropdown } from 'react-bootstrap';
+import { Form, Dropdown, Card } from 'react-bootstrap';
 import { FaEllipsisV } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { TransactionRecord, GroupedTransactions } from '../../types/transaction';
@@ -70,14 +70,14 @@ const RecordsList: React.FC<RecordsListProps> = ({
               const isSelected = selectedRecords.has(transaction.id);
 
               return (
-                <div
-                  key={transaction.id}
-                  className={`account-detail-records__item ${
-                    isSelected ? 'account-detail-records__item--selected' : ''
-                  }`}
-                  onClick={() => onEditRecord(transaction)}
-                  style={{ cursor: 'pointer' }}
-                >
+                <Card key={transaction.id} className="account-detail-records__item-card">
+                  <div
+                    className={`account-detail-records__item ${
+                      isSelected ? 'account-detail-records__item--selected' : ''
+                    }`}
+                    onClick={() => onEditRecord(transaction)}
+                    style={{ cursor: 'pointer' }}
+                  >
                   {showCheckboxes && (
                     <div
                       className="account-detail-records__item-checkbox"
@@ -187,6 +187,7 @@ const RecordsList: React.FC<RecordsListProps> = ({
                     </div>
                   )}
                 </div>
+                </Card>
               );
             })}
           </div>
