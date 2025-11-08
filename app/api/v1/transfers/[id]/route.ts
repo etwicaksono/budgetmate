@@ -1,7 +1,11 @@
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { validatePathParams, handleValidationError } from '@/lib/validation';
+
+const PathParamsSchema = z.object({ id: z.string().uuid() });
 
 // GET /api/v1/transfers/:id - Get transfer detail with linked transactions
 /**
@@ -28,7 +32,8 @@ export async function GET(
     }
     const { user } = authResult;
 
-    const { id: transferId } = await params;
+    // Validate path params
+    const { id: transferId } = validatePathParams(await params, PathParamsSchema);
 
     // Get transfer
     const transfer = await db.transfers.findFirst({
@@ -95,10 +100,7 @@ export async function GET(
     );
   } catch (error) {
     console.error('Get transfer error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -129,7 +131,8 @@ export async function PUT(
     }
     const { user } = authResult;
 
-    const { id: transferId } = await params;
+    // Validate path params
+    const { id: transferId } = validatePathParams(await params, PathParamsSchema);
     const body = await request.json();
 
     // Verify transfer exists and belongs to user
@@ -305,10 +308,7 @@ export async function PUT(
     );
   } catch (error) {
     console.error('Update transfer error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error(error instanceof Error ? error.message : 'Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -337,7 +337,8 @@ export async function DELETE(
     }
     const { user } = authResult;
 
-    const { id: transferId } = await params;
+    // Validate path params
+    const { id: transferId } = validatePathParams(await params, PathParamsSchema);
 
     // Verify transfer exists and belongs to user
     const existingTransfer = await db.transfers.findFirst({
@@ -376,9 +377,6 @@ export async function DELETE(
     );
   } catch (error) {
     console.error('Delete transfer error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

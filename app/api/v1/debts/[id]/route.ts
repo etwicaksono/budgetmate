@@ -1,7 +1,11 @@
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { validatePathParams, handleValidationError } from '@/lib/validation';
+
+const PathParamsSchema = z.object({ id: z.string().uuid() });
 
 // GET /api/v1/debts/:id - Get debt detail with linked transactions
 /**
@@ -28,7 +32,8 @@ export async function GET(
     }
     const { user } = authResult;
 
-    const { id: debtId } = await params;
+    // Validate path params
+    const { id: debtId } = validatePathParams(await params, PathParamsSchema);
 
     // Get debt
     const debt = await db.debts.findFirst({
@@ -117,10 +122,7 @@ export async function GET(
     );
   } catch (error) {
     console.error('Get debt error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -151,7 +153,8 @@ export async function PUT(
     }
     const { user } = authResult;
 
-    const { id: debtId } = await params;
+    // Validate path params
+    const { id: debtId } = validatePathParams(await params, PathParamsSchema);
     const body = await request.json();
 
     // Verify debt exists and belongs to user
@@ -265,10 +268,7 @@ export async function PUT(
     );
   } catch (error) {
     console.error('Update debt error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -298,7 +298,8 @@ export async function DELETE(
     }
     const { user } = authResult;
 
-    const { id: debtId } = await params;
+    // Validate path params
+    const { id: debtId } = validatePathParams(await params, PathParamsSchema);
 
     // Verify debt exists and belongs to user
     const existingDebt = await db.debts.findFirst({
@@ -339,9 +340,6 @@ export async function DELETE(
     );
   } catch (error) {
     console.error('Delete debt error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

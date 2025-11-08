@@ -85,10 +85,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('Get groups error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -115,27 +112,12 @@ export async function POST(request: NextRequest) {
     }
     const { user } = authResult;
 
-    const body = await request.json();
+    // Validate request body
+    const body = await validateBody(request, CreateGroupRequestSchema);
     const {
       personal_id,
       name,
     } = body;
-
-    // Validate required fields
-    if (!personal_id || !name) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Missing required fields: personal_id, name'),
-        400
-      );
-    }
-
-    // Validate name is not empty
-    if (name.trim().length === 0) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Name cannot be empty'),
-        400
-      );
-    }
 
     // Check for duplicate personal_id
     const existing = await db.groups.findFirst({
@@ -158,7 +140,7 @@ export async function POST(request: NextRequest) {
         id: crypto.randomUUID(),
         user_id: user.user_id,
         personal_id: BigInt(personal_id),
-        name: name.trim(),
+        name,
         created_at: new Date(),
         updated_at: new Date(),
       },
@@ -178,9 +160,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Create group error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

@@ -137,10 +137,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('Get debts error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -168,37 +165,14 @@ export async function POST(request: NextRequest) {
     }
     const { user } = authResult;
 
-    const body = await request.json();
+    // Validate request body
+    const body = await validateBody(request, CreateDebtRequestSchema);
     const {
       personal_id,
       account_id,
       name,
       type,
     } = body;
-
-    // Validate required fields
-    if (!personal_id || !account_id || !name || !type) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Missing required fields: personal_id, account_id, name, type'),
-        400
-      );
-    }
-
-    // Validate type
-    if (type !== 'PAYABLE' && type !== 'RECEIVABLE') {
-      return jsonResponse(
-        ApiResponseBuilder.error('Type must be PAYABLE or RECEIVABLE'),
-        400
-      );
-    }
-
-    // Validate name is not empty
-    if (name.trim().length === 0) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Name cannot be empty'),
-        400
-      );
-    }
 
     // Check for duplicate personal_id
     const existing = await db.debts.findFirst({
@@ -237,7 +211,7 @@ export async function POST(request: NextRequest) {
         user_id: user.user_id,
         personal_id: BigInt(personal_id),
         account_id,
-        name: name.trim(),
+        name,
         type,
         position: null as any,
         created_at: new Date(),
@@ -265,9 +239,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Create debt error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

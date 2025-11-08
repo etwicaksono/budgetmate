@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { validateBody, handleValidationError } from '@/lib/validation';
+import { CreateTransactionRequestSchema } from '@/schemas/transactions/transaction.schema';
 
 type SortValue =
   | 'timeAsc'

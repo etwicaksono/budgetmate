@@ -1,7 +1,11 @@
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
+import { validatePathParams, handleValidationError } from '@/lib/validation';
+
+const PathParamsSchema = z.object({ id: z.string().uuid() });
 
 // GET /api/v1/groups/:id - Get group detail with accounts
 /**
@@ -28,7 +32,8 @@ export async function GET(
     }
     const { user } = authResult;
 
-    const { id: groupId } = await params;
+    // Validate path params
+    const { id: groupId } = validatePathParams(await params, PathParamsSchema);
 
     // Get group with accounts
     const group = await db.groups.findFirst({
@@ -78,10 +83,7 @@ export async function GET(
     );
   } catch (error) {
     console.error('Get group error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -112,7 +114,8 @@ export async function PUT(
     }
     const { user } = authResult;
 
-    const { id: groupId } = await params;
+    // Validate path params
+    const { id: groupId } = validatePathParams(await params, PathParamsSchema);
     const body = await request.json();
 
     // Verify group exists and belongs to user
@@ -170,10 +173,7 @@ export async function PUT(
     );
   } catch (error) {
     console.error('Update group error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -203,7 +203,8 @@ export async function DELETE(
     }
     const { user } = authResult;
 
-    const { id: groupId } = await params;
+    // Validate path params
+    const { id: groupId } = validatePathParams(await params, PathParamsSchema);
 
     // Verify group exists and belongs to user
     const existingGroup = await db.groups.findFirst({
@@ -244,9 +245,6 @@ export async function DELETE(
     );
   } catch (error) {
     console.error('Delete group error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }

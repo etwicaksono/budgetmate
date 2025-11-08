@@ -137,10 +137,7 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('Get transfers error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error('Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
 
@@ -168,7 +165,8 @@ export async function POST(request: NextRequest) {
     }
     const { user } = authResult;
 
-    const body = await request.json();
+    // Validate request body
+    const body = await validateBody(request, CreateTransferRequestSchema);
     const {
       personal_id,
       date,
@@ -178,30 +176,7 @@ export async function POST(request: NextRequest) {
       note,
     } = body;
 
-    // Validate required fields
-    if (!personal_id || !date || !from_account_id || !to_account_id || amount === undefined) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Missing required fields: personal_id, date, from_account_id, to_account_id, amount'),
-        400
-      );
-    }
-
-    // Validate amount (cannot be 0 or negative)
-    const numericAmount = parseFloat(amount);
-    if (numericAmount <= 0) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Amount must be greater than 0'),
-        400
-      );
-    }
-
-    // Validate from and to accounts are different
-    if (from_account_id === to_account_id) {
-      return jsonResponse(
-        ApiResponseBuilder.error('Source and destination accounts must be different'),
-        400
-      );
-    }
+    const numericAmount = amount;
 
     // Check for duplicate personal_id
     const existing = await db.transfers.findFirst({
@@ -368,9 +343,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Create transfer error:', error);
-    return jsonResponse(
-      ApiResponseBuilder.error(error instanceof Error ? error.message : 'Internal server error'),
-      500
-    );
+    return handleValidationError(error);
   }
 }
