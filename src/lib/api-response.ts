@@ -2,11 +2,7 @@ export interface ApiResponse<T = any> {
   success: boolean;
   message: string;
   data: T | null;
-  meta: {
-    version: string;
-    timestamp: number;
-    [key: string]: any;
-  } | null;
+  meta: Record<string, unknown> | null;
   errors?: any;
 }
 
@@ -23,9 +19,9 @@ export class ApiResponseBuilder {
       meta: {
         version: process.env.API_VERSION || 'v1.0.0',
         timestamp: Math.floor(Date.now() / 1000),
-        ...additionalMeta,
+        ...(additionalMeta ?? {}),
       },
-    };
+    } satisfies ApiResponse<T>;
   }
 
   static error(message: string, errors: any = null): ApiResponse<null> {

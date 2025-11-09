@@ -5,7 +5,6 @@ import { requireAuth } from '@/lib/auth';
 import { validateBody, validateQuery, handleValidationError } from '@/lib/validation';
 import { CreateAccountRequestSchema, AccountSchema } from '@/schemas/accounts/account.schema';
 import { PaginationQuerySchema } from '@/schemas/common/pagination.schema';
-import type { ApiResponse, ApiErrorResponse, Account, AccountListMeta } from '@/types/api-responses';
 
 // GET /api/v1/accounts - List accounts with optional search
 /**
@@ -115,7 +114,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         total: validatedAccounts.length,
         limit,
         offset,
-      }) as ApiResponse<Account[]> & { meta: AccountListMeta },
+      }),
       200
     );
   } catch (error) {
@@ -170,7 +169,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     if (existing) {
       return jsonResponse(
-        ApiResponseBuilder.error('An account with this personal_id already exists') as ApiErrorResponse,
+        ApiResponseBuilder.error('An account with this personal_id already exists'),
         409
       );
     }
@@ -218,8 +217,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     const validatedAccount = AccountSchema.parse(responseData);
 
     return jsonResponse(
-      ApiResponseBuilder.success('Account created successfully', validatedAccount) as ApiResponse<Account>,
-      201
+      ApiResponseBuilder.success('Account created successfully', validatedAccount),
+      201,
     );
   } catch (error) {
     return handleValidationError(error);

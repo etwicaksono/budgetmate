@@ -76,7 +76,7 @@ const extractMessage = (error: unknown, fallback: string): string => {
 export interface AuthService {
   getAccessToken(): Promise<string | null>;
   getRefreshToken(): Promise<string | null>;
-  login(credentials: AuthFormData): Promise<unknown>;
+  login(credentials: AuthFormData): Promise<LoginResponse>;
   register(userData: AuthFormData): Promise<unknown>;
   logout(): Promise<LogoutResponse>;
   clearAuthData(): void;
@@ -119,7 +119,7 @@ export const authService: AuthService = {
   },
 
   // Login user
-  async login(credentials) {
+  async login(credentials): Promise<LoginResponse> {
     const loginData = LoginRequestSchema.parse({
       email_or_username:
         credentials.email_or_username || credentials.email || credentials.username,

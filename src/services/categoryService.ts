@@ -14,7 +14,7 @@ import {
   type UpdateCategoryRequest,
 } from '@/types/schemas';
 
-export type ApiCategoryResponse = Category;
+export type ApiCategoryResponse = Category & { is_parent?: boolean };
 export type CategoryCreatePayload = CreateCategoryRequest & {
   position?: Record<string, unknown> | null;
 };

@@ -3,7 +3,6 @@ import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '@/lib/auth';
 import { validateBody, handleValidationError } from '@/lib/validation';
 import { RefreshTokenRequestSchema, RefreshTokenResponseSchema } from '@/schemas/auth/refresh.schema';
-import type { ApiResponse, ApiErrorResponse, RefreshTokenResponse } from '@/types/api-responses';
 
 /**
  * @summary Refresh access token
@@ -25,7 +24,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const payload = await verifyRefreshToken(body.refresh_token);
     if (!payload) {
       return jsonResponse(
-        ApiResponseBuilder.error('Invalid or expired refresh token') as ApiErrorResponse,
+        ApiResponseBuilder.error('Invalid or expired refresh token'),
         401
       );
     }
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const validatedData = RefreshTokenResponseSchema.parse(responseData);
 
     return jsonResponse(
-      ApiResponseBuilder.success('Token refreshed successfully', validatedData) as ApiResponse<RefreshTokenResponse>,
+      ApiResponseBuilder.success('Token refreshed successfully', validatedData),
       200
     );
   } catch (error) {

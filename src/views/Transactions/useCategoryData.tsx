@@ -148,12 +148,22 @@ export const useCategoryData = (): UseCategoryDataResult => {
         return existing;
       }
 
+      const now = new Date();
       const newCategory: ApiCategoryResponse = {
         id: providedId,
-        parent_id: parentId ?? null,
+        user_id: 'local-user',
+        personal_id: Date.now(),
+        position: null,
+        created_at: now,
+        updated_at: now,
+        created_by: null,
+        updated_by: null,
         name,
         icon,
         color,
+        nature: 'NEED',
+        parent_id: parentId ?? null,
+        is_active: true,
         is_parent: isParent,
       };
 

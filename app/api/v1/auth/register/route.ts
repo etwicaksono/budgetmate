@@ -8,7 +8,6 @@ import { LoginResponseSchema } from '@/schemas/auth/login.schema';
 import bcrypt from 'bcryptjs';
 import defaultCategories from '../../../../../data/default_categories.json';
 import defaultAccounts from '../../../../../data/default_accounts.json';
-import type { ApiResponse, ApiErrorResponse, LoginResponse } from '@/types/api-responses';
 
 /**
  * @summary Register new user
@@ -40,13 +39,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (existingUser) {
       if (existingUser.email === email) {
         return jsonResponse(
-          ApiResponseBuilder.error('Email already registered') as ApiErrorResponse,
+          ApiResponseBuilder.error('Email already registered'),
           409
         );
       }
       if (existingUser.username === username) {
         return jsonResponse(
-          ApiResponseBuilder.error('Username already taken') as ApiErrorResponse,
+          ApiResponseBuilder.error('Username already taken'),
           409
         );
       }
@@ -169,7 +168,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     // Return response
     return jsonResponse(
-      ApiResponseBuilder.success('User registered successfully', validatedResponse) as ApiResponse<LoginResponse>,
+      ApiResponseBuilder.success('User registered successfully', validatedResponse),
       201
     );
   } catch (error) {

@@ -362,8 +362,8 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
       }
 
       const fallbackParent =
-        categories.find((category) => category.is_parent && category.name !== 'Income') ??
-        categories.find((category) => category.is_parent) ??
+        categories.find((category) => category.parent_id == null && category.name !== 'Income') ??
+        categories.find((category) => category.parent_id == null) ??
         null;
 
       const fallbackParentId = fallbackParent?.id ?? null;
@@ -398,9 +398,12 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
         const resolvedParentId =
           resolvedCategory.parent_id ?? fallbackParentId;
         const resolvedColor = resolvedCategory.color ?? fallbackColor;
+        const categoryWithParentFlag = resolvedCategory as {
+          is_parent?: boolean;
+        };
         const resolvedIsParent =
-          typeof resolvedCategory.is_parent === 'boolean'
-            ? resolvedCategory.is_parent
+          typeof categoryWithParentFlag.is_parent === 'boolean'
+            ? categoryWithParentFlag.is_parent
             : resolvedParentId == null;
         const resolvedIcon =
           typeof resolvedCategory.icon === 'string' && resolvedCategory.icon.length > 0
@@ -615,6 +618,7 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
 
       // Prepare the API payload with properly formatted date
       const formattedDate = formatDateForBackend(currentTransaction.dateTime || currentTransaction.date);
+      const resolvedType: 'INCOME' | 'EXPENSE' = currentTransaction.type === 'Income' ? 'INCOME' : 'EXPENSE';
       
       let normalizedAmount = typeof transactionRecord.amount === 'number' 
         ? transactionRecord.amount 
@@ -637,12 +641,14 @@ export const TransactionModalProvider: React.FC<TransactionModalProviderProps> =
       // Retry loop
       while (attempt < maxRetries && !createdTransaction) {
         try {
+          const personalId = transactionService.getNextPersonalId();
           const createPayload: CreateTransactionRequest = {
-            date: formattedDate,
+            personal_id: personalId,
+            date: new Date(formattedDate),
             account_id: accountId,
             category_id: String(categoryId),
             amount: normalizedAmount,
-            type: currentTransaction.type,
+            type: resolvedType,
             note: currentTransaction.notes || description,
           };
 

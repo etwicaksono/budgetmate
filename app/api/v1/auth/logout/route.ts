@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { ApiResponseBuilder, jsonResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
-import type { ApiResponse, ApiErrorResponse } from '@/types/api-responses';
 
 /**
  * @summary User logout
@@ -26,13 +25,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     // If you implement token blacklisting with Redis, add that logic here
 
     return jsonResponse(
-      ApiResponseBuilder.success('Logout successful', null) as ApiResponse<null>,
+      ApiResponseBuilder.success('Logout successful', null),
       200
     );
   } catch (error) {
     console.error('Logout error:', error);
     return jsonResponse(
-      ApiResponseBuilder.error('Internal server error') as ApiErrorResponse,
+      ApiResponseBuilder.error('Internal server error'),
       500
     );
   }

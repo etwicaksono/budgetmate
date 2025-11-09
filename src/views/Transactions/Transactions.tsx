@@ -135,10 +135,14 @@ const getLocalDateTimeString = (): string => {
 };
 
 const pickFirstValidDateValue = (
-  ...values: Array<string | null | undefined>
+  ...values: Array<string | Date | null | undefined>
 ): string | undefined => {
   for (const value of values) {
-    if (typeof value === 'string') {
+    if (value instanceof Date) {
+      if (!Number.isNaN(value.getTime())) {
+        return value.toISOString();
+      }
+    } else if (typeof value === 'string') {
       const trimmed = value.trim();
       if (trimmed.length > 0) {
         return trimmed;
@@ -327,22 +331,49 @@ function TransactionsContent(): JSX.Element {
           numericId = Number.isNaN(extracted) ? index : extracted;
         }
 
+        const rawDateTime = (
+          'date_time' in apiTxn
+            ? (apiTxn as { date_time?: string | Date | null }).date_time
+            : undefined
+        );
         let recordTimestamp = pickFirstValidDateValue(
-          apiTxn.date_time,
+          rawDateTime,
+          apiTxn.date,
           apiTxn.created_at,
           apiTxn.updated_at
         );
 
-        if (!recordTimestamp && typeof apiTxn.date === 'string' && apiTxn.date.trim().length > 0) {
-          recordTimestamp = `${apiTxn.date.trim().slice(0, 10)}T00:00:00`;
+        if (!recordTimestamp) {
+          if (apiTxn.date instanceof Date) {
+            recordTimestamp = `${apiTxn.date.toISOString().slice(0, 10)}T00:00:00`;
+          } else {
+            const rawDate = (apiTxn as { date?: string | Date | null }).date;
+            if (typeof rawDate === 'string') {
+              const trimmedDate = rawDate.trim();
+              if (trimmedDate.length > 0) {
+                recordTimestamp = `${trimmedDate.slice(0, 10)}T00:00:00`;
+              }
+            }
+          }
         }
 
-        const normalizedDate =
-          typeof apiTxn.date === 'string' && apiTxn.date.trim().length > 0
-            ? apiTxn.date.trim().slice(0, 10)
-            : recordTimestamp
-              ? new Date(recordTimestamp).toISOString().slice(0, 10)
-              : '';
+        const normalizedDate = (() => {
+          const rawDate = (apiTxn as { date?: string | Date | null }).date;
+          if (rawDate instanceof Date) {
+            return rawDate.toISOString().slice(0, 10);
+          }
+
+          if (typeof rawDate === 'string') {
+            const trimmed = rawDate.trim();
+            if (trimmed.length > 0) {
+              return trimmed.slice(0, 10);
+            }
+          }
+
+          return recordTimestamp
+            ? new Date(recordTimestamp).toISOString().slice(0, 10)
+            : '';
+        })();
 
         const dateTimeValue =
           recordTimestamp
@@ -832,7 +863,7 @@ function TransactionsContent(): JSX.Element {
     const maxRetries = 3;
     let attempt = 0;
     let lastError: any = null;
-    let createdTransaction: any = null;
+    let createdTransaction: ApiTransactionResponse | null = null;
 
     // Prepare the base API payload
     let normalizedAmount =
@@ -860,12 +891,15 @@ function TransactionsContent(): JSX.Element {
     // Retry loop
     while (attempt < maxRetries && !createdTransaction) {
       try {
+        const personalId = transactionService.getNextPersonalId();
+        const resolvedType: 'INCOME' | 'EXPENSE' = currentTransaction.type === 'Income' ? 'INCOME' : 'EXPENSE';
         const createPayload: CreateTransactionRequest = {
-          date: formattedDate,
+          personal_id: personalId,
+          date: new Date(formattedDate),
           account_id: accountId,
           category_id: String(categoryId),
           amount: Number.isNaN(normalizedAmount) ? 0 : normalizedAmount,
-          type: currentTransaction.type,
+          type: resolvedType,
           note: currentTransaction.notes || null,
         };
 
@@ -942,18 +976,9 @@ function TransactionsContent(): JSX.Element {
       const refreshed = await fetchTransactionsFromServer({ force: true });
       if (!refreshed) {
         console.error('Failed to refresh transactions after save; falling back to local state.');
-        setApiTransactions((previous) => [
-          {
-            id: String(transactionRecord.id),
-            date: transactionRecord.dateTime || transactionRecord.date,
-            account_id: accountId,
-            category_id: categoryId ? String(categoryId) : undefined,
-            amount: Number(transactionRecord.amount ?? 0),
-            type: transactionRecord.type,
-            note: transactionRecord.notes || transactionRecord.description,
-          },
-          ...previous,
-        ]);
+        if (createdTransaction) {
+          setApiTransactions((previous) => [createdTransaction, ...previous]);
+        }
       }
 
       setLastTransaction(transactionRecord);

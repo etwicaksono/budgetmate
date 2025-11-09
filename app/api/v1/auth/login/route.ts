@@ -5,7 +5,6 @@ import { generateAccessToken, generateRefreshToken } from '@/lib/auth';
 import { validateBody, handleValidationError } from '@/lib/validation';
 import { LoginRequestSchema, LoginResponseSchema } from '@/schemas/auth/login.schema';
 import bcrypt from 'bcryptjs';
-import type { ApiResponse, ApiErrorResponse, LoginResponse } from '@/types/api-responses';
 
 /**
  * @summary User login
@@ -36,7 +35,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     if (!user) {
       return Response.json(
-        ApiResponseBuilder.error('Invalid credentials') as ApiErrorResponse,
+        ApiResponseBuilder.error('Invalid credentials'),
         { status: 401 }
       );
     }
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       return Response.json(
-        ApiResponseBuilder.error('Invalid credentials') as ApiErrorResponse,
+        ApiResponseBuilder.error('Invalid credentials'),
         { status: 401 }
       );
     }
@@ -78,7 +77,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     // Return response
     return Response.json(
-      ApiResponseBuilder.success('Login successful', validatedResponse) as ApiResponse<LoginResponse>,
+      ApiResponseBuilder.success('Login successful', validatedResponse),
       { status: 200 }
     );
   } catch (error) {

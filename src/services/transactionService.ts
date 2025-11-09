@@ -27,6 +27,7 @@ export interface TransactionQueryParams {
   categoryNames?: string[];
   type?: string;
   limit?: number;
+  offset?: number;
   search?: string;
   minAmount?: number;
   maxAmount?: number;
@@ -135,7 +136,7 @@ const generateDummyTransactions = (): ApiTransactionResponse[] => {
     transactions.push({
       id: `txn-${i + 1}`,
       user_id: 'user-1',
-      date: date.toISOString(),
+      date,
       account_id: accountIds[Math.floor(Math.random() * accountIds.length)],
       category_id: category.id,
       amount,
@@ -144,8 +145,8 @@ const generateDummyTransactions = (): ApiTransactionResponse[] => {
       position: null,
       transfer_id: null,
       debt_id: null,
-      created_at: date.toISOString(),
-      updated_at: date.toISOString(),
+      created_at: new Date(date),
+      updated_at: new Date(date),
       personal_id: i + 1,
     });
   }
@@ -181,25 +182,32 @@ function loadCachedPersonalId(): void {
   }
 }
 
-function buildQuery(params: TransactionQueryParams): z.infer<typeof querySchema> {
-  const base: Partial<Record<string, unknown>> = {
-    start_date: params.startDate,
-    end_date: params.endDate,
-    account_id: params.accountId,
-    account_ids: joinList(params.accountIds),
-    account_names: joinList(params.accountNames),
-    category_id: params.categoryId,
-    category_ids: joinList(params.categoryIds),
-    category_names: joinList(params.categoryNames),
-    type: params.type,
-    limit: params.limit,
-    keyword: params.search,
-    min_amount: params.minAmount,
-    max_amount: params.maxAmount,
-    sort: params.sort,
-  };
+function buildQuery(params: TransactionQueryParams): Record<string, string | number | boolean> {
+  const base: Record<string, string | number | boolean> = {};
 
-  return querySchema.partial().parse(base);
+  if (params.startDate) base.start_date = params.startDate;
+  if (params.endDate) base.end_date = params.endDate;
+  if (params.accountId) base.account_id = params.accountId;
+  const accountIdsValue = joinList(params.accountIds);
+  if (accountIdsValue) base.account_ids = accountIdsValue;
+  const accountNamesValue = joinList(params.accountNames);
+  if (accountNamesValue) base.account_names = accountNamesValue;
+  if (params.categoryId) base.category_id = params.categoryId;
+  const categoryIdsValue = joinList(params.categoryIds);
+  if (categoryIdsValue) base.category_ids = categoryIdsValue;
+  const categoryNamesValue = joinList(params.categoryNames);
+  if (categoryNamesValue) base.category_names = categoryNamesValue;
+  if (params.type) base.type = params.type;
+  if (typeof params.limit === 'number') base.limit = params.limit;
+  if (typeof params.offset === 'number') base.offset = params.offset;
+  if (params.search) base.keyword = params.search;
+  if (typeof params.minAmount === 'number') base.min_amount = params.minAmount;
+  if (typeof params.maxAmount === 'number') base.max_amount = params.maxAmount;
+  if (params.sort) base.sort = params.sort;
+
+  querySchema.parse(base);
+
+  return base;
 }
 
 export const transactionService: TransactionService = {

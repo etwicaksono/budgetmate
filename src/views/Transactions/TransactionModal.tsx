@@ -193,8 +193,9 @@ const isCategoryWithIdAndName = (
 };
 
 const isParentCategory = (category: ApiCategoryResponse): boolean => {
-  if (typeof category.is_parent === 'boolean') {
-    return category.is_parent;
+  const extendedCategory = category as { is_parent?: boolean };
+  if (typeof extendedCategory.is_parent === 'boolean') {
+    return extendedCategory.is_parent;
   }
   return category.parent_id === null || category.parent_id === undefined;
 };

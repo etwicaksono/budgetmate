@@ -176,7 +176,7 @@ export async function PUT(
 
     // Validate amount if being changed (cannot be 0)
     if (body.amount !== undefined) {
-      const numericAmount = parseFloat(body.amount);
+      const numericAmount = body.amount;
       if (numericAmount === 0) {
         return jsonResponse(
           ApiResponseBuilder.error('Amount cannot be 0'),
@@ -197,7 +197,7 @@ export async function PUT(
     // Handle amount and type together
     // Store signed amount: negative for EXPENSE, positive for INCOME
     if (body.amount !== undefined) {
-      const numericAmount = parseFloat(body.amount);
+      const numericAmount = body.amount;
       updateData.amount = numericAmount; // Store signed amount
       updateData.type = numericAmount > 0 ? 'INCOME' : 'EXPENSE';
     }
