@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// TODO: Ensure balance trend widget syncs with updated analytics pipeline.
 import { Spinner } from 'react-bootstrap';
 import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import analyticsService, { type BalanceTrendData } from '../../services/analyticsService';

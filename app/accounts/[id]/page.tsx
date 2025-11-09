@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+// TODO: Replace manual account fetching once new data layer is ready.
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import AccountDetail from '../../../src/views/Accounts/AccountDetail';
 import { accountService } from '../../../src/services/accountService';

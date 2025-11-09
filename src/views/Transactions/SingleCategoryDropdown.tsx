@@ -10,6 +10,7 @@ import { Form } from 'react-bootstrap';
 import { FaCaretDown, FaCheck } from 'react-icons/fa';
 import type { IconBaseProps, IconType } from 'react-icons';
 import { InputClearButton } from '../../components/InputClearButton';
+// TODO: Consolidate single category dropdown with unified picker solution.
 
 const DEFAULT_COLOR = '#6c757d';
 

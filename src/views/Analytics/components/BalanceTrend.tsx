@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// TODO: Hook balance trend analytics into backend once available.
 import { Card, Spinner } from 'react-bootstrap';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import * as FaIcons from 'react-icons/fa';

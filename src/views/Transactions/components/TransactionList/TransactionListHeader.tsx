@@ -2,6 +2,7 @@
 
 import React, { memo } from 'react';
 import { Form } from 'react-bootstrap';
+// TODO: Revisit transaction table header for new selectable list design.
 
 interface TransactionListHeaderProps {
   showSelection?: boolean;

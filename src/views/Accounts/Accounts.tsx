@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useRef, useState, useEffect, ChangeEvent, FormEvent, useCallback } from 'react';
+// TODO: Simplify accounts management UI and supporting logic.
 import { useRouter } from 'next/navigation';
 import { Container, Row, Col, Card, Button, Form } from 'react-bootstrap';
 import {

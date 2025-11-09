@@ -2,6 +2,7 @@ import { z } from 'zod';
 import apiService from './api';
 import tokenCrypto from '../utils/crypto';
 import { APP_CONFIG } from '../config';
+// TODO: Replace temporary auth service logic with new auth pipeline.
 import {
   ApiResponseSchema,
   LoginRequestSchema,

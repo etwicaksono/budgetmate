@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+// TODO: Simplify period range selector to support upcoming analytics revamp.
 import { Dropdown, Button, ButtonGroup } from 'react-bootstrap';
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import type { IconBaseProps, IconType } from 'react-icons';

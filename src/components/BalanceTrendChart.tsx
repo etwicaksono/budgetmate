@@ -1,4 +1,5 @@
 import React from 'react';
+// TODO: Align balance trend chart with refreshed dashboard requirements.
 import {
   LineChart,
   Line,

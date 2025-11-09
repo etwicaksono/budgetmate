@@ -10,6 +10,7 @@ import React, {
 import { authService } from '../services/authService';
 import tokenCrypto from '../utils/crypto';
 import { APP_CONFIG } from '../config';
+// TODO: Replace legacy auth wiring once new auth flow ships.
 import { useToast } from './ToastContext';
 import { useAuthState } from './AuthStateContext';
 

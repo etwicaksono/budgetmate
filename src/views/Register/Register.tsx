@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// TODO: Revisit registration form validation and flow.
 import { Form, Button, Modal } from 'react-bootstrap';
 import Link from 'next/link';
 import { authService } from '../../services';

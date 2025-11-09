@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { FilterState, TransactionType } from '../types';
 import { DEFAULT_FILTER_STATE } from '../constants';
+// TODO: Replace filter hook once new transactions filter design is ready.
 
 interface UseTransactionFiltersReturn {
   filters: FilterState;

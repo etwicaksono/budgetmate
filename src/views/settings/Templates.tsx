@@ -1,4 +1,5 @@
 import React, { useState, type ChangeEvent, type FormEvent } from 'react';
+// TODO: Align templates management with upcoming automation features.
 import { Button, Card, Form } from 'react-bootstrap';
 import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
 import type { ComponentType } from 'react';

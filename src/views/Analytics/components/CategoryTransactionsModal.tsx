@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+// TODO: Rebuild category transactions modal around new data sources.
 import { Modal, Spinner } from 'react-bootstrap';
 import analyticsService from '../../../services/analyticsService';
 import { TransactionModal } from '../../Transactions/TransactionModal';

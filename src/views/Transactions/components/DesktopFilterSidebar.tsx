@@ -1,6 +1,7 @@
 import React, { createElement, useState, useMemo } from 'react';
 import type { ComponentType } from 'react';
 import { Card, Button, Form, InputGroup, Dropdown } from 'react-bootstrap';
+// TODO: Redesign desktop filter sidebar for streamlined filtering UX.
 import {
   FaFilter,
   FaSearch,

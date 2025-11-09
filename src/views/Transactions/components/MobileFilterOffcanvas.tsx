@@ -1,6 +1,7 @@
 import React, { createElement } from 'react';
 import type { ComponentType } from 'react';
 import { Offcanvas, Form, InputGroup, Button } from 'react-bootstrap';
+// TODO: Revisit mobile filter offcanvas for new responsive layout.
 import { FaSearch, FaTimes, FaTags, FaWallet } from 'react-icons/fa';
 import type { IconType, IconBaseProps } from 'react-icons';
 import AmountRangeFilter from '../../../components/AmountRangeFilter';

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// TODO: Revisit widget card behaviors during dashboard redesign.
 import { Col, Card, Modal } from 'react-bootstrap';
 import { FaGripVertical, FaEye, FaEyeSlash, FaExpand } from 'react-icons/fa';
 import { useSortable } from '@dnd-kit/sortable';

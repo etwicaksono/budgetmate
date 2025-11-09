@@ -9,6 +9,7 @@ import type {
   TransactionModalSaveContext 
 } from '../TransactionModal';
 import type { QuickTransactionFormValues } from '../QuickTransactionModal';
+// TODO: Rationalize transaction types when new schema is finalized.
 
 // Transaction Types
 export type TransactionType = 'Expense' | 'Income' | 'Transfer' | string;

@@ -1,4 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
+// TODO: Replace mock budget data with production-ready implementation.
 import { Container, Row, Col, Card, Button, Form, Modal } from 'react-bootstrap';
 
 interface Budget {

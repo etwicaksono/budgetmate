@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import apiService from './api';
+// TODO: Replace legacy account service wiring during service layer cleanup.
 import type { TransactionRecord } from '../types/transaction';
 import {
   AccountSchema,

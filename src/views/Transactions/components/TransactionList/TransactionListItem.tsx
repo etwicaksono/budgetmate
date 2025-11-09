@@ -5,6 +5,7 @@ import { Form, Badge, Dropdown, Button } from 'react-bootstrap';
 import { FaEllipsisV, FaEdit, FaTrash, FaCopy } from 'react-icons/fa';
 import type { TransactionRecord } from '../../types';
 import { formatCurrency, getTransactionSign } from '../../utils/transactionCalculations';
+// TODO: Update transaction row rendering to match new visual style.
 
 interface TransactionListItemProps {
   transaction: TransactionRecord;

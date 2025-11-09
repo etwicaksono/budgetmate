@@ -1,4 +1,5 @@
 import React from 'react';
+// TODO: Replace placeholder chart colors/data with live analytics feed.
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import type { PieLabelRenderProps } from 'recharts';
 

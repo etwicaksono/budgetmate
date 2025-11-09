@@ -1,6 +1,7 @@
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import type { ApiAccountResponse } from '../services/accountService';
+// TODO: Trim account utilities once new icon strategy is defined.
 
 export const DEFAULT_ACCOUNT_ICON_KEY = 'FaWallet';
 

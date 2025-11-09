@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+// TODO: Rework account detail view for improved clarity and performance.
 import { Container, Row, Col, Card, Button, Tabs, Tab } from 'react-bootstrap';
 import { FaArrowLeft } from 'react-icons/fa';
 import {

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// TODO: Consolidate settings navigation once modules are modernized.
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 import { Container, Row, Col, Nav, Card } from 'react-bootstrap';

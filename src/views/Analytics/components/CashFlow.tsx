@@ -1,4 +1,5 @@
 import React from 'react';
+// TODO: Replace static cash flow charts with live transactional data.
 import { Card, Row, Col } from 'react-bootstrap';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart, Area } from 'recharts';
 

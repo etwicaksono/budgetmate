@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { transactionService } from '../../../services/transactionService';
 import type { TransactionRecord } from '../types';
 import { useErrorHandler } from '../../../hooks/useErrorHandler';
+// TODO: Replace custom transaction hook with query-based data layer.
 
 interface UseTransactionsReturn {
   transactions: TransactionRecord[];

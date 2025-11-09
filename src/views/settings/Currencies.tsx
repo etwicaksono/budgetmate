@@ -1,4 +1,5 @@
 import React, { useState, type ChangeEvent, type FormEvent } from 'react';
+// TODO: Hook currency settings into live exchange data sources.
 import { Button, Form, Table } from 'react-bootstrap';
 import { FaPlus } from 'react-icons/fa';
 import './Currencies.css';

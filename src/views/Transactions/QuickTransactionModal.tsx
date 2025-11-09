@@ -1,5 +1,6 @@
 import React, { type ChangeEvent } from 'react';
 import { Modal, Form, Button } from 'react-bootstrap';
+// TODO: Revisit quick transaction modal flow during UX overhaul.
 
 export interface QuickTransactionFormValues {
   description: string;

@@ -1,4 +1,5 @@
 import { APP_CONFIG, CRYPTO_CONFIG } from '../config';
+// TODO: Reevaluate crypto helper once secure storage strategy is finalized.
 
 type CryptoAlgorithm = typeof CRYPTO_CONFIG.algorithm;
 

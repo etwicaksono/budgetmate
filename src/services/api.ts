@@ -1,5 +1,6 @@
 import tokenCrypto from '../utils/crypto';
 import { API_CONFIG, APP_CONFIG } from '../config';
+// TODO: Revisit API service once backend integration plan is finalized.
 
 type RequestHeaders = Record<string, string>;
 

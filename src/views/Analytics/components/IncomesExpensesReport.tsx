@@ -1,4 +1,5 @@
 import React, { useState, useEffect, createElement } from 'react';
+// TODO: Replace mocked income/expense data with production reporting feed.
 import type { ComponentType } from 'react';
 import { Table, Spinner } from 'react-bootstrap';
 import {

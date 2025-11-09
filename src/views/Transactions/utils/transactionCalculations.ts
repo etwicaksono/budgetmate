@@ -1,4 +1,5 @@
 import type { TransactionRecord, TransactionStats } from '../types';
+// TODO: Replace calculation helpers with centralized analytics utilities.
 
 /**
  * Calculate total income from transactions

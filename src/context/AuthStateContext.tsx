@@ -7,6 +7,7 @@ import React, {
   useMemo,
   type ReactNode,
 } from 'react';
+// TODO: Confirm if auth state helper remains necessary after auth redesign.
 
 interface AuthStateContextValue {
   isAuthenticated: boolean;

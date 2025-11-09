@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import apiService from './api';
+// TODO: Validate category service endpoints against new taxonomy specs.
 import {
   ApiResponseSchema,
   CategorySchema,

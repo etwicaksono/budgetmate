@@ -2,6 +2,7 @@
  * Performance optimization utilities
  * Includes debounce, throttle, and performance monitoring
  */
+// TODO: Replace generic performance helpers with targeted utilities.
 
 /**
  * Debounce function - delays execution until after wait time has passed since last call

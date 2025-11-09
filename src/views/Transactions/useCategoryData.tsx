@@ -6,6 +6,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
+// TODO: Replace static category metadata with dynamic configuration source.
 import {
   FaMoneyBillWave,
   FaShoppingCart,

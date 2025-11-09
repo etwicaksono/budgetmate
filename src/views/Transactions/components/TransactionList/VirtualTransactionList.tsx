@@ -9,6 +9,7 @@ import TransactionListHeader from './TransactionListHeader';
 import TransactionListEmpty from './TransactionListEmpty';
 import TransactionListSkeleton from './TransactionListSkeleton';
 import type { TransactionRecord, SelectionState } from '../../types';
+// TODO: Evaluate need for virtualized list with new transaction layout.
 
 interface VirtualTransactionListProps {
   transactions: TransactionRecord[];

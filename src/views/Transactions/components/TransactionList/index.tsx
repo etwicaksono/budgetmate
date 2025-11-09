@@ -7,6 +7,7 @@ import TransactionListHeader from './TransactionListHeader';
 import TransactionListEmpty from './TransactionListEmpty';
 import TransactionListSkeleton from './TransactionListSkeleton';
 import type { TransactionRecord, SelectionState } from '../../types';
+// TODO: Rebuild transaction list rendering with virtualization strategy.
 
 interface TransactionListProps {
   transactions: TransactionRecord[];

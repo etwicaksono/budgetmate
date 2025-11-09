@@ -1,5 +1,6 @@
 
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+// TODO: Swap quick transaction presets for backend-driven templates.
 
 export type QuickTransactionKind = 'Expense' | 'Income' | 'Transfer' | string;
 

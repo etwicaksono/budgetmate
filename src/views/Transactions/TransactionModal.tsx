@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useEffect, useState, useRef } from 'react';
+// TODO: Rework transaction modal to match streamlined transaction flow.
 import {
   Modal,
   Form,

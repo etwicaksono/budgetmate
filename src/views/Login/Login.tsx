@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// TODO: Rework login UX once backend contract is finalized.
 import { Form, Button, Modal } from 'react-bootstrap';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';

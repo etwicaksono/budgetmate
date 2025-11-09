@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// TODO: Replace mocked advanced charts with real analytics feeds.
 import { Card, Form, Row, Col } from 'react-bootstrap';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 

@@ -1,4 +1,5 @@
 import type { TransactionRecord } from '../types/transaction';
+// TODO: Replace dummy analytics service with API-backed implementation.
 
 export interface CategoryReport {
   id: string;

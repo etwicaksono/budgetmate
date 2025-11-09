@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { ComponentType } from 'react';
 import type { IconType, IconBaseProps } from 'react-icons';
+// TODO: Rebuild transaction filter hook around simplified filter schema.
 import {
   FaUniversity,
   FaPiggyBank,
@@ -89,7 +90,8 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
     addCategory,
   } = useCategoryData();
 
-
+
+
   // Account data
   const [apiAccounts, setApiAccounts] = useState<ApiAccountResponse[]>([]);
 
@@ -185,7 +187,8 @@ export function useFilterData(options: UseFilterDataOptions = {}) {
       accountsFetchInProgressRef.current = false;
     };
   }, [setApiAccounts, showFetchErrorAlert]);
-
+
+
   // Account metadata
   const accountMetadata = useMemo<AccountMetadata>(() => {
     let storedMetadata: Record<string, unknown> = {};

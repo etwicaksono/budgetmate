@@ -1,4 +1,5 @@
 import React, { createElement, useCallback, useMemo, useState } from 'react';
+// TODO: Revisit header interactions alongside navigation redesign.
 import { Button, Container, Dropdown, Offcanvas } from 'react-bootstrap';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';

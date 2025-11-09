@@ -9,6 +9,7 @@ import React, {
 import { Form } from 'react-bootstrap';
 import { FaCaretDown, FaCheck } from 'react-icons/fa';
 import { InputClearButton } from '../../components/InputClearButton';
+// TODO: Merge child category selector into unified category picker.
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 

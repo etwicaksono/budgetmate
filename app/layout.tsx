@@ -7,6 +7,7 @@ import '../src/styles/main.css';
 import '../src/styles/App.css';
 
 import Providers from './providers';
+// TODO: Revisit global layout once shell/navigation work begins.
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { WebVitalsReporter } from '../src/components/WebVitalsReporter';
 import { ServiceWorkerRegistration } from '../src/components/ServiceWorkerRegistration';

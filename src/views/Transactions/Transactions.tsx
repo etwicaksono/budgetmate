@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import React, { useCallback, useEffect, useMemo, useRef, useState, createElement } from 'react';
+// TODO: Consolidate transactions workflows and retire legacy helpers.
 import type { ChangeEvent, ComponentType } from 'react';
 import {
   Container,

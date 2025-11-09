@@ -9,6 +9,7 @@ import React, {
   type ReactNode,
   type RefObject,
 } from 'react';
+// TODO: Modernize category settings UX and data synchronization.
 import { Button, Dropdown, Form, InputGroup, ListGroup, Modal } from 'react-bootstrap';
 import {
   FaPlus,

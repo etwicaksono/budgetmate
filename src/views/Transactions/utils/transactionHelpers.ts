@@ -10,6 +10,7 @@ import type {
   SortValue,
 } from '../types';
 import { DEFAULT_CATEGORY_COLOR, DEFAULT_CATEGORY_ICON } from '../constants';
+// TODO: Remove redundant transaction helpers during module cleanup.
 
 /**
  * Render an icon component with props

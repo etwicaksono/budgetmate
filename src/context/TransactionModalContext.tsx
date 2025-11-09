@@ -8,6 +8,7 @@ import React, {
   type ChangeEvent,
   type ReactNode,
 } from 'react';
+// TODO: Simplify transaction modal context before re-enabling UI.
 import {
   FaUniversity,
   FaPiggyBank,

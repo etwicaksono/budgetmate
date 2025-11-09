@@ -5,6 +5,7 @@ import {
   FaSortAmountDownAlt,
 } from 'react-icons/fa';
 import type { SortOption, TransactionType } from '../types';
+// TODO: Revisit transaction constants after new defaults are defined.
 
 // Default values
 export const DEFAULT_CATEGORY_COLOR = '#6c757d';

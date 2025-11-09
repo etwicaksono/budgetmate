@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+// TODO: Reevaluate service worker registration strategy post-refactor.
 
 export function ServiceWorkerRegistration() {
   useEffect(() => {

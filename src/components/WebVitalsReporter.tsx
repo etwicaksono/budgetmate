@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { measureWebVitals } from '../utils/performance';
+// TODO: Replace ad-hoc web vitals reporting with observability tooling.
 
 /**
  * Web Vitals Reporter Component

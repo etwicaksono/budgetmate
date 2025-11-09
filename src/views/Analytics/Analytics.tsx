@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// TODO: Revisit analytics screens to align with new reporting goals.
 import { Container, Row, Col, Nav, Button } from 'react-bootstrap';
 import { FaFileExport } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';

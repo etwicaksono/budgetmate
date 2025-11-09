@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Card, Table } from 'react-bootstrap';
+// TODO: Replace skeleton loader with shared loading components.
 
 const TransactionListSkeleton: React.FC = () => {
   const SkeletonRow = () => (

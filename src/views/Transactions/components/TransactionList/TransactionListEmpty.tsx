@@ -3,6 +3,7 @@
 import React from 'react';
 import { Card, Button } from 'react-bootstrap';
 import { FaPlus, FaFileImport } from 'react-icons/fa';
+// TODO: Refresh empty state once new transaction import flow ships.
 
 interface TransactionListEmptyProps {
   onAddTransaction?: () => void;

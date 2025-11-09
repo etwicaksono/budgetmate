@@ -19,6 +19,7 @@ import {
   shift,
   autoUpdate,
 } from '@floating-ui/react';
+// TODO: Simplify category dropdown once new selector UX is defined.
 
 type CategoryTree = Record<string, string[]>;
 type CategoryColorMap = Record<string, string>;

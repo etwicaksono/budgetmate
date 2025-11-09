@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// TODO: Rebuild analytics sidebar with finalized filter interactions.
 import { Form, Accordion } from 'react-bootstrap';
 import { FaFilter, FaSearch, FaWallet, FaTags, FaTag, FaDollarSign, FaExchangeAlt, FaCheckCircle } from 'react-icons/fa';
 

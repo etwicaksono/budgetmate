@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import apiService from './api';
+// TODO: Align transaction service utilities with simplified workflows.
 import {
   ApiResponseSchema,
   CreateTransactionRequestSchema,

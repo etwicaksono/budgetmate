@@ -1,3 +1,4 @@
+// TODO: Reevaluate analytics component exports during module cleanup.
 export { default as AnalyticsSidebar } from './AnalyticsSidebar';
 export { default as IncomesExpensesReport } from './IncomesExpensesReport';
 export { default as BalanceTrend } from './BalanceTrend';
