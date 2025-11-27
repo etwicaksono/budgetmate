@@ -1,0 +1,26 @@
+/* Category Dropdown Item Hover Effects */
+.category-dropdown-item {
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.category-dropdown-item:hover {
+  background-color: #f8f9fa !important;
+}
+
+.category-dropdown-item:active {
+  transform: scale(0.98);
+}
+
+.category-dropdown-item.selected {
+  background-color: #e3f2fd !important;
+}
+
+.category-dropdown-item.selected:hover {
+  background-color: #d1e9fc !important;
+}
+
+/* Smooth checkbox transition */
+.category-dropdown-item input[type="checkbox"] {
+  cursor: pointer;
+}

@@ -1,0 +1,29 @@
+/* Dashboard Layout Styles */
+
+.app {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  flex: 1;
+  background-color: #f8f9fa;
+}
+
+/* Desktop view - add horizontal padding */
+@media (min-width: 768px) {
+  .app-content {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/* Mobile view - full width (no padding on sides) */
+@media (max-width: 767px) {
+  .app-content {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}

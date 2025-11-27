@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   
   // API configuration
   async headers() {
@@ -20,13 +19,22 @@ const nextConfig = {
   
   // Environment variables to expose to client
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_API_URL: process.env['NEXT_PUBLIC_API_URL'],
+    NEXT_PUBLIC_APP_URL: process.env['NEXT_PUBLIC_APP_URL'],
   },
   
   // Image optimization
   images: {
-    domains: ['localhost', 'your-cdn.com'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'your-cdn.com',
+      }
+    ],
     formats: ['image/avif', 'image/webp'],
   },
   

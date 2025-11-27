@@ -1,0 +1,419 @@
+'use client';
+
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Container, Row, Col, Card, Button, Form } from 'react-bootstrap';
+import { FaPlus, FaBars, FaFolderOpen } from 'react-icons/fa';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import AccountModal from '@/components/accounts/AccountModal';
+import { useAccountModal } from '@/hooks/useAccountModal';
+import { accountService, type Account } from '@/services/accountService';
+import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
+import {
+  FaWallet,
+  FaUniversity,
+  FaPiggyBank,
+  FaCreditCard,
+  FaMoneyBillWave,
+  FaChartLine,
+  FaGift,
+  FaShieldAlt,
+  FaHandHoldingUsd,
+  FaHome,
+  FaExclamationTriangle,
+} from 'react-icons/fa';
+import type { IconType } from 'react-icons';
+import './Accounts.css';
+
+// Map icon strings to components
+const getIconComponent = (iconName: string): IconType => {
+  const iconMap: Record<string, IconType> = {
+    FaWallet,
+    FaUniversity,
+    FaPiggyBank,
+    FaCreditCard,
+    FaMoneyBillWave,
+    FaChartLine,
+    FaGift,
+    FaShieldAlt,
+    FaHandHoldingUsd,
+    FaHome,
+    FaExclamationTriangle,
+  };
+  return iconMap[iconName] || FaWallet;
+};
+
+// Lighten color for background
+const lightenColor = (color: string, percent = 85): string => {
+  const num = parseInt(color.replace('#', ''), 16);
+  const r = Math.min(255, Math.floor(((num >> 16) + 255 * (percent / 100)) / (1 + percent / 100)));
+  const g = Math.min(255, Math.floor((((num >> 8) & 0x00ff) + 255 * (percent / 100)) / (1 + percent / 100)));
+  const b = Math.min(255, Math.floor(((num & 0x0000ff) + 255 * (percent / 100)) / (1 + percent / 100)));
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+};
+
+// Sortable Account Card Component
+interface SortableAccountCardProps {
+  account: Account;
+  onSelect: (account: Account) => void;
+  isArchived?: boolean;
+}
+
+const SortableAccountCard: React.FC<SortableAccountCardProps> = ({
+  account,
+  onSelect,
+  isArchived = false,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: account.id, disabled: isArchived });
+  const { formatCurrency } = useFormattedCurrency();
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0 : 1,
+  };
+
+  const IconComponent = getIconComponent(account.icon);
+  const backgroundColor = lightenColor(account.color);
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className="accounts-list__item"
+      onClick={() => onSelect(account)}
+      role="button"
+      tabIndex={0}
+    >
+      <Card.Body className="accounts-list__body">
+        <div
+          className="accounts-list__icon"
+          style={{ backgroundColor, color: account.color }}
+        >
+          <IconComponent size={20} />
+        </div>
+        <div className="accounts-list__details">
+          <span className="accounts-list__name">{account.name}</span>
+          <span className="accounts-list__type">{account.account_type}</span>
+        </div>
+        <div
+          className={`accounts-list__balance ${account.current_balance < 0 ? 'accounts-list__balance--negative' : ''}`}
+        >
+          {formatCurrency(account.current_balance, account.currency)}
+        </div>
+        {!isArchived && (
+          <Button
+            variant="light"
+            className="accounts-list__menu-btn"
+            aria-label={`Reorder ${account.name}`}
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FaBars size={20} />
+          </Button>
+        )}
+      </Card.Body>
+    </Card>
+  );
+};
+
+const AccountsPage: React.FC = () => {
+  const [showArchived, setShowArchived] = useState<boolean>(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const { formatCurrency } = useFormattedCurrency();
+
+  // Account Modal hook (DRY principle)
+  const accountModal = useAccountModal(async () => {
+    await fetchAccounts();
+  });
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Fetch accounts
+  const fetchAccounts = useCallback(async () => {
+    try {
+      const data = await accountService.fetchAccounts();
+      setAccounts(data);
+    } catch (err) {
+      console.error('Failed to fetch accounts:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
+
+  // Auto-refresh when transactions or accounts are created/updated/deleted
+  useEffect(() => {
+    const handleTransactionChange = () => {
+      fetchAccounts(); // Refresh to get updated balances
+    };
+
+    const handleAccountChange = () => {
+      fetchAccounts(); // Refresh to get updated account list
+    };
+
+    // Listen for transaction events (affects account balances)
+    window.addEventListener('transaction-created', handleTransactionChange);
+    window.addEventListener('transaction-updated', handleTransactionChange);
+    window.addEventListener('transaction-deleted', handleTransactionChange);
+
+    // Listen for account events
+    window.addEventListener('account-created', handleAccountChange);
+    window.addEventListener('account-updated', handleAccountChange);
+    window.addEventListener('account-deleted', handleAccountChange);
+
+    return () => {
+      window.removeEventListener('transaction-created', handleTransactionChange);
+      window.removeEventListener('transaction-updated', handleTransactionChange);
+      window.removeEventListener('transaction-deleted', handleTransactionChange);
+      window.removeEventListener('account-created', handleAccountChange);
+      window.removeEventListener('account-updated', handleAccountChange);
+      window.removeEventListener('account-deleted', handleAccountChange);
+    };
+  }, [fetchAccounts]);
+
+  // Filter accounts based on archived status
+  const filteredAccounts = useMemo((): Account[] => {
+    const relevantAccounts = showArchived ? accounts : accounts.filter((account) => account.is_active);
+    return [...relevantAccounts].sort((a, b) => a.personal_id - b.personal_id);
+  }, [accounts, showArchived]);
+
+  // Calculate summary statistics
+  const summary = useMemo(() => {
+    const activeAccounts = accounts.filter((account) => account.is_active);
+    const archivedAccounts = accounts.filter((account) => !account.is_active);
+    const visibleAccounts = showArchived ? accounts : activeAccounts;
+
+    // Group balances by currency
+    const balancesByCurrency: Record<string, number> = {};
+    visibleAccounts
+      .filter((a) => a.is_included_in_total)
+      .forEach((account) => {
+        const currency = account.currency || 'USD';
+        balancesByCurrency[currency] = (balancesByCurrency[currency] || 0) + account.current_balance;
+      });
+    
+    // Convert to sorted array (by currency name)
+    const currencyBalances = Object.entries(balancesByCurrency)
+      .map(([currency, balance]) => ({ currency, balance }))
+      .sort((a, b) => a.currency.localeCompare(b.currency));
+
+    return {
+      currencyBalances,
+      activeCount: activeAccounts.length,
+      archivedCount: archivedAccounts.length,
+    };
+  }, [accounts, showArchived]);
+
+  // Handle drag end
+  const handleDragEnd = useCallback((event: DragEndEvent): void => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setAccounts((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) return items;
+
+        const reordered = arrayMove(items, oldIndex, newIndex);
+
+        // Update personal_id for all accounts
+        reordered.forEach((account, index) => {
+          account.personal_id = index + 1;
+        });
+
+        // Call API to update account order
+        void (async () => {
+          try {
+            const orderMap = reordered.map((account) => ({
+              id: account.id,
+              personal_id: account.personal_id,
+            }));
+
+            await accountService.swapAccountOrder(orderMap);
+          } catch (error) {
+            console.error('Failed to update account order:', error);
+          }
+        })();
+
+        return reordered;
+      });
+    }
+  }, []);
+
+  // Handle account selection
+  const handleSelectAccount = (account: Account): void => {
+    accountModal.openEditModal(account);
+  };
+
+  // Separate active and archived accounts
+  const activeAccounts = filteredAccounts.filter((account) => account.is_active);
+  const archivedAccounts = filteredAccounts.filter((account) => !account.is_active);
+
+  return (
+    <Container fluid className="accounts-page">
+      <Row className="g-4">
+        {/* Sidebar */}
+        <Col xl={3} lg={4} xs={12}>
+          <Card className="accounts-sidebar">
+            <Card.Body>
+              <h2 className="accounts-sidebar__title">Accounts</h2>
+              <p className="accounts-sidebar__caption">
+                Organise your accounts and wallets in one place.
+              </p>
+
+              <Button
+                variant="success"
+                className="accounts-sidebar__add-btn"
+                onClick={accountModal.openAddModal}
+              >
+                <FaPlus className="me-2" size={14} />
+                Add
+              </Button>
+
+              <div className="accounts-sidebar__switch">
+                <span>Show Archived</span>
+                <Form.Check
+                  type="switch"
+                  id="show-archived-switch"
+                  className="accounts-sidebar__form-switch"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                />
+              </div>
+
+              <div className="accounts-sidebar__summary">
+                <div className="accounts-sidebar__summary-item">
+                  <span>Total Balance</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                    {summary.currencyBalances.length > 0 ? (
+                      summary.currencyBalances.map(({ currency, balance }) => (
+                        <strong key={currency}>
+                          {formatCurrency(balance, currency)}
+                        </strong>
+                      ))
+                    ) : (
+                      <strong>-</strong>
+                    )}
+                  </div>
+                </div>
+                <div className="accounts-sidebar__summary-grid">
+                  <div>
+                    <span>Active</span>
+                    <strong>{summary.activeCount}</strong>
+                  </div>
+                  <div>
+                    <span>Archived</span>
+                    <strong>{summary.archivedCount}</strong>
+                  </div>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        {/* Accounts List */}
+        <Col xl={9} lg={8} xs={12}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={activeAccounts.map((a) => a.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="accounts-list">
+                {/* Active Accounts */}
+                {activeAccounts.map((account) => (
+                  <SortableAccountCard
+                    key={account.id}
+                    account={account}
+                    onSelect={handleSelectAccount}
+                    isArchived={false}
+                  />
+                ))}
+
+                {/* Archived Section */}
+                {showArchived && archivedAccounts.length > 0 && (
+                  <>
+                    <div className="accounts-list__archived-header">Archived</div>
+                    {archivedAccounts.map((account) => (
+                      <SortableAccountCard
+                        key={account.id}
+                        account={account}
+                        onSelect={handleSelectAccount}
+                        isArchived={true}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {/* Empty State */}
+                {filteredAccounts.length === 0 && (
+                  <Card className="accounts-list__empty">
+                    <Card.Body>
+                      <div className="accounts-list__empty-icon">
+                        <FaFolderOpen size={20} />
+                      </div>
+                      <h3>No accounts to show</h3>
+                      <p>Toggle archived accounts or add a new one to get started.</p>
+                    </Card.Body>
+                  </Card>
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </Col>
+      </Row>
+
+      {/* Account Modal */}
+      {accountModal.showModal && (
+        <AccountModal
+          show={accountModal.showModal}
+          onHide={accountModal.closeModal}
+          onSave={accountModal.saveAccount}
+          mode={accountModal.modalMode}
+          initialData={accountModal.initialData}
+        />
+      )}
+    </Container>
+  );
+};
+
+export default AccountsPage;

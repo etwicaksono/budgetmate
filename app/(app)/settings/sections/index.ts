@@ -1,0 +1,8 @@
+export { CategoriesSection } from './CategoriesSection';
+export { TemplatesSection } from './TemplatesSection';
+export { LabelsSection } from './LabelsSection';
+export { AutomaticRulesSection } from './AutomaticRulesSection';
+export { GeneralSection } from './GeneralSection';
+export { BillingSection } from './BillingSection';
+export { PrivacySection } from './PrivacySection';
+export { HelpSection } from './HelpSection';

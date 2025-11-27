@@ -1,0 +1,54 @@
+.filter-sidebar {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.filter-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+}
+
+.filter-item {
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s;
+}
+
+.filter-item:hover {
+  background-color: #f8f9fa;
+}
+
+.filter-item .form-check {
+  margin: 0;
+  pointer-events: none;
+}
+
+.filter-item .form-check-input {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* Scrollbar styling */
+.filter-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.filter-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.filter-list::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.filter-list::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

@@ -1,0 +1,10 @@
+/* Ensure icon picker modal has same size as main modal */
+.modal-same-size .modal-content {
+  min-height: 600px;
+  max-height: 90vh;
+}
+
+.modal-same-size .modal-body {
+  display: flex;
+  flex-direction: column;
+}

@@ -1,0 +1,61 @@
+/* Category Modal Styles - Following AccountModal pattern */
+
+.modal-same-size .modal-dialog {
+  max-width: 800px;
+}
+
+/* Form spacing consistency */
+.modal-body .form-group:last-child {
+  margin-bottom: 0;
+}
+
+/* Color picker button styling */
+.color-picker-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.color-picker-button:hover {
+  transform: scale(1.05);
+}
+
+/* Icon grid styling */
+.icon-grid-button {
+  transition: all 0.2s ease;
+}
+
+.icon-grid-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Preview section styling */
+.category-preview {
+  transition: all 0.3s ease;
+}
+
+.category-preview:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom scrollbar for icon picker */
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

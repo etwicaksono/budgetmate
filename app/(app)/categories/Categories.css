@@ -1,0 +1,13 @@
+/* Categories Page Styles */
+
+/* Fix button icon alignment */
+.btn svg {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

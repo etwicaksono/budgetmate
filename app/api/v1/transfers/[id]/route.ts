@@ -1,0 +1,382 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+
+import { prisma } from '@/lib/db/prisma';
+import { requireAuth } from '@/lib/auth/middleware';
+import { successResponse, errorResponse, commonErrors } from '@/lib/api/response';
+import { resolveRouteParam } from '@/lib/api/params';
+import { getTransferDestination } from '@/utils/transferUtils';
+
+interface RouteParams {
+  params?: {
+    id?: string;
+  };
+}
+
+// GET - Fetch single transfer
+export async function GET(request: NextRequest, context: RouteParams): Promise<NextResponse> {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return authResult.error;
+  }
+  
+  const { user } = authResult;
+  const transferId = resolveRouteParam(request, context.params);
+  if (!transferId) {
+    return errorResponse('VALIDATION_ERROR', 'Transfer ID is required in the path', 400);
+  }
+  
+  const id = transferId;
+  
+  try {
+    const transfer = await prisma.transfer.findFirst({
+      where: {
+        id,
+        user_id: user.user_id
+      },
+      include: {
+        from_account_rel: {
+          select: { 
+            id: true,
+            name: true,
+            icon: true,
+            color: true,
+            currency: true,
+            account_type: true
+          }
+        },
+        to_account_rel: {
+          select: { 
+            id: true,
+            name: true,
+            icon: true,
+            color: true,
+            currency: true,
+            account_type: true
+          }
+        },
+        transactions: {
+          select: {
+            id: true,
+            personal_id: true,
+            type: true,
+            amount: true,
+            account_id: true,
+            created_at: true
+          },
+          orderBy: { type: 'desc' } // transfer_out first
+        }
+      }
+    });
+    
+    if (!transfer) {
+      return commonErrors.notFound('Transfer');
+    }
+    
+    // Use helper to compute destination values
+    const destination = getTransferDestination({
+      id: transfer.id,
+      amount: transfer.amount.toNumber(),
+      to_amount: transfer.to_amount?.toNumber() ?? null,
+      currency: transfer.currency,
+      to_currency: transfer.to_currency ?? null
+    });
+    
+    const response = {
+      id: transfer.id,
+      personal_id: Number(transfer.personal_id),
+      date: transfer.date,
+      from_account_id: transfer.from_account,
+      from_account: transfer.from_account_rel,
+      to_account_id: transfer.to_account,
+      to_account: transfer.to_account_rel,
+      amount: transfer.amount.toNumber(),
+      to_amount: destination.amount,
+      description: transfer.description,
+      currency: transfer.currency,
+      to_currency: destination.currency,
+      transactions: transfer.transactions.map(t => ({
+        id: t.id,
+        personal_id: Number(t.personal_id),
+        type: t.type,
+        amount: t.amount.toNumber(),
+        account_id: t.account_id,
+        created_at: t.created_at
+      })),
+      created_at: transfer.created_at,
+      updated_at: transfer.updated_at
+    };
+    
+    return successResponse(response);
+    
+  } catch (error) {
+    console.error('Transfer fetch error:', error);
+    return errorResponse('INTERNAL_ERROR', 'Failed to fetch transfer', 500);
+  }
+}
+
+// Validation schema for updating transfer
+const UpdateTransferSchema = z.object({
+  date: z.string().optional(),
+  from_account_id: z.string().optional(),
+  to_account_id: z.string().optional(),
+  amount: z.number().optional(),
+  to_amount: z.number().optional(),
+  description: z.string().optional(),
+  currency: z.string().optional(),
+  to_currency: z.string().optional()
+});
+
+// PUT - Update transfer and its linked transactions
+export async function PUT(request: NextRequest, context: RouteParams): Promise<NextResponse> {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return authResult.error;
+  }
+  
+  const { user } = authResult;
+  const transferId = resolveRouteParam(request, context.params);
+  if (!transferId) {
+    return errorResponse('VALIDATION_ERROR', 'Transfer ID is required in the path', 400);
+  }
+  
+  const id = transferId;
+  
+  try {
+    const body = await request.json();
+    const data = UpdateTransferSchema.parse(body);
+    
+    // Validate destination account is not empty string
+    if (data.to_account_id === '') {
+      return errorResponse('VALIDATION_ERROR', 'Destination account is required', 400);
+    }
+    
+    // Check if transfer exists and belongs to user
+    const existingTransfer = await prisma.transfer.findFirst({
+      where: {
+        id,
+        user_id: user.user_id
+      },
+      include: {
+        transactions: true
+      }
+    });
+    
+    if (!existingTransfer) {
+      return commonErrors.notFound('Transfer');
+    }
+    
+    // Validate accounts if provided
+    if (data.from_account_id || data.to_account_id) {
+      const fromAccountId = data.from_account_id || existingTransfer.from_account;
+      const toAccountId = data.to_account_id || existingTransfer.to_account;
+      
+      if (!toAccountId) {
+        return errorResponse('VALIDATION_ERROR', 'Destination account is required', 400);
+      }
+      
+      if (fromAccountId === toAccountId) {
+        return errorResponse('VALIDATION_ERROR', 'Cannot transfer to the same account', 400);
+      }
+      
+      // Verify both accounts exist and belong to user
+      const accounts = await prisma.account.findMany({
+        where: {
+          id: { in: [fromAccountId, toAccountId] },
+          user_id: user.user_id,
+          deleted_at: null
+        }
+      });
+      
+      if (accounts.length !== 2) {
+        return errorResponse('VALIDATION_ERROR', 'One or both accounts not found', 404);
+      }
+    }
+    
+    // Update transfer and linked transactions in a transaction
+    await prisma.$transaction(async (tx) => {
+      // Build update data for transfer
+      const transferUpdateData: any = {
+        updated_at: new Date(),
+        updated_by: user.user_id
+      };
+      
+      if (data.date) transferUpdateData.date = new Date(data.date);
+      if (data.from_account_id) transferUpdateData.from_account = data.from_account_id;
+      if (data.to_account_id) transferUpdateData.to_account = data.to_account_id;
+      if (data.amount !== undefined) transferUpdateData.amount = data.amount;
+      if (data.to_amount !== undefined) transferUpdateData.to_amount = data.to_amount;
+      if (data.description !== undefined) transferUpdateData.description = data.description;
+      if (data.currency) transferUpdateData.currency = data.currency;
+      if (data.to_currency !== undefined) transferUpdateData.to_currency = data.to_currency;
+      
+      // Update transfer record
+      const transfer = await tx.transfer.update({
+        where: { id },
+        data: transferUpdateData
+      });
+      
+      // Get the updated values (use new values or keep existing)
+      const finalDate = data.date ? new Date(data.date) : existingTransfer.date;
+      const finalFromAccount = data.from_account_id || existingTransfer.from_account;
+      const finalToAccount = data.to_account_id || existingTransfer.to_account;
+      const finalAmount = data.amount !== undefined ? data.amount : existingTransfer.amount.toNumber();
+      const finalToAmount = data.to_amount !== undefined ? data.to_amount : (existingTransfer.to_amount?.toNumber() || null);
+      const finalDescription = data.description !== undefined ? data.description : existingTransfer.description;
+      const finalCurrency = data.currency || existingTransfer.currency;
+      const finalToCurrency = data.to_currency !== undefined ? data.to_currency : existingTransfer.to_currency;
+      
+      // Update linked transactions
+      // Find the source and destination transactions
+      const transactions = existingTransfer.transactions;
+      const sourceTransaction = transactions.find(t => t.account_id === existingTransfer.from_account);
+      const destTransaction = transactions.find(t => t.account_id === existingTransfer.to_account);
+      
+      if (sourceTransaction) {
+        await tx.transaction.update({
+          where: { id: sourceTransaction.id },
+          data: {
+            date: finalDate,
+            account_id: finalFromAccount,
+            amount: -Math.abs(finalAmount), // Negative for source
+            currency: finalCurrency,
+            description: finalDescription,
+            updated_at: new Date(),
+            updated_by: user.user_id
+          }
+        });
+      }
+      
+      if (destTransaction) {
+        // For destination amount: use to_amount if specified and > 0, otherwise use source amount
+        const destAmount = (finalToAmount !== null && finalToAmount > 0) ? finalToAmount : finalAmount;
+        await tx.transaction.update({
+          where: { id: destTransaction.id },
+          data: {
+            date: finalDate,
+            account_id: finalToAccount,
+            amount: Math.abs(destAmount), // Positive for destination
+            currency: finalToCurrency || finalCurrency,
+            description: finalDescription,
+            updated_at: new Date(),
+            updated_by: user.user_id
+          }
+        });
+      }
+      
+      return transfer;
+    });
+    
+    // Fetch the updated transfer with relations
+    const result = await prisma.transfer.findFirst({
+      where: { id },
+      include: {
+        from_account_rel: {
+          select: { 
+            id: true,
+            name: true,
+            icon: true,
+            color: true,
+            currency: true
+          }
+        },
+        to_account_rel: {
+          select: { 
+            id: true,
+            name: true,
+            icon: true,
+            color: true,
+            currency: true
+          }
+        }
+      }
+    });
+    
+    if (!result) {
+      return commonErrors.notFound('Transfer');
+    }
+    
+    const response = {
+      id: result.id,
+      personal_id: Number(result.personal_id),
+      date: result.date,
+      from_account: result.from_account,
+      to_account: result.to_account,
+      amount: result.amount.toNumber(),
+      to_amount: result.to_amount?.toNumber() || null,
+      description: result.description,
+      currency: result.currency,
+      to_currency: result.to_currency,
+      from_account_data: result.from_account_rel,
+      to_account_data: result.to_account_rel,
+      created_at: result.created_at,
+      updated_at: result.updated_at
+    };
+    
+    return successResponse(response, { message: 'Transfer updated successfully' });
+    
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const firstError = error.errors[0];
+      return errorResponse('VALIDATION_ERROR', firstError?.message || 'Validation error', 400);
+    }
+    console.error('Transfer update error:', error);
+    return errorResponse('INTERNAL_ERROR', 'Failed to update transfer', 500);
+  }
+}
+
+// DELETE - Delete transfer and its linked transactions
+export async function DELETE(request: NextRequest, context: RouteParams): Promise<NextResponse> {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return authResult.error;
+  }
+  
+  const { user } = authResult;
+  const transferId = resolveRouteParam(request, context.params);
+  if (!transferId) {
+    return errorResponse('VALIDATION_ERROR', 'Transfer ID is required in the path', 400);
+  }
+  
+  const id = transferId;
+  
+  try {
+    // Check if transfer exists and belongs to user
+    const existingTransfer = await prisma.transfer.findFirst({
+      where: {
+        id,
+        user_id: user.user_id
+      },
+      include: {
+        transactions: true
+      }
+    });
+    
+    if (!existingTransfer) {
+      return commonErrors.notFound('Transfer');
+    }
+    
+    // Delete transfer and linked transactions (balance calculated on-demand)
+    await prisma.$transaction(async (tx) => {
+      // ✅ Balance is now calculated on-demand, no need to revert
+      
+      // 1. Delete linked transactions
+      await tx.transaction.deleteMany({
+        where: {
+          transfer_id: id
+        }
+      });
+      
+      // 3. Delete transfer
+      await tx.transfer.delete({
+        where: { id }
+      });
+    });
+    
+    return successResponse(null, { message: 'Transfer deleted successfully' });
+    
+  } catch (error) {
+    console.error('Transfer deletion error:', error);
+    return errorResponse('INTERNAL_ERROR', 'Failed to delete transfer', 500);
+  }
+}
