@@ -30,14 +30,14 @@ export function useFormattedCurrency() {
     (amount: number, currencyCode: string) => {
       return currencyFormatService.formatCompact(amount, currencyCode);
     },
-    [locale]
+    []
   );
 
   const formatWithSign = useCallback(
     (amount: number, currencyCode: string, type: 'income' | 'expense' | 'transfer') => {
       return currencyFormatService.formatWithSign(amount, currencyCode, type);
     },
-    [locale]
+    []
   );
 
   return {

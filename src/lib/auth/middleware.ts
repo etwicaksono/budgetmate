@@ -79,11 +79,10 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult | Au
       }
     };
   } catch (error: unknown) {
-    console.error('Auth middleware error:', error);
-    
     // Handle specific JWT errors
     if (error instanceof Error) {
       // Token expired - return specific error code for frontend to refresh
+      // This is expected behavior, no need to log as error
       if (error.name === 'TokenExpiredError' || error.message?.includes('expired')) {
         return {
           error: NextResponse.json(
@@ -115,6 +114,9 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult | Au
         };
       }
     }
+    
+    // Log unexpected auth errors
+    console.error('Unexpected auth error:', error);
     
     // Generic auth error
     return {

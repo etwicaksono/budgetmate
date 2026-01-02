@@ -196,7 +196,18 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     // Update transfer and linked transactions in a transaction
     await prisma.$transaction(async (tx) => {
       // Build update data for transfer
-      const transferUpdateData: any = {
+      const transferUpdateData: {
+        updated_at: Date;
+        updated_by: string;
+        date?: Date;
+        from_account?: string;
+        to_account?: string;
+        amount?: number;
+        to_amount?: number | null;
+        description?: string | null;
+        currency?: string;
+        to_currency?: string | null;
+      } = {
         updated_at: new Date(),
         updated_by: user.user_id
       };

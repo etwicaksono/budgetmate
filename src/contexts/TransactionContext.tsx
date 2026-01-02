@@ -14,6 +14,7 @@ export interface TransactionFormData {
   payment_method?: string;
   label_ids?: string[];
   // Transfer-specific fields
+  transfer_id?: string;
   to_account_id?: string;
   to_amount?: number | string;
 }

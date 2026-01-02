@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Container, Row, Col, Nav, Button, Card } from 'react-bootstrap';
-import { FaFileExport } from 'react-icons/fa';
+import React, { useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Container, Row, Col, Nav } from 'react-bootstrap';
 import { useFilterData } from '@/hooks/useFilterData';
 import { DesktopFilterSidebar } from '@/components/FilterSidebar';
 import PeriodNavigation, {
@@ -11,11 +11,28 @@ import PeriodNavigation, {
 } from '@/components/period/PeriodNavigation';
 import PeriodRangeSelector from '@/components/period/PeriodRangeSelector';
 import IncomesExpensesReport from '@/components/analytics/IncomesExpensesReport';
+import BalanceTrendReport from '@/components/analytics/BalanceTrendReport';
+import CashFlowReport from '@/components/analytics/CashFlowReport';
+import AdvancedChartsReport from '@/components/analytics/AdvancedChartsReport';
 
 type TabKey = 'income-expense' | 'balance-trend' | 'cash-flow' | 'advanced-charts';
 
+const VALID_TABS: TabKey[] = ['income-expense', 'balance-trend', 'cash-flow', 'advanced-charts'];
+
 function AnalyticsContent(): React.ReactElement {
-  const [activeTab, setActiveTab] = useState<TabKey>('income-expense');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  
+  // Get active tab from URL, default to 'income-expense'
+  const tabParam = searchParams.get('tab');
+  const activeTab: TabKey = VALID_TABS.includes(tabParam as TabKey) ? (tabParam as TabKey) : 'income-expense';
+  
+  const setActiveTab = useCallback((tab: TabKey) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [searchParams, router, pathname]);
 
   const {
     state: { dateRange, periodLabel, activePeriod, customRangeDraft },
@@ -54,39 +71,42 @@ function AnalyticsContent(): React.ReactElement {
           <IncomesExpensesReport
             {...(startDate && { startDate })}
             {...(endDate && { endDate })}
+            periodType={activePeriod.type}
           />
         );
       }
-      case 'balance-trend':
+      case 'balance-trend': {
+        const balanceStartDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
+        const balanceEndDate = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
         return (
-          <Card className="text-center py-5">
-            <Card.Body>
-              <span className="text-6xl mb-4 d-block" style={{ fontSize: '4rem' }}>📈</span>
-              <h4>Balance Trend</h4>
-              <p className="text-muted">Coming soon</p>
-            </Card.Body>
-          </Card>
+          <BalanceTrendReport
+            {...(balanceStartDate && { startDate: balanceStartDate })}
+            {...(balanceEndDate && { endDate: balanceEndDate })}
+            periodLabel={periodLabel.toUpperCase()}
+          />
         );
-      case 'cash-flow':
+      }
+      case 'cash-flow': {
+        const cashFlowStartDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
+        const cashFlowEndDate = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
         return (
-          <Card className="text-center py-5">
-            <Card.Body>
-              <span className="text-6xl mb-4 d-block" style={{ fontSize: '4rem' }}>💰</span>
-              <h4>Cash Flow</h4>
-              <p className="text-muted">Coming soon</p>
-            </Card.Body>
-          </Card>
+          <CashFlowReport
+            {...(cashFlowStartDate && { startDate: cashFlowStartDate })}
+            {...(cashFlowEndDate && { endDate: cashFlowEndDate })}
+            periodLabel={periodLabel.toUpperCase()}
+          />
         );
-      case 'advanced-charts':
+      }
+      case 'advanced-charts': {
+        const advancedStartDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
+        const advancedEndDate = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
         return (
-          <Card className="text-center py-5">
-            <Card.Body>
-              <span className="text-6xl mb-4 d-block" style={{ fontSize: '4rem' }}>📉</span>
-              <h4>Advanced Charts and Reports</h4>
-              <p className="text-muted">Coming soon</p>
-            </Card.Body>
-          </Card>
+          <AdvancedChartsReport
+            {...(advancedStartDate && { startDate: advancedStartDate })}
+            {...(advancedEndDate && { endDate: advancedEndDate })}
+          />
         );
+      }
       default:
         return null;
     }
@@ -127,16 +147,7 @@ function AnalyticsContent(): React.ReactElement {
         <Col lg={9}>
           {/* Header with Period Navigation */}
           <div className="analytics-header mb-4">
-            {/* Export button for mobile */}
-            <div className="d-flex justify-content-end mb-3 d-lg-none">
-              <Button variant="outline-success" size="sm">
-                <FaFileExport className="me-2" />
-                Export
-              </Button>
-            </div>
-
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <div style={{ flex: 1 }}></div>
+            <div className="d-flex justify-content-center align-items-center mb-3">
               <PeriodNavigation>
                 <PeriodRangeSelector
                   label={periodLabel}
@@ -144,13 +155,6 @@ function AnalyticsContent(): React.ReactElement {
                   customRange={customRangeDraft}
                 />
               </PeriodNavigation>
-              {/* Export button for desktop */}
-              <div style={{ flex: 1 }} className="d-none d-lg-block text-end">
-                <Button variant="outline-success" size="sm" className="d-inline-flex align-items-center">
-                  <FaFileExport className="me-2" />
-                  Export
-                </Button>
-              </div>
             </div>
 
             {/* Tab Navigation */}

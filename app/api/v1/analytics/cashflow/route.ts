@@ -1,0 +1,390 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/middleware';
+import { prisma } from '@/lib/db/prisma';
+import { successResponse, errorResponse } from '@/lib/api/response';
+
+interface DailyCashFlow {
+  date: string;
+  income: number;
+  expense: number;
+  cashFlow: number;
+}
+
+interface CashFlowSummary {
+  totalIncome: number;
+  totalExpense: number;
+  netCashFlow: number;
+  percentChange: number;
+}
+
+interface ComparisonDataPoint {
+  date: string;
+  value: number;
+}
+
+interface ComparisonData {
+  currentPeriod: ComparisonDataPoint[];
+  previousPeriod: ComparisonDataPoint[];
+  yearAgoPeriod: ComparisonDataPoint[];
+}
+
+interface CurrencyCashFlowData {
+  summary: CashFlowSummary;
+  dailyData: DailyCashFlow[];
+  comparisonData: {
+    cashFlow: ComparisonData;
+    income: ComparisonData;
+    expense: ComparisonData;
+  };
+}
+
+interface CashFlowResponse {
+  periodLabel: string;
+  summary: CashFlowSummary;
+  dailyData: DailyCashFlow[];
+  comparisonData: {
+    cashFlow: ComparisonData;
+    income: ComparisonData;
+    expense: ComparisonData;
+  };
+  dataByCurrency: Record<string, CurrencyCashFlowData>;
+  currencies: string[];
+}
+
+function formatDateLabel(date: Date): string {
+  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+}
+
+function getDayOfPeriod(date: Date, periodStart: Date): number {
+  const diffTime = date.getTime() - periodStart.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+}
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return authResult.error;
+  }
+
+  const { user } = authResult;
+  const { searchParams } = new URL(request.url);
+
+  const startDate = searchParams.get('start_date');
+  const endDate = searchParams.get('end_date');
+
+  try {
+    // Parse dates
+    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const end = endDate ? new Date(endDate) : new Date();
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    // Calculate period lengths
+    const periodLength = end.getTime() - start.getTime();
+    const periodDays = Math.ceil(periodLength / (1000 * 60 * 60 * 24)) + 1;
+
+    // Calculate previous period
+    const previousEnd = new Date(start.getTime() - 1);
+    const previousStart = new Date(previousEnd.getTime() - periodLength);
+    previousStart.setHours(0, 0, 0, 0);
+    previousEnd.setHours(23, 59, 59, 999);
+
+    // Calculate same period a year ago
+    const yearAgoStart = new Date(start);
+    yearAgoStart.setFullYear(yearAgoStart.getFullYear() - 1);
+    const yearAgoEnd = new Date(end);
+    yearAgoEnd.setFullYear(yearAgoEnd.getFullYear() - 1);
+
+    // Fetch transactions for current period
+    const currentTransactions = await prisma.transaction.findMany({
+      where: {
+        user_id: user.user_id,
+        deleted_at: null,
+        date: { gte: start, lte: end },
+        type: { in: ['income', 'expense'] },
+        account: { is_included_in_total: true },
+      },
+      select: {
+        date: true,
+        amount: true,
+        type: true,
+        account: { select: { currency: true } },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    // Fetch transactions for previous period
+    const previousTransactions = await prisma.transaction.findMany({
+      where: {
+        user_id: user.user_id,
+        deleted_at: null,
+        date: { gte: previousStart, lte: previousEnd },
+        type: { in: ['income', 'expense'] },
+        account: { is_included_in_total: true },
+      },
+      select: {
+        date: true,
+        amount: true,
+        type: true,
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    // Fetch transactions for year ago period
+    const yearAgoTransactions = await prisma.transaction.findMany({
+      where: {
+        user_id: user.user_id,
+        deleted_at: null,
+        date: { gte: yearAgoStart, lte: yearAgoEnd },
+        type: { in: ['income', 'expense'] },
+        account: { is_included_in_total: true },
+      },
+      select: {
+        date: true,
+        amount: true,
+        type: true,
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    // Collect currencies and sort by total transaction volume (highest first)
+    const currencyVolumes = new Map<string, number>();
+    currentTransactions.forEach(tx => {
+      const currency = tx.account?.currency || 'USD';
+      const amount = Math.abs(Number(tx.amount));
+      currencyVolumes.set(currency, (currencyVolumes.get(currency) || 0) + amount);
+    });
+    const currencyList = Array.from(currencyVolumes.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([currency]) => currency);
+
+    // Helper to build daily data for a specific currency (or all if null)
+    const buildDailyData = (
+      transactions: typeof currentTransactions,
+      filterCurrency: string | null
+    ): { dailyData: DailyCashFlow[]; totalIncome: number; totalExpense: number } => {
+      const dailyDataMap = new Map<string, { income: number; expense: number }>();
+      
+      // Initialize all days in period
+      const currentDate = new Date(start);
+      while (currentDate <= end) {
+        const dateKey = currentDate.toISOString().split('T')[0]!;
+        dailyDataMap.set(dateKey, { income: 0, expense: 0 });
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      let totalIncome = 0;
+      let totalExpense = 0;
+
+      for (const tx of transactions) {
+        const txCurrency = tx.account?.currency || 'USD';
+        if (filterCurrency && txCurrency !== filterCurrency) continue;
+        
+        const dateKey = new Date(tx.date).toISOString().split('T')[0]!;
+        const amount = Math.abs(Number(tx.amount));
+        const dayData = dailyDataMap.get(dateKey);
+        
+        if (dayData) {
+          if (tx.type === 'income') {
+            dayData.income += amount;
+            totalIncome += amount;
+          } else if (tx.type === 'expense') {
+            dayData.expense += amount;
+            totalExpense += amount;
+          }
+        }
+      }
+
+      const dailyData: DailyCashFlow[] = Array.from(dailyDataMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([dateStr, data]) => ({
+          date: formatDateLabel(new Date(dateStr)),
+          income: data.income,
+          expense: data.expense,
+          cashFlow: data.income - data.expense,
+        }));
+
+      return { dailyData, totalIncome, totalExpense };
+    };
+
+    // Build combined daily data (all currencies)
+    const combinedData = buildDailyData(currentTransactions, null);
+    const dailyData = combinedData.dailyData;
+    const totalIncome = combinedData.totalIncome;
+    const totalExpense = combinedData.totalExpense;
+
+    // Calculate previous period totals for percent change (all currencies)
+    let previousTotalIncome = 0;
+    let previousTotalExpense = 0;
+
+    for (const tx of previousTransactions) {
+      const amount = Math.abs(Number(tx.amount));
+      if (tx.type === 'income') {
+        previousTotalIncome += amount;
+      } else if (tx.type === 'expense') {
+        previousTotalExpense += amount;
+      }
+    }
+
+    const netCashFlow = totalIncome - totalExpense;
+    const previousNetCashFlow = previousTotalIncome - previousTotalExpense;
+
+    // Calculate percent change
+    let percentChange = 0;
+    if (previousNetCashFlow !== 0) {
+      percentChange = Math.round(((netCashFlow - previousNetCashFlow) / Math.abs(previousNetCashFlow)) * 100);
+    } else if (netCashFlow !== 0) {
+      percentChange = netCashFlow > 0 ? 100 : -100;
+    }
+
+    // Build comparison data by day-of-period
+    const buildComparisonData = (
+      transactions: Array<{ date: Date; amount: { toNumber?: () => number } | number; type: string }>,
+      periodStart: Date,
+      numDays: number,
+      metric: 'income' | 'expense' | 'cashFlow'
+    ): ComparisonDataPoint[] => {
+      const dayMap = new Map<number, { income: number; expense: number }>();
+      
+      // Initialize all days
+      for (let i = 0; i < numDays; i++) {
+        dayMap.set(i, { income: 0, expense: 0 });
+      }
+
+      // Aggregate by day of period
+      for (const tx of transactions) {
+        const txDate = new Date(tx.date);
+        const dayOfPeriod = getDayOfPeriod(txDate, periodStart);
+        if (dayOfPeriod >= 0 && dayOfPeriod < numDays) {
+          const dayData = dayMap.get(dayOfPeriod)!;
+          const rawAmount = tx.amount;
+          const amount = Math.abs(typeof rawAmount === 'number' ? rawAmount : Number(rawAmount));
+          if (tx.type === 'income') {
+            dayData.income += amount;
+          } else if (tx.type === 'expense') {
+            dayData.expense += amount;
+          }
+        }
+      }
+
+      // Convert to array
+      const result: ComparisonDataPoint[] = [];
+      for (let i = 0; i < numDays; i++) {
+        const dayData = dayMap.get(i)!;
+        const dateAtDay = new Date(start);
+        dateAtDay.setDate(start.getDate() + i);
+        
+        let value = 0;
+        if (metric === 'income') {
+          value = dayData.income;
+        } else if (metric === 'expense') {
+          value = -dayData.expense; // Show expense as negative for comparison
+        } else {
+          value = dayData.income - dayData.expense;
+        }
+
+        result.push({
+          date: formatDateLabel(dateAtDay),
+          value,
+        });
+      }
+
+      return result;
+    };
+
+    // Build comparison data for all three metrics (combined)
+    const comparisonData = {
+      cashFlow: {
+        currentPeriod: buildComparisonData(currentTransactions, start, periodDays, 'cashFlow'),
+        previousPeriod: buildComparisonData(previousTransactions, previousStart, periodDays, 'cashFlow'),
+        yearAgoPeriod: buildComparisonData(yearAgoTransactions, yearAgoStart, periodDays, 'cashFlow'),
+      },
+      income: {
+        currentPeriod: buildComparisonData(currentTransactions, start, periodDays, 'income'),
+        previousPeriod: buildComparisonData(previousTransactions, previousStart, periodDays, 'income'),
+        yearAgoPeriod: buildComparisonData(yearAgoTransactions, yearAgoStart, periodDays, 'income'),
+      },
+      expense: {
+        currentPeriod: buildComparisonData(currentTransactions, start, periodDays, 'expense'),
+        previousPeriod: buildComparisonData(previousTransactions, previousStart, periodDays, 'expense'),
+        yearAgoPeriod: buildComparisonData(yearAgoTransactions, yearAgoStart, periodDays, 'expense'),
+      },
+    };
+
+    // Build data per currency
+    const dataByCurrency: Record<string, CurrencyCashFlowData> = {};
+    
+    for (const currency of currencyList) {
+      // Filter transactions by currency
+      const currencyCurrentTx = currentTransactions.filter(tx => (tx.account?.currency || 'USD') === currency);
+      const currencyPreviousTx = previousTransactions; // Previous/yearAgo don't have currency info, use all
+      const currencyYearAgoTx = yearAgoTransactions;
+      
+      // Build daily data for this currency
+      const currencyDailyResult = buildDailyData(currentTransactions, currency);
+      
+      // Calculate previous period totals for this currency (approximate - use ratio)
+      const currencyRatio = totalIncome > 0 ? currencyDailyResult.totalIncome / totalIncome : 0;
+      const prevIncomeForCurrency = previousTotalIncome * currencyRatio;
+      const prevExpenseForCurrency = previousTotalExpense * currencyRatio;
+      const prevNetForCurrency = prevIncomeForCurrency - prevExpenseForCurrency;
+      
+      const currencyNetCashFlow = currencyDailyResult.totalIncome - currencyDailyResult.totalExpense;
+      let currencyPercentChange = 0;
+      if (prevNetForCurrency !== 0) {
+        currencyPercentChange = Math.round(((currencyNetCashFlow - prevNetForCurrency) / Math.abs(prevNetForCurrency)) * 100);
+      } else if (currencyNetCashFlow !== 0) {
+        currencyPercentChange = currencyNetCashFlow > 0 ? 100 : -100;
+      }
+      
+      // Build comparison data for this currency
+      const currencyComparisonData = {
+        cashFlow: {
+          currentPeriod: buildComparisonData(currencyCurrentTx, start, periodDays, 'cashFlow'),
+          previousPeriod: buildComparisonData(currencyPreviousTx, previousStart, periodDays, 'cashFlow'),
+          yearAgoPeriod: buildComparisonData(currencyYearAgoTx, yearAgoStart, periodDays, 'cashFlow'),
+        },
+        income: {
+          currentPeriod: buildComparisonData(currencyCurrentTx, start, periodDays, 'income'),
+          previousPeriod: buildComparisonData(currencyPreviousTx, previousStart, periodDays, 'income'),
+          yearAgoPeriod: buildComparisonData(currencyYearAgoTx, yearAgoStart, periodDays, 'income'),
+        },
+        expense: {
+          currentPeriod: buildComparisonData(currencyCurrentTx, start, periodDays, 'expense'),
+          previousPeriod: buildComparisonData(currencyPreviousTx, previousStart, periodDays, 'expense'),
+          yearAgoPeriod: buildComparisonData(currencyYearAgoTx, yearAgoStart, periodDays, 'expense'),
+        },
+      };
+      
+      dataByCurrency[currency] = {
+        summary: {
+          totalIncome: currencyDailyResult.totalIncome,
+          totalExpense: currencyDailyResult.totalExpense,
+          netCashFlow: currencyNetCashFlow,
+          percentChange: currencyPercentChange,
+        },
+        dailyData: currencyDailyResult.dailyData,
+        comparisonData: currencyComparisonData,
+      };
+    }
+
+    const response: CashFlowResponse = {
+      periodLabel: 'THIS MONTH',
+      summary: {
+        totalIncome,
+        totalExpense,
+        netCashFlow,
+        percentChange,
+      },
+      dailyData,
+      comparisonData,
+      dataByCurrency,
+      currencies: currencyList,
+    };
+
+    return successResponse(response);
+  } catch (error) {
+    console.error('Cash flow error:', error);
+    return errorResponse('INTERNAL_ERROR', 'Failed to fetch cash flow data', 500);
+  }
+}

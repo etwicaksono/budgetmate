@@ -66,8 +66,7 @@ export interface CategoryReport {
   name: string;
   icon: string;
   color: string;
-  currentMonth: number;
-  previousMonth: number;
+  amounts: number[];
   hasSubItems?: boolean;
   subItems?: CategoryReport[];
 }
@@ -75,17 +74,125 @@ export interface CategoryReport {
 export interface CurrencyReport {
   incomeCategories: CategoryReport[];
   expenseCategories: CategoryReport[];
-  totalIncome: number;
-  totalExpense: number;
-  previousTotalIncome: number;
-  previousTotalExpense: number;
+  totalIncomes: number[];
+  totalExpenses: number[];
 }
 
 export interface IncomeExpenseReport {
-  currentMonthName: string;
-  previousMonthName: string;
+  monthNames: string[];
   currencies: string[];
   data: Record<string, CurrencyReport>;
+}
+
+export interface BalanceDataPoint {
+  date: string;
+  balance: number;
+}
+
+export interface AccountBalance {
+  id: string;
+  name: string;
+  account_type: string;
+  icon: string;
+  color: string;
+  currency: string;
+  balance: number;
+}
+
+export interface CurrencyTotal {
+  currency: string;
+  balance: number;
+  percentChange: number;
+}
+
+export interface BalanceTrendResponse {
+  periodLabel: string;
+  totalBalance: number;
+  percentChange: number;
+  chartData: BalanceDataPoint[];
+  chartDataByCurrency: Record<string, BalanceDataPoint[]>;
+  accounts: AccountBalance[];
+  currencyTotals: CurrencyTotal[];
+  currencies: string[];
+}
+
+export interface DailyCashFlow {
+  date: string;
+  income: number;
+  expense: number;
+  cashFlow: number;
+}
+
+export interface CashFlowSummary {
+  totalIncome: number;
+  totalExpense: number;
+  netCashFlow: number;
+  percentChange: number;
+}
+
+export interface ComparisonDataPoint {
+  date: string;
+  value: number;
+}
+
+export interface ComparisonData {
+  currentPeriod: ComparisonDataPoint[];
+  previousPeriod: ComparisonDataPoint[];
+  yearAgoPeriod: ComparisonDataPoint[];
+}
+
+export interface CurrencyCashFlowData {
+  summary: CashFlowSummary;
+  dailyData: DailyCashFlow[];
+  comparisonData: {
+    cashFlow: ComparisonData;
+    income: ComparisonData;
+    expense: ComparisonData;
+  };
+}
+export interface CashFlowResponse {
+  periodLabel: string;
+  summary: CashFlowSummary;
+  dailyData: DailyCashFlow[];
+  comparisonData: {
+    cashFlow: ComparisonData;
+    income: ComparisonData;
+    expense: ComparisonData;
+  };
+  dataByCurrency: Record<string, CurrencyCashFlowData>;
+  currencies: string[];
+}
+
+// Advanced Charts types
+export type AdvancedChartDataType = 'balance' | 'cashflow' | 'cumulative_cashflow';
+export type AdvancedChartGraphType = 'line' | 'bar' | 'area';
+export type AdvancedChartGranularity = 'day' | 'week' | 'month';
+export type AdvancedChartGroupBy = 'none' | 'accounts' | 'categories' | 'currencies';
+
+export interface AdvancedChartDataPoint {
+  date: string;
+  value: number;
+  label?: string;
+}
+
+export interface GroupedChartData {
+  groupId: string;
+  groupName: string;
+  color: string | null;
+  data: AdvancedChartDataPoint[];
+}
+
+export interface AdvancedChartsResponse {
+  dataType: AdvancedChartDataType;
+  granularity: AdvancedChartGranularity;
+  groupBy: AdvancedChartGroupBy;
+  chartData: AdvancedChartDataPoint[];
+  groupedData: GroupedChartData[];
+  currencies: string[];
+  dataByCurrency: Record<string, {
+    chartData: AdvancedChartDataPoint[];
+    groupedData: GroupedChartData[];
+  }>;
 }
 
 class AnalyticsService {
@@ -200,9 +307,47 @@ class AnalyticsService {
   async fetchIncomeExpenseReport(params?: {
     start_date?: string;
     end_date?: string;
+    period_type?: 'month' | 'week' | 'year' | 'custom';
+    periods?: number;
   }): Promise<IncomeExpenseReport> {
     const response = await api.get<{ success: boolean; data: IncomeExpenseReport }>(
       '/analytics/income-expense-report',
+      { params }
+    );
+    return response.data;
+  }
+
+  async fetchBalanceTrend(params?: {
+    start_date?: string;
+    end_date?: string;
+  }): Promise<BalanceTrendResponse> {
+    const response = await api.get<{ success: boolean; data: BalanceTrendResponse }>(
+      '/analytics/balance-trend',
+      { params }
+    );
+    return response.data;
+  }
+
+  async fetchCashFlowReport(params?: {
+    start_date?: string;
+    end_date?: string;
+  }): Promise<CashFlowResponse> {
+    const response = await api.get<{ success: boolean; data: CashFlowResponse }>(
+      '/analytics/cashflow',
+      { params }
+    );
+    return response.data;
+  }
+
+  async fetchAdvancedCharts(params?: {
+    start_date?: string;
+    end_date?: string;
+    type?: AdvancedChartDataType;
+    granularity?: AdvancedChartGranularity;
+    group_by?: AdvancedChartGroupBy;
+  }): Promise<AdvancedChartsResponse> {
+    const response = await api.get<{ success: boolean; data: AdvancedChartsResponse }>(
+      '/analytics/advanced-charts',
       { params }
     );
     return response.data;

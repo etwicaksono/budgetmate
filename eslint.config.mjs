@@ -55,7 +55,7 @@ export default [
       'react/react-in-jsx-scope': 'off',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      'no-console': ['warn', { allow: ['warn', 'error', 'info', 'log'] }], // TODO: remove log after development
+      'no-console': ['warn', { allow: ['warn', 'error', 'info', 'log', 'table'] }], // TODO: remove log and table after development
       'no-undef': 'off' // TypeScript handles this
     },
     settings: {

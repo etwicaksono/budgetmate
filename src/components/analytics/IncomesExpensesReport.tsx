@@ -1,43 +1,89 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Table, Spinner, Nav } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Table, Dropdown, Form, Placeholder } from 'react-bootstrap';
 import { FaListUl, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { RiListSettingsLine } from 'react-icons/ri';
 import { Icon } from '@/utils/iconResolver';
 import { analyticsService, type IncomeExpenseReport, type CategoryReport, type CurrencyReport } from '@/services/analyticsService';
+import { categoryService, type Category } from '@/services/categoryService';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
+import { useAuth } from '@/context/AuthContext';
+import CategoryTransactionsModal from './CategoryTransactionsModal';
+
+type PeriodType = 'month' | 'week' | 'year' | 'custom';
 
 interface IncomesExpensesReportProps {
   startDate?: string;
   endDate?: string;
+  periodType?: PeriodType;
 }
+
+interface SelectedCategory {
+  id: string;
+  ids: string[]; // Include parent + all children IDs
+  name: string;
+  monthType: 'current' | 'previous';
+  monthName: string;
+  monthStartDate: string;
+  monthEndDate: string;
+}
+
+type SortOption = 'default' | 'amount_asc' | 'amount_desc';
 
 const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({ 
   startDate, 
-  endDate 
+  endDate,
+  periodType = 'month'
 }) => {
   const [data, setData] = useState<IncomeExpenseReport | null>(null);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedCurrency, setSelectedCurrency] = useState<string>('');
+  const [showModal, setShowModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
+  const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [showPercentageDiff, setShowPercentageDiff] = useState(false);
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
+  const [numberOfColumns, setNumberOfColumns] = useState(2);
   const { formatCurrency } = useFormattedCurrency();
+  const { user } = useAuth();
+  const defaultCurrency = user?.currency || 'USD';
+
+  // Sort currencies with default currency first
+  const sortedCurrencies = useMemo(() => {
+    if (!data) return [];
+    const currencies = [...data.currencies];
+    if (defaultCurrency && currencies.includes(defaultCurrency)) {
+      currencies.sort((a, b) => {
+        if (a === defaultCurrency) return -1;
+        if (b === defaultCurrency) return 1;
+        return 0;
+      });
+    }
+    return currencies;
+  }, [data, defaultCurrency]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
+        
+        // Fetch report data and all categories in parallel
         const params: { start_date?: string; end_date?: string } = {};
         if (startDate) params.start_date = startDate;
         if (endDate) params.end_date = endDate;
-        const reportData = await analyticsService.fetchIncomeExpenseReport(params);
+        
+        const [reportData, categoriesResponse] = await Promise.all([
+          analyticsService.fetchIncomeExpenseReport({ ...params, period_type: periodType, periods: numberOfColumns }),
+          categoryService.fetchCategories(),
+        ]);
+        
         setData(reportData);
-        // Set default currency to first available
-        const firstCurrency = reportData.currencies[0];
-        if (firstCurrency && !selectedCurrency) {
-          setSelectedCurrency(firstCurrency);
-        }
+        setAllCategories(categoriesResponse.data || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load report');
       } finally {
@@ -45,15 +91,16 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       }
     };
     fetchData();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, numberOfColumns, periodType]);
 
-  // Reset currency selection when data changes
+  // Set default currency when data loads
   useEffect(() => {
-    const firstCurrency = data?.currencies[0];
-    if (data && firstCurrency && !data.currencies.includes(selectedCurrency)) {
-      setSelectedCurrency(firstCurrency);
+    if (sortedCurrencies.length > 0 && !selectedCurrency) {
+      setSelectedCurrency(sortedCurrencies[0]!);
+    } else if (sortedCurrencies.length > 0 && !sortedCurrencies.includes(selectedCurrency)) {
+      setSelectedCurrency(sortedCurrencies[0]!);
     }
-  }, [data, selectedCurrency]);
+  }, [sortedCurrencies, selectedCurrency]);
 
   const toggleCategory = (categoryId: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -63,6 +110,109 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       newExpanded.add(categoryId);
     }
     setExpandedCategories(newExpanded);
+  };
+
+  const collectCategoryIds = (category: CategoryReport): string[] => {
+    const ids = [category.id];
+    if (category.subItems && category.subItems.length > 0) {
+      category.subItems.forEach(child => {
+        ids.push(...collectCategoryIds(child));
+      });
+    }
+    return ids;
+  };
+
+  const handleShowTransactions = (
+    category: CategoryReport,
+    periodIndex: number,
+    event: React.MouseEvent
+  ) => {
+    event.stopPropagation();
+    const periodNames = data?.monthNames || [];
+    const periodName = periodNames[periodIndex] || '';
+    const categoryIds = collectCategoryIds(category);
+    
+    // Calculate date range based on period type
+    const now = new Date();
+    let periodStart: Date;
+    let periodEnd: Date;
+    
+    if (periodType === 'month') {
+      const baseDate = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+      periodStart = new Date(baseDate);
+      periodStart.setMonth(periodStart.getMonth() - periodIndex);
+      periodStart.setDate(1);
+      periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0, 23, 59, 59);
+    } else if (periodType === 'week') {
+      const baseDate = startDate ? new Date(startDate) : now;
+      const dayOfWeek = baseDate.getDay();
+      const monday = new Date(baseDate);
+      monday.setDate(baseDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      monday.setHours(0, 0, 0, 0);
+      
+      periodStart = new Date(monday);
+      periodStart.setDate(monday.getDate() - (periodIndex * 7));
+      periodEnd = new Date(periodStart);
+      periodEnd.setDate(periodStart.getDate() + 6);
+      periodEnd.setHours(23, 59, 59, 999);
+    } else if (periodType === 'year') {
+      const baseYear = startDate ? new Date(startDate).getFullYear() : now.getFullYear();
+      const year = baseYear - periodIndex;
+      periodStart = new Date(year, 0, 1, 0, 0, 0);
+      periodEnd = new Date(year, 11, 31, 23, 59, 59);
+    } else {
+      // Custom - use start/end dates divided by periods
+      const customStart = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
+      const customEnd = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      
+      const totalDays = Math.ceil((customEnd.getTime() - customStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const daysPerPeriod = Math.max(1, Math.ceil(totalDays / numberOfColumns));
+      
+      periodStart = new Date(customStart);
+      periodStart.setDate(customStart.getDate() - (periodIndex * daysPerPeriod));
+      periodEnd = new Date(periodStart);
+      periodEnd.setDate(periodStart.getDate() + daysPerPeriod - 1);
+      periodEnd.setHours(23, 59, 59, 999);
+    }
+    
+    setSelectedCategory({
+      id: category.id,
+      ids: categoryIds,
+      name: category.name,
+      monthType: periodIndex === 0 ? 'current' : 'previous',
+      monthName: periodName,
+      monthStartDate: periodStart.toISOString(),
+      monthEndDate: periodEnd.toISOString(),
+    });
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedCategory(null);
+  };
+
+  const sortCategories = useMemo(() => {
+    return (categories: CategoryReport[]): CategoryReport[] => {
+      if (sortOption === 'default') return categories;
+      
+      return [...categories].sort((a, b) => {
+        const aTotal = a.amounts.reduce((sum, amt) => sum + amt, 0);
+        const bTotal = b.amounts.reduce((sum, amt) => sum + amt, 0);
+        
+        if (sortOption === 'amount_asc') {
+          return aTotal - bTotal;
+        } else {
+          return bTotal - aTotal;
+        }
+      });
+    };
+  }, [sortOption]);
+
+  const calculatePercentageDiff = (current: number, previous: number): string | null => {
+    if (!showPercentageDiff || previous === 0) return null;
+    const diff = ((current - previous) / previous) * 100;
+    return diff >= 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
   };
 
   const renderCategoryRow = (
@@ -104,30 +254,33 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
               <span>{category.name}</span>
             </div>
           </td>
-          <td className="text-end">
-            <span className="d-inline-flex align-items-center gap-1">
-              {category.currentMonth > 0 && (
-                <FaListUl 
-                  className="text-muted" 
-                  style={{ fontSize: '0.875rem', cursor: 'pointer' }}
-                  title="View transactions"
-                />
-              )}
-              {prefix}{formatCurrency(category.currentMonth, currency)}
-            </span>
-          </td>
-          <td className="text-end">
-            <span className="d-inline-flex align-items-center gap-1">
-              {category.previousMonth > 0 && (
-                <FaListUl 
-                  className="text-muted" 
-                  style={{ fontSize: '0.875rem', cursor: 'pointer' }}
-                  title="View transactions"
-                />
-              )}
-              {prefix}{formatCurrency(category.previousMonth, currency)}
-            </span>
-          </td>
+          {category.amounts.map((amount, monthIndex) => (
+            <td key={monthIndex} className="text-end">
+              <span className="d-inline-flex align-items-center gap-1">
+                {amount > 0 && (
+                  <FaListUl 
+                    className="text-muted" 
+                    style={{ fontSize: '0.875rem', cursor: 'pointer' }}
+                    title="View transactions"
+                    onClick={(e) => handleShowTransactions(category, monthIndex, e)}
+                  />
+                )}
+                {prefix}{formatCurrency(amount, currency)}
+                {monthIndex === 0 && (() => {
+                  const pctDiff = calculatePercentageDiff(category.amounts[0] || 0, category.amounts[1] || 0);
+                  if (pctDiff) {
+                    const isPositive = pctDiff.startsWith('+');
+                    return (
+                      <small className={`ms-1 ${isPositive ? 'text-success' : 'text-danger'}`}>
+                        ({pctDiff})
+                      </small>
+                    );
+                  }
+                  return null;
+                })()}
+              </span>
+            </td>
+          ))}
         </tr>
         {hasChildren && isExpanded && category.subItems?.map((subItem) =>
           renderCategoryRow(subItem, type, currency, true)
@@ -137,61 +290,180 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   };
 
   const renderReport = (currencyData: CurrencyReport, currency: string) => {
+    const monthNames = data?.monthNames || [];
+    
     return (
       <Table responsive bordered hover>
         <thead>
           <tr>
-            <th style={{ width: '40%' }}></th>
-            <th className="text-center">{data?.currentMonthName}</th>
-            <th className="text-center">{data?.previousMonthName}</th>
+            <th style={{ width: '30%' }}></th>
+            {monthNames.map((name, idx) => (
+              <th key={idx} className="text-center">{name}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {/* Total Income Row */}
           <tr className="total-row">
             <td><strong>Total Income</strong></td>
-            <td className="text-end total-income">
-              {formatCurrency(currencyData.totalIncome, currency)}
-            </td>
-            <td className="text-end total-income">
-              {formatCurrency(currencyData.previousTotalIncome, currency)}
-            </td>
+            {currencyData.totalIncomes.map((total, idx) => (
+              <td key={idx} className="text-end total-income">
+                {formatCurrency(total, currency)}
+              </td>
+            ))}
           </tr>
 
           {/* Income Categories */}
-          {currencyData.incomeCategories.map((category) => renderCategoryRow(category, 'income', currency))}
+          {sortCategories(currencyData.incomeCategories).map((category) => renderCategoryRow(category, 'income', currency))}
 
           {/* Spacer Row */}
           <tr>
-            <td colSpan={3} style={{ height: '1rem', padding: 0, border: 'none' }}></td>
+            <td colSpan={monthNames.length + 1} style={{ height: '1rem', padding: 0, border: 'none' }}></td>
           </tr>
 
           {/* Total Expense Row */}
           <tr className="total-row">
             <td><strong>Total Expense</strong></td>
-            <td className="text-end total-expense">
-              -{formatCurrency(currencyData.totalExpense, currency)}
-            </td>
-            <td className="text-end total-expense">
-              -{formatCurrency(currencyData.previousTotalExpense, currency)}
-            </td>
+            {currencyData.totalExpenses.map((total, idx) => (
+              <td key={idx} className="text-end total-expense">
+                -{formatCurrency(total, currency)}
+              </td>
+            ))}
           </tr>
 
           {/* Expense Categories */}
-          {currencyData.expenseCategories.map((category) => renderCategoryRow(category, 'expense', currency))}
+          {sortCategories(currencyData.expenseCategories).map((category) => renderCategoryRow(category, 'expense', currency))}
         </tbody>
       </Table>
     );
   };
 
-  if (loading) {
+  // Skeleton loading component
+  const renderSkeleton = () => {
+    const skeletonRows = Array.from({ length: 8 }, (_, i) => i);
+    const skeletonCols = Array.from({ length: numberOfColumns }, (_, i) => i);
+    
     return (
-      <div className="d-flex justify-content-center align-items-center py-5">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
+      <div>
+        {/* Currency pills skeleton */}
+        <div className="d-flex justify-content-center align-items-center gap-2 mb-3">
+          <Placeholder animation="glow">
+            <Placeholder className="rounded-pill" style={{ width: 60, height: 32 }} />
+          </Placeholder>
+          <Placeholder animation="glow">
+            <Placeholder className="rounded-pill" style={{ width: 60, height: 32 }} />
+          </Placeholder>
+        </div>
+        
+        {/* Table skeleton */}
+        <Table responsive bordered>
+          <thead>
+            <tr>
+              <th style={{ width: '30%' }}>
+                <Placeholder animation="glow">
+                  <Placeholder xs={4} />
+                </Placeholder>
+              </th>
+              {skeletonCols.map((i) => (
+                <th key={i} className="text-center">
+                  <Placeholder animation="glow">
+                    <Placeholder xs={8} />
+                  </Placeholder>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Total Income skeleton */}
+            <tr className="total-row">
+              <td>
+                <Placeholder animation="glow">
+                  <Placeholder xs={6} />
+                </Placeholder>
+              </td>
+              {skeletonCols.map((i) => (
+                <td key={i} className="text-end">
+                  <Placeholder animation="glow">
+                    <Placeholder xs={8} />
+                  </Placeholder>
+                </td>
+              ))}
+            </tr>
+            
+            {/* Income category skeletons */}
+            {skeletonRows.slice(0, 4).map((i) => (
+              <tr key={`income-${i}`}>
+                <td>
+                  <div className="d-flex align-items-center gap-2">
+                    <Placeholder animation="glow">
+                      <Placeholder className="rounded" style={{ width: 20, height: 20 }} />
+                    </Placeholder>
+                    <Placeholder animation="glow" className="flex-grow-1">
+                      <Placeholder xs={i % 2 === 0 ? 7 : 5} />
+                    </Placeholder>
+                  </div>
+                </td>
+                {skeletonCols.map((j) => (
+                  <td key={j} className="text-end">
+                    <Placeholder animation="glow">
+                      <Placeholder xs={6} />
+                    </Placeholder>
+                  </td>
+                ))}
+              </tr>
+            ))}
+            
+            {/* Spacer */}
+            <tr>
+              <td colSpan={numberOfColumns + 1} style={{ height: '1rem', padding: 0, border: 'none' }}></td>
+            </tr>
+            
+            {/* Total Expense skeleton */}
+            <tr className="total-row">
+              <td>
+                <Placeholder animation="glow">
+                  <Placeholder xs={6} />
+                </Placeholder>
+              </td>
+              {skeletonCols.map((i) => (
+                <td key={i} className="text-end">
+                  <Placeholder animation="glow">
+                    <Placeholder xs={8} />
+                  </Placeholder>
+                </td>
+              ))}
+            </tr>
+            
+            {/* Expense category skeletons */}
+            {skeletonRows.slice(0, 4).map((i) => (
+              <tr key={`expense-${i}`}>
+                <td>
+                  <div className="d-flex align-items-center gap-2">
+                    <Placeholder animation="glow">
+                      <Placeholder className="rounded" style={{ width: 20, height: 20 }} />
+                    </Placeholder>
+                    <Placeholder animation="glow" className="flex-grow-1">
+                      <Placeholder xs={i % 2 === 0 ? 6 : 8} />
+                    </Placeholder>
+                  </div>
+                </td>
+                {skeletonCols.map((j) => (
+                  <td key={j} className="text-end">
+                    <Placeholder animation="glow">
+                      <Placeholder xs={5} />
+                    </Placeholder>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       </div>
     );
+  };
+
+  if (loading) {
+    return renderSkeleton();
   }
 
   if (error || !data) {
@@ -202,15 +474,88 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     );
   }
 
-  if (data.currencies.length === 0) {
-    return (
-      <div className="alert alert-info" role="alert">
-        No transaction data available for this period.
-      </div>
-    );
-  }
+  // Convert Category to CategoryReport with zero values
+  const categoryToCategoryReport = (cat: Category, numMonths: number): CategoryReport => ({
+    id: cat.id,
+    name: cat.name,
+    icon: cat.icon || 'FaQuestion',
+    color: cat.color || '#6c757d',
+    amounts: new Array(numMonths).fill(0),
+    hasSubItems: false,
+    subItems: [],
+  });
 
-  const currentCurrencyData = data.data[selectedCurrency];
+  // Build category tree from flat list
+  const buildCategoryTree = (categories: Category[], type: 'income' | 'expense' | 'both', numMonths: number): CategoryReport[] => {
+    const filteredCats = categories.filter(c => c.type === type || c.type === 'both');
+    const parentCats = filteredCats.filter(c => !c.parent_id);
+    
+    return parentCats.map(parent => {
+      const children = filteredCats.filter(c => c.parent_id === parent.id);
+      return {
+        ...categoryToCategoryReport(parent, numMonths),
+        hasSubItems: children.length > 0,
+        subItems: children.map(child => categoryToCategoryReport(child, numMonths)),
+      };
+    });
+  };
+
+  // Merge report categories with all categories (showing zeros for missing ones)
+  const mergeCategories = (
+    reportCategories: CategoryReport[],
+    allCats: Category[],
+    type: 'income' | 'expense',
+    numMonths: number
+  ): CategoryReport[] => {
+    const reportCatIds = new Set<string>();
+    
+    // Collect all IDs from report (including children)
+    const collectIds = (cats: CategoryReport[]) => {
+      cats.forEach(cat => {
+        reportCatIds.add(cat.id);
+        if (cat.subItems) collectIds(cat.subItems);
+      });
+    };
+    collectIds(reportCategories);
+    
+    // Get categories not in report
+    const missingCats = allCats.filter(
+      c => (c.type === type || c.type === 'both') && !reportCatIds.has(c.id)
+    );
+    
+    // Build tree for missing categories
+    const missingTree = buildCategoryTree(missingCats, type, numMonths);
+    
+    // Merge: report categories first, then missing ones
+    return [...reportCategories, ...missingTree];
+  };
+
+  // Create currency data with all categories
+  const createCurrencyDataWithAllCategories = (
+    reportData: CurrencyReport | undefined,
+    numMonths: number
+  ): CurrencyReport => {
+    const baseData: CurrencyReport = reportData || {
+      totalIncomes: new Array(numMonths).fill(0),
+      totalExpenses: new Array(numMonths).fill(0),
+      incomeCategories: [],
+      expenseCategories: [],
+    };
+
+    return {
+      ...baseData,
+      incomeCategories: mergeCategories(baseData.incomeCategories, allCategories, 'income', numMonths),
+      expenseCategories: mergeCategories(baseData.expenseCategories, allCategories, 'expense', numMonths),
+    };
+  };
+
+  const numMonths = data.monthNames?.length || numberOfColumns;
+  const currentCurrencyData = createCurrencyDataWithAllCategories(
+    data.currencies.length > 0 ? data.data[selectedCurrency] : undefined,
+    numMonths
+  );
+  
+  const displayCurrency = selectedCurrency || defaultCurrency;
 
   return (
     <div className="incomes-expenses-report">
@@ -244,40 +589,174 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
         .incomes-expenses-report .child-row {
           background-color: #fafbfc;
         }
-        .incomes-expenses-report .currency-tabs {
-          margin-bottom: 1rem;
-        }
-        .incomes-expenses-report .currency-tabs .nav-link {
-          padding: 0.25rem 0.75rem;
+        .incomes-expenses-report .currency-pill {
+          padding: 0.375rem 0.75rem;
+          border-radius: 9999px;
           font-size: 0.875rem;
-          border-radius: 50rem;
-          color: #6c757d;
+          font-weight: 500;
           cursor: pointer;
+          transition: all 0.15s ease-in-out;
+          border: 1px solid #dee2e6;
+          background-color: #fff;
+          color: #6c757d;
         }
-        .incomes-expenses-report .currency-tabs .nav-link.active {
-          background-color: #0d6efd;
+        .incomes-expenses-report .currency-pill:hover {
+          background-color: #f8f9fa;
+        }
+        .incomes-expenses-report .currency-pill.active {
+          background-color: #212529;
           color: #fff;
+          border-color: #212529;
         }
       `}</style>
 
-      {/* Currency Tabs */}
-      {data.currencies.length > 1 && (
-        <Nav variant="pills" className="currency-tabs gap-1 justify-content-center">
-          {data.currencies.map((currency) => (
-            <Nav.Item key={currency}>
-              <Nav.Link
-                className={selectedCurrency === currency ? 'active' : ''}
+      {/* Header with Currency Pills and Settings */}
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        {/* Currency Pills - Left */}
+        <div className="d-flex gap-2 flex-wrap">
+          {sortedCurrencies.length > 1 ? (
+            sortedCurrencies.map((currency) => (
+              <button
+                key={currency}
+                className={`currency-pill ${selectedCurrency === currency ? 'active' : ''}`}
                 onClick={() => setSelectedCurrency(currency)}
               >
                 {currency}
-              </Nav.Link>
-            </Nav.Item>
-          ))}
-        </Nav>
-      )}
+              </button>
+            ))
+          ) : null}
+        </div>
+
+        {/* Settings Dropdown */}
+        <Dropdown
+          show={showSettingsDropdown}
+          onToggle={(isOpen) => setShowSettingsDropdown(isOpen ?? false)}
+        >
+          <Dropdown.Toggle
+            as="button"
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.currentTarget.style.backgroundColor = '#f3f4f6';
+            }}
+            onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+            aria-label="Report settings"
+            title="Report settings"
+          >
+            <RiListSettingsLine size={20} color="#6b7280" />
+          </Dropdown.Toggle>
+
+          <Dropdown.Menu
+            align="end"
+            style={{
+              minWidth: '220px',
+              padding: '16px',
+              borderRadius: '12px',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+              border: '1px solid #e5e7eb',
+              marginTop: '8px',
+            }}
+          >
+            <div style={{ marginBottom: '12px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Sort by
+              </span>
+            </div>
+            <Form.Check
+              type="radio"
+              id="sort-default"
+              name="sortOption"
+              label="Default"
+              checked={sortOption === 'default'}
+              onChange={() => setSortOption('default')}
+              style={{ marginBottom: '8px', fontSize: '14px' }}
+            />
+            <Form.Check
+              type="radio"
+              id="sort-amount-asc"
+              name="sortOption"
+              label="Amount (lowest first)"
+              checked={sortOption === 'amount_asc'}
+              onChange={() => setSortOption('amount_asc')}
+              style={{ marginBottom: '8px', fontSize: '14px' }}
+            />
+            <Form.Check
+              type="radio"
+              id="sort-amount-desc"
+              name="sortOption"
+              label="Amount (highest first)"
+              checked={sortOption === 'amount_desc'}
+              onChange={() => setSortOption('amount_desc')}
+              style={{ marginBottom: '8px', fontSize: '14px' }}
+            />
+            
+            <hr style={{ margin: '12px 0', borderColor: '#e5e7eb' }} />
+
+            <div style={{ marginBottom: '8px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Number of columns
+              </span>
+            </div>
+            <div className="d-flex align-items-center gap-2 mb-3">
+              <Form.Range
+                min={2}
+                max={6}
+                value={numberOfColumns}
+                onChange={(e) => setNumberOfColumns(Number(e.target.value))}
+                style={{ flex: 1 }}
+              />
+              <div className="d-flex justify-content-between" style={{ width: '100%', position: 'absolute', left: '16px', right: '16px', bottom: '85px', pointerEvents: 'none' }}>
+              </div>
+            </div>
+            <div className="d-flex justify-content-between px-1" style={{ fontSize: '12px', color: '#6b7280', marginTop: '-8px', marginBottom: '12px' }}>
+              <span>2</span>
+              <span>3</span>
+              <span>4</span>
+              <span>5</span>
+              <span>6</span>
+            </div>
+            
+            <hr style={{ margin: '12px 0', borderColor: '#e5e7eb' }} />
+            
+            <Form.Check
+              type="switch"
+              id="show-percentage"
+              label="Show percentage difference"
+              checked={showPercentageDiff}
+              onChange={() => setShowPercentageDiff(!showPercentageDiff)}
+              style={{ fontSize: '14px' }}
+            />
+          </Dropdown.Menu>
+        </Dropdown>
+      </div>
 
       {/* Report Table */}
-      {currentCurrencyData && renderReport(currentCurrencyData, selectedCurrency)}
+      {currentCurrencyData && renderReport(currentCurrencyData, displayCurrency)}
+
+      {/* Category Transactions Modal */}
+      <CategoryTransactionsModal
+        show={showModal}
+        onHide={handleCloseModal}
+        categoryIds={selectedCategory?.ids ?? null}
+        categoryName={selectedCategory?.name ?? ''}
+        monthType={selectedCategory?.monthType ?? 'current'}
+        monthName={selectedCategory?.monthName ?? ''}
+        {...(selectedCategory?.monthStartDate && { startDate: selectedCategory.monthStartDate })}
+        {...(selectedCategory?.monthEndDate && { endDate: selectedCategory.monthEndDate })}
+        {...(displayCurrency && { currency: displayCurrency })}
+      />
     </div>
   );
 };

@@ -65,7 +65,7 @@ class CurrencyFormatService {
         minimumFractionDigits: decimalDigits,
         maximumFractionDigits: decimalDigits,
         notation: compact ? 'compact' : 'standard',
-        signDisplay: signDisplay as any,
+        signDisplay: signDisplay as Intl.NumberFormatOptions['signDisplay'],
       });
       
       const formattedNumber = formatter.format(amount);
@@ -84,6 +84,7 @@ class CurrencyFormatService {
       return formattedNumber;
     } catch (error) {
       // Fallback if Intl fails
+      console.error('Currency formatting failed:', error);
       return `${currencyCode} ${amount.toFixed(currency.decimalDigits)}`;
     }
   }

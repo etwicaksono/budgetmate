@@ -317,7 +317,7 @@ function TransactionsContent() {
     // transfer_in: amount=+destination, to_amount=source (fixed in backend)
     const sourceAmount = Math.abs(transaction.amount);
     const sourceCurrency = transaction.type === 'transfer_in' 
-      ? (transaction as any).transfer_currency || transaction.currency
+      ? transaction.transfer_currency || transaction.currency
       : transaction.currency;
     const destAmount = transaction.to_amount ? Math.abs(transaction.to_amount) : Math.abs(transaction.amount);
     const destCurrency = transaction.to_currency || transaction.currency;

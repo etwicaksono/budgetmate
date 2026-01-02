@@ -18,10 +18,10 @@ export const GlobalTransactionModal: React.FC = () => {
         if (mode === 'edit' && initialData?.id) {
           if (isTransfer) {
             // Get the transfer ID (must use transfer_id, not transaction id)
-            const transferId = (initialData as any).transfer_id || initialData.id;
+            const transferId = initialData.transfer_id || initialData.id;
             
             // Update transfer
-            const transferData: Record<string, any> = {
+            const transferData: Record<string, string | number | undefined> = {
               date: transactionData.date || new Date().toISOString(),
               amount: typeof transactionData.amount === 'number' ? transactionData.amount : parseFloat(String(transactionData.amount || 0)),
               description: transactionData.description || '',

@@ -75,6 +75,22 @@ export const BalanceTrendChart: React.FC<BalanceTrendChartProps> = ({
   showGrid = true,
   showSummary = true,
 }) => {
+  // Detect currency keys from data (keys that are not 'date' or 'balance')
+  // NOTE: Must be before any early returns to follow React Hooks rules
+  const currencyKeys = React.useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
+    const firstDataPoint = data[0];
+    if (!firstDataPoint) return [];
+    
+    const keys = Object.keys(firstDataPoint).filter(
+      key => key !== 'date' && key !== 'balance' && typeof firstDataPoint[key] === 'number'
+    );
+    
+    return keys.length > 0 ? keys : ['balance']; // Fallback to 'balance' for legacy data
+  }, [data]);
+
+  // Early return after hooks
   if (!data || data.length === 0) {
     return (
       <div className="text-center text-muted py-5">
@@ -110,20 +126,6 @@ export const BalanceTrendChart: React.FC<BalanceTrendChartProps> = ({
   // For height='100%', use flex layout
   const isFlexHeight = height === '100%' || typeof height === 'string';
   const chartHeight = typeof height === 'number' ? height : 300;
-
-  // Detect currency keys from data (keys that are not 'date' or 'balance')
-  const currencyKeys = React.useMemo(() => {
-    if (!data || data.length === 0) return [];
-    
-    const firstDataPoint = data[0];
-    if (!firstDataPoint) return [];
-    
-    const keys = Object.keys(firstDataPoint).filter(
-      key => key !== 'date' && key !== 'balance' && typeof firstDataPoint[key] === 'number'
-    );
-    
-    return keys.length > 0 ? keys : ['balance']; // Fallback to 'balance' for legacy data
-  }, [data]);
 
   // Check if showing combined balance for multi-currency
   const isMultiCurrency = currencyBalances && currencyBalances.length > 1;
