@@ -27,7 +27,6 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export const mockAccounts: Account[] = [
   {
     id: 'acc-1',
-    personal_id: 1,
     name: 'Cash Wallet',
     account_type: 'cash',
     icon: 'FaWallet',
@@ -42,7 +41,6 @@ export const mockAccounts: Account[] = [
   },
   {
     id: 'acc-2',
-    personal_id: 2,
     name: 'Bank Account',
     account_type: 'checking',
     icon: 'FaUniversity',
@@ -57,7 +55,6 @@ export const mockAccounts: Account[] = [
   },
   {
     id: 'acc-3',
-    personal_id: 3,
     name: 'Savings Account',
     account_type: 'savings',
     icon: 'FaPiggyBank',
@@ -144,7 +141,6 @@ export const mockCategories = [
 export const mockTransactions: Transaction[] = [
   {
     id: 'trans-1',
-    personal_id: 1,
     date: '2024-11-19',
     account_id: 'acc-1',
     account: {
@@ -170,7 +166,6 @@ export const mockTransactions: Transaction[] = [
   },
   {
     id: 'trans-2',
-    personal_id: 2,
     date: '2024-11-18',
     account_id: 'acc-2',
     account: {
@@ -196,7 +191,6 @@ export const mockTransactions: Transaction[] = [
   },
   {
     id: 'trans-3',
-    personal_id: 3,
     date: '2024-11-17',
     account_id: 'acc-1',
     account: {
@@ -222,7 +216,6 @@ export const mockTransactions: Transaction[] = [
   },
   {
     id: 'trans-4',
-    personal_id: 4,
     date: '2024-11-16',
     account_id: 'acc-2',
     account: {
@@ -248,7 +241,6 @@ export const mockTransactions: Transaction[] = [
   },
   {
     id: 'trans-5',
-    personal_id: 5,
     date: '2024-11-15',
     account_id: 'acc-1',
     account: {

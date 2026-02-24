@@ -1,0 +1,390 @@
+ 'use client';
+ 
+ import React, { useState, useRef } from 'react';
+ import { Row, Col, Card, Button, Alert, Form, ProgressBar } from 'react-bootstrap';
+ import { FaDatabase, FaDownload, FaUpload, FaCheckCircle, FaExclamationTriangle, FaInfoCircle, FaTimes } from 'react-icons/fa';
+ import { backupService } from '@/services/backupService';
+ import type { ImportMode, ValidateResponse } from '@/types/backup.types';
+ import Swal from 'sweetalert2';
+ 
+ export function BackupSection(): React.ReactElement {
+   const fileInputRef = useRef<HTMLInputElement>(null);
+ 
+   // Export state
+   const [isExporting, setIsExporting] = useState(false);
+ 
+   // Import state
+   const [isImporting, setIsImporting] = useState(false);
+   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+   const [fileValidation, setFileValidation] = useState<ValidateResponse | null>(null);
+   const [importMode, setImportMode] = useState<ImportMode>('merge');
+   const [importProgress, setImportProgress] = useState(0);
+ 
+   // Handle export
+   const handleExport = async () => {
+     setIsExporting(true);
+     try {
+       await backupService.exportData();
+       
+       await Swal.fire({
+         icon: 'success',
+         title: 'Export Successful',
+         text: 'Your data has been exported successfully.',
+         confirmButtonColor: '#28a745',
+       });
+     } catch (error) {
+       console.error('Export error:', error);
+       await Swal.fire({
+         icon: 'error',
+         title: 'Export Failed',
+         text: 'Failed to export data. Please try again.',
+         confirmButtonColor: '#dc3545',
+       });
+     } finally {
+       setIsExporting(false);
+     }
+   };
+ 
+   // Handle file selection
+   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+     const file = event.target.files?.[0];
+     if (!file) return;
+ 
+     setSelectedFile(file);
+     setImportProgress(0);
+ 
+     // Validate file
+     const validation = await backupService.validateBackupFile(file);
+     setFileValidation(validation);
+ 
+     if (!validation.valid) {
+       await Swal.fire({
+         icon: 'error',
+         title: 'Invalid File',
+         text: validation.error || 'The selected file is not a valid backup.',
+         confirmButtonColor: '#dc3545',
+       });
+     }
+   };
+ 
+   // Handle import
+   const handleImport = async () => {
+     if (!selectedFile || !fileValidation?.valid) return;
+ 
+     // Confirm action (especially for replace mode)
+     const confirmResult = await Swal.fire({
+       icon: 'warning',
+       title: importMode === 'replace' ? 'Replace All Data?' : 'Merge Data?',
+       html:
+         importMode === 'replace'
+           ? '<p><strong>Warning:</strong> This will delete all your existing data!</p><p>Make sure you have a backup before proceeding.</p>'
+           : '<p>This will add imported data while keeping your existing data.</p>',
+       showCancelButton: true,
+       confirmButtonColor: importMode === 'replace' ? '#dc3545' : '#28a745',
+       cancelButtonColor: '#6c757d',
+       confirmButtonText: 'Yes, Continue',
+       cancelButtonText: 'Cancel',
+     });
+ 
+     if (!confirmResult.isConfirmed) return;
+ 
+     setIsImporting(true);
+     setImportProgress(10);
+ 
+     try {
+       // Simulate progress
+       const progressInterval = setInterval(() => {
+         setImportProgress((prev) => Math.min(prev + 10, 90));
+       }, 500);
+ 
+       const result = await backupService.importData(selectedFile, importMode);
+ 
+       clearInterval(progressInterval);
+       setImportProgress(100);
+ 
+       // Show success message
+       await Swal.fire({
+         icon: 'success',
+         title: 'Import Successful',
+         html: `
+           <p><strong>Data ${importMode === 'replace' ? 'restored' : 'merged'} successfully!</strong></p>
+           <ul style="text-align: left; list-style: none; padding: 0;">
+             <li>✓ ${result.data?.imported.accounts || 0} accounts</li>
+             <li>✓ ${result.data?.imported.categories || 0} categories</li>
+             <li>✓ ${result.data?.imported.transactions || 0} transactions</li>
+             <li>✓ ${result.data?.imported.transfers || 0} transfers</li>
+             <li>✓ ${result.data?.imported.labels || 0} labels</li>
+           </ul>
+           <p style="margin-top: 1rem;">Page will refresh in 3 seconds...</p>
+         `,
+         showConfirmButton: false,
+         timer: 3000,
+         confirmButtonColor: '#28a745',
+       });
+ 
+       // Reset state and redirect
+       setSelectedFile(null);
+       setFileValidation(null);
+       if (fileInputRef.current) {
+         fileInputRef.current.value = '';
+       }
+ 
+       // Refresh page to show new data
+       setTimeout(() => {
+         window.location.href = '/dashboard';
+       }, 3000);
+     } catch (error: unknown) {
+       setImportProgress(0);
+       console.error('Import error:', error);
+       
+       const errorMessage = error instanceof Error ? error.message : 'Failed to import data';
+       
+       await Swal.fire({
+         icon: 'error',
+         title: 'Import Failed',
+         text: errorMessage,
+         confirmButtonColor: '#dc3545',
+       });
+     } finally {
+       setIsImporting(false);
+     }
+   };
+ 
+   // Clear selected file
+   const clearSelectedFile = () => {
+     setSelectedFile(null);
+     setFileValidation(null);
+     setImportProgress(0);
+     if (fileInputRef.current) {
+       fileInputRef.current.value = '';
+     }
+   };
+ 
+   return (
+     <>
+       {/* Section Header */}
+       <div className="mb-4">
+         <h4 className="d-flex align-items-center gap-2 mb-2">
+           <FaDatabase size={24} />
+           Backup & Restore
+         </h4>
+         <p className="text-muted mb-0">Export your data for backup or restore from a previous backup</p>
+       </div>
+ 
+       {/* Info Banner */}
+       <Alert variant="info" className="d-flex align-items-start mb-4">
+         <FaInfoCircle className="me-2 mt-1" size={20} />
+         <div>
+           <strong>Regular backups protect your financial data</strong>
+           <p className="mb-0 mt-1">Export your data weekly and store in multiple secure locations</p>
+         </div>
+       </Alert>
+ 
+       {/* Export Section */}
+       <Card className="mb-4">
+         <Card.Body className="p-4">
+           <div className="d-flex gap-4">
+             <div style={{ flexShrink: 0 }}>
+               <FaDownload size={40} color="#2563eb" />
+             </div>
+             <div style={{ flex: 1 }}>
+               <h5 className="mb-3">Export Data</h5>
+               <p className="text-muted mb-3">
+                 Download all your financial data as a JSON file for backup
+               </p>
+               <ul className="text-muted mb-4" style={{ fontSize: '0.9rem' }}>
+                 <li>Includes all accounts, transactions, and categories</li>
+                 <li>Preserves all relationships and settings</li>
+                 <li>Can be restored anytime</li>
+               </ul>
+               <Button
+                 variant="primary"
+                 onClick={handleExport}
+                 disabled={isExporting}
+               >
+                 {isExporting ? (
+                   <>
+                     <span className="spinner-border spinner-border-sm me-2" />
+                     Exporting...
+                   </>
+                 ) : (
+                   <>
+                     <FaDownload className="me-2" />
+                     Export Data
+                   </>
+                 )}
+               </Button>
+             </div>
+           </div>
+         </Card.Body>
+       </Card>
+ 
+       {/* Import Section */}
+       <Card className="mb-4">
+         <Card.Body className="p-4">
+           <div className="d-flex gap-4">
+             <div style={{ flexShrink: 0 }}>
+               <FaUpload size={40} color="#10b981" />
+             </div>
+             <div style={{ flex: 1 }}>
+               <h5 className="mb-3">Import Data</h5>
+               <p className="text-muted mb-3">
+                 Restore your data from a previously exported backup file
+               </p>
+ 
+               {/* Import Mode Selection */}
+               <div className="mb-4">
+                 <label className="form-label fw-bold">Import Mode:</label>
+                 <div className="d-flex gap-4">
+                   <Form.Check
+                     type="radio"
+                     id="mode-merge"
+                     label="Merge (Keep existing data, add imported)"
+                     checked={importMode === 'merge'}
+                     onChange={() => setImportMode('merge')}
+                     disabled={isImporting}
+                   />
+                   <Form.Check
+                     type="radio"
+                     id="mode-replace"
+                     label="Replace (Delete all existing data)"
+                     checked={importMode === 'replace'}
+                     onChange={() => setImportMode('replace')}
+                     disabled={isImporting}
+                   />
+                 </div>
+               </div>
+ 
+               {/* Warning for Replace mode */}
+               {importMode === 'replace' && (
+                 <Alert variant="warning" className="d-flex align-items-start mb-3">
+                   <FaExclamationTriangle className="me-2 mt-1" />
+                   <div>
+                     <strong>Warning:</strong> Replace mode will permanently delete all your existing data before importing.
+                   </div>
+                 </Alert>
+               )}
+ 
+               {/* File Input */}
+               <input
+                 ref={fileInputRef}
+                 type="file"
+                 accept=".json,application/json"
+                 onChange={handleFileSelect}
+                 className="d-none"
+                 disabled={isImporting}
+               />
+ 
+               {/* File Selection or Preview */}
+               {!selectedFile ? (
+                 <Button
+                   variant="outline-primary"
+                   onClick={() => fileInputRef.current?.click()}
+                   disabled={isImporting}
+                 >
+                   <FaDatabase className="me-2" />
+                   Select Backup File
+                 </Button>
+               ) : (
+                 <div className="border rounded p-3 bg-light mb-3">
+                   <div className="d-flex align-items-start justify-content-between">
+                     <div className="d-flex align-items-start gap-3 flex-grow-1">
+                       {fileValidation?.valid ? (
+                         <FaCheckCircle size={24} color="#28a745" />
+                       ) : (
+                         <FaExclamationTriangle size={24} color="#dc3545" />
+                       )}
+                       <div className="flex-grow-1">
+                         <p className="mb-1 fw-bold">{selectedFile.name}</p>
+                         {fileValidation?.valid && fileValidation.details && (
+                           <>
+                             <p className="mb-1 text-muted small">
+                               {fileValidation.details.fileSize} • Exported{' '}
+                               {new Date(fileValidation.details.exportDate).toLocaleDateString()}
+                             </p>
+                             <p className="mb-1 text-muted small">
+                               {fileValidation.details.totalRecords} records • User: {fileValidation.details.user.email}
+                             </p>
+                             <p className="mb-0 text-success small">
+                               ✓ Valid backup file (v{fileValidation.details.version})
+                             </p>
+                           </>
+                         )}
+                         {!fileValidation?.valid && (
+                           <p className="mb-0 text-danger small">{fileValidation?.error}</p>
+                         )}
+                       </div>
+                     </div>
+                     {!isImporting && (
+                       <Button
+                         variant="link"
+                         size="sm"
+                         className="text-danger p-0"
+                         onClick={clearSelectedFile}
+                       >
+                         <FaTimes size={20} />
+                       </Button>
+                     )}
+                   </div>
+                 </div>
+               )}
+ 
+               {/* Import Progress */}
+               {isImporting && importProgress > 0 && (
+                 <div className="mb-3">
+                   <ProgressBar
+                     now={importProgress}
+                     label={`${importProgress}%`}
+                     animated
+                     striped
+                   />
+                   <p className="text-muted small mt-2 mb-0">
+                     ⏳ Importing your data... Please do not close this window.
+                   </p>
+                 </div>
+               )}
+ 
+               {/* Import Button */}
+               {selectedFile && fileValidation?.valid && !isImporting && (
+                 <Button
+                   variant="success"
+                   onClick={handleImport}
+                   className="mt-2"
+                 >
+                   <FaUpload className="me-2" />
+                   Import Data
+                 </Button>
+               )}
+             </div>
+           </div>
+         </Card.Body>
+       </Card>
+ 
+       {/* Best Practices */}
+       <Card className="border-primary">
+         <Card.Body className="p-4 bg-light">
+           <h5 className="mb-3 d-flex align-items-center gap-2">
+             <FaInfoCircle color="#2563eb" />
+             Backup Best Practices
+           </h5>
+           <Row>
+             <Col md={6}>
+               <ul className="text-muted mb-0">
+                 <li className="mb-2">Export your data regularly (weekly or monthly)</li>
+                 <li className="mb-2">Store backup files in multiple secure locations</li>
+                 <li>Test restore functionality periodically</li>
+               </ul>
+             </Col>
+             <Col md={6}>
+               <ul className="text-muted mb-0">
+                 <li className="mb-2">Keep multiple versions of backups</li>
+                 <li className="mb-2">Never share backup files publicly</li>
+                 <li>Use encryption for cloud storage</li>
+               </ul>
+             </Col>
+           </Row>
+         </Card.Body>
+       </Card>
+     </>
+   );
+ }

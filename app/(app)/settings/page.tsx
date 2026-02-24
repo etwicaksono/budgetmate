@@ -16,6 +16,8 @@ import {
   FaRobot,
   FaQuestionCircle,
   FaShieldAlt,
+  FaGoogle,
+  FaDatabase,
 } from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import {
@@ -27,6 +29,8 @@ import {
   BillingSection,
   PrivacySection,
   HelpSection,
+  GoogleSheetsSection,
+  BackupSection,
 } from './sections';
 import './Settings.css';
 
@@ -40,7 +44,9 @@ type SettingsSection =
   | 'general'
   | 'billing'
   | 'privacy'
-  | 'help';
+  | 'help'
+  | 'google-sheets'
+  | 'backup';
 
 interface NavigationItem {
   id: SettingsSection;
@@ -62,6 +68,7 @@ const navigationItems: NavigationSection[] = [
       { id: 'templates', label: 'Templates', icon: FaFileAlt },
       { id: 'labels', label: 'Labels', icon: FaTag },
       { id: 'automatic-rules', label: 'Automatic Rules', icon: FaRobot },
+      { id: 'google-sheets', label: 'Google Sheets Sync', icon: FaGoogle },
     ],
   },
   {
@@ -71,6 +78,7 @@ const navigationItems: NavigationSection[] = [
       { id: 'billing', label: 'Billing', icon: FaCreditCard },
       { id: 'privacy', label: 'Personal data & privacy', icon: FaShieldAlt },
       { id: 'help', label: 'Help', icon: FaQuestionCircle },
+      { id: 'backup', label: 'Backup & Restore', icon: FaDatabase },
     ],
   },
 ];
@@ -87,6 +95,8 @@ const isValidSection = (value: string | null): value is SettingsSection => {
     'billing',
     'privacy',
     'help',
+    'google-sheets',
+    'backup',
   ];
   return validSections.includes(value as SettingsSection);
 };
@@ -98,7 +108,7 @@ export default function SettingsPage(): React.ReactElement {
   // Get initial section from URL or default to 'categories'
   const sectionParam = searchParams.get('section');
   const initialSection: SettingsSection = isValidSection(sectionParam) ? sectionParam : 'categories';
-  
+
   const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
 
   const handleSectionChange = (section: SettingsSection): void => {
@@ -148,10 +158,12 @@ export default function SettingsPage(): React.ReactElement {
               {activeSection === 'templates' && <TemplatesSection />}
               {activeSection === 'labels' && <LabelsSection />}
               {activeSection === 'automatic-rules' && <AutomaticRulesSection />}
+              {activeSection === 'google-sheets' && <GoogleSheetsSection />}
               {activeSection === 'general' && <GeneralSection />}
               {activeSection === 'billing' && <BillingSection />}
               {activeSection === 'privacy' && <PrivacySection />}
               {activeSection === 'help' && <HelpSection />}
+              {activeSection === 'backup' && <BackupSection />}
             </Card.Body>
           </Card>
         </Col>

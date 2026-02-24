@@ -90,6 +90,31 @@ export const BalanceTrendChart: React.FC<BalanceTrendChartProps> = ({
     return keys.length > 0 ? keys : ['balance']; // Fallback to 'balance' for legacy data
   }, [data]);
 
+  // State for selected currency - default to first currency
+  const [selectedCurrency, setSelectedCurrency] = React.useState<string>(() => {
+    if (currencyBalances && currencyBalances.length > 0 && currencyBalances[0]) {
+      return currencyBalances[0].currency;
+    }
+    return currencyKeys[0] || 'balance';
+  });
+
+  // Update selected currency when currencyBalances or currencyKeys change
+  React.useEffect(() => {
+    if (currencyBalances && currencyBalances.length > 0 && currencyBalances[0]) {
+      setSelectedCurrency(currencyBalances[0].currency);
+    } else if (currencyKeys.length > 0 && currencyKeys[0]) {
+      setSelectedCurrency(currencyKeys[0]);
+    }
+  }, [currencyBalances, currencyKeys]);
+
+  // Get selected currency balance (must be before early return)
+  const selectedCurrencyBalance = React.useMemo(() => {
+    if (currencyBalances && currencyBalances.length > 0) {
+      return currencyBalances.find(cb => cb.currency === selectedCurrency);
+    }
+    return null;
+  }, [currencyBalances, selectedCurrency]);
+
   // Early return after hooks
   if (!data || data.length === 0) {
     return (
@@ -131,6 +156,9 @@ export const BalanceTrendChart: React.FC<BalanceTrendChartProps> = ({
   const isMultiCurrency = currencyBalances && currencyBalances.length > 1;
   const isCombinedBalance = isMultiCurrency && currencyKeys.length === 1 && currencyKeys[0] === 'balance';
 
+  // Filter to show only selected currency in chart
+  const displayCurrencyKeys = isMultiCurrency && !isCombinedBalance ? [selectedCurrency] : currencyKeys;
+
   // Color palette for multiple currencies
   const currencyColors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -153,9 +181,9 @@ export const BalanceTrendChart: React.FC<BalanceTrendChartProps> = ({
           width={60}
         />
         <Tooltip content={<CustomTooltip />} />
-        {currencyKeys.map((currency, index) => {
+        {displayCurrencyKeys.map((currency) => {
           const lineName = isCombinedBalance ? 'Combined' : (currency === 'balance' ? 'Balance' : currency);
-          const lineColor = currencyColors[index % currencyColors.length];
+          const lineColor = currencyColors[currencyKeys.indexOf(currency) % currencyColors.length];
           
           return (
             <Line 
@@ -181,14 +209,57 @@ export const BalanceTrendChart: React.FC<BalanceTrendChartProps> = ({
   
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', padding: '1rem' }}>
+      {/* Currency Selector Pills (only show if multi-currency and not combined) */}
+      {isMultiCurrency && !isCombinedBalance && currencyBalances && currencyBalances.length > 1 && (
+        <div className="mb-3" style={{ flexShrink: 0 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {currencyBalances.map((cb) => (
+              <button
+                key={cb.currency}
+                onClick={() => setSelectedCurrency(cb.currency)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '20px',
+                  border: selectedCurrency === cb.currency ? '2px solid #2563eb' : '1px solid #dee2e6',
+                  backgroundColor: selectedCurrency === cb.currency ? '#e3f2fd' : '#fff',
+                  color: selectedCurrency === cb.currency ? '#2563eb' : '#6c757d',
+                  fontSize: '13px',
+                  fontWeight: selectedCurrency === cb.currency ? 'bold' : 'normal',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedCurrency !== cb.currency) {
+                    e.currentTarget.style.borderColor = '#adb5bd';
+                    e.currentTarget.style.backgroundColor = '#f8f9fa';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedCurrency !== cb.currency) {
+                    e.currentTarget.style.borderColor = '#dee2e6';
+                    e.currentTarget.style.backgroundColor = '#fff';
+                  }
+                }}
+              >
+                {cb.currency}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Balance Summary */}
       <div className="mb-4" style={{ flexShrink: 0 }}>
         <div className="d-flex align-items-center justify-content-between">
           <div style={{ flex: 1 }}>
             <h5 className="mb-1" style={{ fontSize: '14px', color: '#6c757d', fontWeight: 'normal' }}>
-              Total Balance
+              {isMultiCurrency && !isCombinedBalance ? `${selectedCurrency} Balance` : 'Total Balance'}
             </h5>
-            {currencyBalances && currencyBalances.length > 0 ? (
+            {isMultiCurrency && !isCombinedBalance && selectedCurrencyBalance ? (
+              <h2 className="mb-0" style={{ fontSize: '28px', fontWeight: 'bold', color: '#212529' }}>
+                {formatCurrency ? formatCurrency(selectedCurrencyBalance.balance, selectedCurrency) : `${selectedCurrency} ${formatValue(selectedCurrencyBalance.balance)}`}
+              </h2>
+            ) : currencyBalances && currencyBalances.length > 0 ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'baseline' }}>
                 {currencyBalances.map((cb, index) => (
                   <h2 

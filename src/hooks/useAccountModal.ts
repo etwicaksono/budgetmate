@@ -59,7 +59,6 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
     try {
       if (modalMode === 'add') {
         const createdAccount = await accountService.createAccount({
-          personal_id: 0, // Will be set by backend
           name: formData.name,
           account_type: formData.account_type,
           icon: formData.icon,
@@ -108,15 +107,15 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
   // Prepare initial data for the form
   const initialData: AccountFormData | undefined = editingAccount
     ? {
-        name: editingAccount.name,
-        account_type: editingAccount.account_type,
-        icon: editingAccount.icon,
-        color: editingAccount.color,
-        initial_balance: String(editingAccount.initial_balance),
-        currency: editingAccount.currency,
-        is_active: editingAccount.is_active,
-        is_included_in_total: editingAccount.is_included_in_total,
-      }
+      name: editingAccount.name,
+      account_type: editingAccount.account_type,
+      icon: editingAccount.icon,
+      color: editingAccount.color,
+      initial_balance: String(editingAccount.initial_balance),
+      currency: editingAccount.currency,
+      is_active: editingAccount.is_active,
+      is_included_in_total: editingAccount.is_included_in_total,
+    }
     : undefined;
 
   return {

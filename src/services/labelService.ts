@@ -3,7 +3,6 @@ import { apiClient } from './api';
 export interface Label {
   id: string;
   user_id: string;
-  personal_id: number;
   name: string;
   color: string;
   created_at: string;

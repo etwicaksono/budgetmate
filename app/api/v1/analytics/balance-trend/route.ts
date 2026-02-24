@@ -56,7 +56,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Parse dates
     const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const end = endDate ? new Date(endDate) : new Date();
-    
+
     // Ensure end date includes the full day
     end.setHours(23, 59, 59, 999);
 
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         is_active: true,
       },
       orderBy: [
-        { personal_id: 'asc' },
+        { name: 'asc' },
       ],
     });
 
@@ -88,11 +88,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const accountBalances: AccountBalance[] = accounts.map(account => {
       const balance = balances.get(account.id) ?? Number(account.initial_balance);
       const currency = account.currency || 'USD';
-      
+
       if (account.is_included_in_total) {
         currencyTotalsMap.set(currency, (currencyTotalsMap.get(currency) || 0) + balance);
       }
-      
+
       return {
         id: account.id,
         name: account.name,
@@ -150,12 +150,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Build daily balance data by currency
     const dailyChangesByCurrency = new Map<string, Map<string, number>>();
-    
+
     for (const tx of transactions) {
       const dateKey = new Date(tx.date).toISOString().split('T')[0]!;
       const amount = Number(tx.amount);
       const currency = tx.account?.currency || 'USD';
-      
+
       if (!dailyChangesByCurrency.has(currency)) {
         dailyChangesByCurrency.set(currency, new Map());
       }
@@ -166,13 +166,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Generate chart data points for each currency
     const chartDataByCurrency: Record<string, BalanceDataPoint[]> = {};
     const currencyPercentChanges = new Map<string, number>();
-    
+
     for (const currency of currencies) {
       const dailyChanges = dailyChangesByCurrency.get(currency) || new Map<string, number>();
       const initialBalance = initialBalancesByCurrency.get(currency) || 0;
       const currencyChartData: BalanceDataPoint[] = [];
       let runningBalance = initialBalance;
-      
+
       // Calculate balance up to the start date
       const sortedDates = Array.from(dailyChanges.keys()).sort();
       for (const dateKey of sortedDates) {
@@ -180,23 +180,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           runningBalance += dailyChanges.get(dateKey) || 0;
         }
       }
-      
+
       // Generate data points for each day in the period
       const currentDate = new Date(start);
       while (currentDate <= end) {
         const dateKey = currentDate.toISOString().split('T')[0]!;
         runningBalance += dailyChanges.get(dateKey) || 0;
-        
+
         currencyChartData.push({
           date: formatDateLabel(currentDate),
           balance: runningBalance,
         });
-        
+
         currentDate.setDate(currentDate.getDate() + 1);
       }
-      
+
       chartDataByCurrency[currency] = currencyChartData;
-      
+
       // Calculate balance at the end of previous period for percent change
       let previousPeriodBalance = initialBalance;
       for (const dateKey of sortedDates) {
@@ -204,7 +204,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           previousPeriodBalance += dailyChanges.get(dateKey) || 0;
         }
       }
-      
+
       // Calculate percent change for this currency
       const currentBalance = currencyTotalsMap.get(currency) || 0;
       let pctChange = 0;
@@ -220,7 +220,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const chartData: BalanceDataPoint[] = [];
     const allCurrenciesInitialBalance = Array.from(initialBalancesByCurrency.values()).reduce((sum, b) => sum + b, 0);
     let combinedRunningBalance = allCurrenciesInitialBalance;
-    
+
     // Combine all daily changes
     const allDailyChanges = new Map<string, number>();
     for (const [, currencyChanges] of dailyChangesByCurrency) {
@@ -228,24 +228,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         allDailyChanges.set(dateKey, (allDailyChanges.get(dateKey) || 0) + amount);
       }
     }
-    
+
     const allSortedDates = Array.from(allDailyChanges.keys()).sort();
     for (const dateKey of allSortedDates) {
       if (dateKey < start.toISOString().split('T')[0]!) {
         combinedRunningBalance += allDailyChanges.get(dateKey) || 0;
       }
     }
-    
+
     const combinedCurrentDate = new Date(start);
     while (combinedCurrentDate <= end) {
       const dateKey = combinedCurrentDate.toISOString().split('T')[0]!;
       combinedRunningBalance += allDailyChanges.get(dateKey) || 0;
-      
+
       chartData.push({
         date: formatDateLabel(combinedCurrentDate),
         balance: combinedRunningBalance,
       });
-      
+
       combinedCurrentDate.setDate(combinedCurrentDate.getDate() + 1);
     }
 
@@ -265,7 +265,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         previousTotalBalance += allDailyChanges.get(dateKey) || 0;
       }
     }
-    
+
     let percentChange = 0;
     if (previousTotalBalance !== 0) {
       percentChange = Math.round(((totalBalance - previousTotalBalance) / Math.abs(previousTotalBalance)) * 100);

@@ -43,15 +43,15 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const accountId = resolveRouteParam(request, context.params);
   if (!accountId) {
     return errorResponse('VALIDATION_ERROR', 'Account ID is required in the path', 400);
   }
-  
+
   const id = accountId;
-  
+
   try {
     const account = await prisma.account.findFirst({
       where: {
@@ -65,11 +65,11 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
         }
       }
     });
-    
+
     if (!account) {
       return commonErrors.notFound('Account');
     }
-    
+
     // Get account statistics and calculate current balance
     const [transactionCount, lastTransaction, currentBalance] = await Promise.all([
       prisma.transaction.count({
@@ -90,10 +90,9 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       }),
       balanceService.calculateAccountBalance(id) // ✅ Calculate balance
     ]);
-    
+
     const response = {
       id: account.id,
-      personal_id: Number(account.personal_id),
       name: account.name,
       account_type: account.account_type,
       icon: account.icon,
@@ -117,9 +116,9 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
         } : null
       }
     };
-    
+
     return successResponse(response);
-    
+
   } catch (error) {
     console.error('Account fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch account', 500);
@@ -132,19 +131,19 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const accountId = resolveRouteParam(request, context.params);
   if (!accountId) {
     return errorResponse('VALIDATION_ERROR', 'Account ID is required in the path', 400);
   }
-  
+
   const id = accountId;
-  
+
   try {
     const body = await request.json();
     const validation = UpdateAccountSchema.safeParse(body);
-    
+
     if (!validation.success) {
       return errorResponse(
         'VALIDATION_ERROR',
@@ -153,9 +152,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         validation.error.errors
       );
     }
-    
+
     const data = validation.data;
-    
+
     // Check if account exists and belongs to user
     const existingAccount = await prisma.account.findFirst({
       where: {
@@ -164,17 +163,17 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         deleted_at: null
       }
     });
-    
+
     if (!existingAccount) {
       return commonErrors.notFound('Account');
     }
-    
+
     // Update account
     const updateData: Record<string, unknown> = {
       updated_at: new Date(),
       updated_by: user.user_id
     };
-    
+
     if (data.name !== undefined) updateData['name'] = data.name;
     if (data.account_type !== undefined) updateData['account_type'] = data.account_type;
     if (data.icon !== undefined) updateData['icon'] = data.icon;
@@ -186,18 +185,17 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     if (data.group_id !== undefined) updateData['group_id'] = data.group_id;
     if (data.is_active !== undefined) updateData['is_active'] = data.is_active;
     if (data.is_included_in_total !== undefined) updateData['is_included_in_total'] = data.is_included_in_total;
-    
+
     const updated = await prisma.account.update({
       where: { id },
       data: updateData
     });
-    
+
     // Calculate current balance after update
     const updatedBalance = await balanceService.calculateAccountBalance(id);
-    
+
     const response = {
       id: updated.id,
-      personal_id: Number(updated.personal_id),
       name: updated.name,
       account_type: updated.account_type,
       icon: updated.icon,
@@ -212,9 +210,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       created_at: updated.created_at,
       updated_at: updated.updated_at
     };
-    
+
     return successResponse(response, { message: 'Account updated successfully' });
-    
+
   } catch (error) {
     console.error('Account update error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to update account', 500);
@@ -232,15 +230,15 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const accountId = resolveRouteParam(request, context.params);
   if (!accountId) {
     return errorResponse('VALIDATION_ERROR', 'Account ID is required in the path', 400);
   }
-  
+
   const id = accountId;
-  
+
   try {
     // Check if account exists and belongs to user
     const existingAccount = await prisma.account.findFirst({
@@ -250,11 +248,11 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         deleted_at: null
       }
     });
-    
+
     if (!existingAccount) {
       return commonErrors.notFound('Account');
     }
-    
+
     // Check if account has transactions
     const transactionCount = await prisma.transaction.count({
       where: {
@@ -263,7 +261,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         deleted_at: null
       }
     });
-    
+
     if (transactionCount > 0) {
       return errorResponse(
         'ACCOUNT_HAS_TRANSACTIONS',
@@ -271,7 +269,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         409
       );
     }
-    
+
     // Soft delete
     await prisma.account.update({
       where: { id },
@@ -281,9 +279,9 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         updated_by: user.user_id
       }
     });
-    
+
     return successResponse(null, { message: 'Account deleted successfully' });
-    
+
   } catch (error) {
     console.error('Account deletion error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to delete account', 500);

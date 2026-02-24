@@ -81,7 +81,6 @@ export const GlobalTransactionModal: React.FC = () => {
           if (isTransfer) {
             // Create transfer
             const transferData: CreateTransferRequest = {
-              personal_id: Date.now(),
               date: transactionData.date || new Date().toISOString(),
               from_account_id: transactionData.account_id || '',
               to_account_id: transactionData.to_account_id || '',
@@ -95,7 +94,6 @@ export const GlobalTransactionModal: React.FC = () => {
           } else {
             // Create regular transaction
             const createData: CreateTransactionRequest = {
-              personal_id: Date.now(),
               date: transactionData.date || new Date().toISOString(),
               account_id: transactionData.account_id || '',
               amount: transactionData.amount || 0,

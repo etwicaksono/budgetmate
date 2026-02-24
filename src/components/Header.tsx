@@ -4,7 +4,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Button, Container, Dropdown, Offcanvas } from 'react-bootstrap';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FaBars, FaBug, FaCog, FaPlus, FaQuestionCircle, FaSignOutAlt } from 'react-icons/fa';
+import { FaBars, FaBug, FaCog,  FaPlus, FaQuestionCircle, FaSignOutAlt } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import { useTransaction } from '@/contexts/TransactionContext';
 import './Header.css';

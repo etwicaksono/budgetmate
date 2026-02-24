@@ -28,7 +28,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Parse and validate request body
     const body = await request.json();
     const validation = RegisterSchema.safeParse(body);
-    
+
     if (!validation.success) {
       return errorResponse(
         'VALIDATION_ERROR',
@@ -37,9 +37,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         validation.error.errors
       );
     }
-    
+
     const { email, username, password, full_name } = validation.data;
-    
+
     // Validate password strength
     const passwordValidation = validatePasswordStrength(password);
     if (!passwordValidation.isValid) {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         passwordValidation.errors
       );
     }
-    
+
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
       where: {
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         ]
       }
     });
-    
+
     if (existingUser) {
       const field = existingUser.email === email.toLowerCase() ? 'email' : 'username';
       return errorResponse(
@@ -69,10 +69,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         409
       );
     }
-    
+
     // Hash password
     const password_hash = await hashPassword(password);
-    
+
     // Create user with default data in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create user
@@ -87,16 +87,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           currency: 'USD'
         }
       });
-      
+
       // 2. Create default income categories with hierarchy
-      let categoryPersonalId = 1;
-      
+
       for (const incomeCategory of defaultCategories.income) {
         // Create parent income category
         const incomeParent = await tx.category.create({
           data: {
             user_id: user.id,
-            personal_id: BigInt(categoryPersonalId++),
             name: incomeCategory.name,
             type: 'income',
             nature: incomeCategory.nature || 'WANT',
@@ -106,14 +104,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             is_active: true
           }
         });
-        
+
         // Create child income categories
         if (incomeCategory.children) {
           for (const child of incomeCategory.children) {
             await tx.category.create({
               data: {
                 user_id: user.id,
-                personal_id: BigInt(categoryPersonalId++),
                 parent_id: incomeParent.id,
                 name: child.name,
                 type: 'income',
@@ -127,16 +124,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         }
       }
-      
+
       // 3. Create default expense categories with hierarchy
       for (const [parentName, parentData] of Object.entries(defaultCategories.expense)) {
         const data = parentData as ParentCategoryData;
-        
+
         // Create parent category
         const parent = await tx.category.create({
           data: {
             user_id: user.id,
-            personal_id: BigInt(categoryPersonalId++),
             name: parentName,
             type: 'expense',
             nature: data.nature || 'WANT',
@@ -146,14 +142,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             is_active: true
           }
         });
-        
+
         // Create child categories
         if (data.children) {
           for (const child of data.children) {
             await tx.category.create({
               data: {
                 user_id: user.id,
-                personal_id: BigInt(categoryPersonalId++),
                 parent_id: parent.id,
                 name: child.name,
                 type: 'expense',
@@ -167,17 +162,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         }
       }
-      
+
       // 4. Create default 'both' type categories (appear in income and expense)
       if (defaultCategories.both) {
         for (const [parentName, parentData] of Object.entries(defaultCategories.both)) {
           const data = parentData as ParentCategoryData;
-          
+
           // Create parent category
           const parent = await tx.category.create({
             data: {
               user_id: user.id,
-              personal_id: BigInt(categoryPersonalId++),
               name: parentName,
               type: 'both',
               nature: data.nature || 'WANT',
@@ -187,14 +181,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               is_active: true
             }
           });
-          
+
           // Create child categories
           if (data.children) {
             for (const child of data.children) {
               await tx.category.create({
                 data: {
                   user_id: user.id,
-                  personal_id: BigInt(categoryPersonalId++),
                   parent_id: parent.id,
                   name: child.name,
                   type: 'both',
@@ -209,13 +202,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         }
       }
-      
+
       // 5. Create default accounts
       for (const account of defaultAccounts) {
         await tx.account.create({
           data: {
             user_id: user.id,
-            personal_id: BigInt(account.personal_id),
             name: account.name,
             account_type: account.account_type,
             icon: account.icon,
@@ -228,19 +220,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         });
       }
-      
+
       return user;
     });
-    
+
     // Generate JWT tokens
     const tokenPayload = {
       user_id: result.id,
       email: result.email,
       username: result.username
     };
-    
+
     const { accessToken, refreshToken } = await generateTokenPair(tokenPayload);
-    
+
     // Return success response with tokens
     return successResponse(
       {
@@ -257,7 +249,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { message: 'Registration successful' },
       201
     );
-    
+
   } catch (error) {
     console.error('Registration error:', error);
     return errorResponse(

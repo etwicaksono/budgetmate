@@ -5,9 +5,9 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, paginationMeta } from '@/lib/api/response';
 import { CreateTransferSchema } from '@/lib/validation/transfer';
-import { 
-  getTransferDestination, 
-  shouldUseNullForDestination 
+import {
+  getTransferDestination,
+  shouldUseNullForDestination
 } from '@/utils/transferUtils';
 
 // GET - Fetch all transfers
@@ -16,10 +16,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const { searchParams } = new URL(request.url);
-  
+
   // Parse query parameters
   const page = parseInt(searchParams.get('page') || '1');
   const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
@@ -29,20 +29,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const end_date = searchParams.get('end_date');
   const sort_by = searchParams.get('sort_by') || 'date';
   const sort_order = (searchParams.get('sort_order') || 'desc') as 'asc' | 'desc';
-  
+
   try {
     const where: Prisma.TransferWhereInput = {
       user_id: user.user_id
     };
-    
+
     if (from_account) {
       where.from_account = from_account;
     }
-    
+
     if (to_account) {
       where.to_account = to_account;
     }
-    
+
     // Date range
     if (start_date || end_date) {
       where.date = {};
@@ -53,14 +53,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where.date.lte = new Date(end_date);
       }
     }
-    
+
     // Execute queries
     const [transfers, total] = await Promise.all([
       prisma.transfer.findMany({
         where,
         include: {
           from_account_rel: {
-            select: { 
+            select: {
               id: true,
               name: true,
               icon: true,
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             }
           },
           to_account_rel: {
-            select: { 
+            select: {
               id: true,
               name: true,
               icon: true,
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
       prisma.transfer.count({ where })
     ]);
-    
+
     // Transform response using helper functions
     const transformedTransfers = transfers.map(transfer => {
       const destination = getTransferDestination({
@@ -101,10 +101,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         currency: transfer.currency,
         to_currency: transfer.to_currency ?? null
       });
-      
+
       return {
         id: transfer.id,
-        personal_id: Number(transfer.personal_id),
         date: transfer.date,
         from_account_id: transfer.from_account,
         from_account: transfer.from_account_rel,
@@ -120,12 +119,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         updated_at: transfer.updated_at
       };
     });
-    
+
     return successResponse(
       transformedTransfers,
       paginationMeta(total, page, limit)
     );
-    
+
   } catch (error) {
     console.error('Transfer fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch transfers', 500);
@@ -138,13 +137,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
-  
+
   try {
     const body = await request.json();
     const validation = CreateTransferSchema.safeParse(body);
-    
+
     if (!validation.success) {
       return errorResponse(
         'VALIDATION_ERROR',
@@ -153,9 +152,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         validation.error.errors
       );
     }
-    
+
     const data = validation.data;
-    
+
     // Verify both accounts belong to user and are active
     const [fromAccount, toAccount] = await Promise.all([
       prisma.account.findFirst({
@@ -175,36 +174,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
       })
     ]);
-    
+
     if (!fromAccount) {
       return errorResponse('INVALID_FROM_ACCOUNT', 'Source account not found or inactive', 404);
     }
-    
+
     if (!toAccount) {
       return errorResponse('INVALID_TO_ACCOUNT', 'Destination account not found or inactive', 404);
     }
-    
-    // Get next personal_ids
-    const [maxTransfer, maxTransaction] = await Promise.all([
-      prisma.transfer.findFirst({
-        where: { user_id: user.user_id },
-        orderBy: { personal_id: 'desc' },
-        select: { personal_id: true }
-      }),
-      prisma.transaction.findFirst({
-        where: { user_id: user.user_id },
-        orderBy: { personal_id: 'desc' },
-        select: { personal_id: true }
-      })
-    ]);
-    
-    const nextTransferPersonalId = Number(maxTransfer?.personal_id ?? 0n) + 1;
-    const nextTransactionPersonalId = Number(maxTransaction?.personal_id ?? 0n) + 1;
-    
+
     // Use to_amount if provided (for currency conversion), otherwise use amount
     const destinationAmount = data.to_amount ?? data.amount;
     const destinationCurrency = data.to_currency ?? fromAccount.currency;
-    
+
     // Optimization: Store NULL for to_amount and to_currency if same as source
     // This reduces storage and clearly indicates same-currency transfers
     const useNullForDestination = shouldUseNullForDestination(
@@ -213,14 +195,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       data.to_amount,
       data.amount
     );
-    
+
     // Create transfer and linked transactions in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create transfer record with smart defaults
       const transfer = await tx.transfer.create({
         data: {
           user_id: user.user_id,
-          personal_id: BigInt(nextTransferPersonalId),
           date: new Date(data.date),
           from_account: data.from_account_id,
           to_account: data.to_account_id,
@@ -234,12 +215,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           created_by: user.user_id
         }
       });
-      
+
       // 2. Create expense transaction in source account
       await tx.transaction.create({
         data: {
           user_id: user.user_id,
-          personal_id: BigInt(nextTransactionPersonalId),
           account_id: data.from_account_id,
           type: 'transfer_out',
           amount: -Math.abs(data.amount), // Negative for expense
@@ -250,12 +230,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           created_by: user.user_id
         }
       });
-      
+
       // 3. Create income transaction in destination account
       await tx.transaction.create({
         data: {
           user_id: user.user_id,
-          personal_id: BigInt(nextTransactionPersonalId + 1),
           account_id: data.to_account_id,
           type: 'transfer_in',
           amount: Math.abs(destinationAmount), // Positive for income
@@ -266,12 +245,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           created_by: user.user_id
         }
       });
-      
+
       // ✅ Balance is now calculated on-demand, no need to update
-      
+
       return transfer;
     });
-    
+
+
+    if (!result) {
+      throw new Error('Failed to create transfer');
+    }
+
     // Fetch complete transfer with relations
     const createdTransfer = await prisma.transfer.findUnique({
       where: { id: result.id },
@@ -287,11 +271,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
       }
     });
-    
+
     if (!createdTransfer) {
       throw new Error('Failed to fetch created transfer');
     }
-    
+
     // Use helper to compute destination values
     const destination = getTransferDestination({
       id: createdTransfer.id,
@@ -300,10 +284,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       currency: createdTransfer.currency,
       to_currency: createdTransfer.to_currency ?? null
     });
-    
+
     const response = {
       id: createdTransfer.id,
-      personal_id: Number(createdTransfer.personal_id),
       date: createdTransfer.date,
       from_account_id: createdTransfer.from_account,
       from_account: createdTransfer.from_account_rel,
@@ -320,9 +303,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       })),
       created_at: createdTransfer.created_at
     };
-    
+
     return successResponse(response, { message: 'Transfer created successfully' }, 201);
-    
+
   } catch (error) {
     console.error('Transfer creation error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to create transfer', 500);

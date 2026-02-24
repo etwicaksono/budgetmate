@@ -464,7 +464,7 @@ function DashboardContent(): React.ReactElement {
     try {
       setLoading(true);
       setError(null);
-      setSelectedCurrency(''); // Reset currency selection when period changes
+      // Don't reset selected currency - let useEffect handle it based on available data
 
       // Determine date range based on active period
       const now = new Date();
@@ -512,13 +512,6 @@ function DashboardContent(): React.ReactElement {
 
       setExpenseCategories(expensesData.expenses);
       setExpenseCurrencies(expensesData.currencies);
-      // Set default selected currency to first available
-      if (expensesData.currencies.length > 0) {
-        const firstCurrency = expensesData.currencies[0];
-        if (firstCurrency) {
-          setSelectedCurrency(firstCurrency);
-        }
-      }
       setTransactions(transactionsResponse.transactions || []);
       // Transform budget data to include currency from API
       const budgetsWithCurrency: BudgetStatusWithCurrency[] = budgetsData.map(b => ({
@@ -641,20 +634,56 @@ function DashboardContent(): React.ReactElement {
     return Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'USD';
   }, [accounts]);
 
-  // Set default selected expense currency to primary when currencies are loaded
+  // Calculate balance per currency from accounts
+  const currencyBalances = React.useMemo(() => {
+    const balanceMap = new Map<string, number>();
+    
+    accounts.forEach(account => {
+      if (account.is_included_in_total) {
+        const current = balanceMap.get(account.currency) || 0;
+        balanceMap.set(account.currency, current + account.current_balance);
+      }
+    });
+    
+    return Array.from(balanceMap.entries())
+      .map(([currency, balance]) => ({ currency, balance }))
+      .sort((a, b) => b.balance - a.balance); // Sort by balance descending
+  }, [accounts]);
+
+  // Set default selected currency from any available source when currencies are loaded
   useEffect(() => {
-    if (expenseCurrencies.length > 0 && !selectedCurrency) {
-      // Prefer primary currency if available in expense currencies
-      if (expenseCurrencies.includes(primaryCurrency)) {
-        setSelectedCurrency(primaryCurrency);
-      } else {
-        const firstCurrency = expenseCurrencies[0];
-        if (firstCurrency) {
-          setSelectedCurrency(firstCurrency);
+    if (!selectedCurrency) {
+      // Priority 1: Use primary currency if available in any data source
+      if (primaryCurrency) {
+        const isInExpenses = expenseCurrencies.includes(primaryCurrency);
+        const isInBalances = currencyBalances.some(cb => cb.currency === primaryCurrency);
+        const isInIncomeExpense = incomeExpenseCurrencies.includes(primaryCurrency);
+        
+        if (isInExpenses || isInBalances || isInIncomeExpense) {
+          setSelectedCurrency(primaryCurrency);
+          return;
         }
       }
+      
+      // Priority 2: Use first currency from balance trend (dashboard's main widget)
+      if (currencyBalances.length > 0 && currencyBalances[0]) {
+        setSelectedCurrency(currencyBalances[0].currency);
+        return;
+      }
+      
+      // Priority 3: Use first expense currency
+      if (expenseCurrencies.length > 0 && expenseCurrencies[0]) {
+        setSelectedCurrency(expenseCurrencies[0]);
+        return;
+      }
+      
+      // Priority 4: Use first income/expense currency
+      if (incomeExpenseCurrencies.length > 0 && incomeExpenseCurrencies[0]) {
+        setSelectedCurrency(incomeExpenseCurrencies[0]);
+        return;
+      }
     }
-  }, [expenseCurrencies, primaryCurrency, selectedCurrency]);
+  }, [expenseCurrencies, primaryCurrency, selectedCurrency, currencyBalances, incomeExpenseCurrencies]);
 
   // Transform API data for widgets - filter by selected currency
   const expenseData: PieChartData[] = useMemo(() => {
@@ -725,22 +754,6 @@ function DashboardContent(): React.ReactElement {
   const handleDragCancel = useCallback(() => {
     setActiveId(null);
   }, []);
-
-  // Calculate balance per currency from accounts
-  const currencyBalances = React.useMemo(() => {
-    const balanceMap = new Map<string, number>();
-    
-    accounts.forEach(account => {
-      if (account.is_included_in_total) {
-        const current = balanceMap.get(account.currency) || 0;
-        balanceMap.set(account.currency, current + account.current_balance);
-      }
-    });
-    
-    return Array.from(balanceMap.entries())
-      .map(([currency, balance]) => ({ currency, balance }))
-      .sort((a, b) => b.balance - a.balance); // Sort by balance descending
-  }, [accounts]);
 
   // Widget configurations
   const widgets: Record<string, WidgetConfig> = {

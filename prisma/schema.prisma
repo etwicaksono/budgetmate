@@ -33,6 +33,17 @@ model User {
   updated_at         DateTime  @updatedAt @db.Timestamptz
   deleted_at         DateTime? @db.Timestamptz
 
+  // Google OAuth
+  google_access_token  String?   @db.Text
+  google_refresh_token String?   @db.Text
+  google_token_expires DateTime? @db.Timestamptz
+
+  // Google Sheet Sync
+  google_sheet_id   String?   @db.VarChar(255)
+  google_sheet_url  String?   @db.VarChar(500)
+  google_sheet_name String?   @db.VarChar(255)
+  last_synced_at    DateTime? @db.Timestamptz
+
   // Relations
   accounts     Account[]
   categories   Category[]
@@ -44,6 +55,7 @@ model User {
   goals        Goal[]
   recurring    RecurringTransaction[]
   audit_logs   AuditLog[]
+  sync_history SyncHistory[]
 
   @@index([email])
   @@index([username])
@@ -72,9 +84,9 @@ model AccountGroup {
 model Account {
   id                   String    @id @default(cuid())
   user_id              String
-  personal_id          BigInt
   group_id             String?
   name                 String    @db.VarChar(100)
+  code                 String?   @db.VarChar(150) // Format: "Name::ID" for user-friendly sync
   account_type         String    @db.VarChar(50) // checking, savings, credit_card, cash, investment, loan
   currency             String    @default("USD") @db.VarChar(3)
   initial_balance      Decimal   @default(0) @db.Decimal(15, 2)
@@ -101,29 +113,28 @@ model Account {
   goals          Goal[]
   recurring      RecurringTransaction[]
 
-  @@unique([user_id, personal_id])
   @@index([user_id])
   @@index([group_id])
 }
 
 // ==================== CATEGORY MODEL ====================
 model Category {
-  id          String   @id @default(cuid())
-  user_id     String
-  personal_id BigInt
-  parent_id   String?
-  name        String   @db.VarChar(100)
-  type        String   @db.VarChar(20) // income, expense
-  nature      String   @default("WANT") @db.VarChar(8) // WANT, NEED, MUST
-  icon        String   @db.VarChar(50)
-  color       String?  @db.VarChar(7)
-  is_system   Boolean  @default(false)
-  is_active   Boolean  @default(true)
-  position    Json?
-  created_at  DateTime @default(now()) @db.Timestamptz
-  updated_at  DateTime @updatedAt @db.Timestamptz
-  created_by  String?  @db.VarChar(64)
-  updated_by  String?  @db.VarChar(64)
+  id         String   @id @default(cuid())
+  user_id    String
+  parent_id  String?
+  name       String   @db.VarChar(100)
+  code       String?  @db.VarChar(150) // Format: "Name::ID" for user-friendly sync
+  type       String   @db.VarChar(20) // income, expense
+  nature     String   @default("WANT") @db.VarChar(8) // WANT, NEED, MUST
+  icon       String   @db.VarChar(50)
+  color      String?  @db.VarChar(7)
+  is_system  Boolean  @default(false)
+  is_active  Boolean  @default(true)
+  position   Json?
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+  created_by String?  @db.VarChar(64)
+  updated_by String?  @db.VarChar(64)
 
   // Relations
   user              User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -133,7 +144,6 @@ model Category {
   budget_categories BudgetCategory[]
   recurring         RecurringTransaction[]
 
-  @@unique([user_id, personal_id])
   @@index([user_id])
   @@index([parent_id])
 }
@@ -142,7 +152,6 @@ model Category {
 model Transaction {
   id               String    @id @default(cuid())
   user_id          String
-  personal_id      BigInt
   account_id       String
   category_id      String?
   type             String    @db.VarChar(20) // income, expense, transfer_in, transfer_out
@@ -174,7 +183,6 @@ model Transaction {
   labels      TransactionLabel[]
   attachments Attachment[]
 
-  @@unique([user_id, personal_id])
   @@index([user_id, date])
   @@index([account_id])
   @@index([category_id])
@@ -185,7 +193,6 @@ model Transaction {
 model Transfer {
   id           String   @id @default(cuid())
   user_id      String
-  personal_id  BigInt
   date         DateTime @db.Timestamptz
   from_account String
   to_account   String
@@ -206,7 +213,6 @@ model Transfer {
   to_account_rel   Account       @relation("ToAccount", fields: [to_account], references: [id], onDelete: Cascade)
   transactions     Transaction[]
 
-  @@unique([user_id, personal_id])
   @@index([user_id])
   @@index([from_account])
   @@index([to_account])
@@ -214,21 +220,19 @@ model Transfer {
 
 // ==================== LABEL MODEL ====================
 model Label {
-  id          String   @id @default(cuid())
-  user_id     String
-  personal_id BigInt
-  name        String   @db.VarChar(50)
-  color       String   @db.VarChar(7)
-  created_at  DateTime @default(now()) @db.Timestamptz
-  created_by  String?  @db.VarChar(64)
-  updated_at  DateTime @updatedAt @db.Timestamptz
-  updated_by  String?  @db.VarChar(64)
+  id         String   @id @default(cuid())
+  user_id    String
+  name       String   @db.VarChar(50)
+  color      String   @db.VarChar(7)
+  created_at DateTime @default(now()) @db.Timestamptz
+  created_by String?  @db.VarChar(64)
+  updated_at DateTime @updatedAt @db.Timestamptz
+  updated_by String?  @db.VarChar(64)
 
   // Relations
   user         User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
   transactions TransactionLabel[]
 
-  @@unique([user_id, personal_id])
   @@index([user_id])
 }
 
@@ -375,4 +379,38 @@ model AuditLog {
 
   @@index([user_id])
   @@index([entity_type, entity_id])
+}
+
+// ==================== SYNC HISTORY MODEL ====================
+model SyncHistory {
+  id        String   @id @default(cuid())
+  user_id   String
+  synced_at DateTime @default(now()) @db.Timestamptz
+  direction String   @db.VarChar(10)
+  mode      String   @db.VarChar(10)
+  status    String   @db.VarChar(20)
+
+  accounts_added       Int @default(0)
+  accounts_updated     Int @default(0)
+  accounts_deleted     Int @default(0)
+  categories_added     Int @default(0)
+  categories_updated   Int @default(0)
+  categories_deleted   Int @default(0)
+  transactions_added   Int @default(0)
+  transactions_updated Int @default(0)
+  transactions_deleted Int @default(0)
+  transfers_added      Int @default(0)
+  transfers_updated    Int @default(0)
+  transfers_deleted    Int @default(0)
+  labels_added         Int @default(0)
+  labels_updated       Int @default(0)
+  labels_deleted       Int @default(0)
+
+  conflicts_count Int     @default(0)
+  error_message   String? @db.Text
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([synced_at])
 }

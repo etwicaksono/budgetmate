@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { accountService, type Account } from '@/services/accountService';
 import { categoryService, type Category } from '@/services/categoryService';
 
-export type SortValue = 
-  | 'timeAsc' 
-  | 'timeDesc' 
-  | 'amountAsc' 
-  | 'amountDesc' 
-  | 'absAmountAsc' 
+export type SortValue =
+  | 'timeAsc'
+  | 'timeDesc'
+  | 'amountAsc'
+  | 'amountDesc'
+  | 'absAmountAsc'
   | 'absAmountDesc';
 
 export interface FilterVisibility {
@@ -187,7 +187,6 @@ export const useFilterData = () => {
   ) => {
     const newCategory: Category = {
       id: id || `cat-${Date.now()}`,
-      personal_id: Date.now(),
       name,
       type: 'expense',
       nature: 'WANT' as const,

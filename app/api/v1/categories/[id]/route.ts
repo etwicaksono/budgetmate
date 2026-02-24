@@ -18,15 +18,15 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const categoryId = resolveRouteParam(request, context.params);
   if (!categoryId) {
     return errorResponse('VALIDATION_ERROR', 'Category ID is required in the path', 400);
   }
-  
+
   const id = categoryId;
-  
+
   try {
     const category = await prisma.category.findFirst({
       where: {
@@ -39,16 +39,11 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
         },
         children: {
           where: { is_active: true },
-          select: { 
-            id: true, 
-            personal_id: true,
-            name: true, 
-            icon: true, 
-            color: true,
+          select: {
             nature: true,
             is_active: true
           },
-          orderBy: { personal_id: 'asc' }
+          orderBy: { name: 'asc' }
         },
         _count: {
           select: {
@@ -60,14 +55,13 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
         }
       }
     });
-    
+
     if (!category) {
       return commonErrors.notFound('Category');
     }
-    
+
     const response = {
       id: category.id,
-      personal_id: Number(category.personal_id),
       name: category.name,
       type: category.type,
       nature: category.nature,
@@ -77,18 +71,15 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       is_active: category.is_active,
       parent_id: category.parent_id,
       parent: category.parent,
-      children: category.children.map(child => ({
-        ...child,
-        personal_id: Number(child.personal_id)
-      })),
+      children: category.children,
       transaction_count: category._count.transactions,
       children_count: category._count.children,
       created_at: category.created_at,
       updated_at: category.updated_at
     };
-    
+
     return successResponse(response);
-    
+
   } catch (error) {
     console.error('Category fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch category', 500);
@@ -101,19 +92,19 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const categoryId = resolveRouteParam(request, context.params);
   if (!categoryId) {
     return errorResponse('VALIDATION_ERROR', 'Category ID is required in the path', 400);
   }
-  
+
   const id = categoryId;
-  
+
   try {
     const body = await request.json();
     const validation = UpdateCategorySchema.safeParse(body);
-    
+
     if (!validation.success) {
       return errorResponse(
         'VALIDATION_ERROR',
@@ -122,9 +113,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         validation.error.errors
       );
     }
-    
+
     const data = validation.data;
-    
+
     // Check if category exists and belongs to user
     const existingCategory = await prisma.category.findFirst({
       where: {
@@ -132,15 +123,15 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         user_id: user.user_id
       }
     });
-    
+
     if (!existingCategory) {
       return commonErrors.notFound('Category');
     }
-    
+
     // Note: Users can edit their own categories
     // System categories are created during registration with created_by: null
     // User-created categories always have created_by set, so they can be edited
-    
+
     // If changing parent_id, validate new parent
     if (data.parent_id !== undefined) {
       // Cannot set parent to itself
@@ -151,7 +142,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
           400
         );
       }
-      
+
       if (data.parent_id) {
         const parent = await prisma.category.findFirst({
           where: {
@@ -159,11 +150,11 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
             user_id: user.user_id
           }
         });
-        
+
         if (!parent) {
           return errorResponse('INVALID_PARENT', 'Parent category not found', 404);
         }
-        
+
         // Verify parent type matches
         if (parent.type !== existingCategory.type) {
           return errorResponse(
@@ -172,7 +163,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
             400
           );
         }
-        
+
         // Check for circular reference
         const isDescendant = await checkIfDescendant(id, data.parent_id, user.user_id);
         if (isDescendant) {
@@ -184,20 +175,20 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         }
       }
     }
-    
+
     // Update category
     const updateData: Record<string, unknown> = {
       updated_at: new Date(),
       updated_by: user.user_id
     };
-    
+
     if (data.name !== undefined) updateData['name'] = data.name;
     if (data.parent_id !== undefined) updateData['parent_id'] = data.parent_id;
     if (data.nature !== undefined) updateData['nature'] = data.nature;
     if (data.icon !== undefined) updateData['icon'] = data.icon;
     if (data.color !== undefined) updateData['color'] = data.color;
     if (data.is_active !== undefined) updateData['is_active'] = data.is_active;
-    
+
     const updated = await prisma.category.update({
       where: {
         id,
@@ -210,7 +201,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         }
       }
     });
-    
+
     // If color was changed and category has children, update children's colors too
     if (data.color !== undefined && existingCategory.parent_id === null) {
       await prisma.category.updateMany({
@@ -225,10 +216,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         }
       });
     }
-    
+
     const response = {
       id: updated.id,
-      personal_id: Number(updated.personal_id),
       name: updated.name,
       type: updated.type,
       nature: updated.nature,
@@ -240,9 +230,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       parent: updated.parent,
       updated_at: updated.updated_at
     };
-    
+
     return successResponse(response, { message: 'Category updated successfully' });
-    
+
   } catch (error) {
     console.error('Category update error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to update category';
@@ -262,15 +252,15 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const categoryId = resolveRouteParam(request, context.params);
   if (!categoryId) {
     return errorResponse('VALIDATION_ERROR', 'Category ID is required in the path', 400);
   }
-  
+
   const id = categoryId;
-  
+
   try {
     // Check if category exists and belongs to user
     const existingCategory = await prisma.category.findFirst({
@@ -279,11 +269,11 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         user_id: user.user_id
       }
     });
-    
+
     if (!existingCategory) {
       return commonErrors.notFound('Category');
     }
-    
+
     // Prevent deletion of system categories (only default seeded categories)
     // Allow deleting of user-created categories even if they have is_system flag
     if (existingCategory.is_system && !existingCategory.created_by) {
@@ -293,7 +283,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         403
       );
     }
-    
+
     // Check if category has transactions
     const transactionCount = await prisma.transaction.count({
       where: {
@@ -302,7 +292,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         deleted_at: null
       }
     });
-    
+
     if (transactionCount > 0) {
       return errorResponse(
         'CATEGORY_HAS_TRANSACTIONS',
@@ -310,7 +300,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         409
       );
     }
-    
+
     // Check if category has children
     const childrenCount = await prisma.category.count({
       where: {
@@ -318,7 +308,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         user_id: user.user_id
       }
     });
-    
+
     if (childrenCount > 0) {
       return errorResponse(
         'CATEGORY_HAS_CHILDREN',
@@ -326,14 +316,14 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         409
       );
     }
-    
+
     // Delete category
     await prisma.category.delete({
       where: { id }
     });
-    
+
     return successResponse(null, { message: 'Category deleted successfully' });
-    
+
   } catch (error) {
     console.error('Category deletion error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to delete category', 500);
@@ -342,8 +332,8 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
 
 // Helper function to check if a category is a descendant of another
 async function checkIfDescendant(
-  categoryId: string, 
-  potentialDescendantId: string, 
+  categoryId: string,
+  potentialDescendantId: string,
   userId: string
 ): Promise<boolean> {
   const category = await prisma.category.findFirst({
@@ -352,10 +342,10 @@ async function checkIfDescendant(
       user_id: userId
     }
   });
-  
+
   if (!category) return false;
   if (category.parent_id === categoryId) return true;
   if (!category.parent_id) return false;
-  
+
   return checkIfDescendant(categoryId, category.parent_id, userId);
 }

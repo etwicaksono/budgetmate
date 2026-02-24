@@ -6,11 +6,9 @@ import { useToast } from './ToastContext';
 import { accountService } from '@/services/accountService';
 import { categoryService } from '@/services/categoryService';
 import { transactionService, CreateTransactionRequest } from '@/services/transactionService';
-import { api } from '@/services/api';
 
 interface TransactionFormValues {
   id?: string;
-  personal_id: number;
   type: 'income' | 'expense' | 'transfer';
   amount: string;
   date: string;
@@ -24,7 +22,6 @@ interface TransactionFormValues {
 
 interface Account {
   id: string;
-  personal_id: number;
   name: string;
   icon: string;
   color: string;
@@ -34,7 +31,6 @@ interface Account {
 
 interface Category {
   id: string;
-  personal_id: number;
   name: string;
   type: 'income' | 'expense' | 'both';
   parent_id?: string | null;
@@ -83,7 +79,6 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
   const [accountIdToName, setAccountIdToName] = useState<Record<string, string>>({});
   const [accountNameToId, setAccountNameToId] = useState<Record<string, string>>({});
   const [categoryTree, setCategoryTree] = useState<unknown>({});
-  const [maxPersonalIds, setMaxPersonalIds] = useState<Record<string, number>>({});
   
   // Fetch accounts
   const fetchAccounts = useCallback(async () => {
@@ -124,28 +119,15 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
     }
   }, [showToast]);
   
-  // Fetch max personal IDs
-  const fetchMaxPersonalIds = useCallback(async () => {
-    if (!isAuthenticated) return;
-    
-    try {
-      const data = await api.getMaxPersonalIds();
-      setMaxPersonalIds(data);
-    } catch (error) {
-      console.error('Failed to fetch max personal IDs:', error);
-    }
-  }, [isAuthenticated]);
-  
   // Load initial data
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
       Promise.all([
         fetchAccounts(),
-        fetchCategories(),
-        fetchMaxPersonalIds()
+        fetchCategories()
       ]);
     }
-  }, [isAuthenticated, authLoading, fetchAccounts, fetchCategories, fetchMaxPersonalIds]);
+  }, [isAuthenticated, authLoading, fetchAccounts, fetchCategories]);
   
   // Open modal for new transaction
   const openTransactionModal = useCallback((defaults?: Partial<TransactionFormValues>) => {
@@ -163,7 +145,6 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
     const label_ids = defaults?.label_ids || [];
     
     const newTransaction: TransactionFormValues = {
-      personal_id: (maxPersonalIds['transactions'] || 0) + 1,
       type,
       amount,
       date,
@@ -177,7 +158,7 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
     setCurrentTransaction(newTransaction);
     setIsEditMode(false);
     setIsOpen(true);
-  }, [maxPersonalIds, accounts]);
+  }, [accounts]);
   
   // Open modal for editing
   const editTransaction = useCallback((transaction: TransactionFormValues) => {
@@ -202,7 +183,6 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
       if (isEditMode && data.id) {
         // Update existing transaction
         const updateData: Partial<CreateTransactionRequest> = {
-          personal_id: data.personal_id,
           date: dateISO,
           account_id: data.account_id,
           category_id: data.category_id || '',
@@ -222,64 +202,33 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
           detail: { transactionId: data.id, transaction: data }
         }));
       } else {
-        // Create new transaction with retry logic
-        let retries = 3;
-        let personalId = data.personal_id;
+        // Create new transaction
+        const createData: CreateTransactionRequest = {
+          date: dateISO,
+          account_id: data.account_id,
+          category_id: data.category_id || '',
+          amount: parseFloat(data.amount),
+          type: data.type as 'income' | 'expense'
+        };
         
-        while (retries > 0) {
-          try {
-            const createData: CreateTransactionRequest = {
-              personal_id: personalId,
-              date: dateISO,
-              account_id: data.account_id,
-              category_id: data.category_id || '',
-              amount: parseFloat(data.amount),
-              type: data.type as 'income' | 'expense'
-            };
-            
-            if (data.description) createData.description = data.description;
-            if (data.payee) createData.payee = data.payee;
-            if (data.label_ids && data.label_ids.length > 0) createData.label_ids = data.label_ids;
-            
-            const created = await transactionService.createTransaction(createData);
-            
-            showToast('Transaction created successfully', 'success');
-            
-            // Update max personal ID
-            setMaxPersonalIds(prev => ({
-              ...prev,
-              transactions: Math.max(prev['transactions'] || 0, personalId)
-            }));
-            
-            // Dispatch event for other components
-            window.dispatchEvent(new CustomEvent('transaction-created', {
-              detail: { transaction: created }
-            }));
-            
-            break;
-          } catch (error: unknown) {
-            if (typeof error === 'object' && error !== null && 'response' in error) {
-              const responseError = error as { response?: { status?: number } };
-              if (responseError.response?.status === 409 && retries > 1) {
-                // Personal ID conflict, fetch new max and retry
-                const newMax = await api.getMaxPersonalIds();
-                personalId = (newMax['transactions'] || 0) + 1;
-                retries--;
-              } else {
-                throw error;
-              }
-            } else {
-              throw error;
-            }
-          }
-        }
+        if (data.description) createData.description = data.description;
+        if (data.payee) createData.payee = data.payee;
+        if (data.label_ids && data.label_ids.length > 0) createData.label_ids = data.label_ids;
+        
+        const created = await transactionService.createTransaction(createData);
+        
+        showToast('Transaction created successfully', 'success');
+        
+        // Dispatch event for other components
+        window.dispatchEvent(new CustomEvent('transaction-created', {
+          detail: { transaction: created }
+        }));
       }
       
       // Refresh data
       await Promise.all([
         fetchAccounts(),
-        fetchCategories(),
-        fetchMaxPersonalIds()
+        fetchCategories()
       ]);
       closeTransactionModal();
       return true;
@@ -288,7 +237,7 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
       showToast('Failed to save transaction', 'error');
       return false;
     }
-  }, [isEditMode, showToast, closeTransactionModal, fetchAccounts, fetchCategories, fetchMaxPersonalIds]);
+  }, [isEditMode, showToast, closeTransactionModal, fetchAccounts, fetchCategories]);
   
   // Delete transaction
   const deleteTransaction = useCallback(async (id: string): Promise<boolean> => {
@@ -303,8 +252,7 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
       
       await Promise.all([
         fetchAccounts(),
-        fetchCategories(),
-        fetchMaxPersonalIds()
+        fetchCategories()
       ]);
       return true;
     } catch (error) {
@@ -312,16 +260,15 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
       showToast('Failed to delete transaction', 'error');
       return false;
     }
-  }, [showToast, fetchAccounts, fetchCategories, fetchMaxPersonalIds]);
+  }, [showToast, fetchAccounts, fetchCategories]);
   
   // Refresh all data
   const refreshData = useCallback(async () => {
     await Promise.all([
       fetchAccounts(),
-      fetchCategories(),
-      fetchMaxPersonalIds()
+      fetchCategories()
     ]);
-  }, [fetchAccounts, fetchCategories, fetchMaxPersonalIds]);
+  }, [fetchAccounts, fetchCategories]);
   
   return (
     <TransactionModalContext.Provider

@@ -4,72 +4,61 @@
       "name": "Income",
       "icon": "FaBriefcase",
       "color": "#10b981",
-      "nature": "MUST",
+      "nature": "WANT",
       "children": [
         {
-          "name": "Salary",
-          "icon": "FaBriefcase",
-          "color": "#10b981",
-          "nature": "MUST"
-        },
-        {
-          "name": "Freelance",
-          "icon": "FaLaptop",
-          "color": "#10b981",
+          "name": "Checks, coupons",
+          "icon": "FaTicketAlt",
           "nature": "WANT"
         },
         {
-          "name": "Investments",
-          "icon": "FaChartLine",
-          "color": "#10b981",
+          "name": "Child Support",
+          "icon": "FaBaby",
           "nature": "WANT"
         },
         {
-          "name": "Rental Income",
-          "icon": "FaHome",
-          "color": "#10b981",
-          "nature": "WANT"
-        },
-        {
-          "name": "Business",
-          "icon": "FaStore",
-          "color": "#10b981",
+          "name": "Dues & grants",
+          "icon": "FaHandHoldingUsd",
           "nature": "WANT"
         },
         {
           "name": "Gifts",
           "icon": "FaGift",
-          "color": "#10b981",
-          "nature": "WANT"
-        },
-        {
-          "name": "Refunds",
-          "icon": "FaUndo",
-          "color": "#10b981",
-          "nature": "WANT"
-        },
-        {
-          "name": "Sale",
-          "icon": "FaTag",
-          "color": "#10b981",
-          "nature": "WANT"
-        },
-        {
-          "name": "Dividends",
-          "icon": "FaChartPie",
-          "color": "#10b981",
           "nature": "WANT"
         },
         {
           "name": "Interests",
           "icon": "FaPercentage",
-          "color": "#10b981",
           "nature": "WANT"
         },
         {
-          "name": "Other Income",
-          "icon": "FaCoins",
-          "color": "#10b981",
+          "name": "Lending, renting",
+          "icon": "FaHandshake",
+          "nature": "WANT"
+        },
+        {
+          "name": "Dividens",
+          "icon": "FaChartPie",
+          "nature": "WANT"
+        },
+        {
+          "name": "Refunds (tax, purchase)",
+          "icon": "FaUndo",
+          "nature": "WANT"
+        },
+        {
+          "name": "Rental income",
+          "icon": "FaHome",
+          "nature": "WANT"
+        },
+        {
+          "name": "Sale",
+          "icon": "FaTag",
+          "nature": "WANT"
+        },
+        {
+          "name": "Wage, invoices",
+          "icon": "FaBriefcase",
           "nature": "WANT"
         }
       ]
@@ -82,23 +71,18 @@
       "nature": "NEED",
       "children": [
         {
-          "name": "Groceries",
+          "name": "Bar, cafe, snack",
+          "icon": "FaCoffee",
+          "nature": "WANT"
+        },
+        {
+          "name": "Groceries, main meal",
           "icon": "FaShoppingCart",
           "nature": "NEED"
         },
         {
           "name": "Restaurant, fast-food",
           "icon": "FaConciergeBell",
-          "nature": "WANT"
-        },
-        {
-          "name": "Bar, cafe",
-          "icon": "FaCoffee",
-          "nature": "WANT"
-        },
-        {
-          "name": "Delivery",
-          "icon": "FaTruck",
           "nature": "WANT"
         }
       ]
@@ -109,8 +93,13 @@
       "nature": "WANT",
       "children": [
         {
-          "name": "Clothes & shoes",
+          "name": "Clothes & Footwear",
           "icon": "FaTshirt",
+          "nature": "NEED"
+        },
+        {
+          "name": "Drug-store, chemist",
+          "icon": "FaPrescriptionBottleAlt",
           "nature": "NEED"
         },
         {
@@ -119,14 +108,29 @@
           "nature": "WANT"
         },
         {
-          "name": "Home, garden",
-          "icon": "FaHome",
-          "nature": "NEED"
+          "name": "Toiletries",
+          "icon": "FaToiletPaper",
+          "nature": "WANT"
         },
         {
-          "name": "Toiletry, health",
-          "icon": "FaToiletPaper",
-          "nature": "NEED"
+          "name": "Gifts, joy",
+          "icon": "FaGift",
+          "nature": "WANT"
+        },
+        {
+          "name": "Skincare, Make Up",
+          "icon": "FaSpa",
+          "nature": "WANT"
+        },
+        {
+          "name": "Home, garden",
+          "icon": "FaHome",
+          "nature": "WANT"
+        },
+        {
+          "name": "Jewels, accessories",
+          "icon": "FaGem",
+          "nature": "WANT"
         },
         {
           "name": "Kids",
@@ -136,31 +140,11 @@
         {
           "name": "Pets, animals",
           "icon": "FaPaw",
-          "nature": "NEED"
-        },
-        {
-          "name": "Gifts, joy",
-          "icon": "FaGift",
-          "nature": "WANT"
-        },
-        {
-          "name": "Health and beauty",
-          "icon": "FaSpa",
           "nature": "WANT"
         },
         {
           "name": "Stationery, tools",
           "icon": "FaPencilAlt",
-          "nature": "NEED"
-        },
-        {
-          "name": "Books, audio, subscriptions",
-          "icon": "FaBook",
-          "nature": "WANT"
-        },
-        {
-          "name": "Free time",
-          "icon": "FaGamepad",
           "nature": "WANT"
         }
       ]
@@ -170,16 +154,6 @@
       "color": "#8b5cf6",
       "nature": "MUST",
       "children": [
-        {
-          "name": "Rent",
-          "icon": "FaKey",
-          "nature": "MUST"
-        },
-        {
-          "name": "Mortgage",
-          "icon": "FaFileContract",
-          "nature": "MUST"
-        },
         {
           "name": "Energy, utilities",
           "icon": "FaBolt",
@@ -191,14 +165,24 @@
           "nature": "NEED"
         },
         {
+          "name": "Mortgage",
+          "icon": "FaFileContract",
+          "nature": "MUST"
+        },
+        {
           "name": "Property insurance",
           "icon": "FaShieldAlt",
+          "nature": "NEED"
+        },
+        {
+          "name": "Rent",
+          "icon": "FaKey",
           "nature": "MUST"
         },
         {
           "name": "Services",
           "icon": "FaHandshake",
-          "nature": "NEED"
+          "nature": "MUST"
         }
       ]
     },
@@ -208,16 +192,6 @@
       "nature": "NEED",
       "children": [
         {
-          "name": "Public transport",
-          "icon": "FaTrain",
-          "nature": "NEED"
-        },
-        {
-          "name": "Taxi",
-          "icon": "FaTaxi",
-          "nature": "WANT"
-        },
-        {
           "name": "Business trips",
           "icon": "FaSuitcase",
           "nature": "NEED"
@@ -225,6 +199,16 @@
         {
           "name": "Long distance",
           "icon": "FaPlane",
+          "nature": "WANT"
+        },
+        {
+          "name": "Public transport",
+          "icon": "FaTrain",
+          "nature": "NEED"
+        },
+        {
+          "name": "Taxi",
+          "icon": "FaTaxi",
           "nature": "WANT"
         }
       ]
@@ -240,85 +224,40 @@
           "nature": "NEED"
         },
         {
+          "name": "Leasing",
+          "icon": "FaFileContract",
+          "nature": "MUST"
+        },
+        {
           "name": "Parking",
           "icon": "FaParking",
+          "nature": "NEED"
+        },
+        {
+          "name": "Rentals",
+          "icon": "FaKey",
+          "nature": "WANT"
+        },
+        {
+          "name": "Vehicle insurance",
+          "icon": "FaShieldAlt",
           "nature": "NEED"
         },
         {
           "name": "Vehicle maintenance",
           "icon": "FaOilCan",
           "nature": "NEED"
-        },
-        {
-          "name": "Vehicle insurance",
-          "icon": "FaShieldAlt",
-          "nature": "MUST"
-        },
-        {
-          "name": "Leasing",
-          "icon": "FaFileContract",
-          "nature": "MUST"
-        },
-        {
-          "name": "Rentals",
-          "icon": "FaKey",
-          "nature": "WANT"
         }
       ]
     },
-    "Life & Entertainment": {
+    "Life & entertainment": {
       "icon": "FaFilm",
       "color": "#a855f7",
       "nature": "WANT",
       "children": [
         {
-          "name": "Health care, doctor",
-          "icon": "FaUserMd",
-          "nature": "MUST"
-        },
-        {
-          "name": "Wellness, beauty",
-          "icon": "FaSpa",
-          "nature": "WANT"
-        },
-        {
           "name": "Active sport, fitness",
           "icon": "FaDumbbell",
-          "nature": "WANT"
-        },
-        {
-          "name": "Culture, sport events",
-          "icon": "FaTicketAlt",
-          "nature": "WANT"
-        },
-        {
-          "name": "Education, development",
-          "icon": "FaGraduationCap",
-          "nature": "NEED"
-        },
-        {
-          "name": "Hobbies",
-          "icon": "FaPalette",
-          "nature": "WANT"
-        },
-        {
-          "name": "Holiday, trips, hotels",
-          "icon": "FaUmbrellaBeach",
-          "nature": "WANT"
-        },
-        {
-          "name": "TV, Streaming",
-          "icon": "FaTv",
-          "nature": "WANT"
-        },
-        {
-          "name": "Charity, gifts",
-          "icon": "FaHandHoldingHeart",
-          "nature": "WANT"
-        },
-        {
-          "name": "Lottery, gambling",
-          "icon": "FaDice",
           "nature": "WANT"
         },
         {
@@ -332,36 +271,81 @@
           "nature": "WANT"
         },
         {
+          "name": "Charity, gifts",
+          "icon": "FaHandHoldingHeart",
+          "nature": "WANT"
+        },
+        {
+          "name": "Culture, sport events",
+          "icon": "FaTicketAlt",
+          "nature": "WANT"
+        },
+        {
+          "name": "Education, development",
+          "icon": "FaGraduationCap",
+          "nature": "NEED"
+        },
+        {
+          "name": "Health care, doctor",
+          "icon": "FaUserMd",
+          "nature": "NEED"
+        },
+        {
+          "name": "Hobbies",
+          "icon": "FaPalette",
+          "nature": "WANT"
+        },
+        {
+          "name": "Holiday, trips, hotels",
+          "icon": "FaUmbrellaBeach",
+          "nature": "WANT"
+        },
+        {
           "name": "Life events",
           "icon": "FaBirthdayCake",
+          "nature": "WANT"
+        },
+        {
+          "name": "Lottery, gambling",
+          "icon": "FaDice",
+          "nature": "WANT"
+        },
+        {
+          "name": "Wellness, beauty",
+          "icon": "FaSpa",
+          "nature": "WANT"
+        },
+        {
+          "name": "Movie, TV, Streaming",
+          "icon": "FaTv",
           "nature": "WANT"
         }
       ]
     },
-    "Communication, PC": {
+    "Communication, Gadgets": {
       "icon": "FaPhone",
       "color": "#f97316",
       "nature": "NEED",
       "children": [
         {
-          "name": "Phone, cell phone",
+          "name": "Internet, phone credit",
+          "icon": "FaWifi",
+          "nature": "NEED"
+        },
+        {
+          "name": "Laptop, Smartphone",
           "icon": "FaMobileAlt",
           "nature": "NEED"
         },
         {
-          "name": "Internet",
-          "icon": "FaWifi",
+          "name": "Postal services",
+          "icon": "FaEnvelope",
           "nature": "NEED"
         },
         {
           "name": "Software, apps, games",
           "icon": "FaGamepad",
           "nature": "WANT"
-        },
-        {
-          "name": "Postal services",
-          "icon": "FaEnvelope",
-          "nature": "NEED"
         }
       ]
     },
@@ -371,28 +355,13 @@
       "nature": "MUST",
       "children": [
         {
-          "name": "Taxes",
-          "icon": "FaFileInvoiceDollar",
-          "nature": "MUST"
-        },
-        {
-          "name": "Insurances",
-          "icon": "FaShieldAlt",
-          "nature": "MUST"
-        },
-        {
-          "name": "Loan, interests",
-          "icon": "FaHandHoldingUsd",
-          "nature": "MUST"
+          "name": "Advisory",
+          "icon": "FaUserTie",
+          "nature": "WANT"
         },
         {
           "name": "Charges, Fees",
           "icon": "FaMoneyCheckAlt",
-          "nature": "MUST"
-        },
-        {
-          "name": "Fines",
-          "icon": "FaGavel",
           "nature": "MUST"
         },
         {
@@ -401,9 +370,24 @@
           "nature": "MUST"
         },
         {
-          "name": "Advisory",
-          "icon": "FaUserTie",
-          "nature": "WANT"
+          "name": "Fines",
+          "icon": "FaGavel",
+          "nature": "MUST"
+        },
+        {
+          "name": "Insurances",
+          "icon": "FaShieldAlt",
+          "nature": "NEED"
+        },
+        {
+          "name": "Loans, interests",
+          "icon": "FaHandHoldingUsd",
+          "nature": "MUST"
+        },
+        {
+          "name": "Taxes",
+          "icon": "FaFileInvoiceDollar",
+          "nature": "MUST"
         }
       ]
     },
@@ -413,14 +397,14 @@
       "nature": "WANT",
       "children": [
         {
-          "name": "Financial investments",
-          "icon": "FaChartArea",
+          "name": "Collection",
+          "icon": "FaGem",
           "nature": "WANT"
         },
         {
-          "name": "Savings",
-          "icon": "FaPiggyBank",
-          "nature": "NEED"
+          "name": "Financial investments",
+          "icon": "FaChartArea",
+          "nature": "WANT"
         },
         {
           "name": "Realty",
@@ -428,8 +412,8 @@
           "nature": "WANT"
         },
         {
-          "name": "Collections",
-          "icon": "FaGem",
+          "name": "Savings",
+          "icon": "FaPiggyBank",
           "nature": "WANT"
         },
         {
@@ -446,11 +430,6 @@
       "color": "#6b7280",
       "nature": "WANT",
       "children": [
-        {
-          "name": "Others",
-          "icon": "FaQuestion",
-          "nature": "WANT"
-        },
         {
           "name": "Missing",
           "icon": "FaExclamationTriangle",

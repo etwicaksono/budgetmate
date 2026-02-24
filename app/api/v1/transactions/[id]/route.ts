@@ -19,13 +19,13 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const transactionId = resolveRouteParam(request, context.params);
   if (!transactionId) {
     return errorResponse('VALIDATION_ERROR', 'Transaction ID is required in the path', 400);
   }
-  
+
   try {
     const transaction = await prisma.transaction.findFirst({
       where: {
@@ -35,10 +35,10 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       },
       include: {
         category: {
-          select: { 
+          select: {
             id: true,
-            name: true, 
-            icon: true, 
+            name: true,
+            icon: true,
             color: true,
             type: true,
             parent: {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
           }
         },
         account: {
-          select: { 
+          select: {
             id: true,
             name: true,
             icon: true,
@@ -59,10 +59,10 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
         labels: {
           include: {
             label: {
-              select: { 
-                id: true, 
-                name: true, 
-                color: true 
+              select: {
+                id: true,
+                name: true,
+                color: true
               }
             }
           }
@@ -81,14 +81,13 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
         }
       }
     });
-    
+
     if (!transaction) {
       return commonErrors.notFound('Transaction');
     }
-    
+
     const baseResponse = {
       id: transaction.id,
-      personal_id: Number(transaction.personal_id),
       date: transaction.date,
       account_id: transaction.account_id,
       account: transaction.account,
@@ -121,9 +120,9 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       to_currency: transaction.transfer.to_currency || transaction.transfer.currency,
       transfer: transaction.transfer
     } : baseResponse;
-    
+
     return successResponse(response);
-    
+
   } catch (error) {
     console.error('Transaction fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch transaction', 500);
@@ -136,17 +135,17 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const transactionId = resolveRouteParam(request, context.params);
   if (!transactionId) {
     return errorResponse('VALIDATION_ERROR', 'Transaction ID is required in the path', 400);
   }
-  
+
   try {
     const body = await request.json();
     const validation = UpdateTransactionSchema.safeParse(body);
-    
+
     if (!validation.success) {
       return errorResponse(
         'VALIDATION_ERROR',
@@ -155,9 +154,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         validation.error.errors
       );
     }
-    
+
     const data = validation.data;
-    
+
     // Check if transaction exists and belongs to user
     const existingTransaction = await prisma.transaction.findFirst({
       where: {
@@ -166,11 +165,11 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         deleted_at: null
       }
     });
-    
+
     if (!existingTransaction) {
       return commonErrors.notFound('Transaction');
     }
-    
+
     // If updating account, verify it belongs to user
     if (data.account_id) {
       const account = await prisma.account.findFirst({
@@ -181,17 +180,17 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
           deleted_at: null
         }
       });
-      
+
       if (!account) {
         return errorResponse('INVALID_ACCOUNT', 'Account not found or inactive', 404);
       }
     }
-    
+
     // If updating category, verify it belongs to user and matches type
     if (data.category_id || data.type) {
       const categoryId = data.category_id ?? existingTransaction.category_id;
       const type = data.type ?? existingTransaction.type;
-      
+
       if (categoryId) {
         const category = await prisma.category.findFirst({
           where: {
@@ -200,12 +199,12 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
             is_active: true
           }
         });
-        
+
         if (!category) {
           return errorResponse('INVALID_CATEGORY', 'Category not found or inactive', 404);
         }
-        
-        if (category.type !== type) {
+
+        if (category.type !== type && category.type !== "both") {
           return errorResponse(
             'CATEGORY_TYPE_MISMATCH',
             `Category type '${category.type}' does not match transaction type '${type}'`,
@@ -214,7 +213,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         }
       }
     }
-    
+
     // Calculate the final amount based on type
     let finalAmount: number | undefined;
     if (data.amount !== undefined || data.type !== undefined) {
@@ -222,7 +221,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       const type = data.type ?? existingTransaction.type;
       finalAmount = type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
     }
-    
+
     // Build update data
     const updateData: Prisma.TransactionUpdateInput = {
       updated_at: new Date(),
@@ -238,7 +237,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       ...(data.payment_status !== undefined && { payment_status: data.payment_status || null }),
       ...(data.reference_number !== undefined && { reference_number: data.reference_number || null }),
     };
-    
+
     let updated;
     try {
       updated = await prisma.transaction.update({
@@ -273,7 +272,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       }
       throw prismaError;
     }
-    
+
     // Handle label updates if provided
     if (data.label_ids !== undefined) {
       try {
@@ -281,7 +280,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         await prisma.transactionLabel.deleteMany({
           where: { transaction_id: transactionId }
         });
-        
+
         // Add new labels
         if (data.label_ids.length > 0) {
           // Verify labels belong to user
@@ -291,11 +290,11 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
               user_id: user.user_id
             }
           });
-          
+
           if (labels.length !== data.label_ids.length) {
             return errorResponse('INVALID_LABEL', 'One or more labels not found', 404);
           }
-          
+
           await prisma.transactionLabel.createMany({
             data: data.label_ids.map(label_id => ({
               transaction_id: transactionId,
@@ -308,10 +307,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         // Continue anyway - label update failure shouldn't fail the whole update
       }
     }
-    
+
     const response = {
       id: updated.id,
-      personal_id: Number(updated.personal_id),
       date: updated.date,
       account_id: updated.account_id,
       account: updated.account,
@@ -327,9 +325,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       reference_number: updated.reference_number,
       updated_at: updated.updated_at
     };
-    
+
     return successResponse(response, { message: 'Transaction updated successfully' });
-    
+
     /* OLD CODE WITH BALANCE ADJUSTMENT - Will re-enable later
     const updated_old = await prisma.$transaction(async (tx) => {
       const skipBalanceAdjustment = true;
@@ -419,7 +417,6 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     
     const response_old = {
       id: updated_old.id,
-      personal_id: Number(updated_old.personal_id),
       date: updated_old.date,
       account_id: updated_old.account_id,
       account: updated_old.account,
@@ -438,14 +435,14 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     
     return successResponse(response_old, { message: 'Transaction updated successfully (old)' });
     */
-    
+
   } catch (error) {
     console.error('Transaction update error:', error);
-    
+
     if (error instanceof Error && error.message === 'One or more labels not found') {
       return errorResponse('INVALID_LABEL', error.message, 404);
     }
-    
+
     return errorResponse('INTERNAL_ERROR', 'Failed to update transaction', 500);
   }
 }
@@ -461,13 +458,13 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const transactionId = resolveRouteParam(request, context.params);
   if (!transactionId) {
     return errorResponse('VALIDATION_ERROR', 'Transaction ID is required in the path', 400);
   }
-  
+
   try {
     // Check if transaction exists and belongs to user
     const existingTransaction = await prisma.transaction.findFirst({
@@ -477,11 +474,11 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         deleted_at: null
       }
     });
-    
+
     if (!existingTransaction) {
       return commonErrors.notFound('Transaction');
     }
-    
+
     // Check if this is a transfer transaction (has transfer_id)
     const transferId = existingTransaction.transfer_id;
     if (transferId) {
@@ -489,7 +486,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
       await prisma.$transaction(async (tx) => {
         // Soft delete all transactions linked to this transfer
         await tx.transaction.updateMany({
-          where: { 
+          where: {
             transfer_id: transferId,
             deleted_at: null
           },
@@ -499,7 +496,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
             updated_by: user.user_id
           }
         });
-        
+
         // Soft delete the transfer record
         await tx.transfer.update({
           where: { id: transferId },
@@ -509,10 +506,10 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
           }
         });
       });
-      
+
       return successResponse(null, { message: 'Transfer deleted successfully' });
     }
-    
+
     // Regular transaction - just delete this one
     await prisma.transaction.update({
       where: { id: transactionId },
@@ -522,9 +519,9 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
         updated_by: user.user_id
       }
     });
-    
+
     return successResponse(null, { message: 'Transaction deleted successfully' });
-    
+
   } catch (error) {
     console.error('Transaction deletion error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to delete transaction', 500);

@@ -2,7 +2,6 @@ import { api } from './api';
 
 export interface Transfer {
   id: string;
-  personal_id: number;
   date: string;
   from_account: string;
   to_account: string;
@@ -16,7 +15,6 @@ export interface Transfer {
 }
 
 export interface CreateTransferRequest {
-  personal_id: number;
   date: string;
   from_account_id: string;
   to_account_id: string;

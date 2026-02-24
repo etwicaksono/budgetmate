@@ -1,6 +1,5 @@
 [
   {
-    "personal_id": 1,
     "name": "Cash",
     "account_type": "cash",
     "icon": "FaWallet",
@@ -11,7 +10,6 @@
     "is_included_in_total": true
   },
   {
-    "personal_id": 2,
     "name": "Checking Account",
     "account_type": "checking",
     "icon": "FaUniversity",
@@ -22,7 +20,6 @@
     "is_included_in_total": true
   },
   {
-    "personal_id": 3,
     "name": "Savings Account",
     "account_type": "savings",
     "icon": "FaPiggyBank",

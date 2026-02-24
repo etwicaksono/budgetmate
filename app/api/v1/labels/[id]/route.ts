@@ -19,10 +19,10 @@ export async function GET(request: NextRequest, context: RouteParams) {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const labelId = resolveRouteParam(request, context.params);
-  
+
   if (!labelId) {
     return errorResponse('VALIDATION_ERROR', 'Label ID is required in the path', 400);
   }
@@ -39,10 +39,7 @@ export async function GET(request: NextRequest, context: RouteParams) {
       return errorResponse('NOT_FOUND', 'Label not found', 404);
     }
 
-    return successResponse({
-      ...label,
-      personal_id: Number(label.personal_id),
-    });
+    return successResponse(label);
   } catch (error) {
     console.error('Error fetching label:', error);
     return errorResponse('FETCH_ERROR', 'Failed to fetch label', 500);
@@ -54,10 +51,10 @@ export async function PUT(request: NextRequest, context: RouteParams) {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const labelId = resolveRouteParam(request, context.params);
-  
+
   if (!labelId) {
     return errorResponse('VALIDATION_ERROR', 'Label ID is required in the path', 400);
   }
@@ -92,10 +89,7 @@ export async function PUT(request: NextRequest, context: RouteParams) {
       },
     });
 
-    return successResponse({
-      ...label,
-      personal_id: Number(label.personal_id),
-    });
+    return successResponse(label);
   } catch (error) {
     console.error('Error updating label:', error);
     return errorResponse('UPDATE_ERROR', 'Failed to update label', 500);
@@ -107,10 +101,10 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const labelId = resolveRouteParam(request, context.params);
-  
+
   if (!labelId) {
     return errorResponse('VALIDATION_ERROR', 'Label ID is required in the path', 400);
   }

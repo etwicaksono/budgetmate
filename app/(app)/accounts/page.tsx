@@ -209,7 +209,7 @@ const AccountsPage: React.FC = () => {
   // Filter accounts based on archived status
   const filteredAccounts = useMemo((): Account[] => {
     const relevantAccounts = showArchived ? accounts : accounts.filter((account) => account.is_active);
-    return [...relevantAccounts].sort((a, b) => a.personal_id - b.personal_id);
+    return [...relevantAccounts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }, [accounts, showArchived]);
 
   // Calculate summary statistics
@@ -252,17 +252,12 @@ const AccountsPage: React.FC = () => {
 
         const reordered = arrayMove(items, oldIndex, newIndex);
 
-        // Update personal_id for all accounts
-        reordered.forEach((account, index) => {
-          account.personal_id = index + 1;
-        });
-
         // Call API to update account order
         void (async () => {
           try {
-            const orderMap = reordered.map((account) => ({
+            const orderMap = reordered.map((account, index) => ({
               id: account.id,
-              personal_id: account.personal_id,
+              order: index + 1,
             }));
 
             await accountService.swapAccountOrder(orderMap);

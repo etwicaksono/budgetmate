@@ -116,8 +116,6 @@ export function TransactionModal({
             }),
           }
         : {
-            // Create: Include additional fields
-            personal_id: transaction?.personal_id || 0,
             type: formData.type,
             amount: parseFloat(formData.amount),
             date: formatDateForAPI(formData.date),

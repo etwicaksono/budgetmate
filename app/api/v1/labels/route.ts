@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
 
   try {
@@ -27,13 +27,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Convert BigInt personal_id to Number for JSON serialization
-    const serializedLabels = labels.map(label => ({
-      ...label,
-      personal_id: Number(label.personal_id),
-    }));
-
-    return successResponse(serializedLabels);
+    return successResponse(labels);
   } catch (error) {
     console.error('Error fetching labels:', error);
     return errorResponse('FETCH_ERROR', 'Failed to fetch labels', 500);
@@ -45,7 +39,7 @@ export async function POST(request: NextRequest) {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
 
   try {
@@ -58,29 +52,16 @@ export async function POST(request: NextRequest) {
 
     const { name, color } = validation.data;
 
-    // Get next personal_id
-    const maxLabel = await prisma.label.findFirst({
-      where: { user_id: user.user_id },
-      orderBy: { personal_id: 'desc' },
-      select: { personal_id: true },
-    });
-
-    const nextPersonalId = Number(maxLabel?.personal_id ?? 0n) + 1;
-
     const label = await prisma.label.create({
       data: {
         user_id: user.user_id,
-        personal_id: BigInt(nextPersonalId),
         name: name.trim(),
         color,
       },
     });
 
     return successResponse(
-      {
-        ...label,
-        personal_id: Number(label.personal_id),
-      },
+      label,
       undefined,
       201
     );

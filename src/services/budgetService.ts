@@ -3,7 +3,6 @@ import { USE_MOCK_DATA, mockDataService } from './mockData';
 
 export interface Budget {
   id: string;
-  personal_id: number;
   name: string;
   category_id?: string;
   category?: {
@@ -30,7 +29,6 @@ export interface BudgetStatus {
 }
 
 export interface CreateBudgetRequest {
-  personal_id: number;
   name: string;
   category_id?: string;
   amount: number;

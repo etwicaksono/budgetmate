@@ -36,46 +36,45 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const { searchParams } = new URL(request.url);
-  
+
   const is_active = searchParams.get('is_active');
   const group_id = searchParams.get('group_id');
   const include_balance = searchParams.get('include_balance') !== 'false';
-  
+
   try {
     const where: Record<string, unknown> = {
       user_id: user.user_id,
       deleted_at: null
     };
-    
+
     if (is_active !== null) {
       where['is_active'] = is_active === 'true';
     }
-    
+
     if (group_id) {
       where['group_id'] = group_id;
     }
-    
+
     const accounts = await prisma.account.findMany({
       where,
+      orderBy: { created_at: 'asc' },
       include: {
         group: {
           select: { name: true, icon: true, color: true }
         }
       },
-      orderBy: { personal_id: 'asc' }
     });
-    
+
     // Calculate current balances for all accounts (single query)
     const accountIds = accounts.map(a => a.id);
     const balances = await balanceService.calculateAccountBalances(accountIds);
-    
+
     // Transform response
     const transformedAccounts = accounts.map(account => ({
       id: account.id,
-      personal_id: Number(account.personal_id),
       name: account.name,
       account_type: account.account_type,
       icon: account.icon,
@@ -91,21 +90,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       created_at: account.created_at,
       updated_at: account.updated_at
     }));
-    
+
     // Calculate total balance if requested
     const meta: Record<string, unknown> = {
       total: transformedAccounts.length
     };
-    
+
     if (include_balance) {
       // Calculate total from calculated balances
       meta['total_balance'] = transformedAccounts
         .filter(a => a.is_included_in_total && a.is_active)
         .reduce((sum, a) => sum + a.current_balance, 0);
     }
-    
+
     return successResponse(transformedAccounts, meta);
-    
+
   } catch (error) {
     console.error('Account fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch accounts', 500);
@@ -118,13 +117,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
-  
+
   try {
     const body = await request.json();
     const validation = CreateAccountSchema.safeParse(body);
-    
+
     if (!validation.success) {
       return errorResponse(
         'VALIDATION_ERROR',
@@ -133,22 +132,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         validation.error.errors
       );
     }
-    
+
     const data = validation.data;
-    
-    // Get the next personal_id for this user
-    const maxAccount = await prisma.account.findFirst({
-      where: { user_id: user.user_id },
-      orderBy: { personal_id: 'desc' },
-      select: { personal_id: true }
-    });
-    
-    const nextPersonalId = Number(maxAccount?.personal_id ?? 0n) + 1;
-    
+
     const account = await prisma.account.create({
       data: {
         user_id: user.user_id,
-        personal_id: BigInt(nextPersonalId),
         name: data.name,
         account_type: data.account_type,
         icon: data.icon,
@@ -163,10 +152,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         is_included_in_total: data.is_included_in_total
       }
     });
-    
+
     const response = {
       id: account.id,
-      personal_id: Number(account.personal_id),
       name: account.name,
       account_type: account.account_type,
       icon: account.icon,
@@ -181,9 +169,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       created_at: account.created_at,
       updated_at: account.updated_at
     };
-    
+
     return successResponse(response, { message: 'Account created successfully' }, 201);
-    
+
   } catch (error) {
     console.error('Account creation error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to create account', 500);

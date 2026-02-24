@@ -3,7 +3,6 @@ import { USE_MOCK_DATA, mockDataService } from './mockData';
 
 export interface Account {
   id: string;
-  personal_id: number;
   name: string;
   account_type: 'checking' | 'savings' | 'credit_card' | 'cash' | 'investment' | 'loan';
   icon: string;
@@ -26,7 +25,6 @@ export interface Account {
 }
 
 export interface CreateAccountRequest {
-  personal_id: number;
   name: string;
   account_type: string;
   icon: string;
@@ -59,7 +57,7 @@ class AccountService {
     const response = await api.get<AccountsResponse>('/accounts', { params });
     return response.data;
   }
-  
+
   async fetchAccountById(id: string): Promise<Account> {
     if (USE_MOCK_DATA) {
       return mockDataService.fetchAccountById(id);
@@ -67,30 +65,30 @@ class AccountService {
     const response = await api.get<{ success: boolean; data: Account }>(`/accounts/${id}`);
     return response.data;
   }
-  
+
   async createAccount(data: CreateAccountRequest): Promise<Account> {
     const response = await api.post<{ success: boolean; data: Account }>('/accounts', data);
     return response.data;
   }
-  
+
   async updateAccount(id: string, data: Partial<CreateAccountRequest>): Promise<Account> {
     const response = await api.put<{ success: boolean; data: Account }>(`/accounts/${id}`, data);
     return response.data;
   }
-  
+
   async deleteAccount(id: string): Promise<void> {
     await api.delete(`/accounts/${id}`);
   }
-  
-  async swapAccountOrder(orderMap: Array<{ id: string; personal_id: number }>): Promise<void> {
+
+  async swapAccountOrder(orderMap: Array<{ id: string; order: number }>): Promise<void> {
     await api.put('/accounts/swap-order', { order_map: orderMap });
   }
-  
+
   async getAccountBalance(id: string): Promise<number> {
     const account = await this.fetchAccountById(id);
     return account.current_balance;
   }
-  
+
   async getNetWorth(): Promise<number> {
     const accounts = await this.fetchAccounts({ is_active: true, include_balance: true });
     return accounts

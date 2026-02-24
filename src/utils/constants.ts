@@ -123,3 +123,7 @@ export const COLORS = {
     hover: 'hover:bg-gray-50'
   }
 } as const;
+
+export const SYNC_DIRECTIONS = ['push', 'pull', 'smart'] as const;
+export const SYNC_MODES = ['merge', 'replace'] as const;
+export const SYNC_STATUSES = ['success', 'error', 'conflict'] as const;

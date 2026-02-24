@@ -2,7 +2,6 @@ import { api } from './api';
 
 export interface Category {
   id: string;
-  personal_id: number;
   name: string;
   type: 'income' | 'expense' | 'both';
   nature: 'WANT' | 'NEED' | 'MUST';
@@ -60,7 +59,7 @@ class CategoryService {
    */
   async fetchCategories(filters?: CategoryFilters): Promise<CategoryResponse> {
     const params: Record<string, string> = {};
-    
+
     if (filters?.type) params['type'] = filters.type;
     if (filters?.parent_id !== undefined) params['parent_id'] = filters.parent_id || '';
     if (filters?.is_system !== undefined) params['is_system'] = String(filters.is_system);
@@ -109,9 +108,9 @@ class CategoryService {
   }
 
   /**
-   * Reorder categories (update personal_id)
+   * Reorder categories
    */
-  async reorderCategories(categories: Array<{ id: string; personal_id: number }>): Promise<void> {
+  async reorderCategories(categories: Array<{ id: string; order: number }>): Promise<void> {
     await api.put('/categories/reorder', { categories });
   }
 }

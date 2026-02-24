@@ -23,8 +23,6 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
   console.info('Creating default data for user:', userId);
   
   try {
-    // Create default income categories
-    let categoryPersonalId = 1;
     const categoryMap = new Map<string, string>();
     
     console.info('Creating income categories...');
@@ -32,7 +30,6 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
       const created = await prisma.category.create({
         data: {
           user_id: userId,
-          personal_id: BigInt(categoryPersonalId++),
           name: category.name,
           type: 'income',
           nature: category.nature || 'WANT',
@@ -54,7 +51,6 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
       const parent = await prisma.category.create({
         data: {
           user_id: userId,
-          personal_id: BigInt(categoryPersonalId++),
           name: parentName,
           type: 'expense',
           nature: data.nature || 'WANT',
@@ -73,7 +69,6 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
           const childCategory = await prisma.category.create({
             data: {
               user_id: userId,
-              personal_id: BigInt(categoryPersonalId++),
               parent_id: parent.id,
               name: child.name,
               type: 'expense',
@@ -89,7 +84,7 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
       }
     }
     
-    console.info(`Created ${categoryPersonalId - 1} categories`);
+    console.info('Default categories created');
     
     // Create default accounts
     console.info('Creating default accounts...');
@@ -97,7 +92,6 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
       await prisma.account.create({
         data: {
           user_id: userId,
-          personal_id: BigInt(account.personal_id),
           name: account.name,
           account_type: account.account_type,
           icon: account.icon,
@@ -129,7 +123,6 @@ async function createSampleTransactions(
   
   const today = new Date();
   const transactions = [];
-  let personalId = 1;
   
   // Generate transactions for the last 30 days
   for (let daysAgo = 30; daysAgo >= 0; daysAgo--) {
@@ -186,7 +179,6 @@ async function createSampleTransactions(
       
       transactions.push({
         user_id: userId,
-        personal_id: BigInt(personalId++),
         account_id: accountId,
         category_id: categoryId,
         type: type,

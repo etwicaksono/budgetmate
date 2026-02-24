@@ -3,7 +3,6 @@ import { USE_MOCK_DATA, mockDataService } from './mockData';
 
 export interface Transaction {
   id: string;
-  personal_id: number;
   date: string;
   account_id: string;
   account?: {
@@ -46,7 +45,6 @@ export interface Transaction {
 }
 
 export interface CreateTransactionRequest {
-  personal_id: number;
   date: string;
   account_id: string;
   category_id?: string;

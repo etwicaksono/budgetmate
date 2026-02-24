@@ -4,9 +4,9 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, paginationMeta } from '@/lib/api/response';
-import { 
-  CreateTransactionSchema, 
-  TransactionFilterSchema 
+import {
+  CreateTransactionSchema,
+  TransactionFilterSchema
 } from '@/lib/validation/transaction';
 
 // GET - Fetch transactions with filtering and pagination
@@ -15,14 +15,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
   const { searchParams } = new URL(request.url);
-  
+
   // Parse and validate filter parameters
   const filterInput = Object.fromEntries(searchParams.entries());
   const filterValidation = TransactionFilterSchema.safeParse(filterInput);
-  
+
   if (!filterValidation.success) {
     return errorResponse(
       'VALIDATION_ERROR',
@@ -31,16 +31,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       filterValidation.error.errors
     );
   }
-  
+
   const filters = filterValidation.data;
-  
+
   try {
     // Build where clause
     const where: Prisma.TransactionWhereInput = {
       user_id: user.user_id,
       deleted_at: null
     };
-    
+
     // Account filter - support single ID or comma-separated IDs
     if (filters.account_id) {
       where.account_id = filters.account_id;
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where.account_id = { in: accountIds };
       }
     }
-    
+
     // Category filter - support single ID or comma-separated IDs
     if (filters.category_id) {
       where.category_id = filters.category_id;
@@ -60,11 +60,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where.category_id = { in: categoryIds };
       }
     }
-    
+
     if (filters.type) {
       where.type = filters.type;
     }
-    
+
     // Date range
     if (filters.start_date || filters.end_date) {
       where.date = {};
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where.date.lte = new Date(filters.end_date);
       }
     }
-    
+
     // Amount range
     if (filters.min_amount !== undefined || filters.max_amount !== undefined) {
       where.amount = {};
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where.amount.lte = filters.max_amount;
       }
     }
-    
+
     // Keyword search in description and payee
     // Support both 'keyword' and 'search' parameters
     const searchTerm = filters.keyword || filters.search;
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         { payee: { contains: searchTerm, mode: 'insensitive' } }
       ];
     }
-    
+
     // Label filter
     if (filters.label_ids) {
       const labelIds = filters.label_ids.split(',').filter(id => id);
@@ -116,23 +116,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where.currency = { in: currencies };
       }
     }
-    
+
     // Execute queries
     const [transactions, total] = await Promise.all([
       prisma.transaction.findMany({
         where,
         include: {
           category: {
-            select: { 
+            select: {
               id: true,
-              name: true, 
-              icon: true, 
+              name: true,
+              icon: true,
               color: true,
               type: true
             }
           },
           account: {
-            select: { 
+            select: {
               id: true,
               name: true,
               icon: true,
@@ -143,10 +143,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           labels: {
             include: {
               label: {
-                select: { 
-                  id: true, 
-                  name: true, 
-                  color: true 
+                select: {
+                  id: true,
+                  name: true,
+                  color: true
                 }
               }
             }
@@ -170,12 +170,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
       prisma.transaction.count({ where })
     ]);
-    
+
     // Transform response
     const transformedTransactions = transactions.map(tx => {
       const baseTransaction = {
         id: tx.id,
-        personal_id: Number(tx.personal_id),
         date: tx.date,
         account_id: tx.account_id,
         account: tx.account,
@@ -201,7 +200,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const isTransferIn = tx.type === 'transfer_in';
         const sourceAmount = tx.transfer.amount.toNumber();
         const destAmount = tx.transfer.to_amount?.toNumber() || tx.transfer.amount.toNumber();
-        
+
         return {
           ...baseTransaction,
           transfer_id: tx.transfer.id,
@@ -217,12 +216,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       return baseTransaction;
     });
-    
+
     return successResponse(
       transformedTransactions,
       paginationMeta(total, filters.page, filters.limit)
     );
-    
+
   } catch (error) {
     console.error('Transaction fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch transactions', 500);
@@ -235,13 +234,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if ('error' in authResult) {
     return authResult.error;
   }
-  
+
   const { user } = authResult;
-  
+
   try {
     const body = await request.json();
     const validation = CreateTransactionSchema.safeParse(body);
-    
+
     if (!validation.success) {
       return errorResponse(
         'VALIDATION_ERROR',
@@ -250,15 +249,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         validation.error.errors
       );
     }
-    
+
     const data = validation.data;
-    
+
     // CRITICAL: Amount sign convention
     // Expenses are NEGATIVE, income is POSITIVE
-    const finalAmount = data.type === 'expense' 
-      ? -Math.abs(data.amount) 
+    const finalAmount = data.type === 'expense'
+      ? -Math.abs(data.amount)
       : Math.abs(data.amount);
-    
+
     // Verify account belongs to user
     const account = await prisma.account.findFirst({
       where: {
@@ -268,11 +267,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         deleted_at: null
       }
     });
-    
+
     if (!account) {
       return errorResponse('INVALID_ACCOUNT', 'Account not found or inactive', 404);
     }
-    
+
     // Verify category belongs to user
     const category = await prisma.category.findFirst({
       where: {
@@ -281,148 +280,103 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         is_active: true
       }
     });
-    
+
     if (!category) {
       return errorResponse('INVALID_CATEGORY', 'Category not found or inactive', 404);
     }
-    
+
     // Verify category type matches transaction type
-    if (category.type !== data.type) {
+    if (category.type !== data.type && category.type !== "both") {
       return errorResponse(
         'CATEGORY_TYPE_MISMATCH',
         `Category type '${category.type}' does not match transaction type '${data.type}'`,
         400
       );
     }
-    
-    // Get next personal_id
-    const maxTransaction = await prisma.transaction.findFirst({
-      where: { user_id: user.user_id },
-      orderBy: { personal_id: 'desc' },
-      select: { personal_id: true }
-    });
-    
-    const nextPersonalId = Number(maxTransaction?.personal_id ?? 0n) + 1;
-    
-    // Create transaction with retry logic for personal_id conflicts
-    let retries = 3;
-    let currentPersonalId = nextPersonalId;
-    
-    while (retries > 0) {
-      try {
-        const transaction = await prisma.$transaction(async (tx) => {
-          // Create transaction
-          const created = await tx.transaction.create({
-            data: {
-              user_id: user.user_id,
-              personal_id: BigInt(currentPersonalId),
-              date: new Date(data.date),
-              account_id: data.account_id,
-              category_id: data.category_id,
-              amount: finalAmount,
-              type: data.type,
-              description: data.description ?? null,
-              currency: data.currency,
-              payee: data.payee ?? null,
-              payment_method: data.payment_method ?? null,
-              payment_status: data.payment_status ?? null,
-              reference_number: data.reference_number ?? null,
-              created_by: user.user_id
-            },
-            include: {
-              category: {
-                select: { name: true, icon: true, color: true }
-              },
-              account: {
-                select: { name: true, icon: true, color: true }
-              }
-            }
-          });
-          
-          // Create label associations if provided
-          if (data.label_ids && data.label_ids.length > 0) {
-            // Verify labels belong to user
-            const labels = await tx.label.findMany({
-              where: {
-                id: { in: data.label_ids },
-                user_id: user.user_id
-              }
-            });
-            
-            if (labels.length !== data.label_ids.length) {
-              throw new Error('One or more labels not found');
-            }
-            
-            await tx.transactionLabel.createMany({
-              data: data.label_ids.map(label_id => ({
-                transaction_id: created.id,
-                label_id
-              }))
-            });
-          }
-          
-          // ✅ Balance is now calculated on-demand, no need to update
-          
-          return created;
-        });
-        
-        // Transform response
-        const response = {
-          id: transaction.id,
-          personal_id: Number(transaction.personal_id),
-          date: transaction.date,
-          account_id: transaction.account_id,
-          account: 'account' in transaction ? transaction.account : undefined,
-          category_id: transaction.category_id,
-          category: 'category' in transaction ? transaction.category : undefined,
-          amount: transaction.amount.toNumber(),
-          type: transaction.type,
-          description: transaction.description,
-          currency: transaction.currency,
-          payee: transaction.payee,
-          payment_method: transaction.payment_method,
-          payment_status: transaction.payment_status,
-          reference_number: transaction.reference_number,
-          created_at: transaction.created_at
-        };
-        
-        return successResponse(response, { message: 'Transaction created successfully' }, 201);
-        
-      } catch (error: unknown) {
-        // Check if it's a unique constraint violation on personal_id
-        if (error && typeof error === 'object' && 'code' in error) {
-          const prismaError = error as { code: string; meta?: { target?: string[] } };
-          if (prismaError.code === 'P2002' && prismaError.meta?.target?.includes('personal_id')) {
-            // Fetch new max personal_id and retry
-            const newMax = await prisma.transaction.findFirst({
-              where: { user_id: user.user_id },
-              orderBy: { personal_id: 'desc' },
-              select: { personal_id: true }
-            });
-            
-            currentPersonalId = Number(newMax?.personal_id ?? 0n) + 1;
-            retries--;
-            continue;
+
+    const transaction = await prisma.$transaction(async (tx) => {
+      // Create transaction
+      const created = await tx.transaction.create({
+        data: {
+          user_id: user.user_id,
+          date: new Date(data.date),
+          account_id: data.account_id,
+          category_id: data.category_id,
+          amount: finalAmount,
+          type: data.type,
+          description: data.description ?? null,
+          currency: account.currency,
+          payee: data.payee ?? null,
+          payment_method: data.payment_method ?? null,
+          payment_status: data.payment_status ?? null,
+          reference_number: data.reference_number ?? null,
+          created_by: user.user_id
+        },
+        include: {
+          category: {
+            select: { name: true, icon: true, color: true }
+          },
+          account: {
+            select: { name: true, icon: true, color: true }
           }
         }
-        
-        throw error;
+      });
+
+      // Create label associations if provided
+      if (data.label_ids && data.label_ids.length > 0) {
+        // Verify labels belong to user
+        const labels = await tx.label.findMany({
+          where: {
+            id: { in: data.label_ids },
+            user_id: user.user_id
+          }
+        });
+
+        if (labels.length !== data.label_ids.length) {
+          throw new Error('One or more labels not found');
+        }
+
+        await tx.transactionLabel.createMany({
+          data: data.label_ids.map(label_id => ({
+            transaction_id: created.id,
+            label_id
+          }))
+        });
       }
-    }
-    
-    return errorResponse(
-      'PERSONAL_ID_CONFLICT',
-      'Unable to create transaction after multiple attempts',
-      409
-    );
-    
+
+      // ✅ Balance is now calculated on-demand, no need to update
+
+      return created;
+    });
+
+    // Transform response
+    const response = {
+      id: transaction.id,
+      date: transaction.date,
+      account_id: transaction.account_id,
+      account: 'account' in transaction ? transaction.account : undefined,
+      category_id: transaction.category_id,
+      category: 'category' in transaction ? transaction.category : undefined,
+      amount: transaction.amount.toNumber(),
+      type: transaction.type,
+      description: transaction.description,
+      currency: transaction.currency,
+      payee: transaction.payee,
+      payment_method: transaction.payment_method,
+      payment_status: transaction.payment_status,
+      reference_number: transaction.reference_number,
+      created_at: transaction.created_at
+    };
+
+    return successResponse(response, { message: 'Transaction created successfully' }, 201);
+
   } catch (error) {
     console.error('Transaction creation error:', error);
-    
+
     if (error instanceof Error && error.message === 'One or more labels not found') {
       return errorResponse('INVALID_LABEL', error.message, 404);
     }
-    
+
     return errorResponse('INTERNAL_ERROR', 'Failed to create transaction', 500);
   }
 }

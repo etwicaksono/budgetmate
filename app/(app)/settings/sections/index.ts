@@ -6,3 +6,5 @@ export { GeneralSection } from './GeneralSection';
 export { BillingSection } from './BillingSection';
 export { PrivacySection } from './PrivacySection';
 export { HelpSection } from './HelpSection';
+export { GoogleSheetsSection } from './GoogleSheetsSection';
+export { BackupSection } from './BackupSection';
