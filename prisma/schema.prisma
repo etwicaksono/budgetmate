@@ -48,6 +48,7 @@ model User {
   accounts     Account[]
   categories   Category[]
   transactions Transaction[]
+  debts        Debt[]
   transfers    Transfer[]
   labels       Label[]
   groups       AccountGroup[]
@@ -97,6 +98,7 @@ model Account {
   color                String    @db.VarChar(7)
   is_active            Boolean   @default(true)
   is_included_in_total Boolean   @default(true)
+  order                Int       @default(0)
   position             Json?
   created_at           DateTime  @default(now()) @db.Timestamptz
   updated_at           DateTime  @updatedAt @db.Timestamptz
@@ -110,6 +112,7 @@ model Account {
   transactions   Transaction[]
   transfers_from Transfer[]             @relation("FromAccount")
   transfers_to   Transfer[]             @relation("ToAccount")
+  debts          Debt[]
   goals          Goal[]
   recurring      RecurringTransaction[]
 
@@ -167,6 +170,7 @@ model Transaction {
   is_recurring     Boolean   @default(false)
   recurring_id     String?
   transfer_id      String?
+  debt_id          String?
   position         Json?
   created_at       DateTime  @default(now()) @db.Timestamptz
   updated_at       DateTime  @updatedAt @db.Timestamptz
@@ -180,6 +184,7 @@ model Transaction {
   category    Category?             @relation(fields: [category_id], references: [id], onDelete: SetNull)
   recurring   RecurringTransaction? @relation(fields: [recurring_id], references: [id], onDelete: SetNull)
   transfer    Transfer?             @relation(fields: [transfer_id], references: [id], onDelete: SetNull)
+  debt        Debt?                 @relation(fields: [debt_id], references: [id], onDelete: SetNull)
   labels      TransactionLabel[]
   attachments Attachment[]
 
@@ -187,6 +192,7 @@ model Transaction {
   @@index([account_id])
   @@index([category_id])
   @@index([transfer_id])
+  @@index([debt_id])
 }
 
 // ==================== TRANSFER MODEL ====================
@@ -413,4 +419,36 @@ model SyncHistory {
 
   @@index([user_id])
   @@index([synced_at])
+}
+
+// ==================== DEBT MODEL ====================
+model Debt {
+  id              String    @id @default(cuid())
+  user_id         String
+  date            DateTime  @db.Timestamptz
+  type            String    @db.VarChar(20)    // "lend" or "borrow"
+  account_id      String
+  counterparty    String    @db.VarChar(255)   // Person/entity name
+  // NOTE: No amount field - amount is stored in the linked Transaction record
+  description     String?   @db.Text
+  status          String    @default("active") @db.VarChar(20) // "active", "settled", "cancelled"
+  parent_debt_id  String?                       // For repayments: links to original debt
+  position        Json?
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @updatedAt @db.Timestamptz
+  created_by      String?   @db.VarChar(64)
+  updated_by      String?   @db.VarChar(64)
+
+  // Relations
+  user          User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account_rel   Account       @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+  parent_debt   Debt?         @relation("DebtRepayments", fields: [parent_debt_id], references: [id], onDelete: SetNull)
+  repayments    Debt[]        @relation("DebtRepayments")
+
+  @@index([user_id])
+  @@index([account_id])
+  @@index([parent_debt_id])
+  @@index([counterparty])
+  @@index([status])
 }

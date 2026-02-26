@@ -6,41 +6,42 @@ export const APP_CONFIG = {
     quickTransactions: 'finance-app-quick-transactions',
     preferences: 'finance-app-preferences'
   },
-  
+
   api: {
     baseUrl: process.env['NEXT_PUBLIC_API_URL'] || '/api/v1',
     timeout: 30000,
     retryAttempts: 3
   },
-  
+
   ui: {
     toastDuration: 3000,
     modalAnimationDuration: 200,
     debounceDelay: 300,
     infiniteScrollThreshold: 100
   },
-  
+
   pagination: {
     defaultLimit: 20,
     maxLimit: 100,
     transactionsPerPage: 20,
     accountsPerPage: 20,
     categoriesPerPage: 50,
-    transfersPerPage: 20
+    transfersPerPage: 20,
+    debtsPerPage: 20
   },
-  
+
   validation: {
     maxDescriptionLength: 500,
     maxAmountDigits: 15,
     minPasswordLength: 8,
     maxPasswordLength: 128
   },
-  
+
   currency: {
     default: 'USD',
     decimals: 2
   },
-  
+
   dateFormat: {
     default: 'YYYY-MM-DD',
     display: 'MMM DD, YYYY',
@@ -51,7 +52,9 @@ export const APP_CONFIG = {
 export const TRANSACTION_TYPES = {
   INCOME: 'income',
   EXPENSE: 'expense',
-  TRANSFER: 'transfer'
+  TRANSFER: 'transfer',
+  DEBT_IN: 'debt_in',
+  DEBT_OUT: 'debt_out',
 } as const;
 
 export const ACCOUNT_TYPES = {
@@ -61,6 +64,16 @@ export const ACCOUNT_TYPES = {
   CASH: 'cash',
   INVESTMENT: 'investment',
   LOAN: 'loan'
+} as const;
+
+export const DEBT_TYPES = {
+  LEND: 'lend',
+  BORROW: 'borrow'
+} as const;
+
+export const DEBT_STATUSES = {
+  ACTIVE: 'active',
+  SETTLED: 'settled',
 } as const;
 
 export const CATEGORY_NATURES = {
@@ -121,6 +134,13 @@ export const COLORS = {
     bgLight: 'bg-gray-50',
     border: 'border-gray-300',
     hover: 'hover:bg-gray-50'
+  },
+  debt: {
+    text: 'text-purple-600',
+    bg: 'bg-purple-600',
+    bgLight: 'bg-purple-50',
+    border: 'border-purple-600',
+    hover: 'hover:bg-purple-700'
   }
 } as const;
 

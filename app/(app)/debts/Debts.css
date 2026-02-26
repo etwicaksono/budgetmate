@@ -1,0 +1,93 @@
+.debt-item {
+  padding: 1rem;
+  border-bottom: 1px solid #e9ecef;
+  transition: background-color 0.2s ease;
+}
+
+.debt-item:hover {
+  background-color: #f8f9fa;
+}
+
+.debt-item:last-child {
+  border-bottom: none;
+}
+
+.debt-summary-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.debt-progress {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.repayment-timeline-item {
+  position: relative;
+  padding-left: 24px;
+  padding-bottom: 16px;
+  border-left: 2px solid #dee2e6;
+  margin-left: 8px;
+}
+
+.repayment-timeline-item:last-child {
+  border-left-color: transparent;
+}
+
+.repayment-timeline-dot {
+  position: absolute;
+  left: -7px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #198754;
+  background-color: white;
+}
+
+.repayment-timeline-dot.borrow {
+  border-color: #dc3545;
+}
+
+.debt-item-inactive {
+  opacity: 0.65;
+}
+
+.debt-detail-label {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-bottom: 2px;
+}
+
+.debt-detail-value {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* Accordion overrides to match design system */
+.accordion-button:not(.collapsed) {
+  background-color: #f8fafc;
+  color: #0f172a;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.125);
+}
+
+.accordion-button:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 0.25rem rgba(5, 150, 105, 0.25);
+}
+
+/* Refined shadow for summary cards */
+.debt-summary-card {
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.debt-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.08) !important;
+}

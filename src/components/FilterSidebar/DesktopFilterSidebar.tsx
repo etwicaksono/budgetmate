@@ -3,7 +3,6 @@ import type { ComponentType } from 'react';
 import { Card, Button, Form, InputGroup, Dropdown } from 'react-bootstrap';
 import {
   FaSearch,
-  FaTimes,
   FaTags,
   FaWallet,
   FaPlus,
@@ -22,6 +21,7 @@ import { AccountDropdown } from './AccountDropdown';
 import { LabelMultiSelect } from '../transaction/LabelMultiSelect';
 import type { Label } from '@/services/labelService';
 import type { SortValue, FilterVisibility } from '@/hooks/useFilterData';
+import { ClearButton } from '@/components/common/ClearButton';
 import './FilterSidebar.css';
 
 type IconRenderable = IconType | ComponentType<IconBaseProps>;
@@ -278,9 +278,18 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
   };
 
   return (
-    <Card>
-      <Card.Header className="d-flex align-items-center justify-content-between">
-        <span className="h3 mb-0">{title}</span>
+    <Card 
+      className="desktop-filter-sidebar shadow-sm border-0"
+      style={{
+        position: 'sticky',
+        top: '85px', // Below the 65px header + 20px padding margin
+        maxHeight: 'calc(100vh - 105px)', // Prevent overflowing viewport
+        display: 'flex',
+        flexDirection: 'column'
+      }}
+    >
+      <Card.Header className="d-flex align-items-center justify-content-between bg-white border-bottom">
+        <span className="h4 mb-0 fw-bold">{title}</span>
         <div className="d-flex gap-2">
           <Dropdown
             show={showFilterPanel}
@@ -291,8 +300,8 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
             <Dropdown.Toggle
               as="button"
               style={{
-                width: '40px',
-                height: '40px',
+                width: '36px',
+                height: '36px',
                 borderRadius: '8px',
                 backgroundColor: 'transparent',
                 border: 'none',
@@ -311,7 +320,7 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
               aria-label="Configure filters"
               title="Configure filters"
             >
-              {renderIcon(RiListSettingsLine, { size: 24, color: '#6b7280' })}
+              {renderIcon(RiListSettingsLine, { size: 20, color: '#6b7280' })}
             </Dropdown.Toggle>
 
             <Dropdown.Menu
@@ -432,8 +441,8 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
               onClick={onShowTransactionModal}
               aria-label="Add transaction"
               style={{
-                width: '40px',
-                height: '40px',
+                width: '36px',
+                height: '36px',
                 borderRadius: '8px',
                 backgroundColor: 'transparent',
                 border: 'none',
@@ -450,22 +459,23 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
                 event.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              {renderIcon(FaPlus, { size: 18 })}
+              {renderIcon(FaPlus, { size: 16 })}
             </Button>
           )}
         </div>
       </Card.Header>
-      <Card.Body>
+
+      <Card.Body className="overflow-auto pb-2" style={{ flex: '1 1 auto' }}>
         <Form>
           {filterVisibility.search && (
-            <Form.Group className="mb-3" controlId="searchTerm">
-              <Form.Label>Search</Form.Label>
+            <Form.Group className="mb-4" controlId="searchTerm">
+              <Form.Label className="fw-semibold text-muted small">Search</Form.Label>
               <InputGroup>
                 <InputGroup.Text 
-                  className="search-input-icon"
-                  style={{ backgroundColor: '#fff', borderRight: 'none' }}
+                  className="search-input-icon bg-white"
+                  style={{ borderRight: 'none' }}
                 >
-                  {renderIcon(FaSearch, { size: 14 })}
+                  {renderIcon(FaSearch, { size: 14, color: '#adb5bd' })}
                 </InputGroup.Text>
                 <Form.Control
                   type="text"
@@ -476,25 +486,22 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
                   }}
                   autoComplete="off"
                   style={{ borderLeft: 'none' }}
+                  className="shadow-none border-start-0 ps-0 pe-5"
                 />
                 {searchTerm && (
-                  <Button
-                    variant="light"
-                    className="clear-search-btn"
-                    onClick={() => {
-                      onSearchTermChange('');
-                    }}
-                  >
-                    {renderIcon(FaTimes)}
-                  </Button>
+                  <ClearButton
+                    className="position-absolute end-0 top-50 translate-middle-y me-2"
+                    style={{ zIndex: 5 }}
+                    onClick={() => onSearchTermChange('')}
+                  />
                 )}
               </InputGroup>
             </Form.Group>
           )}
 
           {filterVisibility.sortBy && (
-            <Form.Group className="mb-3" controlId="sortOption">
-              <Form.Label>Sort by</Form.Label>
+            <Form.Group className="mb-4" controlId="sortOption">
+              <Form.Label className="fw-semibold text-muted small">Sort by</Form.Label>
               <SortDropdownComponent
                 id="sortOption"
                 value={sortOption}
@@ -504,8 +511,8 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
           )}
 
           {filterVisibility.categories && (
-            <Form.Group className="mb-3" controlId="categoryFilter">
-              <Form.Label>Category</Form.Label>
+            <Form.Group className="mb-4" controlId="categoryFilter">
+              <Form.Label className="fw-semibold text-muted small">Categories</Form.Label>
               <CategoryDropdown
                 selectedCategories={selectedCategories}
                 setSelectedCategories={onSelectedCategoriesChange}
@@ -517,15 +524,14 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
                 entityLabelSingular="category"
                 entityLabelPlural="categories"
                 searchPlaceholder="Search categories"
-                clearSelectedLabel="Clear"
                 isSingleSelect={false}
               />
             </Form.Group>
           )}
 
           {filterVisibility.accounts && (
-            <Form.Group className="mb-3" controlId="accountFilter">
-              <Form.Label>Account</Form.Label>
+            <Form.Group className="mb-4" controlId="accountFilter">
+              <Form.Label className="fw-semibold text-muted small">Accounts</Form.Label>
               <AccountDropdown
                 selectedAccounts={selectedAccounts}
                 setSelectedAccounts={onSelectedAccountsChange}
@@ -536,15 +542,14 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
                 entityLabelSingular="account"
                 entityLabelPlural="accounts"
                 searchPlaceholder="Search account"
-                clearSelectedLabel="Clear accounts"
                 isSingleSelect={false}
               />
             </Form.Group>
           )}
 
           {filterVisibility.labels && (
-            <Form.Group className="mb-3" controlId="labelFilter">
-              <Form.Label>Labels</Form.Label>
+            <Form.Group className="mb-4" controlId="labelFilter">
+              <Form.Label className="fw-semibold text-muted small">Labels</Form.Label>
               <LabelMultiSelect
                 labels={labels}
                 selectedLabelIds={selectedLabelIds}
@@ -555,8 +560,8 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
           )}
 
           {filterVisibility.currencies && availableCurrencies.length > 0 && (
-            <Form.Group className="mb-3" controlId="currencyFilter">
-              <Form.Label>Currency</Form.Label>
+            <Form.Group className="mb-4" controlId="currencyFilter">
+              <Form.Label className="fw-semibold text-muted small">Currencies</Form.Label>
               <Dropdown>
                 <Dropdown.Toggle
                   variant="outline-secondary"
@@ -565,43 +570,62 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
                 >
                   <span className="d-flex align-items-center gap-2">
                     {renderIcon(FaMoneyBillWave, { size: 14 })}
-                    <span>
+                    <span className="d-inline-flex align-items-center gap-1">
                       {selectedCurrencies.length === 0
                         ? 'All currencies'
                         : selectedCurrencies.length === 1
                           ? selectedCurrencies[0]
                           : `${selectedCurrencies.length} currencies`}
+                      {selectedCurrencies.length > 0 && (
+                        <ClearButton
+                          size={12}
+                          ariaLabel="Clear currencies"
+                          onClick={() => onSelectedCurrenciesChange([])}
+                        />
+                      )}
                     </span>
                   </span>
                 </Dropdown.Toggle>
                 <Dropdown.Menu className="w-100 p-2">
-                  {availableCurrencies.map((currency) => (
-                    <Form.Check
-                      key={currency}
-                      type="checkbox"
-                      id={`currency-${currency}`}
-                      label={currency}
-                      checked={selectedCurrencies.includes(currency)}
-                      onChange={() => {
-                        if (selectedCurrencies.includes(currency)) {
-                          onSelectedCurrenciesChange(selectedCurrencies.filter((c) => c !== currency));
-                        } else {
-                          onSelectedCurrenciesChange([...selectedCurrencies, currency]);
-                        }
-                      }}
-                      className="mb-1"
-                    />
-                  ))}
+                  {availableCurrencies.map((currency) => {
+                    const isChecked = selectedCurrencies.includes(currency);
+                    const toggle = () => {
+                      if (isChecked) {
+                        onSelectedCurrenciesChange(selectedCurrencies.filter((c) => c !== currency));
+                      } else {
+                        onSelectedCurrenciesChange([...selectedCurrencies, currency]);
+                      }
+                    };
+                    return (
+                      <div
+                        key={currency}
+                        className="d-flex align-items-center gap-2 px-2 py-1 rounded mb-1"
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                        onClick={toggle}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          readOnly
+                          className="form-check-input m-0 flex-shrink-0"
+                          style={{ pointerEvents: 'none' }}
+                        />
+                        <span className="form-check-label mb-0">
+                          {currency}
+                        </span>
+                      </div>
+                    );
+                  })}
                   {selectedCurrencies.length > 0 && (
                     <>
                       <Dropdown.Divider />
                       <Button
                         variant="link"
                         size="sm"
-                        className="p-0 text-secondary"
+                        className="p-0 text-secondary text-decoration-none ms-4"
                         onClick={() => onSelectedCurrenciesChange([])}
                       >
-                        Clear
+                        Clear selection
                       </Button>
                     </>
                   )}
@@ -611,25 +635,33 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
           )}
 
           {filterVisibility.amountRange && (
-            <AmountRangeFilter
-              minAmount={minAmount}
-              maxAmount={maxAmount}
-              onMinAmountChange={onMinAmountChange}
-              onMaxAmountChange={onMaxAmountChange}
-              currency="IDR"
-              minLimit={0}
-              maxLimit={20000000}
-              step={100000}
-              controlId="amountFilter"
-            />
+            <Form.Group className="mb-2" controlId="amountFilter">
+              <Form.Label className="fw-semibold text-muted small">Amount Range</Form.Label>
+              <AmountRangeFilter
+                minAmount={minAmount}
+                maxAmount={maxAmount}
+                onMinAmountChange={onMinAmountChange}
+                onMaxAmountChange={onMaxAmountChange}
+                currency="IDR"
+                minLimit={0}
+                maxLimit={20000000}
+                step={100000}
+                controlId="amountFilterInner"
+              />
+            </Form.Group>
           )}
         </Form>
-        <div className="d-grid mt-3">
-          <Button variant="outline-secondary" onClick={handleResetFilters}>
-            Reset filters
-          </Button>
-        </div>
       </Card.Body>
+      
+      <Card.Footer className="bg-white border-top p-3 mt-auto">
+        <Button 
+          variant="outline-secondary" 
+          onClick={handleResetFilters}
+          className="w-100 fw-medium"
+        >
+          Reset all filters
+        </Button>
+      </Card.Footer>
     </Card>
   );
 };

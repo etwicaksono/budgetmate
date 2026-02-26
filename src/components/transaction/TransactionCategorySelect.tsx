@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import type { Category } from '@/services/categoryService';
 import { getIconComponent } from '@/utils/iconUtils';
+import { ClearButton } from '@/components/common/ClearButton';
 
 interface TransactionCategorySelectProps {
   selectedCategoryId: string | null;
@@ -90,8 +91,7 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
   };
 
   // Handle clear button
-  const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleClear = () => {
     onSelect(null);
   };
 
@@ -151,23 +151,22 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
                   {getCategoryIcon(selectedCategory)}
                 </span>
               )}
-              <span>{selectedCategory.name}</span>
+              <span className="d-inline-flex align-items-center gap-1">
+                {selectedCategory.name}
+                {!disabled && (
+                  <ClearButton
+                    size={12}
+                    ariaLabel="Clear category"
+                    onClick={handleClear}
+                  />
+                )}
+              </span>
             </>
           ) : (
             <span className="text-muted">{placeholder}</span>
           )}
         </div>
         <div className="d-flex align-items-center gap-2">
-          {selectedCategory && !disabled && (
-            <button
-              type="button"
-              className="btn btn-link btn-sm p-0 text-secondary"
-              onClick={handleClear}
-              style={{ textDecoration: 'none' }}
-            >
-              ×
-            </button>
-          )}
           <span className="text-muted">▼</span>
         </div>
       </div>

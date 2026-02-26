@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import type { Account } from '@/services/accountService';
 import { getIconComponent } from '@/utils/iconUtils';
+import { ClearButton } from '@/components/common/ClearButton';
 
 interface AccountSelectProps {
   selectedAccountId: string | null;
@@ -55,8 +56,7 @@ export const AccountSelect: React.FC<AccountSelectProps> = ({
   };
 
   // Handle clear button
-  const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleClear = () => {
     onSelect(null);
   };
 
@@ -116,23 +116,22 @@ export const AccountSelect: React.FC<AccountSelectProps> = ({
                   {getAccountIcon(selectedAccount)}
                 </span>
               )}
-              <span>{selectedAccount.name}</span>
+              <span className="d-inline-flex align-items-center gap-1">
+                {selectedAccount.name}
+                {!disabled && (
+                  <ClearButton
+                    size={12}
+                    ariaLabel="Clear account"
+                    onClick={handleClear}
+                  />
+                )}
+              </span>
             </>
           ) : (
             <span className="text-muted">{placeholder}</span>
           )}
         </div>
         <div className="d-flex align-items-center gap-2">
-          {selectedAccount && !disabled && (
-            <button
-              type="button"
-              className="btn btn-link btn-sm p-0 text-secondary"
-              onClick={handleClear}
-              style={{ textDecoration: 'none' }}
-            >
-              ×
-            </button>
-          )}
           <span className="text-muted">▼</span>
         </div>
       </div>

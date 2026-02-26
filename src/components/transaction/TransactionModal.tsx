@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { Modal, Form, Button, Row, Col } from 'react-bootstrap';
 import { FaArrowRight } from 'react-icons/fa';
 import { AccountSelect } from './AccountSelect';
@@ -10,6 +10,8 @@ import { AmountInput } from './AmountInput';
 import { LabelMultiSelect } from './LabelMultiSelect';
 import { useTransactionForm } from '@/hooks/useTransactionForm';
 import { useTransactionData } from '@/hooks/useTransactionData';
+import { getCurrencyPrefix } from '@/utils/formatters';
+import { ClearButton } from '@/components/common/ClearButton';
 import type { Transaction } from '@/services/transactionService';
 
 export interface TransactionModalProps {
@@ -32,6 +34,7 @@ export function TransactionModal({
 }: TransactionModalProps): React.JSX.Element {
   const { formData, errors, updateField, validateForm, resetForm, initializeFromTransaction } =
     useTransactionForm();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
     categories,
@@ -139,14 +142,15 @@ export function TransactionModal({
 
       try {
         await onSave(transactionData);
-
+        setSubmitError(null);
         if (createAnother) {
           resetForm();
         } else {
           onHide();
         }
-      } catch (error) {
-        console.error('Failed to save transaction:', error);
+      } catch (err: any) {
+        const apiError = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+        setSubmitError(apiError || 'Failed to save transaction');
       }
     },
     [formData, transaction, validateForm, onSave, onHide, resetForm, isEditMode, accounts]
@@ -224,6 +228,7 @@ export function TransactionModal({
       </Modal.Header>
 
       <Modal.Body>
+        {submitError && <div className="alert alert-danger py-2">{submitError}</div>}
         <Form>
           {/* Transaction Type - Full Width */}
           <Form.Group className="mb-3">
@@ -292,6 +297,7 @@ export function TransactionModal({
                       onChange={handleTransferAmountChange}
                       type="expense"
                       isInvalid={!!errors['amount']}
+                      prefix={getCurrencyPrefix(selectedAccount?.currency)}
                     />
                   </Col>
                   <Col xs={12} md={2} className="d-flex justify-content-center align-items-end" style={{ paddingBottom: errors['amount'] ? '1.5rem' : '0.375rem' }}>
@@ -317,6 +323,7 @@ export function TransactionModal({
                       type="income"
                       placeholder={isMultiCurrencyTransfer ? 'Enter amount' : 'Same as sent'}
                       disabled={!isMultiCurrencyTransfer}
+                      prefix={getCurrencyPrefix(selectedToAccount?.currency)}
                     />
                   </Col>
                 </Row>
@@ -356,6 +363,7 @@ export function TransactionModal({
                       onChange={(value) => updateField('amount', value)}
                       type={formData.type === 'income' ? 'income' : 'expense'}
                       isInvalid={!!errors['amount']}
+                      prefix={getCurrencyPrefix(selectedAccount?.currency)}
                     />
                     {errors['amount'] && (
                       <Form.Control.Feedback type="invalid" style={{ display: 'block' }}>
@@ -439,13 +447,23 @@ export function TransactionModal({
               {/* Description */}
               <Form.Group className="mb-3">
                 <Form.Label>Description</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) => updateField('description', e.target.value)}
-                  placeholder="Add a note..."
-                />
+                <div className="position-relative">
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    value={formData.description}
+                    onChange={(e) => updateField('description', e.target.value)}
+                    placeholder="Add a note..."
+                    className={formData.description ? 'pe-5' : ''}
+                  />
+                  {formData.description && (
+                    <ClearButton
+                      className="position-absolute end-0 me-1"
+                      style={{ top: '0.5rem', zIndex: 5 }}
+                      onClick={() => updateField('description', '')}
+                    />
+                  )}
+                </div>
               </Form.Group>
 
               {/* Labels */}
@@ -466,12 +484,22 @@ export function TransactionModal({
               {/* Payee */}
               <Form.Group className="mb-3">
                 <Form.Label>Payee</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={formData.payee}
-                  onChange={(e) => updateField('payee', e.target.value)}
-                  placeholder="Who was paid?"
-                />
+                <div className="position-relative">
+                  <Form.Control
+                    type="text"
+                    value={formData.payee}
+                    onChange={(e) => updateField('payee', e.target.value)}
+                    placeholder="Who was paid?"
+                    className={formData.payee ? 'pe-5' : ''}
+                  />
+                  {formData.payee && (
+                    <ClearButton
+                      className="position-absolute end-0 top-50 translate-middle-y me-1"
+                      style={{ zIndex: 5 }}
+                      onClick={() => updateField('payee', '')}
+                    />
+                  )}
+                </div>
               </Form.Group>
 
               {/* Payment Method */}

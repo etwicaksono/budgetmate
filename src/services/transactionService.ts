@@ -82,9 +82,14 @@ export interface TransactionsResponse {
   data: Transaction[];
   meta: {
     page: number;
-    per_page: number;
+    per_page?: number;
+    limit?: number;
     total: number;
-    total_pages: number;
+    total_pages?: number;
+    totalPages?: number;
+    hasNext?: boolean;
+    hasPrev?: boolean;
+    totals_by_currency?: Record<string, number>;
   };
 }
 
@@ -118,26 +123,26 @@ class TransactionService {
         }
       };
     }
-    
+
     const params = filters ? {
       ...filters,
       // label_ids is already a comma-separated string from the caller
     } : undefined;
-    
+
     const response = await api.get<TransactionsResponse>('/transactions', { params });
     return {
       transactions: response.data,
       meta: response.meta
     };
   }
-  
+
   async fetchTransactionById(id: string): Promise<Transaction> {
     const response = await api.get<{ success: boolean; data: Transaction }>(
       `/transactions/${id}`
     );
     return response.data;
   }
-  
+
   async createTransaction(data: CreateTransactionRequest): Promise<Transaction> {
     const response = await api.post<{ success: boolean; data: Transaction }>(
       '/transactions',
@@ -145,7 +150,7 @@ class TransactionService {
     );
     return response.data;
   }
-  
+
   async updateTransaction(id: string, data: Partial<CreateTransactionRequest>): Promise<Transaction> {
     const response = await api.put<{ success: boolean; data: Transaction }>(
       `/transactions/${id}`,
@@ -153,11 +158,11 @@ class TransactionService {
     );
     return response.data;
   }
-  
+
   async deleteTransaction(id: string): Promise<void> {
     await api.delete(`/transactions/${id}`);
   }
-  
+
   async fetchTransactionSummary(filters?: {
     start_date?: string;
     end_date?: string;
@@ -169,7 +174,7 @@ class TransactionService {
     );
     return response.data;
   }
-  
+
   async bulkCreateTransactions(transactions: CreateTransactionRequest[]): Promise<Transaction[]> {
     const response = await api.post<{ success: boolean; data: Transaction[] }>(
       '/transactions/bulk',
@@ -177,7 +182,7 @@ class TransactionService {
     );
     return response.data;
   }
-  
+
   async importTransactions(file: File, accountId: string, format: 'csv' | 'ofx' | 'qif'): Promise<{
     imported: number;
     failed: number;
@@ -187,14 +192,14 @@ class TransactionService {
     formData.append('file', file);
     formData.append('account_id', accountId);
     formData.append('format', format);
-    
-    const response = await api.post<{ 
-      success: boolean; 
-      data: { imported: number; failed: number; errors?: string[]; } 
+
+    const response = await api.post<{
+      success: boolean;
+      data: { imported: number; failed: number; errors?: string[]; }
     }>('/transactions/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    
+
     return response.data;
   }
 }

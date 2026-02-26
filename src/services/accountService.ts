@@ -14,6 +14,7 @@ export interface Account {
   interest_rate?: number;
   is_active: boolean;
   is_included_in_total: boolean;
+  order?: number;
   group_id?: string;
   group?: {
     name: string;

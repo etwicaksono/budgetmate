@@ -7,8 +7,8 @@ import React, {
   type ChangeEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import { Button, Form } from 'react-bootstrap';
-import { FaCaretDown, FaCaretRight, FaTimesCircle } from 'react-icons/fa';
+import { Form } from 'react-bootstrap';
+import { FaCaretDown, FaCaretRight } from 'react-icons/fa';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 import {
@@ -19,6 +19,7 @@ import {
   autoUpdate,
 } from '@floating-ui/react';
 import { CategoryDropdownItem } from './CategoryDropdownItem';
+import { ClearButton } from '@/components/common/ClearButton';
 
 type CategoryTree = Record<string, string[] | undefined>;
 type CategoryColorMap = Record<string, string>;
@@ -54,7 +55,6 @@ const coerceIconComponent = (icon: IconComponent | IconType | undefined | null):
 
 const CaretDownIcon = coerceIconComponent(FaCaretDown);
 const CaretRightIcon = coerceIconComponent(FaCaretRight);
-const TimesCircleIcon = coerceIconComponent(FaTimesCircle);
 
 const findParentForCategory = (category: string, categoryTree: CategoryTree): string | null => {
   for (const [parent, children] of Object.entries(categoryTree)) {
@@ -75,7 +75,6 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
   entityLabelSingular: _entityLabelSingular = 'category',
   entityLabelPlural,
   searchPlaceholder,
-  clearSelectedLabel,
   isSingleSelect = false,
   leadingIcon = null,
 }) => {
@@ -318,25 +317,18 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
         <div className="d-flex flex-wrap align-items-center flex-grow-1 gap-1">
           {selectedCategories.length === 0 && <span className="text-muted small">{placeholderText}</span>}
           {selectedCategories.length > 0 && (
-            <span className="small text-muted">
+            <span className="d-inline-flex align-items-center gap-1 small text-muted">
               {selectedCount} selected
+              {!isSingleSelect && (
+                <ClearButton
+                  size={12}
+                  ariaLabel="Clear selection"
+                  onClick={clearSelectedCategories}
+                />
+              )}
             </span>
           )}
         </div>
-        {selectedCategories.length > 0 && !isSingleSelect && (
-          <Button
-            variant="link"
-            size="sm"
-            className="text-decoration-none px-1 py-0 me-4 small"
-            onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
-              event.preventDefault();
-              event.stopPropagation();
-              clearSelectedCategories();
-            }}
-          >
-            {clearSelectedLabel}
-          </Button>
-        )}
         <span
           className="position-absolute"
           style={{ right: '0.5rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
@@ -377,19 +369,13 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
                 }}
               />
               {categorySearch && (
-                <button
-                  type="button"
-                  className="btn btn-sm position-absolute top-50 end-0 translate-middle-y text-muted"
-                  style={{ border: 'none', background: 'transparent', padding: '0 0.5rem' }}
-                  onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
-                    event.stopPropagation();
+                <ClearButton
+                  className="position-absolute top-50 end-0 translate-middle-y"
+                  onClick={() => {
                     setCategorySearch('');
                     focusInput();
                   }}
-                  aria-label="Clear search"
-                >
-                  {TimesCircleIcon && <TimesCircleIcon size={14} />}
-                </button>
+                />
               )}
             </div>
           </div>

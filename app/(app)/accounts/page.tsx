@@ -21,6 +21,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import AccountModal from '@/components/accounts/AccountModal';
+import { CardSkeleton } from '@/components/Loading';
 import { useAccountModal } from '@/hooks/useAccountModal';
 import { accountService, type Account } from '@/services/accountService';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
@@ -85,14 +86,13 @@ const SortableAccountCard: React.FC<SortableAccountCardProps> = ({
     setNodeRef,
     transform,
     transition,
-    isDragging,
   } = useSortable({ id: account.id, disabled: isArchived });
   const { formatCurrency } = useFormattedCurrency();
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0 : 1,
+    opacity: 1,
   };
 
   const IconComponent = getIconComponent(account.icon);
@@ -140,9 +140,34 @@ const SortableAccountCard: React.FC<SortableAccountCardProps> = ({
   );
 };
 
+const AccountsSidebarSkeleton: React.FC = () => (
+  <div className="d-flex flex-column gap-3 w-100">
+    <style jsx>{`
+      @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      .skeleton-block {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+      }
+    `}</style>
+    <div className="skeleton-block" style={{ height: '32px', width: '50%', borderRadius: '4px' }} />
+    <div className="skeleton-block" style={{ height: '16px', width: '80%', borderRadius: '4px' }} />
+    <div className="skeleton-block mt-1" style={{ height: '44px', width: '100%', borderRadius: '999px' }} />
+    <div className="d-flex justify-content-between mt-2 align-items-center">
+       <div className="skeleton-block" style={{ height: '20px', width: '40%', borderRadius: '4px' }} />
+       <div className="skeleton-block" style={{ height: '24px', width: '40px', borderRadius: '1rem' }} />
+    </div>
+    <div className="skeleton-block mt-2" style={{ height: '180px', width: '100%', borderRadius: '1.1rem' }} />
+  </div>
+);
+
 const AccountsPage: React.FC = () => {
   const [showArchived, setShowArchived] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const { formatCurrency } = useFormattedCurrency();
 
   // Account Modal hook (DRY principle)
@@ -165,10 +190,13 @@ const AccountsPage: React.FC = () => {
   // Fetch accounts
   const fetchAccounts = useCallback(async () => {
     try {
+      setIsLoading(true);
       const data = await accountService.fetchAccounts();
       setAccounts(data);
     } catch (err) {
       console.error('Failed to fetch accounts:', err);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -209,7 +237,18 @@ const AccountsPage: React.FC = () => {
   // Filter accounts based on archived status
   const filteredAccounts = useMemo((): Account[] => {
     const relevantAccounts = showArchived ? accounts : accounts.filter((account) => account.is_active);
-    return [...relevantAccounts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    return [...relevantAccounts].sort((a, b) => {
+      // First sort by order (if available, defaulting to 0)
+      const orderA = a.order ?? 0;
+      const orderB = b.order ?? 0;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      
+      // Fallback to created_at
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
   }, [accounts, showArchived]);
 
   // Calculate summary statistics
@@ -252,12 +291,19 @@ const AccountsPage: React.FC = () => {
 
         const reordered = arrayMove(items, oldIndex, newIndex);
 
+        // Update the order property directly on the local state objects
+        // so that the useMemo sort function renders them correctly immediately
+        const updatedItems = reordered.map((account, index) => ({
+          ...account,
+          order: index + 1,
+        }));
+
         // Call API to update account order
         void (async () => {
           try {
-            const orderMap = reordered.map((account, index) => ({
+            const orderMap = updatedItems.map((account) => ({
               id: account.id,
-              order: index + 1,
+              order: account.order,
             }));
 
             await accountService.swapAccountOrder(orderMap);
@@ -266,7 +312,7 @@ const AccountsPage: React.FC = () => {
           }
         })();
 
-        return reordered;
+        return updatedItems;
       });
     }
   }, []);
@@ -287,57 +333,63 @@ const AccountsPage: React.FC = () => {
         <Col xl={3} lg={4} xs={12}>
           <Card className="accounts-sidebar">
             <Card.Body>
-              <h2 className="accounts-sidebar__title">Accounts</h2>
-              <p className="accounts-sidebar__caption">
-                Organise your accounts and wallets in one place.
-              </p>
+              {isLoading ? (
+                <AccountsSidebarSkeleton />
+              ) : (
+                <>
+                  <h2 className="accounts-sidebar__title">Accounts</h2>
+                  <p className="accounts-sidebar__caption">
+                    Organise your accounts and wallets in one place.
+                  </p>
 
-              <Button
-                variant="success"
-                className="accounts-sidebar__add-btn"
-                onClick={accountModal.openAddModal}
-              >
-                <FaPlus className="me-2" size={14} />
-                Add
-              </Button>
+                  <Button
+                    variant="success"
+                    className="accounts-sidebar__add-btn"
+                    onClick={accountModal.openAddModal}
+                  >
+                    <FaPlus className="me-2" size={14} />
+                    Add
+                  </Button>
 
-              <div className="accounts-sidebar__switch">
-                <span>Show Archived</span>
-                <Form.Check
-                  type="switch"
-                  id="show-archived-switch"
-                  className="accounts-sidebar__form-switch"
-                  checked={showArchived}
-                  onChange={(e) => setShowArchived(e.target.checked)}
-                />
-              </div>
+                  <div className="accounts-sidebar__switch">
+                    <span>Show Archived</span>
+                    <Form.Check
+                      type="switch"
+                      id="show-archived-switch"
+                      className="accounts-sidebar__form-switch"
+                      checked={showArchived}
+                      onChange={(e) => setShowArchived(e.target.checked)}
+                    />
+                  </div>
 
-              <div className="accounts-sidebar__summary">
-                <div className="accounts-sidebar__summary-item">
-                  <span>Total Balance</span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                    {summary.currencyBalances.length > 0 ? (
-                      summary.currencyBalances.map(({ currency, balance }) => (
-                        <strong key={currency}>
-                          {formatCurrency(balance, currency)}
-                        </strong>
-                      ))
-                    ) : (
-                      <strong>-</strong>
-                    )}
+                  <div className="accounts-sidebar__summary">
+                    <div className="accounts-sidebar__summary-item">
+                      <span>Total Balance</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                        {summary.currencyBalances.length > 0 ? (
+                          summary.currencyBalances.map(({ currency, balance }) => (
+                            <strong key={currency}>
+                              {formatCurrency(balance, currency)}
+                            </strong>
+                          ))
+                        ) : (
+                          <strong>-</strong>
+                        )}
+                      </div>
+                    </div>
+                    <div className="accounts-sidebar__summary-grid">
+                      <div>
+                        <span>Active</span>
+                        <strong>{summary.activeCount}</strong>
+                      </div>
+                      <div>
+                        <span>Archived</span>
+                        <strong>{summary.archivedCount}</strong>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="accounts-sidebar__summary-grid">
-                  <div>
-                    <span>Active</span>
-                    <strong>{summary.activeCount}</strong>
-                  </div>
-                  <div>
-                    <span>Archived</span>
-                    <strong>{summary.archivedCount}</strong>
-                  </div>
-                </div>
-              </div>
+                </>
+              )}
             </Card.Body>
           </Card>
         </Col>
@@ -354,42 +406,52 @@ const AccountsPage: React.FC = () => {
               strategy={verticalListSortingStrategy}
             >
               <div className="accounts-list">
-                {/* Active Accounts */}
-                {activeAccounts.map((account) => (
-                  <SortableAccountCard
-                    key={account.id}
-                    account={account}
-                    onSelect={handleSelectAccount}
-                    isArchived={false}
-                  />
-                ))}
-
-                {/* Archived Section */}
-                {showArchived && archivedAccounts.length > 0 && (
+                {isLoading ? (
+                  <div className="d-flex flex-column gap-3 w-100">
+                    {[1, 2, 3, 4].map((i) => (
+                      <CardSkeleton key={i} />
+                    ))}
+                  </div>
+                ) : (
                   <>
-                    <div className="accounts-list__archived-header">Archived</div>
-                    {archivedAccounts.map((account) => (
+                    {/* Active Accounts */}
+                    {activeAccounts.map((account) => (
                       <SortableAccountCard
                         key={account.id}
                         account={account}
                         onSelect={handleSelectAccount}
-                        isArchived={true}
+                        isArchived={false}
                       />
                     ))}
-                  </>
-                )}
 
-                {/* Empty State */}
-                {filteredAccounts.length === 0 && (
-                  <Card className="accounts-list__empty">
-                    <Card.Body>
-                      <div className="accounts-list__empty-icon">
-                        <FaFolderOpen size={20} />
-                      </div>
-                      <h3>No accounts to show</h3>
-                      <p>Toggle archived accounts or add a new one to get started.</p>
-                    </Card.Body>
-                  </Card>
+                    {/* Archived Section */}
+                    {showArchived && archivedAccounts.length > 0 && (
+                      <>
+                        <div className="accounts-list__archived-header">Archived</div>
+                        {archivedAccounts.map((account) => (
+                          <SortableAccountCard
+                            key={account.id}
+                            account={account}
+                            onSelect={handleSelectAccount}
+                            isArchived={true}
+                          />
+                        ))}
+                      </>
+                    )}
+
+                    {/* Empty State */}
+                    {filteredAccounts.length === 0 && (
+                      <Card className="accounts-list__empty">
+                        <Card.Body>
+                          <div className="accounts-list__empty-icon">
+                            <FaFolderOpen size={20} />
+                          </div>
+                          <h3>No accounts to show</h3>
+                          <p>Toggle archived accounts or add a new one to get started.</p>
+                        </Card.Body>
+                      </Card>
+                    )}
+                  </>
                 )}
               </div>
             </SortableContext>

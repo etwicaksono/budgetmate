@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Container, Row, Col, Card } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import { useTransaction } from '@/contexts/TransactionContext';
@@ -8,7 +8,7 @@ import { transactionService, type Transaction } from '@/services/transactionServ
 import { labelService, type Label } from '@/services/labelService';
 import { useFilterData } from '@/hooks/useFilterData';
 import { DesktopFilterSidebar } from '@/components/FilterSidebar';
-import { RecordsHeader, RecordsList, type GroupedTransactions, type TransactionRecord } from '@/components/Records';
+import { RecordsHeader, RecordsList, RecordsSkeleton, type GroupedTransactions, type TransactionRecord } from '@/components/Records';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import PeriodNavigation, {
   PeriodNavigationProvider,
@@ -56,9 +56,17 @@ function TransactionsContent() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  // Totals for ALL filtered transactions (from meta, not just loaded pages)
+  const [summaryTotals, setSummaryTotals] = useState<Record<string, number>>({});
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+
+  // Ref for infinite scroll observer
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   // Fetch labels
   useEffect(() => {
@@ -74,9 +82,10 @@ function TransactionsContent() {
   }, []);
 
   // Fetch transactions
-  const fetchTransactions = useCallback(async () => {
+  const fetchTransactions = useCallback(async (pageNum: number = 1) => {
     try {
-      setLoading(true);
+      if (pageNum === 1) setLoading(true);
+      else setIsLoadingMore(true);
       
       // Convert date-only format to ISO datetime for API
       const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
@@ -159,12 +168,27 @@ function TransactionsContent() {
         }
       }
       
+      // Add pagination
+      filters['page'] = pageNum;
+      
       const result = await transactionService.fetchTransactions(filters);
-      setTransactions(result.transactions);
+      
+      if (pageNum === 1) {
+        setTransactions(result.transactions);
+        // Capture totals from ALL filtered data (not just this page)
+        setSummaryTotals(result.meta.totals_by_currency ?? {});
+      } else {
+        setTransactions(prev => [...prev, ...result.transactions]);
+      }
+      
+      const totalPages = result.meta.totalPages || result.meta.total_pages || 1;
+      setHasMore(result.meta.page < totalPages);
+      setPage(pageNum);
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
     } finally {
-      setLoading(false);
+      if (pageNum === 1) setLoading(false);
+      else setIsLoadingMore(false);
     }
   }, [
     dateRange.start, 
@@ -182,15 +206,39 @@ function TransactionsContent() {
   ]);
 
   useEffect(() => {
-    fetchTransactions();
+    fetchTransactions(1);
   }, [fetchTransactions]);
 
   // Listen for transaction updates
   useEffect(() => {
-    const handleUpdate = () => fetchTransactions();
+    const handleUpdate = () => fetchTransactions(1);
     window.addEventListener('transaction-updated', handleUpdate);
     return () => window.removeEventListener('transaction-updated', handleUpdate);
   }, [fetchTransactions]);
+
+  // Infinite scroll implementation
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
+        if (firstEntry?.isIntersecting && hasMore && !loading && !isLoadingMore) {
+          fetchTransactions(page + 1);
+        }
+      },
+      { threshold: 0.1, rootMargin: '400px' }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [observerTarget, hasMore, loading, isLoadingMore, page, fetchTransactions]);
 
   // Transactions are now filtered and sorted by API
   // Just use them directly
@@ -436,22 +484,23 @@ function TransactionsContent() {
     }
   }, [selectedTransactionIds.size]);
 
-  // Format currency
-  // Calculate net total per currency (all or selected)
+  // Net totals:
+  //   - When nothing selected: use summaryTotals from API meta (covers ALL filtered data)
+  //   - When selection active: sum only the selected visible rows
   const netTotalsByCurrency = useMemo(() => {
     const hasSelection = selectedTransactionIds.size > 0;
-    const transactionsToSum = hasSelection
-      ? sortedTransactions.filter(t => selectedTransactionIds.has(t.id))
-      : sortedTransactions;
-    
+    if (!hasSelection) {
+      return summaryTotals;
+    }
     const totals: Record<string, number> = {};
-    transactionsToSum.forEach((t) => {
-      const currency = t.currency || 'USD';
-      totals[currency] = (totals[currency] || 0) + t.amount;
-    });
-    
+    sortedTransactions
+      .filter(t => selectedTransactionIds.has(t.id))
+      .forEach((t) => {
+        const currency = t.currency || 'USD';
+        totals[currency] = (totals[currency] || 0) + t.amount;
+      });
     return totals;
-  }, [sortedTransactions, selectedTransactionIds]);
+  }, [sortedTransactions, selectedTransactionIds, summaryTotals]);
 
   // Format totals for display
   const formatNetTotals = useCallback((totalsByCurrency: Record<string, number>) => {
@@ -517,36 +566,61 @@ function TransactionsContent() {
           </div>
 
           {/* Transactions Card */}
-          <Card>
-            <Card.Body>
+          <Card className="shadow-sm border-0">
+            <Card.Body className="p-0">
               {loading ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
+                <div className="py-2">
+                  <RecordsSkeleton />
                 </div>
               ) : (
                 <>
-                  <RecordsHeader
-                    selectedCount={selectedTransactionIds.size}
-                    totalCount={sortedTransactions.length}
-                    allSelected={allSelected}
-                    onSelectAll={handleSelectAll}
-                    onBulkEdit={handleBulkEdit}
-                    onBulkExport={handleBulkExport}
-                    onBulkDelete={handleBulkDelete}
-                    summaryText={formatNetTotals(netTotalsByCurrency)}
-                    showBulkActions
-                  />
-                  <RecordsList
-                    groupedTransactions={groupedTransactions}
-                    selectedRecords={selectedTransactionIds}
-                    onSelectRecord={handleSelectRecord}
-                    onEditRecord={handleEditRecord}
-                    onDeleteRecord={handleDeleteRecord}
-                    showCheckboxes
-                    showDropdownMenu
-                  />
+                  <div 
+                    className="border-bottom bg-white" 
+                    style={{ position: 'sticky', top: '65px', zIndex: 100 }}
+                  >
+                    <RecordsHeader
+                      selectedCount={selectedTransactionIds.size}
+                      totalCount={sortedTransactions.length}
+                      allSelected={allSelected}
+                      onSelectAll={handleSelectAll}
+                      onBulkEdit={handleBulkEdit}
+                      onBulkExport={handleBulkExport}
+                      onBulkDelete={handleBulkDelete}
+                      summaryText={formatNetTotals(netTotalsByCurrency)}
+                      showBulkActions
+                    />
+                  </div>
+                  
+                  <div>
+                    <RecordsList
+                      groupedTransactions={groupedTransactions}
+                      selectedRecords={selectedTransactionIds}
+                      onSelectRecord={handleSelectRecord}
+                      onEditRecord={handleEditRecord}
+                      onDeleteRecord={handleDeleteRecord}
+                      showCheckboxes
+                      showDropdownMenu
+                    />
+                    
+                    {/* Infinite Scroll Observer Target */}
+                    {hasMore && (
+                      <div ref={observerTarget} className="py-4 text-center">
+                        {isLoadingMore ? (
+                          <div className="spinner-border spinner-border-sm text-primary" role="status">
+                            <span className="visually-hidden">Loading more...</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted small">Scroll to load more</span>
+                        )}
+                      </div>
+                    )}
+
+                    {!hasMore && transactions.length > 0 && (
+                      <div className="py-4 text-center text-muted small">
+                        End of records
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </Card.Body>

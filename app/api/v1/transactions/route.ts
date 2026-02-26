@@ -118,7 +118,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Execute queries
-    const [transactions, total] = await Promise.all([
+    const [transactions, total, currencyTotals] = await Promise.all([
       prisma.transaction.findMany({
         where,
         include: {
@@ -168,8 +168,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         skip: (filters.page - 1) * filters.limit,
         take: filters.limit
       }),
-      prisma.transaction.count({ where })
+      prisma.transaction.count({ where }),
+      prisma.transaction.groupBy({
+        by: ['currency'],
+        where,
+        _sum: { amount: true }
+      })
     ]);
+
+    // Build totals_by_currency map: { USD: 1500.25, IDR: -50000 }
+    const totals_by_currency: Record<string, number> = {};
+    for (const row of currencyTotals) {
+      totals_by_currency[row.currency] = row._sum.amount?.toNumber() ?? 0;
+    }
 
     // Transform response
     const transformedTransactions = transactions.map(tx => {
@@ -219,7 +230,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return successResponse(
       transformedTransactions,
-      paginationMeta(total, filters.page, filters.limit)
+      {
+        ...paginationMeta(total, filters.page, filters.limit),
+        totals_by_currency,
+      }
     );
 
   } catch (error) {

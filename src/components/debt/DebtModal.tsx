@@ -1,0 +1,233 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Modal, Form, Button, Row, Col, InputGroup, Spinner } from 'react-bootstrap';
+import { FaUser } from 'react-icons/fa';
+import { NumericFormat } from 'react-number-format';
+import { format } from 'date-fns';
+
+import { Debt, CreateDebtPayload, UpdateDebtPayload } from '@/services/debtService';
+import { DEBT_TYPES, DEBT_STATUSES } from '@/utils/constants';
+import { DebtTypeToggle } from './DebtTypeToggle';
+import { AccountSelect } from '@/components/transaction/AccountSelect';
+import { Account } from '@/services/accountService';
+import { getCurrencyPrefix } from '@/utils/formatters';
+
+interface DebtModalProps {
+  show: boolean;
+  onHide: () => void;
+  onSave: (data: CreateDebtPayload | UpdateDebtPayload) => Promise<void>;
+  editDebt?: Debt | null;
+  accounts: Account[];
+}
+
+export const DebtModal: React.FC<DebtModalProps> = ({
+  show,
+  onHide,
+  onSave,
+  editDebt,
+  accounts,
+}) => {
+  const isEdit = !!editDebt;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [type, setType] = useState<typeof DEBT_TYPES.LEND | typeof DEBT_TYPES.BORROW>(DEBT_TYPES.LEND);
+  const [counterparty, setCounterparty] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [amount, setAmount] = useState<number | ''>('');
+  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
+  const [description, setDescription] = useState('');
+  const [status, setStatus] = useState<typeof DEBT_STATUSES.ACTIVE | typeof DEBT_STATUSES.SETTLED>(DEBT_STATUSES.ACTIVE);
+
+  useEffect(() => {
+    if (show) {
+      if (isEdit && editDebt) {
+        setType(editDebt.type);
+        setCounterparty(editDebt.counterparty);
+        setAccountId(editDebt.account_id);
+        setAmount(editDebt.amount);
+        setDate(format(new Date(editDebt.date), "yyyy-MM-dd'T'HH:mm"));
+        setDescription(editDebt.description || '');
+        setStatus(editDebt.status);
+      } else {
+        setType(DEBT_TYPES.LEND);
+        setCounterparty('');
+        setAccountId('');
+        setAmount('');
+        setDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
+        setDescription('');
+        setStatus(DEBT_STATUSES.ACTIVE);
+        setError(null);
+      }
+    }
+  }, [show, isEdit, editDebt]);
+
+  const selectedAccount = accounts.find(a => a.id === accountId);
+  const currencyPrefix = getCurrencyPrefix(selectedAccount?.currency);
+  const decimalScale = 2;
+
+  const handleSubmit = async (e: React.FormEvent, createAnother: boolean = false) => {
+    e.preventDefault();
+    if (!counterparty.trim() || !accountId || amount === '' || amount <= 0) {
+      setError('Please fill in all required fields accurately.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const dDate = new Date(date).toISOString();
+
+      if (isEdit) {
+        const payload: UpdateDebtPayload = {
+          type,
+          counterparty,
+          account_id: accountId,
+          amount: Number(amount),
+          date: dDate,
+          status,
+          ...(description ? { description } : {})
+        };
+        await onSave(payload);
+        onHide();
+      } else {
+        const payload: CreateDebtPayload = {
+          type,
+          counterparty,
+          account_id: accountId,
+          amount: Number(amount),
+          date: dDate,
+          ...(description ? { description } : {})
+        };
+        await onSave(payload);
+        if (createAnother) {
+           // Reset amount and description but keep contextual defaults
+           setCounterparty('');
+           setAmount('');
+           setDescription('');
+        } else {
+           onHide();
+        }
+      }
+    } catch (err: any) {
+       const apiError = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+       setError(apiError || 'Failed to save debt');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal show={show} onHide={onHide} size="lg" centered backdrop="static">
+      <Form onSubmit={(e) => handleSubmit(e, false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>{isEdit ? 'Edit Debt' : 'New Debt'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {error && <div className="alert alert-danger py-2">{error}</div>}
+
+          <DebtTypeToggle value={type} onChange={setType} disabled={isEdit && editDebt?.repayments && editDebt.repayments.length > 0} />
+
+          <Row>
+            <Col xs={12} className="mb-3">
+              <Form.Label>Counterparty <span className="text-danger">*</span></Form.Label>
+              <InputGroup>
+                <InputGroup.Text><FaUser /></InputGroup.Text>
+                <Form.Control
+                  type="text"
+                  placeholder="Person or business name"
+                  value={counterparty}
+                  onChange={(e) => setCounterparty(e.target.value)}
+                  disabled={isSubmitting}
+                  required
+                />
+              </InputGroup>
+            </Col>
+
+            <Col xs={12} md={6} className="mb-3">
+              <Form.Label>Account <span className="text-danger">*</span></Form.Label>
+              <AccountSelect
+                 selectedAccountId={accountId}
+                 onSelect={(id) => setAccountId(id || '')}
+                 accounts={accounts}
+                 disabled={isSubmitting}
+              />
+            </Col>
+
+            <Col xs={12} md={6} className="mb-3">
+              <Form.Label>Amount <span className="text-danger">*</span></Form.Label>
+              <NumericFormat
+                 customInput={Form.Control as any}
+                 thousandSeparator={true}
+                 prefix={currencyPrefix}
+                 decimalScale={decimalScale}
+                 value={amount}
+                 onValueChange={(values) => setAmount(values.floatValue || '')}
+                 disabled={isSubmitting}
+                 placeholder="0"
+                 allowNegative={false}
+                 required
+              />
+            </Col>
+
+            <Col xs={12} md={6} className="mb-3">
+              <Form.Label>Date & Time <span className="text-danger">*</span></Form.Label>
+              <Form.Control
+                 type="datetime-local"
+                 value={date}
+                 onChange={(e) => setDate(e.target.value)}
+                 disabled={isSubmitting}
+                 required
+              />
+            </Col>
+
+            {isEdit && (
+               <Col xs={12} md={6} className="mb-3">
+                  <Form.Label>Status</Form.Label>
+                  <Form.Select 
+                     value={status} 
+                     onChange={(e) => setStatus(e.target.value as any)}
+                     disabled={isSubmitting}
+                  >
+                     <option value={DEBT_STATUSES.ACTIVE}>Active</option>
+                     <option value={DEBT_STATUSES.SETTLED}>Settled</option>
+                  </Form.Select>
+               </Col>
+            )}
+
+            <Col xs={12} className="mb-3">
+               <Form.Label>Description</Form.Label>
+               <Form.Control
+                 as="textarea"
+                 rows={2}
+                 placeholder="Optional note"
+                 value={description}
+                 onChange={(e) => setDescription(e.target.value)}
+                 disabled={isSubmitting}
+               />
+            </Col>
+          </Row>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={onHide} disabled={isSubmitting} className="me-auto">
+            Cancel
+          </Button>
+          {!isEdit && (
+             <Button
+                variant="outline-success"
+                onClick={(e) => handleSubmit(e, true)}
+                disabled={isSubmitting}
+             >
+                {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Save & Create Another'}
+             </Button>
+          )}
+          <Button type="submit" variant="success" disabled={isSubmitting}>
+             {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Save'}
+          </Button>
+        </Modal.Footer>
+      </Form>
+    </Modal>
+  );
+};

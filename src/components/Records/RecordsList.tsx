@@ -129,14 +129,14 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                     onChange={handleDaySelectionChange}
                   />
                 )}
-                <h6 className="mb-0">{dateKey}</h6>
+                <h6 className="mb-0 fw-bold">{dateKey}</h6>
               </div>
               <div className="records-day-header-right">
                 {Object.entries(dayTotalsByCurrency).map(([currency, total], index) => (
                   <React.Fragment key={currency}>
                     {index > 0 && <span className="mx-2">|</span>}
                     <strong
-                      className={total < 0 ? 'text-danger' : total > 0 ? 'text-success' : 'text-muted'}
+                      style={{ color: '#6C757D' }}
                     >
                       {total < 0 ? '-' : total > 0 ? '+' : ''}
                       {formatCurrency(Math.abs(total), currency)}
