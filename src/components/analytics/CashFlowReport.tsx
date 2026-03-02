@@ -22,12 +22,18 @@ interface CashFlowReportProps {
   startDate?: string;
   endDate?: string;
   periodLabel?: string;
+  selectedCategories?: string[];
+  selectedAccounts?: string[];
+  selectedCurrencies?: string[];
+  searchTerm?: string;
+  minAmount?: number;
+  maxAmount?: number;
 }
 
 const formatNumberAbbreviation = (value: number): string => {
   const absValue = Math.abs(value);
   const sign = value < 0 ? '-' : '';
-  
+
   if (absValue >= 1_000_000_000) {
     return `${sign}${(absValue / 1_000_000_000).toFixed(1)}B`;
   }
@@ -46,16 +52,22 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
   startDate,
   endDate,
   periodLabel = 'THIS MONTH',
+  searchTerm,
+  minAmount,
+  maxAmount,
+  selectedCategories,
+  selectedAccounts,
+  selectedCurrencies,
 }) => {
   const [data, setData] = useState<CashFlowResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [comparisonTab, setComparisonTab] = useState<ComparisonTab>('cashFlow');
-  const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('');
   const { formatCurrency } = useFormattedCurrency();
   const { user } = useAuth();
   const defaultCurrency = user?.currency || 'USD';
-  
+
   // Sort currencies with default currency first
   const sortedCurrencies = useMemo(() => {
     if (!data) return [];
@@ -73,7 +85,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
   // Set default currency when data loads
   useEffect(() => {
     if (data && sortedCurrencies.length > 0 && !selectedCurrency) {
-      setSelectedCurrency(sortedCurrencies[0] ?? null);
+      setSelectedCurrency(sortedCurrencies[0] ?? '');
     }
   }, [data, sortedCurrencies, selectedCurrency]);
 
@@ -82,11 +94,26 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
       try {
         setLoading(true);
         setError(null);
-        
-        const params: { start_date?: string; end_date?: string } = {};
+
+        const params: {
+          start_date?: string;
+          end_date?: string;
+          search?: string;
+          min_amount?: number;
+          max_amount?: number;
+          category_ids?: string[];
+          account_ids?: string[];
+          currencies?: string[];
+        } = {};
         if (startDate) params.start_date = startDate;
         if (endDate) params.end_date = endDate;
-        
+        if (searchTerm) params.search = searchTerm;
+        if (minAmount !== undefined) params.min_amount = minAmount;
+        if (maxAmount !== undefined) params.max_amount = maxAmount;
+        if (selectedCategories?.length) params.category_ids = selectedCategories;
+        if (selectedAccounts?.length) params.account_ids = selectedAccounts;
+        if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
+
         const response = await analyticsService.fetchCashFlowReport(params);
         setData(response);
       } catch (err) {
@@ -95,9 +122,9 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
         setLoading(false);
       }
     };
-    
+
     fetchData();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, searchTerm, minAmount, maxAmount, selectedCategories, selectedAccounts, selectedCurrencies]);
 
   // Get current data based on selected currency
   const currentData = useMemo(() => {
@@ -115,7 +142,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
   // Get comparison data based on selected tab
   const comparisonChartData = useMemo(() => {
     if (!currentData) return [];
-    
+
     const comparison = currentData.comparisonData[comparisonTab];
     return comparison.currentPeriod.map((point, index) => ({
       date: point.date,
@@ -205,7 +232,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
           </Placeholder>
         </Card.Body>
       </Card>
-      
+
       {/* Summary skeleton */}
       <div className="mb-4">
         <Placeholder animation="glow">
@@ -215,7 +242,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
           <Placeholder xs={5} style={{ height: '2rem' }} />
         </Placeholder>
       </div>
-      
+
       {/* Comparison chart skeleton */}
       <Card className="border-0 shadow-sm">
         <Card.Body style={{ height: 350 }}>
@@ -403,7 +430,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
               {formatCurrency(summary.totalIncome, displayCurrency)}
             </span>
           </div>
-          <div 
+          <div
             className="rounded"
             style={{ height: 8, backgroundColor: '#e9ecef', overflow: 'hidden' }}
           >
@@ -422,7 +449,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
               -{formatCurrency(summary.totalExpense, displayCurrency)}
             </span>
           </div>
-          <div 
+          <div
             className="rounded"
             style={{ height: 8, backgroundColor: '#e9ecef', overflow: 'hidden' }}
           >

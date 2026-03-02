@@ -134,6 +134,16 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({
     setSelectedAccounts([]);
   }, [setSelectedAccounts]);
 
+  const areAllSelected = selectedAccounts.length === allAccounts.length && allAccounts.length > 0;
+
+  const toggleSelectAll = useCallback(() => {
+    if (areAllSelected) {
+      setSelectedAccounts([]);
+    } else {
+      setSelectedAccounts([...allAccounts]);
+    }
+  }, [areAllSelected, allAccounts, setSelectedAccounts]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!isOpen) return;
@@ -281,6 +291,19 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({
               )}
             </div>
           </div>
+          {!isSingleSelect && (
+            <div className="px-2 py-1 border-bottom bg-light">
+              <Form.Check
+                type="checkbox"
+                id="select-all-accounts"
+                label={areAllSelected ? "Unselect All" : "Select All"}
+                checked={areAllSelected}
+                onChange={toggleSelectAll}
+                className="small text-muted mb-0"
+                style={{ cursor: 'pointer' }}
+              />
+            </div>
+          )}
           <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
             {filteredAccounts.length === 0 ? (
               <div className="p-3 text-center text-muted small">No accounts found</div>

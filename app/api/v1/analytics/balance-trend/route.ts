@@ -51,6 +51,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
+  const categoryIds = searchParams.get('category_ids')?.split(',').filter(Boolean) || [];
+  const accountIdsParam = searchParams.get('account_ids')?.split(',').filter(Boolean) || [];
+  const currencyParams = searchParams.get('currencies')?.split(',').filter(Boolean) || [];
 
   try {
     // Parse dates
@@ -67,13 +70,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     previousStart.setHours(0, 0, 0, 0);
     previousEnd.setHours(23, 59, 59, 999);
 
+    const accountWhereClause: any = {
+      user_id: user.user_id,
+      deleted_at: null,
+      is_active: true,
+    };
+    if (accountIdsParam.length > 0) {
+      accountWhereClause.id = { in: accountIdsParam };
+    }
+    if (currencyParams.length > 0) {
+      accountWhereClause.currency = { in: currencyParams };
+    }
+
     // Fetch all active accounts
     const accounts = await prisma.account.findMany({
-      where: {
-        user_id: user.user_id,
-        deleted_at: null,
-        is_active: true,
-      },
+      where: accountWhereClause,
       orderBy: [
         { name: 'asc' },
       ],
@@ -112,18 +123,28 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const primaryCurrency = currencies[0] || 'USD';
     const totalBalance = currencyTotalsBasic.find(ct => ct.currency === primaryCurrency)?.balance || 0;
 
+    const transactionWhereClause: any = {
+      user_id: user.user_id,
+      deleted_at: null,
+      date: {
+        lte: end,
+      },
+      account: {
+        is_included_in_total: true,
+      },
+    };
+
+    // Only fetch transactions for accounts we have filtered down to
+    transactionWhereClause.account_id = { in: accountIds };
+
+    // Apply optional category filter
+    if (categoryIds.length > 0) {
+      transactionWhereClause.category_id = { in: categoryIds };
+    }
+
     // Fetch transactions for the current period to build daily balance chart
     const transactions = await prisma.transaction.findMany({
-      where: {
-        user_id: user.user_id,
-        deleted_at: null,
-        date: {
-          lte: end,
-        },
-        account: {
-          is_included_in_total: true,
-        },
-      },
+      where: transactionWhereClause,
       select: {
         date: true,
         amount: true,

@@ -64,14 +64,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const monday = new Date(baseDate);
     monday.setDate(baseDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
     monday.setHours(0, 0, 0, 0);
-    
+
     for (let i = 0; i < numPeriods; i++) {
       const periodStart = new Date(monday);
       periodStart.setDate(monday.getDate() - (i * 7));
       const periodEnd = new Date(periodStart);
       periodEnd.setDate(periodStart.getDate() + 6);
       periodEnd.setHours(23, 59, 59, 999);
-      
+
       const name = `${periodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
       periodRanges.push({ start: periodStart, end: periodEnd, name });
     }
@@ -88,21 +88,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Custom range - divide the range into equal periods
     const startDate = startDateParam ? new Date(startDateParam) : new Date(now.getFullYear(), now.getMonth(), 1);
     const endDate = endDateParam ? new Date(endDateParam) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    
+
     const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const daysPerPeriod = Math.max(1, Math.ceil(totalDays / numPeriods));
-    
+
     for (let i = 0; i < numPeriods; i++) {
       const periodStart = new Date(startDate);
       periodStart.setDate(startDate.getDate() - (i * daysPerPeriod));
       const periodEnd = new Date(periodStart);
       periodEnd.setDate(periodStart.getDate() + daysPerPeriod - 1);
       periodEnd.setHours(23, 59, 59, 999);
-      
+
       const name = `${periodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
       periodRanges.push({ start: periodStart, end: periodEnd, name });
     }
   }
+
+  // Get filter parameters
+  const categoryIds = searchParams.get('category_ids')?.split(',').filter(Boolean) || [];
+  const accountIds = searchParams.get('account_ids')?.split(',').filter(Boolean) || [];
+  const currencyParams = searchParams.get('currencies')?.split(',').filter(Boolean) || [];
 
   try {
     // Get all categories for user
@@ -115,21 +120,33 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     // Fetch transactions for all periods in parallel
-    const transactionPromises = periodRanges.map(({ start, end }) =>
-      prisma.transaction.groupBy({
-        by: ['category_id', 'type', 'currency'],
-        where: {
-          user_id: user.user_id,
-          deleted_at: null,
-          date: {
-            gte: start,
-            lte: end,
-          },
-          type: { in: ['income', 'expense'] },
+    const transactionPromises = periodRanges.map(({ start, end }) => {
+      const whereClause: any = {
+        user_id: user.user_id,
+        deleted_at: null,
+        date: {
+          gte: start,
+          lte: end,
         },
+        type: { in: ['income', 'expense'] },
+      };
+
+      if (categoryIds.length > 0) {
+        whereClause.category_id = { in: categoryIds };
+      }
+      if (accountIds.length > 0) {
+        whereClause.account_id = { in: accountIds };
+      }
+      if (currencyParams.length > 0) {
+        whereClause.currency = { in: currencyParams };
+      }
+
+      return prisma.transaction.groupBy({
+        by: ['category_id', 'type', 'currency'],
+        where: whereClause,
         _sum: { amount: true },
-      })
-    );
+      });
+    });
 
     const allPeriodTransactions = await Promise.all(transactionPromises);
 
@@ -154,7 +171,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (t.category_id) {
           const amount = Math.abs(Number(t._sum.amount) || 0);
           const currencyMap = amountsByCurrency.get(t.currency)!;
-          
+
           if (!currencyMap.has(t.category_id)) {
             currencyMap.set(t.category_id, new Array(numPeriods).fill(0));
           }
@@ -188,7 +205,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       parentCategories.forEach((parent) => {
         const children = childrenByParent.get(parent.id) || [];
-        
+
         // Initialize parent totals for each month
         const parentTotals = new Array(numPeriods).fill(0);
         const parentAmounts = categoryAmounts.get(parent.id) || new Array(numPeriods).fill(0);
@@ -233,7 +250,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Calculate totals for each month
       const totalIncomes = new Array(numPeriods).fill(0);
       const totalExpenses = new Array(numPeriods).fill(0);
-      
+
       incomeCategories.forEach((c) => {
         c.amounts.forEach((amt, idx) => { totalIncomes[idx] += amt; });
       });

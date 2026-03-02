@@ -4,6 +4,7 @@ import React, { useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Container, Row, Col, Nav } from 'react-bootstrap';
 import { useFilterData } from '@/hooks/useFilterData';
+import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { DesktopFilterSidebar } from '@/components/FilterSidebar';
 import PeriodNavigation, {
   PeriodNavigationProvider,
@@ -23,11 +24,11 @@ function AnalyticsContent(): React.ReactElement {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  
+
   // Get active tab from URL, default to 'income-expense'
   const tabParam = searchParams.get('tab');
   const activeTab: TabKey = VALID_TABS.includes(tabParam as TabKey) ? (tabParam as TabKey) : 'income-expense';
-  
+
   const setActiveTab = useCallback((tab: TabKey) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
@@ -45,6 +46,9 @@ function AnalyticsContent(): React.ReactElement {
     setSelectedCategories,
     selectedAccounts,
     setSelectedAccounts,
+    selectedCurrencies,
+    setSelectedCurrencies,
+    availableCurrencies,
     sortOption,
     setSortOption,
     minAmount,
@@ -60,7 +64,31 @@ function AnalyticsContent(): React.ReactElement {
     categoryIcons,
     accountColors,
     accountIcons,
+    categories,
+    apiAccounts,
   } = useFilterData();
+
+  const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
+    categories,
+    accounts: apiAccounts,
+    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds: [], sortOption },
+    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds: (_v) => { }, setSortOption },
+  });
+
+  // Map selected names to IDs for API calls
+  const selectedCategoryIds = React.useMemo(() => {
+    if (!selectedCategories.length || !categories.length) return [];
+    return categories
+      .filter(cat => selectedCategories.includes(cat.name))
+      .map(cat => cat.id);
+  }, [selectedCategories, categories]);
+
+  const selectedAccountIds = React.useMemo(() => {
+    if (!selectedAccounts.length || !apiAccounts.length) return [];
+    return apiAccounts
+      .filter(acc => selectedAccounts.includes(acc.name))
+      .map(acc => acc.id);
+  }, [selectedAccounts, apiAccounts]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -72,6 +100,9 @@ function AnalyticsContent(): React.ReactElement {
             {...(startDate && { startDate })}
             {...(endDate && { endDate })}
             periodType={activePeriod.type}
+            selectedCategories={selectedCategoryIds}
+            selectedAccounts={selectedAccountIds}
+            selectedCurrencies={selectedCurrencies}
           />
         );
       }
@@ -83,6 +114,9 @@ function AnalyticsContent(): React.ReactElement {
             {...(balanceStartDate && { startDate: balanceStartDate })}
             {...(balanceEndDate && { endDate: balanceEndDate })}
             periodLabel={periodLabel.toUpperCase()}
+            selectedCategories={selectedCategoryIds}
+            selectedAccounts={selectedAccountIds}
+            selectedCurrencies={selectedCurrencies}
           />
         );
       }
@@ -93,7 +127,13 @@ function AnalyticsContent(): React.ReactElement {
           <CashFlowReport
             {...(cashFlowStartDate && { startDate: cashFlowStartDate })}
             {...(cashFlowEndDate && { endDate: cashFlowEndDate })}
+            {...(searchTerm && { searchTerm })}
+            {...(minAmount > 0 && { minAmount })}
+            {...(maxAmount < 20000000 && { maxAmount })}
             periodLabel={periodLabel.toUpperCase()}
+            selectedCategories={selectedCategoryIds}
+            selectedAccounts={selectedAccountIds}
+            selectedCurrencies={selectedCurrencies}
           />
         );
       }
@@ -104,6 +144,12 @@ function AnalyticsContent(): React.ReactElement {
           <AdvancedChartsReport
             {...(advancedStartDate && { startDate: advancedStartDate })}
             {...(advancedEndDate && { endDate: advancedEndDate })}
+            {...(searchTerm && { searchTerm })}
+            {...(minAmount > 0 && { minAmount })}
+            {...(maxAmount < 20000000 && { maxAmount })}
+            selectedCategories={selectedCategoryIds}
+            selectedAccounts={selectedAccountIds}
+            selectedCurrencies={selectedCurrencies}
           />
         );
       }
@@ -119,7 +165,7 @@ function AnalyticsContent(): React.ReactElement {
         <Col lg={3} className="mb-3 d-none d-lg-block">
           <DesktopFilterSidebar
             title="Analytics"
-            filterVisibility={{ ...filterVisibility, currencies: false }}
+            filterVisibility={filterVisibility}
             onFilterVisibilityChange={setFilterVisibility}
             searchTerm={searchTerm}
             onSearchTermChange={setSearchTerm}
@@ -140,6 +186,18 @@ function AnalyticsContent(): React.ReactElement {
             maxAmount={maxAmount}
             onMinAmountChange={setMinAmount}
             onMaxAmountChange={setMaxAmount}
+            selectedCurrencies={selectedCurrencies}
+            onSelectedCurrenciesChange={setSelectedCurrencies}
+            availableCurrencies={availableCurrencies}
+            savedFilters={savedFilters}
+            activeFilterId={activeFilterId}
+            savedFiltersLoading={savedFiltersLoading}
+            onSaveFilter={saveCurrentFilter}
+            onLoadFilter={loadFilter}
+            onDeleteFilter={deleteFilter}
+            onRenameFilter={renameFilter}
+            onClearActiveFilter={clearActiveFilter}
+            onReorderFilter={reorderFilter}
           />
         </Col>
 
@@ -157,7 +215,13 @@ function AnalyticsContent(): React.ReactElement {
               </PeriodNavigation>
             </div>
 
-            {/* Tab Navigation */}
+          </div>
+
+          {/* Tab Navigation */}
+          <div
+            className="border-bottom bg-white mb-4 pt-2 pb-2"
+            style={{ position: 'sticky', top: '65px', zIndex: 100 }}
+          >
             <Nav variant="pills" className="analytics-tabs flex-nowrap overflow-auto">
               <Nav.Item>
                 <Nav.Link

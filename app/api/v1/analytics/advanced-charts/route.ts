@@ -55,7 +55,7 @@ function getDateKey(date: Date, granularity: Granularity): string {
 function generateDateRange(start: Date, end: Date, granularity: Granularity): Date[] {
   const dates: Date[] = [];
   const current = new Date(start);
-  
+
   if (granularity === 'month') {
     current.setDate(1);
     while (current <= end) {
@@ -76,7 +76,7 @@ function generateDateRange(start: Date, end: Date, granularity: Granularity): Da
       current.setDate(current.getDate() + 1);
     }
   }
-  
+
   return dates;
 }
 
@@ -94,6 +94,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const dataType = (searchParams.get('type') || 'balance') as DataType;
   const granularity = (searchParams.get('granularity') || 'day') as Granularity;
   const groupBy = (searchParams.get('group_by') || 'none') as GroupBy;
+  const categoryIds = searchParams.get('category_ids')?.split(',').filter(Boolean) || [];
+  const accountIdsParam = searchParams.get('account_ids')?.split(',').filter(Boolean) || [];
+  const currencyParams = searchParams.get('currencies')?.split(',').filter(Boolean) || [];
+  const search = searchParams.get('search');
+  const minAmount = searchParams.get('min_amount');
+  const maxAmount = searchParams.get('max_amount');
 
   try {
     const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -101,13 +107,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
 
+    const accountWhereClause: any = {
+      user_id: user.user_id,
+      deleted_at: null,
+      is_included_in_total: true,
+    };
+    if (accountIdsParam.length > 0) {
+      accountWhereClause.id = { in: accountIdsParam };
+    }
+    if (currencyParams.length > 0) {
+      accountWhereClause.currency = { in: currencyParams };
+    }
+
     // Fetch accounts
     const accounts = await prisma.account.findMany({
-      where: {
-        user_id: user.user_id,
-        deleted_at: null,
-        is_included_in_total: true,
-      },
+      where: accountWhereClause,
       select: {
         id: true,
         name: true,
@@ -117,15 +131,43 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
 
+    const transactionWhereClause: any = {
+      user_id: user.user_id,
+      deleted_at: null,
+      date: { gte: start, lte: end },
+      type: { in: ['income', 'expense'] },
+      account: { is_included_in_total: true },
+    };
+
+    // Only fetch transactions for accounts we have filtered down to
+    const accountIds = accounts.map((a) => a.id);
+    if (accountIds.length > 0) {
+      transactionWhereClause.account_id = { in: accountIds };
+    } else {
+      // If no accounts match the filter, force an empty result safely
+      transactionWhereClause.account_id = { in: ['__empty__'] };
+    }
+
+    if (categoryIds.length > 0) {
+      transactionWhereClause.category_id = { in: categoryIds };
+    }
+
+    if (search) {
+      transactionWhereClause.OR = [
+        { description: { contains: search, mode: 'insensitive' } },
+        { payee: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    if (minAmount !== null || maxAmount !== null) {
+      transactionWhereClause.amount = {};
+      if (minAmount !== null) transactionWhereClause.amount.gte = Number(minAmount);
+      if (maxAmount !== null) transactionWhereClause.amount.lte = Number(maxAmount);
+    }
+
     // Fetch transactions
     const transactions = await prisma.transaction.findMany({
-      where: {
-        user_id: user.user_id,
-        deleted_at: null,
-        date: { gte: start, lte: end },
-        type: { in: ['income', 'expense'] },
-        account: { is_included_in_total: true },
-      },
+      where: transactionWhereClause,
       select: {
         id: true,
         date: true,
@@ -167,7 +209,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       isCumulative: boolean
     ): ChartDataPoint[] => {
       const dateMap = new Map<string, { income: number; expense: number }>();
-      
+
       for (const date of dateRange) {
         const key = getDateKey(date, granularity);
         dateMap.set(key, { income: 0, expense: 0 });
@@ -188,12 +230,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       const chartData: ChartDataPoint[] = [];
       let cumulative = 0;
-      
+
       for (const date of dateRange) {
         const key = getDateKey(date, granularity);
         const entry = dateMap.get(key) || { income: 0, expense: 0 };
         const cashflow = entry.income - entry.expense;
-        
+
         if (isCumulative) {
           cumulative += cashflow;
           chartData.push({ date: formatDateLabel(date, granularity), value: cumulative });
@@ -212,11 +254,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const filteredAccounts = filterCurrency
         ? accounts.filter(a => a.currency === filterCurrency)
         : accounts;
-      
+
       // Get initial balance (sum of all filtered accounts' initial balances)
       // Then fetch all transactions before start date to calculate starting balance
       const accountIds = filteredAccounts.map(a => a.id);
-      
+
       // Get transactions before start date
       const priorTransactions = await prisma.transaction.findMany({
         where: {
@@ -225,6 +267,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           date: { lt: start },
           account_id: { in: accountIds },
           type: { in: ['income', 'expense'] },
+          ...(search && {
+            OR: [
+              { description: { contains: search, mode: 'insensitive' } },
+              { payee: { contains: search, mode: 'insensitive' } }
+            ]
+          }),
+          ...((minAmount !== null || maxAmount !== null) && {
+            amount: {
+              ...(minAmount !== null && { gte: Number(minAmount) }),
+              ...(maxAmount !== null && { lte: Number(maxAmount) }),
+            }
+          })
         },
         select: {
           amount: true,
@@ -267,7 +321,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       const chartData: ChartDataPoint[] = [];
       let runningBalance = startingBalance;
-      
+
       for (const date of dateRange) {
         const key = getDateKey(date, granularity);
         const change = dateMap.get(key) || 0;
@@ -340,7 +394,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       isCumulative: boolean
     ): ChartDataPoint[] => {
       const dateMap = new Map<string, { income: number; expense: number }>();
-      
+
       for (const date of dateRange) {
         const key = getDateKey(date, granularity);
         dateMap.set(key, { income: 0, expense: 0 });
@@ -361,12 +415,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       const result: ChartDataPoint[] = [];
       let cumulative = 0;
-      
+
       for (const date of dateRange) {
         const key = getDateKey(date, granularity);
         const entry = dateMap.get(key) || { income: 0, expense: 0 };
         const cashflow = entry.income - entry.expense;
-        
+
         if (isCumulative) {
           cumulative += cashflow;
           result.push({ date: formatDateLabel(date, granularity), value: cumulative });
@@ -394,7 +448,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Build data per currency
     const dataByCurrency: Record<string, { chartData: ChartDataPoint[]; groupedData: GroupedChartData[] }> = {};
-    
+
     for (const currency of currencies) {
       if (dataType === 'balance') {
         dataByCurrency[currency] = {

@@ -1,14 +1,14 @@
 import { parseDateFromSheet, parseDateOnly } from '@/utils/timezone';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 export interface ParsedAccount {
   id: string;
   name: string;
   account_type: string;
   currency: string;
-  initial_balance: Decimal;
-  credit_limit?: Decimal | undefined;
-  interest_rate?: Decimal | undefined;
+  initial_balance: Prisma.Decimal;
+  credit_limit?: Prisma.Decimal | undefined;
+  interest_rate?: Prisma.Decimal | undefined;
   icon: string;
   color: string;
   is_active: boolean;
@@ -36,9 +36,9 @@ export interface ParsedTransaction {
   account_id: string;
   category_id?: string | undefined;
   type: string;
-  amount: Decimal;
+  amount: Prisma.Decimal;
   currency: string;
-  exchange_rate: Decimal;
+  exchange_rate: Prisma.Decimal;
   date: Date;
   description?: string | undefined;
   payee?: string | undefined;
@@ -56,9 +56,9 @@ export interface ParsedTransfer {
   id: string;
   from_account: string;
   to_account: string;
-  amount: Decimal;
+  amount: Prisma.Decimal;
   currency: string;
-  to_amount?: Decimal | undefined;
+  to_amount?: Prisma.Decimal | undefined;
   to_currency?: string | undefined;
   date: Date;
   description?: string | undefined;
@@ -78,8 +78,8 @@ function parseBool(value: string): boolean {
   return value.toUpperCase() === 'TRUE';
 }
 
-function parseDecimal(value: string): Decimal {
-  return new Decimal(value || '0');
+function parseDecimal(value: string): Prisma.Decimal {
+  return new Prisma.Decimal(value || '0');
 }
 
 export function parseAccountsFromSheet(rows: string[][]): ParsedAccount[] {
@@ -212,7 +212,7 @@ export interface ParsedAccountSimple {
   name: string;
   account_type: string;
   currency: string;
-  initial_balance: Decimal;
+  initial_balance: Prisma.Decimal;
   icon: string;
   color: string;
   is_active: boolean;
@@ -232,7 +232,7 @@ export interface ParsedTransactionSimple {
   type: string;
   account_code: string;
   category_code?: string | undefined;
-  amount: Decimal;
+  amount: Prisma.Decimal;
   description?: string | undefined;
   labels: string[];
 }
@@ -241,7 +241,7 @@ export interface ParsedTransferSimple {
   date: Date;
   from_account_code: string;
   to_account_code: string;
-  amount: Decimal;
+  amount: Prisma.Decimal;
   description?: string | undefined;
 }
 

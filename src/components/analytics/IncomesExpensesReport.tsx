@@ -17,6 +17,9 @@ interface IncomesExpensesReportProps {
   startDate?: string;
   endDate?: string;
   periodType?: PeriodType;
+  selectedCategories?: string[];
+  selectedAccounts?: string[];
+  selectedCurrencies?: string[];
 }
 
 interface SelectedCategory {
@@ -31,10 +34,13 @@ interface SelectedCategory {
 
 type SortOption = 'default' | 'amount_asc' | 'amount_desc';
 
-const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({ 
-  startDate, 
+const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
+  startDate,
   endDate,
-  periodType = 'month'
+  periodType = 'month',
+  selectedCategories,
+  selectedAccounts,
+  selectedCurrencies
 }) => {
   const [data, setData] = useState<IncomeExpenseReport | null>(null);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
@@ -71,17 +77,31 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       try {
         setLoading(true);
         setError(null);
-        
+
         // Fetch report data and all categories in parallel
-        const params: { start_date?: string; end_date?: string } = {};
+        const params: {
+          start_date?: string;
+          end_date?: string;
+          period_type?: PeriodType;
+          periods?: number;
+          category_ids?: string[];
+          account_ids?: string[];
+          currencies?: string[];
+        } = {
+          period_type: periodType,
+          periods: numberOfColumns,
+        };
         if (startDate) params.start_date = startDate;
         if (endDate) params.end_date = endDate;
-        
+        if (selectedCategories?.length) params.category_ids = selectedCategories;
+        if (selectedAccounts?.length) params.account_ids = selectedAccounts;
+        if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
+
         const [reportData, categoriesResponse] = await Promise.all([
-          analyticsService.fetchIncomeExpenseReport({ ...params, period_type: periodType, periods: numberOfColumns }),
+          analyticsService.fetchIncomeExpenseReport(params),
           categoryService.fetchCategories(),
         ]);
-        
+
         setData(reportData);
         setAllCategories(categoriesResponse.data || []);
       } catch (err) {
@@ -91,7 +111,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       }
     };
     fetchData();
-  }, [startDate, endDate, numberOfColumns, periodType]);
+  }, [startDate, endDate, numberOfColumns, periodType, selectedCategories, selectedAccounts, selectedCurrencies]);
 
   // Set default currency when data loads
   useEffect(() => {
@@ -131,12 +151,12 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     const periodNames = data?.monthNames || [];
     const periodName = periodNames[periodIndex] || '';
     const categoryIds = collectCategoryIds(category);
-    
+
     // Calculate date range based on period type
     const now = new Date();
     let periodStart: Date;
     let periodEnd: Date;
-    
+
     if (periodType === 'month') {
       const baseDate = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
       periodStart = new Date(baseDate);
@@ -149,7 +169,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       const monday = new Date(baseDate);
       monday.setDate(baseDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
       monday.setHours(0, 0, 0, 0);
-      
+
       periodStart = new Date(monday);
       periodStart.setDate(monday.getDate() - (periodIndex * 7));
       periodEnd = new Date(periodStart);
@@ -164,17 +184,17 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       // Custom - use start/end dates divided by periods
       const customStart = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
       const customEnd = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-      
+
       const totalDays = Math.ceil((customEnd.getTime() - customStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const daysPerPeriod = Math.max(1, Math.ceil(totalDays / numberOfColumns));
-      
+
       periodStart = new Date(customStart);
       periodStart.setDate(customStart.getDate() - (periodIndex * daysPerPeriod));
       periodEnd = new Date(periodStart);
       periodEnd.setDate(periodStart.getDate() + daysPerPeriod - 1);
       periodEnd.setHours(23, 59, 59, 999);
     }
-    
+
     setSelectedCategory({
       id: category.id,
       ids: categoryIds,
@@ -195,11 +215,11 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const sortCategories = useMemo(() => {
     return (categories: CategoryReport[]): CategoryReport[] => {
       if (sortOption === 'default') return categories;
-      
+
       return [...categories].sort((a, b) => {
         const aTotal = a.amounts.reduce((sum, amt) => sum + amt, 0);
         const bTotal = b.amounts.reduce((sum, amt) => sum + amt, 0);
-        
+
         if (sortOption === 'amount_asc') {
           return aTotal - bTotal;
         } else {
@@ -258,8 +278,8 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <td key={monthIndex} className="text-end">
               <span className="d-inline-flex align-items-center gap-1">
                 {amount > 0 && (
-                  <FaListUl 
-                    className="text-muted" 
+                  <FaListUl
+                    className="text-muted"
                     style={{ fontSize: '0.875rem', cursor: 'pointer' }}
                     title="View transactions"
                     onClick={(e) => handleShowTransactions(category, monthIndex, e)}
@@ -291,7 +311,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
 
   const renderReport = (currencyData: CurrencyReport, currency: string) => {
     const monthNames = data?.monthNames || [];
-    
+
     return (
       <Table responsive bordered hover>
         <thead>
@@ -342,7 +362,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const renderSkeleton = () => {
     const skeletonRows = Array.from({ length: 8 }, (_, i) => i);
     const skeletonCols = Array.from({ length: numberOfColumns }, (_, i) => i);
-    
+
     return (
       <div>
         {/* Currency pills skeleton */}
@@ -354,7 +374,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <Placeholder className="rounded-pill" style={{ width: 60, height: 32 }} />
           </Placeholder>
         </div>
-        
+
         {/* Table skeleton */}
         <Table responsive bordered>
           <thead>
@@ -389,7 +409,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 </td>
               ))}
             </tr>
-            
+
             {/* Income category skeletons */}
             {skeletonRows.slice(0, 4).map((i) => (
               <tr key={`income-${i}`}>
@@ -412,12 +432,12 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 ))}
               </tr>
             ))}
-            
+
             {/* Spacer */}
             <tr>
               <td colSpan={numberOfColumns + 1} style={{ height: '1rem', padding: 0, border: 'none' }}></td>
             </tr>
-            
+
             {/* Total Expense skeleton */}
             <tr className="total-row">
               <td>
@@ -433,7 +453,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 </td>
               ))}
             </tr>
-            
+
             {/* Expense category skeletons */}
             {skeletonRows.slice(0, 4).map((i) => (
               <tr key={`expense-${i}`}>
@@ -489,7 +509,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const buildCategoryTree = (categories: Category[], type: 'income' | 'expense' | 'both', numMonths: number): CategoryReport[] => {
     const filteredCats = categories.filter(c => c.type === type || c.type === 'both');
     const parentCats = filteredCats.filter(c => !c.parent_id);
-    
+
     return parentCats.map(parent => {
       const children = filteredCats.filter(c => c.parent_id === parent.id);
       return {
@@ -508,7 +528,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     numMonths: number
   ): CategoryReport[] => {
     const reportCatIds = new Set<string>();
-    
+
     // Collect all IDs from report (including children)
     const collectIds = (cats: CategoryReport[]) => {
       cats.forEach(cat => {
@@ -517,15 +537,15 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       });
     };
     collectIds(reportCategories);
-    
+
     // Get categories not in report
     const missingCats = allCats.filter(
       c => (c.type === type || c.type === 'both') && !reportCatIds.has(c.id)
     );
-    
+
     // Build tree for missing categories
     const missingTree = buildCategoryTree(missingCats, type, numMonths);
-    
+
     // Merge: report categories first, then missing ones
     return [...reportCategories, ...missingTree];
   };
@@ -554,7 +574,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     data.currencies.length > 0 ? data.data[selectedCurrency] : undefined,
     numMonths
   );
-  
+
   const displayCurrency = selectedCurrency || defaultCurrency;
 
   return (
@@ -701,7 +721,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
               onChange={() => setSortOption('amount_desc')}
               style={{ marginBottom: '8px', fontSize: '14px' }}
             />
-            
+
             <hr style={{ margin: '12px 0', borderColor: '#e5e7eb' }} />
 
             <div style={{ marginBottom: '8px' }}>
@@ -727,9 +747,9 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
               <span>5</span>
               <span>6</span>
             </div>
-            
+
             <hr style={{ margin: '12px 0', borderColor: '#e5e7eb' }} />
-            
+
             <Form.Check
               type="switch"
               id="show-percentage"

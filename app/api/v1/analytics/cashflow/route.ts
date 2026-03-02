@@ -71,6 +71,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
+  const categoryIds = searchParams.get('category_ids')?.split(',').filter(Boolean) || [];
+  const accountIds = searchParams.get('account_ids')?.split(',').filter(Boolean) || [];
+  const currencyParams = searchParams.get('currencies')?.split(',').filter(Boolean) || [];
+  const search = searchParams.get('search');
+  const minAmount = searchParams.get('min_amount');
+  const maxAmount = searchParams.get('max_amount');
 
   try {
     // Parse dates
@@ -95,14 +101,45 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const yearAgoEnd = new Date(end);
     yearAgoEnd.setFullYear(yearAgoEnd.getFullYear() - 1);
 
+    const baseWhereClause: any = {
+      user_id: user.user_id,
+      deleted_at: null,
+      type: { in: ['income', 'expense'] },
+      account: { is_included_in_total: true },
+    };
+
+    if (categoryIds.length > 0) {
+      baseWhereClause.category_id = { in: categoryIds };
+    }
+
+    if (search) {
+      baseWhereClause.OR = [
+        { description: { contains: search, mode: 'insensitive' } },
+        { payee: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    if (minAmount !== null || maxAmount !== null) {
+      baseWhereClause.amount = {};
+      if (minAmount !== null) baseWhereClause.amount.gte = Number(minAmount);
+      if (maxAmount !== null) baseWhereClause.amount.lte = Number(maxAmount);
+    }
+
+    // Convert the boolean `is_included_in_total` check into an AND array if we need
+    // to filter on specific accounts and specific currencies concurrently.
+    if (accountIds.length > 0 || currencyParams.length > 0) {
+      const accountFilters: any = { is_included_in_total: true };
+      if (accountIds.length > 0) accountFilters.id = { in: accountIds };
+      if (currencyParams.length > 0) accountFilters.currency = { in: currencyParams };
+
+      baseWhereClause.account = accountFilters;
+    }
+
     // Fetch transactions for current period
     const currentTransactions = await prisma.transaction.findMany({
       where: {
-        user_id: user.user_id,
-        deleted_at: null,
+        ...baseWhereClause,
         date: { gte: start, lte: end },
-        type: { in: ['income', 'expense'] },
-        account: { is_included_in_total: true },
       },
       select: {
         date: true,
@@ -116,11 +153,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Fetch transactions for previous period
     const previousTransactions = await prisma.transaction.findMany({
       where: {
-        user_id: user.user_id,
-        deleted_at: null,
+        ...baseWhereClause,
         date: { gte: previousStart, lte: previousEnd },
-        type: { in: ['income', 'expense'] },
-        account: { is_included_in_total: true },
       },
       select: {
         date: true,
@@ -133,11 +167,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Fetch transactions for year ago period
     const yearAgoTransactions = await prisma.transaction.findMany({
       where: {
-        user_id: user.user_id,
-        deleted_at: null,
+        ...baseWhereClause,
         date: { gte: yearAgoStart, lte: yearAgoEnd },
-        type: { in: ['income', 'expense'] },
-        account: { is_included_in_total: true },
       },
       select: {
         date: true,
@@ -164,7 +195,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       filterCurrency: string | null
     ): { dailyData: DailyCashFlow[]; totalIncome: number; totalExpense: number } => {
       const dailyDataMap = new Map<string, { income: number; expense: number }>();
-      
+
       // Initialize all days in period
       const currentDate = new Date(start);
       while (currentDate <= end) {
@@ -179,11 +210,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       for (const tx of transactions) {
         const txCurrency = tx.account?.currency || 'USD';
         if (filterCurrency && txCurrency !== filterCurrency) continue;
-        
+
         const dateKey = new Date(tx.date).toISOString().split('T')[0]!;
         const amount = Math.abs(Number(tx.amount));
         const dayData = dailyDataMap.get(dateKey);
-        
+
         if (dayData) {
           if (tx.type === 'income') {
             dayData.income += amount;
@@ -245,7 +276,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       metric: 'income' | 'expense' | 'cashFlow'
     ): ComparisonDataPoint[] => {
       const dayMap = new Map<number, { income: number; expense: number }>();
-      
+
       // Initialize all days
       for (let i = 0; i < numDays; i++) {
         dayMap.set(i, { income: 0, expense: 0 });
@@ -273,7 +304,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const dayData = dayMap.get(i)!;
         const dateAtDay = new Date(start);
         dateAtDay.setDate(start.getDate() + i);
-        
+
         let value = 0;
         if (metric === 'income') {
           value = dayData.income;
@@ -313,22 +344,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Build data per currency
     const dataByCurrency: Record<string, CurrencyCashFlowData> = {};
-    
+
     for (const currency of currencyList) {
       // Filter transactions by currency
       const currencyCurrentTx = currentTransactions.filter(tx => (tx.account?.currency || 'USD') === currency);
       const currencyPreviousTx = previousTransactions; // Previous/yearAgo don't have currency info, use all
       const currencyYearAgoTx = yearAgoTransactions;
-      
+
       // Build daily data for this currency
       const currencyDailyResult = buildDailyData(currentTransactions, currency);
-      
+
       // Calculate previous period totals for this currency (approximate - use ratio)
       const currencyRatio = totalIncome > 0 ? currencyDailyResult.totalIncome / totalIncome : 0;
       const prevIncomeForCurrency = previousTotalIncome * currencyRatio;
       const prevExpenseForCurrency = previousTotalExpense * currencyRatio;
       const prevNetForCurrency = prevIncomeForCurrency - prevExpenseForCurrency;
-      
+
       const currencyNetCashFlow = currencyDailyResult.totalIncome - currencyDailyResult.totalExpense;
       let currencyPercentChange = 0;
       if (prevNetForCurrency !== 0) {
@@ -336,7 +367,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       } else if (currencyNetCashFlow !== 0) {
         currencyPercentChange = currencyNetCashFlow > 0 ? 100 : -100;
       }
-      
+
       // Build comparison data for this currency
       const currencyComparisonData = {
         cashFlow: {
@@ -355,7 +386,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           yearAgoPeriod: buildComparisonData(currencyYearAgoTx, yearAgoStart, periodDays, 'expense'),
         },
       };
-      
+
       dataByCurrency[currency] = {
         summary: {
           totalIncome: currencyDailyResult.totalIncome,

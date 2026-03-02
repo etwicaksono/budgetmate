@@ -7,6 +7,7 @@ import { useTransaction } from '@/contexts/TransactionContext';
 import { transactionService, type Transaction } from '@/services/transactionService';
 import { labelService, type Label } from '@/services/labelService';
 import { useFilterData } from '@/hooks/useFilterData';
+import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { DesktopFilterSidebar } from '@/components/FilterSidebar';
 import { RecordsHeader, RecordsList, RecordsSkeleton, type GroupedTransactions, type TransactionRecord } from '@/components/Records';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
@@ -61,9 +62,18 @@ function TransactionsContent() {
   const [hasMore, setHasMore] = useState(false);
   // Totals for ALL filtered transactions (from meta, not just loaded pages)
   const [summaryTotals, setSummaryTotals] = useState<Record<string, number>>({});
+  const [totalRecords, setTotalRecords] = useState(0);
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+
+  // Saved filters
+  const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
+    categories,
+    accounts: apiAccounts,
+    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption },
+    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption },
+  });
 
   // Ref for infinite scroll observer
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -177,6 +187,7 @@ function TransactionsContent() {
         setTransactions(result.transactions);
         // Capture totals from ALL filtered data (not just this page)
         setSummaryTotals(result.meta.totals_by_currency ?? {});
+        setTotalRecords(result.meta.total || 0);
       } else {
         setTransactions(prev => [...prev, ...result.transactions]);
       }
@@ -484,6 +495,17 @@ function TransactionsContent() {
     }
   }, [selectedTransactionIds.size]);
 
+  // Total transactions count:
+  //   - When nothing selected: use totalRecords from API meta (covers ALL filtered data)
+  //   - When selection active: count only the selected visible rows
+  const displayTotalCount = useMemo(() => {
+    const hasSelection = selectedTransactionIds.size > 0;
+    if (!hasSelection) {
+      return totalRecords;
+    }
+    return selectedTransactionIds.size;
+  }, [selectedTransactionIds.size, totalRecords]);
+
   // Net totals:
   //   - When nothing selected: use summaryTotals from API meta (covers ALL filtered data)
   //   - When selection active: sum only the selected visible rows
@@ -549,6 +571,15 @@ function TransactionsContent() {
             maxAmount={maxAmount}
             onMinAmountChange={setMinAmount}
             onMaxAmountChange={setMaxAmount}
+            savedFilters={savedFilters}
+            activeFilterId={activeFilterId}
+            savedFiltersLoading={savedFiltersLoading}
+            onSaveFilter={saveCurrentFilter}
+            onLoadFilter={loadFilter}
+            onDeleteFilter={deleteFilter}
+            onRenameFilter={renameFilter}
+            onClearActiveFilter={clearActiveFilter}
+            onReorderFilter={reorderFilter}
           />
         </Col>
 
@@ -580,7 +611,7 @@ function TransactionsContent() {
                   >
                     <RecordsHeader
                       selectedCount={selectedTransactionIds.size}
-                      totalCount={sortedTransactions.length}
+                      totalCount={displayTotalCount}
                       allSelected={allSelected}
                       onSelectAll={handleSelectAll}
                       onBulkEdit={handleBulkEdit}

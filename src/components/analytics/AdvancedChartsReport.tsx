@@ -27,15 +27,21 @@ import {
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import { useAuth } from '@/context/AuthContext';
 
-interface AdvancedChartsReportProps {
+export interface AdvancedChartsReportProps {
   startDate?: string;
   endDate?: string;
+  selectedCategories?: string[];
+  selectedAccounts?: string[];
+  selectedCurrencies?: string[];
+  searchTerm?: string;
+  minAmount?: number;
+  maxAmount?: number;
 }
 
 const formatNumberAbbreviation = (value: number): string => {
   const absValue = Math.abs(value);
   const sign = value < 0 ? '-' : '';
-  
+
   if (absValue >= 1_000_000_000) {
     return `${sign}${(absValue / 1_000_000_000).toFixed(1)}B`;
   }
@@ -56,18 +62,24 @@ const CHART_COLORS = [
 const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
   startDate,
   endDate,
+  searchTerm,
+  minAmount,
+  maxAmount,
+  selectedCategories,
+  selectedAccounts,
+  selectedCurrencies,
 }) => {
   const [data, setData] = useState<AdvancedChartsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Chart options
   const [dataType, setDataType] = useState<AdvancedChartDataType>('balance');
   const [graphType, setGraphType] = useState<AdvancedChartGraphType>('line');
   const [groupBy, setGroupBy] = useState<AdvancedChartGroupBy>('none');
   const [granularity, setGranularity] = useState<AdvancedChartGranularity>('day');
   const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
-  
+
   const { formatCurrency } = useFormattedCurrency();
   const { user } = useAuth();
   const defaultCurrency = user?.currency || 'USD';
@@ -98,13 +110,19 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
       try {
         setLoading(true);
         setError(null);
-        
+
         const params: {
           start_date?: string;
           end_date?: string;
           type?: AdvancedChartDataType;
           granularity?: AdvancedChartGranularity;
           group_by?: AdvancedChartGroupBy;
+          search?: string;
+          min_amount?: number;
+          max_amount?: number;
+          category_ids?: string[];
+          account_ids?: string[];
+          currencies?: string[];
         } = {
           type: dataType,
           granularity,
@@ -112,7 +130,13 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
         };
         if (startDate) params.start_date = startDate;
         if (endDate) params.end_date = endDate;
-        
+        if (searchTerm) params.search = searchTerm;
+        if (minAmount !== undefined) params.min_amount = minAmount;
+        if (maxAmount !== undefined) params.max_amount = maxAmount;
+        if (selectedCategories?.length) params.category_ids = selectedCategories;
+        if (selectedAccounts?.length) params.account_ids = selectedAccounts;
+        if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
+
         const response = await analyticsService.fetchAdvancedCharts(params);
         setData(response);
       } catch (err) {
@@ -121,9 +145,9 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
         setLoading(false);
       }
     };
-    
+
     fetchData();
-  }, [startDate, endDate, dataType, granularity, groupBy]);
+  }, [startDate, endDate, dataType, granularity, groupBy, searchTerm, minAmount, maxAmount, selectedCategories, selectedAccounts, selectedCurrencies]);
 
   // Get current chart data based on selected currency
   const currentChartData = useMemo(() => {
@@ -166,7 +190,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
     }
 
     const hasGroupedData = groupBy !== 'none' && currentChartData.groupedData.length > 0;
-    
+
     // Prepare data for grouped charts
     let chartDataForRender: Array<Record<string, number | string>> = [];
     let dataKeys: Array<{ key: string; color: string; name: string }> = [];
@@ -174,7 +198,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
     if (hasGroupedData) {
       // Merge grouped data into single array for recharts
       const dateMap = new Map<string, Record<string, number | string>>();
-      
+
       currentChartData.groupedData.forEach((group, idx) => {
         group.data.forEach(point => {
           if (!dateMap.has(point.date)) {
@@ -189,7 +213,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
           name: group.groupName,
         });
       });
-      
+
       chartDataForRender = Array.from(dateMap.values());
     } else {
       chartDataForRender = currentChartData.chartData.map(p => ({
@@ -303,7 +327,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
           </Placeholder>
         ))}
       </div>
-      
+
       {/* Chart skeleton */}
       <Card className="border-0 shadow-sm">
         <Card.Body style={{ height: 400 }}>

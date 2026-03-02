@@ -1,6 +1,7 @@
 import React, { createElement, useState, useMemo } from 'react';
+import Swal from 'sweetalert2';
 import type { ComponentType } from 'react';
-import { Card, Button, Form, InputGroup, Dropdown } from 'react-bootstrap';
+import { Card, Button, Form, InputGroup, Dropdown, Modal } from 'react-bootstrap';
 import {
   FaSearch,
   FaTags,
@@ -12,9 +13,27 @@ import {
   FaSortAmountUpAlt,
   FaSortAmountDownAlt,
   FaMoneyBillWave,
+  FaGripVertical,
 } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
 import type { IconType, IconBaseProps } from 'react-icons';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import AmountRangeFilter from '../AmountRangeFilter';
 import { CategoryDropdown } from './CategoryDropdown';
 import { AccountDropdown } from './AccountDropdown';
@@ -215,13 +234,23 @@ interface DesktopFilterSidebarProps {
   onShowTransactionModal?: () => void;
   showAddTransactionButton?: boolean;
   SortDropdownComponent?: React.ComponentType<SortDropdownProps>;
+  // Saved filters
+  savedFilters?: import('@/services/savedFilterService').SavedFilter[];
+  activeFilterId?: string | null;
+  savedFiltersLoading?: boolean;
+  onSaveFilter?: (name: string) => Promise<{ success: boolean; duplicateName?: boolean }>;
+  onLoadFilter?: (filter: import('@/services/savedFilterService').SavedFilter) => void;
+  onDeleteFilter?: (id: string) => void;
+  onRenameFilter?: (id: string, name: string) => Promise<{ success: boolean; duplicateName?: boolean }>;
+  onClearActiveFilter?: () => void;
+  onReorderFilter?: (newOrderIds: string[]) => void;
 }
 
-const noop = () => {};
-const noopDispatch: React.Dispatch<React.SetStateAction<string[]>> = () => {};
-const noopSortDispatch: React.Dispatch<React.SetStateAction<SortValue>> = () => {};
+const noop = () => { };
+const noopDispatch: React.Dispatch<React.SetStateAction<string[]>> = () => { };
+const noopSortDispatch: React.Dispatch<React.SetStateAction<SortValue>> = () => { };
 const noopFilterVisibilityDispatch: React.Dispatch<React.SetStateAction<FilterVisibility>> =
-  () => {};
+  () => { };
 
 export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
   title,
@@ -263,8 +292,24 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
   onShowTransactionModal = noop,
   showAddTransactionButton = false,
   SortDropdownComponent = SortDropdown,
+  savedFilters = [],
+  activeFilterId = null,
+  savedFiltersLoading = false,
+  onSaveFilter = async () => ({ success: false, duplicateName: false } as { success: boolean; duplicateName?: boolean }),
+  onLoadFilter = noop,
+  onDeleteFilter = noop,
+  onRenameFilter = async (): Promise<{ success: boolean; duplicateName?: boolean }> => ({ success: false, duplicateName: false }),
+  onClearActiveFilter = noop,
+  onReorderFilter = noop,
 }) => {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [showSavedFilters, setShowSavedFilters] = useState(false);
+  const [saveInputVisible, setSaveInputVisible] = useState(false);
+  const [saveInputValue, setSaveInputValue] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showManageModal, setShowManageModal] = useState(false);
+  // { id: string, value: string } | null
+  const [renameState, setRenameState] = useState<{ id: string; value: string } | null>(null);
 
   const handleResetFilters = () => {
     onSearchTermChange('');
@@ -278,7 +323,7 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
   };
 
   return (
-    <Card 
+    <Card
       className="desktop-filter-sidebar shadow-sm border-0"
       style={{
         position: 'sticky',
@@ -466,12 +511,195 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
       </Card.Header>
 
       <Card.Body className="overflow-auto pb-2" style={{ flex: '1 1 auto' }}>
+        {/* Saved Filters Dropdown */}
+        <div className="mb-3">
+          <Form.Label className="fw-semibold text-muted small">Saved Filters</Form.Label>
+          <Dropdown
+            show={showSavedFilters}
+            onToggle={(isOpen: boolean | null) => {
+              setShowSavedFilters(isOpen ?? false);
+              if (!isOpen) {
+                setSaveInputVisible(false);
+                setSaveInputValue('');
+              }
+            }}
+            className="w-100"
+          >
+            <Dropdown.Toggle
+              variant="outline-secondary"
+              className="w-100 d-flex align-items-center justify-content-between"
+              style={{ textAlign: 'left', fontSize: '14px' }}
+            >
+              <span className="d-flex align-items-center gap-2 text-truncate">
+                <span>🔖</span>
+                <span className="text-truncate">
+                  {activeFilterId
+                    ? (savedFilters.find((f) => f.id === activeFilterId)?.name ?? 'Saved Filters')
+                    : 'Saved Filters'}
+                </span>
+              </span>
+            </Dropdown.Toggle>
+
+            <Dropdown.Menu className="w-100 p-2" style={{ minWidth: '220px' }}>
+              {savedFiltersLoading ? (
+                <div className="text-center text-muted small py-2">Loading…</div>
+              ) : savedFilters.length === 0 && !saveInputVisible ? (
+                <div className="text-center text-muted small py-2">No saved filters yet</div>
+              ) : (
+                savedFilters.map((filter) => {
+                  const isActive = filter.id === activeFilterId;
+                  return (
+                    <div
+                      key={filter.id}
+                      className={`d-flex align-items-center gap-1 px-2 py-1 rounded mb-1 ${isActive ? 'bg-primary bg-opacity-10' : ''
+                        }`}
+                    >
+                      {/* Active check */}
+                      <span
+                        style={{ width: '16px', flexShrink: 0, color: '#0d6efd', fontSize: '12px' }}
+                      >
+                        {isActive ? '✓' : ''}
+                      </span>
+
+                      {/* Filter name */}
+                      <span
+                        className="flex-grow-1 text-truncate"
+                        style={{ fontSize: '14px', cursor: 'pointer' }}
+                        onClick={() => {
+                          if (isActive) {
+                            handleResetFilters();
+                            onClearActiveFilter();
+                          } else {
+                            onLoadFilter(filter);
+                          }
+                          setShowSavedFilters(false);
+                        }}
+                      >
+                        {filter.name}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+
+              <Dropdown.Divider />
+
+              {saveInputVisible ? (
+                <div className="px-2 pb-1">
+                  <Form.Control
+                    autoFocus
+                    size="sm"
+                    type="text"
+                    placeholder="Filter name…"
+                    value={saveInputValue}
+                    isInvalid={!!saveError}
+                    onChange={(e) => {
+                      setSaveInputValue(e.target.value);
+                      setSaveError(null);
+                    }}
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter' && saveInputValue.trim()) {
+                        const result = await onSaveFilter(saveInputValue.trim());
+                        if (result?.duplicateName) {
+                          setSaveError(`"${saveInputValue.trim()}" already exists`);
+                        } else {
+                          setSaveInputVisible(false);
+                          setSaveInputValue('');
+                          setSaveError(null);
+                          setShowSavedFilters(false);
+                        }
+                      }
+                      if (e.key === 'Escape') {
+                        setSaveInputVisible(false);
+                        setSaveInputValue('');
+                        setSaveError(null);
+                      }
+                    }}
+                    className="mb-1"
+                  />
+                  {saveError && (
+                    <div style={{ fontSize: '12px', color: '#dc3545', marginBottom: '8px' }}>
+                      {saveError}
+                    </div>
+                  )}
+                  <div className="d-flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      className="flex-grow-1"
+                      disabled={!saveInputValue.trim()}
+                      onClick={async () => {
+                        if (saveInputValue.trim()) {
+                          const result = await onSaveFilter(saveInputValue.trim());
+                          if (result?.duplicateName) {
+                            setSaveError(`"${saveInputValue.trim()}" already exists`);
+                          } else {
+                            setSaveInputVisible(false);
+                            setSaveInputValue('');
+                            setSaveError(null);
+                            setShowSavedFilters(false);
+                          }
+                        }
+                      }}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline-secondary"
+                      onClick={() => {
+                        setSaveInputVisible(false);
+                        setSaveInputValue('');
+                        setSaveError(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Dropdown.Item
+                  as="button"
+                  type="button"
+                  className="d-flex align-items-center gap-2"
+                  style={{ fontSize: '14px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSaveInputVisible(true);
+                  }}
+                >
+                  <span style={{ fontSize: '16px' }}>+</span>
+                  Save current filters
+                </Dropdown.Item>
+              )}
+              {savedFilters.length > 0 && !saveInputVisible && (
+                <>
+                  <Dropdown.Divider />
+                  <Dropdown.Item
+                    as="button"
+                    type="button"
+                    className="d-flex align-items-center gap-2 text-muted"
+                    style={{ fontSize: '14px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSavedFilters(false);
+                      setShowManageModal(true);
+                    }}
+                  >
+                    <span>⚙️</span> Manage filters
+                  </Dropdown.Item>
+                </>
+              )}
+            </Dropdown.Menu>
+          </Dropdown>
+        </div>
+
         <Form>
           {filterVisibility.search && (
             <Form.Group className="mb-4" controlId="searchTerm">
               <Form.Label className="fw-semibold text-muted small">Search</Form.Label>
               <InputGroup>
-                <InputGroup.Text 
+                <InputGroup.Text
                   className="search-input-icon bg-white"
                   style={{ borderRight: 'none' }}
                 >
@@ -652,17 +880,254 @@ export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
           )}
         </Form>
       </Card.Body>
-      
+
       <Card.Footer className="bg-white border-top p-3 mt-auto">
-        <Button 
-          variant="outline-secondary" 
+        <Button
+          variant="outline-secondary"
           onClick={handleResetFilters}
           className="w-100 fw-medium"
         >
           Reset all filters
         </Button>
       </Card.Footer>
+
+      <ManageFiltersModal
+        show={showManageModal}
+        onHide={() => setShowManageModal(false)}
+        savedFilters={savedFilters}
+        renameState={renameState}
+        setRenameState={setRenameState}
+        onRenameFilter={onRenameFilter}
+        onDeleteFilter={onDeleteFilter}
+        onReorderFilter={onReorderFilter}
+      />
     </Card>
+  );
+};
+
+// --- Subcomponents below ---
+
+interface ManageFiltersModalProps {
+  show: boolean;
+  onHide: () => void;
+  savedFilters: import('@/services/savedFilterService').SavedFilter[];
+  renameState: { id: string; value: string } | null;
+  setRenameState: (state: { id: string; value: string } | null) => void;
+  onRenameFilter: (id: string, name: string) => Promise<{ success: boolean; duplicateName?: boolean }>;
+  onDeleteFilter: (id: string) => void;
+  onReorderFilter: (newOrderIds: string[]) => void;
+}
+
+const ManageFiltersModal: React.FC<ManageFiltersModalProps> = ({
+  show,
+  onHide,
+  savedFilters,
+  renameState,
+  setRenameState,
+  onRenameFilter,
+  onDeleteFilter,
+  onReorderFilter,
+}) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = savedFilters.findIndex((f) => f.id === active.id);
+      const newIndex = savedFilters.findIndex((f) => f.id === over.id);
+      const newOrderIds = arrayMove(savedFilters, oldIndex, newIndex).map(f => f.id);
+      onReorderFilter(newOrderIds);
+    }
+  };
+
+  return (
+    <Modal show={show} onHide={onHide} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Manage Saved Filters</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="p-0">
+        {savedFilters.length === 0 ? (
+          <div className="p-4 text-center text-muted">No saved filters.</div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={savedFilters.map((f) => f.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="list-group list-group-flush">
+                {savedFilters.map((filter) => (
+                  <SortableFilterItem
+                    key={filter.id}
+                    filter={filter}
+                    renameState={renameState}
+                    setRenameState={setRenameState}
+                    onRenameFilter={onRenameFilter}
+                    onDeleteFilter={onDeleteFilter}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+        )}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide}>
+          Close
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
+interface SortableFilterItemProps {
+  filter: import('@/services/savedFilterService').SavedFilter;
+  renameState: { id: string; value: string } | null;
+  setRenameState: (state: { id: string; value: string } | null) => void;
+  onRenameFilter: (id: string, name: string) => Promise<{ success: boolean; duplicateName?: boolean }>;
+  onDeleteFilter: (id: string) => void;
+}
+
+const SortableFilterItem: React.FC<SortableFilterItemProps> = ({
+  filter,
+  renameState,
+  setRenameState,
+  onRenameFilter,
+  onDeleteFilter,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: filter.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 1 : 0,
+    boxShadow: isDragging ? '0 5px 15px rgba(0, 0, 0, 0.15)' : 'none',
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`list-group-item d-flex align-items-center justify-content-between p-3 bg-white ${isDragging ? 'opacity-75' : ''}`}
+    >
+      <div className="d-flex align-items-center flex-grow-1 overflow-hidden">
+        <div
+          {...attributes}
+          {...listeners}
+          className="me-3 text-muted d-flex align-items-center justify-content-center"
+          style={{ cursor: isDragging ? 'grabbing' : 'grab', width: '20px', height: '100%', outline: 'none' }}
+          title="Drag to reorder"
+        >
+          <FaGripVertical />
+        </div>
+        {renameState?.id === filter.id ? (
+          <Form.Control
+            autoFocus
+            size="sm"
+            type="text"
+            value={renameState.value}
+            onChange={(e) => setRenameState({ id: filter.id, value: e.target.value })}
+            onKeyDown={async (e) => {
+              if (e.key === 'Enter' && renameState.value.trim()) {
+                const result = await onRenameFilter(filter.id, renameState.value.trim());
+                if (result.duplicateName) {
+                  Swal.fire({ icon: 'error', title: 'Name already exists', text: `You already have a filter named "${renameState.value.trim()}".`, confirmButtonColor: '#0d6efd' });
+                } else {
+                  setRenameState(null);
+                }
+              }
+              if (e.key === 'Escape') setRenameState(null);
+            }}
+            onBlur={(e) => {
+              // Only cancel rename if focus moves outside of this list item
+              // We use e.currentTarget (the input) and find its closest li parent
+              // and see if the new focus target (e.relatedTarget) is inside that li
+              const listItem = e.currentTarget.closest('li');
+              if (listItem && !listItem.contains(e.relatedTarget as Node)) {
+                setRenameState(null);
+              }
+            }}
+            className="me-3"
+          />
+        ) : (
+          <span className="fw-medium text-truncate me-3" style={{ fontSize: '15px', userSelect: 'none' }}>{filter.name}</span>
+        )}
+      </div>
+
+      <div className="d-flex align-items-center gap-2 flex-shrink-0">
+        {renameState?.id === filter.id ? (
+          <Button
+            variant="link"
+            className="p-0 text-success text-decoration-none"
+            aria-label={`Save rename for ${filter.name}`}
+            title="Save"
+            onClick={async (e) => {
+              e.preventDefault();
+              if (renameState.value.trim()) {
+                const result = await onRenameFilter(filter.id, renameState.value.trim());
+                if (result.duplicateName) {
+                  Swal.fire({ icon: 'error', title: 'Name already exists', text: `You already have a filter named "${renameState.value.trim()}".`, confirmButtonColor: '#0d6efd' });
+                } else {
+                  setRenameState(null);
+                }
+              } else {
+                setRenameState(null);
+              }
+            }}
+          >
+            ✓ Save
+          </Button>
+        ) : (
+          <Button
+            variant="link"
+            className="p-0 text-muted text-decoration-none"
+            aria-label={`Rename ${filter.name}`}
+            title="Rename"
+            onClick={() => setRenameState({ id: filter.id, value: filter.name })}
+          >
+            ✏️ Edit
+          </Button>
+        )}
+
+        <Button
+          variant="link"
+          className="p-0 text-danger text-decoration-none ms-2"
+          aria-label={`Delete ${filter.name}`}
+          onClick={async () => {
+            const result = await Swal.fire({
+              icon: 'warning',
+              title: 'Delete Filter',
+              html: `Delete <strong>${filter.name}</strong>?<br><small class="text-muted">This cannot be undone.</small>`,
+              showCancelButton: true,
+              confirmButtonText: 'Yes, delete it',
+              cancelButtonText: 'Cancel',
+              confirmButtonColor: '#dc3545',
+              cancelButtonColor: '#6c757d',
+              reverseButtons: true,
+            });
+            if (!result.isConfirmed) return;
+            onDeleteFilter(filter.id);
+          }}
+        >
+          🗑️ Delete
+        </Button>
+      </div>
+    </li>
   );
 };
 

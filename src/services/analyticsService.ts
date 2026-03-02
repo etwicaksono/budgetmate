@@ -210,7 +210,7 @@ class AnalyticsService {
     );
     return response.data;
   }
-  
+
   async fetchTrends(params: {
     metric: 'income' | 'expense' | 'net' | 'balance';
     period: 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -227,7 +227,7 @@ class AnalyticsService {
     );
     return response.data;
   }
-  
+
   async fetchCashFlow(params?: {
     start_date?: string;
     end_date?: string;
@@ -242,7 +242,7 @@ class AnalyticsService {
     );
     return response.data;
   }
-  
+
   async fetchExpensesByCategory(params?: {
     start_date?: string;
     end_date?: string;
@@ -260,14 +260,14 @@ class AnalyticsService {
     );
     return response.data;
   }
-  
+
   async fetchNetWorthHistory(): Promise<TrendData> {
     const response = await api.get<{ success: boolean; data: TrendData }>(
       '/analytics/net-worth'
     );
     return response.data;
   }
-  
+
   async fetchCategoryBreakdown(categoryId: string, params?: {
     start_date?: string;
     end_date?: string;
@@ -277,8 +277,8 @@ class AnalyticsService {
     average: number;
     trend: TrendData;
   }> {
-    const response = await api.get<{ 
-      success: boolean; 
+    const response = await api.get<{
+      success: boolean;
       data: {
         total: number;
         transactions: number;
@@ -309,10 +309,18 @@ class AnalyticsService {
     end_date?: string;
     period_type?: 'month' | 'week' | 'year' | 'custom';
     periods?: number;
+    category_ids?: string[]; // Added from instruction
+    account_ids?: string[]; // Added from instruction
+    currencies?: string[]; // Added from instruction
   }): Promise<IncomeExpenseReport> {
+    const queryParams: Record<string, string | number | string[]> = { ...params };
+    if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
+    if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
+    if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
+
     const response = await api.get<{ success: boolean; data: IncomeExpenseReport }>(
       '/analytics/income-expense-report',
-      { params }
+      { params: queryParams }
     );
     return response.data;
   }
@@ -320,10 +328,19 @@ class AnalyticsService {
   async fetchBalanceTrend(params?: {
     start_date?: string;
     end_date?: string;
-  }): Promise<BalanceTrendResponse> {
+    period_type?: 'month' | 'week' | 'year' | 'custom'; // Added from instruction
+    category_ids?: string[]; // Added from instruction
+    account_ids?: string[]; // Added from instruction
+    currencies?: string[]; // Added from instruction
+  }): Promise<BalanceTrendResponse> { // Kept original return type BalanceTrendResponse
+    const queryParams: Record<string, string | number | string[]> = { ...params };
+    if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
+    if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
+    if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
+
     const response = await api.get<{ success: boolean; data: BalanceTrendResponse }>(
       '/analytics/balance-trend',
-      { params }
+      { params: queryParams }
     );
     return response.data;
   }
@@ -331,10 +348,21 @@ class AnalyticsService {
   async fetchCashFlowReport(params?: {
     start_date?: string;
     end_date?: string;
+    search?: string;
+    min_amount?: number;
+    max_amount?: number;
+    category_ids?: string[];
+    account_ids?: string[];
+    currencies?: string[];
   }): Promise<CashFlowResponse> {
+    const queryParams: Record<string, string | number | string[]> = { ...params };
+    if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
+    if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
+    if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
+
     const response = await api.get<{ success: boolean; data: CashFlowResponse }>(
       '/analytics/cashflow',
-      { params }
+      { params: queryParams }
     );
     return response.data;
   }
@@ -345,10 +373,21 @@ class AnalyticsService {
     type?: AdvancedChartDataType;
     granularity?: AdvancedChartGranularity;
     group_by?: AdvancedChartGroupBy;
-  }): Promise<AdvancedChartsResponse> {
+    search?: string;
+    min_amount?: number;
+    max_amount?: number;
+    category_ids?: string[]; // Added from instruction
+    account_ids?: string[]; // Added from instruction
+    currencies?: string[]; // Added from instruction
+  }): Promise<AdvancedChartsResponse> { // Kept original return type AdvancedChartsResponse
+    const queryParams: Record<string, string | number | string[]> = { ...params };
+    if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
+    if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
+    if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
+
     const response = await api.get<{ success: boolean; data: AdvancedChartsResponse }>(
       '/analytics/advanced-charts',
-      { params }
+      { params: queryParams }
     );
     return response.data;
   }

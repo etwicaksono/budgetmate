@@ -232,6 +232,16 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
     setSelectedCategories([]);
   }, [setSelectedCategories]);
 
+  const areAllSelected = selectedCategories.length === allCategories.length && allCategories.length > 0;
+
+  const toggleSelectAll = useCallback(() => {
+    if (areAllSelected) {
+      setSelectedCategories([]);
+    } else {
+      setSelectedCategories([...allCategories]);
+    }
+  }, [areAllSelected, allCategories, setSelectedCategories]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!isOpen) return;
@@ -379,6 +389,19 @@ export const CategoryDropdown: React.FC<CategoryDropdownProps> = ({
               )}
             </div>
           </div>
+          {!isSingleSelect && (
+            <div className="px-2 py-1 border-bottom bg-light">
+              <Form.Check
+                type="checkbox"
+                id="select-all-categories"
+                label={areAllSelected ? "Unselect All" : "Select All"}
+                checked={areAllSelected}
+                onChange={toggleSelectAll}
+                className="small text-muted mb-0"
+                style={{ cursor: 'pointer' }}
+              />
+            </div>
+          )}
           <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
             {categorySearch ? (
               filteredCategories.length === 0 ? (

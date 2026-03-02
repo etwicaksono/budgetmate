@@ -61,6 +61,16 @@ export const LabelDropdown: React.FC<LabelDropdownProps> = ({
     setSelectedLabels([]);
   };
 
+  const areAllSelected = selectedLabels.length === labels.length && labels.length > 0;
+
+  const toggleSelectAll = () => {
+    if (areAllSelected) {
+      setSelectedLabels([]);
+    } else {
+      setSelectedLabels(labels.map((l) => l.name));
+    }
+  };
+
   const getDisplayText = () => {
     if (selectedLabels.length === 0) {
       return `All ${entityLabelPlural}`;
@@ -117,6 +127,20 @@ export const LabelDropdown: React.FC<LabelDropdownProps> = ({
             )}
           </InputGroup>
         </div>
+
+        {!isSingleSelect && (
+          <div className="px-2 py-1 border-bottom bg-light">
+            <Form.Check
+              type="checkbox"
+              id="select-all-labels"
+              label={areAllSelected ? "Unselect All" : "Select All"}
+              checked={areAllSelected}
+              onChange={toggleSelectAll}
+              className="small text-muted mb-0"
+              style={{ cursor: 'pointer' }}
+            />
+          </div>
+        )}
 
         {/* Selection count and clear */}
         {selectedLabels.length > 0 && (

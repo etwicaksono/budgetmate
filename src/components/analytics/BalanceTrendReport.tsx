@@ -13,12 +13,15 @@ interface BalanceTrendReportProps {
   startDate?: string;
   endDate?: string;
   periodLabel?: string;
+  selectedCategories?: string[];
+  selectedAccounts?: string[];
+  selectedCurrencies?: string[];
 }
 
 const formatNumberAbbreviation = (value: number): string => {
   const absValue = Math.abs(value);
   const sign = value < 0 ? '-' : '';
-  
+
   if (absValue >= 1_000_000_000) {
     return `${sign}${(absValue / 1_000_000_000).toFixed(1)}B`;
   }
@@ -62,6 +65,9 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
   startDate,
   endDate,
   periodLabel = 'THIS MONTH',
+  selectedCategories,
+  selectedAccounts,
+  selectedCurrencies,
 }) => {
   const [data, setData] = useState<BalanceTrendResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,11 +96,20 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
       try {
         setLoading(true);
         setError(null);
-        
-        const params: { start_date?: string; end_date?: string } = {};
+
+        const params: {
+          start_date?: string;
+          end_date?: string;
+          category_ids?: string[];
+          account_ids?: string[];
+          currencies?: string[];
+        } = {};
         if (startDate) params.start_date = startDate;
         if (endDate) params.end_date = endDate;
-        
+        if (selectedCategories?.length) params.category_ids = selectedCategories;
+        if (selectedAccounts?.length) params.account_ids = selectedAccounts;
+        if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
+
         const response = await analyticsService.fetchBalanceTrend(params);
         setData(response);
       } catch (err) {
@@ -103,9 +118,9 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
         setLoading(false);
       }
     };
-    
+
     fetchData();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, selectedCategories, selectedAccounts, selectedCurrencies]);
 
   // Set default currency when data loads
   useEffect(() => {
@@ -119,14 +134,14 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
   // Filter accounts and totals by selected currency
   const filteredData = useMemo(() => {
     if (!data) return null;
-    
+
     const displayCurrency = selectedCurrency || data.currencies[0] || defaultCurrency;
     const filteredAccounts = data.accounts.filter(a => a.currency === displayCurrency);
     const currencyTotal = data.currencyTotals.find(ct => ct.currency === displayCurrency);
     const totalBalance = currencyTotal?.balance ?? 0;
     const percentChange = currencyTotal?.percentChange ?? 0;
     const chartData = data.chartDataByCurrency?.[displayCurrency] || data.chartData;
-    
+
     return {
       accounts: filteredAccounts,
       totalBalance,
@@ -136,9 +151,9 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
     };
   }, [data, selectedCurrency, defaultCurrency]);
 
-  const CustomTooltip = ({ active, payload }: { 
-    active?: boolean; 
-    payload?: Array<{ value: number; payload: { date: string; balance: number } }> 
+  const CustomTooltip = ({ active, payload }: {
+    active?: boolean;
+    payload?: Array<{ value: number; payload: { date: string; balance: number } }>
   }) => {
     if (active && payload && payload.length) {
       const item = payload[0];
@@ -166,7 +181,7 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
           <Placeholder className="rounded-pill" style={{ width: 60, height: 32 }} />
         </Placeholder>
       </div>
-      
+
       {/* Header skeleton */}
       <div className="mb-4">
         <Placeholder animation="glow">
@@ -176,7 +191,7 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
           <Placeholder xs={5} style={{ height: '2rem' }} />
         </Placeholder>
       </div>
-      
+
       {/* Chart skeleton */}
       <Card className="mb-4">
         <Card.Body style={{ height: 350 }}>
@@ -185,7 +200,7 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
           </Placeholder>
         </Card.Body>
       </Card>
-      
+
       {/* Account list skeleton */}
       <ListGroup>
         {[1, 2, 3, 4, 5].map((i) => (
@@ -231,10 +246,10 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
     const isNegative = account.balance < 0;
     const formattedBalance = formatCurrency(Math.abs(account.balance), account.currency);
     const displayBalance = isNegative ? `-${formattedBalance}` : formattedBalance;
-    
+
     return (
-      <ListGroup.Item 
-        key={account.id} 
+      <ListGroup.Item
+        key={account.id}
         className="d-flex justify-content-between align-items-center py-3"
       >
         <div className="d-flex align-items-center gap-3">
@@ -256,7 +271,7 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
             </small>
           </div>
         </div>
-        <div 
+        <div
           className="fw-medium"
           style={{ color: isNegative ? '#dc3545' : '#198754' }}
         >
@@ -398,7 +413,7 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
           <span className="text-muted">
             {currencyNames[displayCurrency] || displayCurrency}
           </span>
-          <span 
+          <span
             className="fw-bold"
             style={{ color: filteredData.totalBalance < 0 ? '#dc3545' : undefined }}
           >
@@ -406,10 +421,10 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
             {formatCurrency(Math.abs(filteredData.totalBalance), displayCurrency)}
           </span>
         </div>
-        <div 
+        <div
           className="rounded"
-          style={{ 
-            height: 8, 
+          style={{
+            height: 8,
             backgroundColor: '#e9ecef',
             overflow: 'hidden',
           }}
