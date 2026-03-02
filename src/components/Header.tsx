@@ -4,7 +4,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Button, Container, Dropdown, Offcanvas } from 'react-bootstrap';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FaBars, FaBug, FaCog,  FaPlus, FaQuestionCircle, FaSignOutAlt } from 'react-icons/fa';
+import { FaBars, FaBug, FaCog, FaPlus, FaQuestionCircle, FaSignOutAlt } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import { useTransaction } from '@/contexts/TransactionContext';
 import './Header.css';
@@ -43,7 +43,7 @@ export default function Header(): React.ReactElement {
   );
 
   const displayName = user?.full_name || user?.username || 'User';
-  
+
   const profileInitials = useMemo((): string => {
     const [first = '', second = ''] = displayName.split(' ');
     return `${first.charAt(0)}${second.charAt(0)}`.toUpperCase();
@@ -55,7 +55,7 @@ export default function Header(): React.ReactElement {
       if (pathname === '/settings') {
         return false;
       }
-      
+
       if (exact) {
         return pathname === path;
       }
@@ -87,13 +87,13 @@ export default function Header(): React.ReactElement {
         <div className="app-header__left">
           <Link href="/dashboard" className="app-header__brand" onClick={handleClose}>
             <span className="app-header__brand-icon">
-              <Image 
-              src="/images/logo-image-only.svg" 
-              alt="Wallet logo" 
-              width={40}
-              height={40}
-              className="app-header__brand-logo" 
-            />
+              <Image
+                src="/images/logo-image-only.svg"
+                alt="Wallet logo"
+                width={40}
+                height={40}
+                className="app-header__brand-logo"
+              />
             </span>
             <span className="app-header__brand-text d-none d-md-inline">Finance App</span>
           </Link>
@@ -103,9 +103,8 @@ export default function Header(): React.ReactElement {
               <Link
                 key={to}
                 href={to}
-                className={`app-header__link ${
-                  isActiveLink(to, exact) ? 'app-header__link--active' : ''
-                }`}
+                className={`app-header__link ${isActiveLink(to, exact) ? 'app-header__link--active' : ''
+                  }`}
               >
                 {label}
               </Link>
@@ -198,9 +197,8 @@ export default function Header(): React.ReactElement {
               <Button
                 key={to}
                 variant="link"
-                className={`app-header__mobile-link ${
-                  isActiveLink(to, exact) ? 'app-header__mobile-link--active' : ''
-                }`}
+                className={`app-header__mobile-link ${isActiveLink(to, exact) ? 'app-header__mobile-link--active' : ''
+                  }`}
                 onClick={() => {
                   router.push(to);
                   handleClose();

@@ -197,6 +197,10 @@
   font-weight: 600;
   background-color: #0f9d58;
   border-color: #0f9d58;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .app-header__mobile-record:hover,

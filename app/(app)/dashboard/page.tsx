@@ -127,9 +127,9 @@ const BalanceTrendWidget: React.FC<BalanceTrendWidgetProps> = ({
   const hasTabs = availableCurrencies.length > 1;
 
   return (
-    <div style={{ 
-      height: isExpanded ? '100%' : 'auto', 
-      display: 'flex', 
+    <div style={{
+      height: isExpanded ? '100%' : 'auto',
+      display: 'flex',
       flexDirection: 'column',
     }}>
       {/* Currency Tabs */}
@@ -154,8 +154,8 @@ const BalanceTrendWidget: React.FC<BalanceTrendWidgetProps> = ({
         </Nav>
       )}
       {/* Chart */}
-      <div style={{ 
-        flex: isExpanded ? 1 : 'none', 
+      <div style={{
+        flex: isExpanded ? 1 : 'none',
         minHeight: isExpanded ? 0 : 'auto',
         height: isExpanded ? '100%' : 'auto',
       }}>
@@ -212,9 +212,9 @@ const BudgetStatusWidget: React.FC<BudgetStatusWidgetProps> = ({
   const hasTabs = budgetCurrencies.length > 1;
 
   return (
-    <div style={{ 
-      height: isExpanded ? '100%' : 'auto', 
-      display: 'flex', 
+    <div style={{
+      height: isExpanded ? '100%' : 'auto',
+      display: 'flex',
       flexDirection: 'column',
     }}>
       {/* Currency Tabs */}
@@ -239,8 +239,8 @@ const BudgetStatusWidget: React.FC<BudgetStatusWidgetProps> = ({
         </Nav>
       )}
       {/* Budget List */}
-      <div style={{ 
-        flex: isExpanded ? 1 : 'none', 
+      <div style={{
+        flex: isExpanded ? 1 : 'none',
         minHeight: isExpanded ? 0 : 'auto',
         height: isExpanded ? '100%' : 'auto',
       }}>
@@ -280,18 +280,18 @@ const ExpensesByCategoryWidget: React.FC<ExpensesByCategoryWidgetProps> = ({
 }) => {
   const isExpanded = height === '100%';
   const hasTabs = expenseCurrencies.length > 1;
-  
+
   // Calculate chart height based on expanded state
   // Use "100%" for expanded (flex container handles layout), fixed height otherwise
   const chartHeight = isExpanded ? '100%' : (hasTabs ? 310 : 350);
-  
+
   // Calculate outer radius based on expanded state
   const outerRadius = isExpanded ? '35%' : 80;
 
   return (
-    <div style={{ 
-      height: isExpanded ? '100%' : 'auto', 
-      display: 'flex', 
+    <div style={{
+      height: isExpanded ? '100%' : 'auto',
+      display: 'flex',
       flexDirection: 'column',
     }}>
       {/* Currency Tabs */}
@@ -316,8 +316,8 @@ const ExpensesByCategoryWidget: React.FC<ExpensesByCategoryWidgetProps> = ({
         </Nav>
       )}
       {/* Pie Chart */}
-      <div style={{ 
-        flex: isExpanded ? 1 : 'none', 
+      <div style={{
+        flex: isExpanded ? 1 : 'none',
         minHeight: isExpanded ? 0 : 'auto',
         height: isExpanded ? '100%' : 'auto',
       }}>
@@ -361,9 +361,9 @@ const IncomeVsExpensesWidget: React.FC<IncomeVsExpensesWidgetProps> = ({
   const hasTabs = currencies.length > 1;
 
   return (
-    <div style={{ 
-      height: isExpanded ? '100%' : 'auto', 
-      display: 'flex', 
+    <div style={{
+      height: isExpanded ? '100%' : 'auto',
+      display: 'flex',
       flexDirection: 'column',
     }}>
       {/* Currency Tabs */}
@@ -388,8 +388,8 @@ const IncomeVsExpensesWidget: React.FC<IncomeVsExpensesWidgetProps> = ({
         </Nav>
       )}
       {/* Chart */}
-      <div style={{ 
-        flex: isExpanded ? 1 : 'none', 
+      <div style={{
+        flex: isExpanded ? 1 : 'none',
         minHeight: isExpanded ? 0 : 'auto',
         height: isExpanded ? '100%' : 'auto',
         padding: '1rem',
@@ -422,7 +422,7 @@ function DashboardContent(): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // API data states
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<ExpenseByCategory[]>([]);
@@ -433,9 +433,9 @@ function DashboardContent(): React.ReactElement {
   const [balanceTrend, setBalanceTrend] = useState<TrendChartData[]>([]);
   const [incomeExpenseByCurrency, setIncomeExpenseByCurrency] = useState<Record<string, BarChartData[]>>({});
   const [incomeExpenseCurrencies, setIncomeExpenseCurrencies] = useState<string[]>([]);
-  
+
   const { formatCurrency } = useFormattedCurrency();
-  
+
   const {
     state: { periodLabel, activePeriod, customRangeDraft },
   } = usePeriodNavigation();
@@ -493,7 +493,7 @@ function DashboardContent(): React.ReactElement {
       // IMPORTANT: Use UTC timezone by appending 'Z' to avoid local timezone interpretation
       const startDateTime = new Date(startDate + 'T00:00:00Z').toISOString();
       const endDateTime = new Date(endDate + 'T23:59:59Z').toISOString();
-      
+
       console.log('[Dashboard] Date range (UTC):', { startDate, endDate, startDateTime, endDateTime });
 
       // Fetch all widget data in parallel
@@ -530,14 +530,14 @@ function DashboardContent(): React.ReactElement {
         // Multi-currency response
         setIncomeExpenseByCurrency(incomeExpenseData.data as Record<string, BarChartData[]>);
       }
-      
+
       // Convert trend data to chart format with multi-currency support
       if (trendData.labels && trendData.datasets && trendData.datasets.length > 0) {
         console.log('[Dashboard] Raw trend data from API:', JSON.stringify(trendData, null, 2));
-        
+
         const chartData: TrendChartData[] = trendData.labels.map((label, index) => {
           const dataPoint: TrendChartData = { date: label };
-          
+
           // Add data for each currency
           trendData.datasets.forEach((dataset: { label: string; data: number[] }) => {
             const currency = dataset.label;
@@ -545,7 +545,7 @@ function DashboardContent(): React.ReactElement {
             dataPoint[currency] = value;
             console.log(`[Dashboard] ${label} - ${currency}: ${value}`);
           });
-          
+
           return dataPoint;
         });
         console.log('[Dashboard] Transformed chart data:', JSON.stringify(chartData, null, 2));
@@ -637,14 +637,14 @@ function DashboardContent(): React.ReactElement {
   // Calculate balance per currency from accounts
   const currencyBalances = React.useMemo(() => {
     const balanceMap = new Map<string, number>();
-    
+
     accounts.forEach(account => {
       if (account.is_included_in_total) {
         const current = balanceMap.get(account.currency) || 0;
         balanceMap.set(account.currency, current + account.current_balance);
       }
     });
-    
+
     return Array.from(balanceMap.entries())
       .map(([currency, balance]) => ({ currency, balance }))
       .sort((a, b) => b.balance - a.balance); // Sort by balance descending
@@ -658,25 +658,25 @@ function DashboardContent(): React.ReactElement {
         const isInExpenses = expenseCurrencies.includes(primaryCurrency);
         const isInBalances = currencyBalances.some(cb => cb.currency === primaryCurrency);
         const isInIncomeExpense = incomeExpenseCurrencies.includes(primaryCurrency);
-        
+
         if (isInExpenses || isInBalances || isInIncomeExpense) {
           setSelectedCurrency(primaryCurrency);
           return;
         }
       }
-      
+
       // Priority 2: Use first currency from balance trend (dashboard's main widget)
       if (currencyBalances.length > 0 && currencyBalances[0]) {
         setSelectedCurrency(currencyBalances[0].currency);
         return;
       }
-      
+
       // Priority 3: Use first expense currency
       if (expenseCurrencies.length > 0 && expenseCurrencies[0]) {
         setSelectedCurrency(expenseCurrencies[0]);
         return;
       }
-      
+
       // Priority 4: Use first income/expense currency
       if (incomeExpenseCurrencies.length > 0 && incomeExpenseCurrencies[0]) {
         setSelectedCurrency(incomeExpenseCurrencies[0]);
@@ -844,11 +844,11 @@ function DashboardContent(): React.ReactElement {
 
       {/* Account Cards Section */}
       <section className="mb-5">
-        <Row>
+        <Row className="g-1">
           {accountsLoading ? (
             <>
               {[1, 2, 3, 4].map((i) => (
-                <Col key={i} xs={12} sm={6} md={3} className="mb-3">
+                <Col key={i} xs={4} sm={4} md={3} lg={2}>
                   <CardSkeleton />
                 </Col>
               ))}
@@ -856,7 +856,7 @@ function DashboardContent(): React.ReactElement {
           ) : (
             <>
               {accounts.map((account) => (
-                <Col key={account.id} xs={12} sm={6} md={3} className="mb-3">
+                <Col key={account.id} xs={4} sm={4} md={3} lg={2}>
                   <div
                     style={{ position: 'relative' }}
                     onMouseEnter={(e) => {
@@ -912,7 +912,7 @@ function DashboardContent(): React.ReactElement {
                   </div>
                 </Col>
               ))}
-              <Col xs={12} sm={6} md={3} className="mb-3">
+              <Col xs={4} sm={4} md={3} lg={2}>
                 <AddAccountCard onClick={accountModal.openAddModal} />
               </Col>
             </>

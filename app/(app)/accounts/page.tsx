@@ -8,6 +8,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -114,14 +115,16 @@ const SortableAccountCard: React.FC<SortableAccountCardProps> = ({
         >
           <IconComponent size={20} />
         </div>
-        <div className="accounts-list__details">
-          <span className="accounts-list__name">{account.name}</span>
-          <span className="accounts-list__type">{account.account_type}</span>
-        </div>
-        <div
-          className={`accounts-list__balance ${account.current_balance < 0 ? 'accounts-list__balance--negative' : ''}`}
-        >
-          {formatCurrency(account.current_balance, account.currency)}
+        <div className="accounts-list__content">
+          <div className="accounts-list__details">
+            <span className="accounts-list__name">{account.name}</span>
+            <span className="accounts-list__type">{account.account_type}</span>
+          </div>
+          <div
+            className={`accounts-list__balance ${account.current_balance < 0 ? 'accounts-list__balance--negative' : ''}`}
+          >
+            {formatCurrency(account.current_balance, account.currency)}
+          </div>
         </div>
         {!isArchived && (
           <Button
@@ -157,8 +160,8 @@ const AccountsSidebarSkeleton: React.FC = () => (
     <div className="skeleton-block" style={{ height: '16px', width: '80%', borderRadius: '4px' }} />
     <div className="skeleton-block mt-1" style={{ height: '44px', width: '100%', borderRadius: '999px' }} />
     <div className="d-flex justify-content-between mt-2 align-items-center">
-       <div className="skeleton-block" style={{ height: '20px', width: '40%', borderRadius: '4px' }} />
-       <div className="skeleton-block" style={{ height: '24px', width: '40px', borderRadius: '1rem' }} />
+      <div className="skeleton-block" style={{ height: '20px', width: '40%', borderRadius: '4px' }} />
+      <div className="skeleton-block" style={{ height: '24px', width: '40px', borderRadius: '1rem' }} />
     </div>
     <div className="skeleton-block mt-2" style={{ height: '180px', width: '100%', borderRadius: '1.1rem' }} />
   </div>
@@ -180,6 +183,12 @@ const AccountsPage: React.FC = () => {
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -241,11 +250,11 @@ const AccountsPage: React.FC = () => {
       // First sort by order (if available, defaulting to 0)
       const orderA = a.order ?? 0;
       const orderB = b.order ?? 0;
-      
+
       if (orderA !== orderB) {
         return orderA - orderB;
       }
-      
+
       // Fallback to created_at
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
@@ -265,7 +274,7 @@ const AccountsPage: React.FC = () => {
         const currency = account.currency || 'USD';
         balancesByCurrency[currency] = (balancesByCurrency[currency] || 0) + account.current_balance;
       });
-    
+
     // Convert to sorted array (by currency name)
     const currencyBalances = Object.entries(balancesByCurrency)
       .map(([currency, balance]) => ({ currency, balance }))

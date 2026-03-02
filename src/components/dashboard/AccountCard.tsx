@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Card } from 'react-bootstrap';
-import { FaWallet } from 'react-icons/fa';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 
 interface AccountCardProps {
@@ -14,30 +13,26 @@ interface AccountCardProps {
   onClick?: () => void;
 }
 
-export const AccountCard: React.FC<AccountCardProps> = ({ 
-  name, 
-  balance, 
+export const AccountCard: React.FC<AccountCardProps> = ({
+  name,
+  balance,
   color,
   currency = 'USD',
-  icon: Icon = FaWallet,
-  onClick 
+  onClick
 }) => {
   const { formatCurrency } = useFormattedCurrency();
 
   return (
     <Card
       className="h-100 account-card"
-      style={{ 
-        backgroundColor: color, 
+      style={{
+        backgroundColor: color,
         borderColor: color,
         cursor: onClick ? 'pointer' : 'default'
       }}
       onClick={onClick}
     >
       <Card.Body className="account-card__body">
-        <span className="account-card__icon">
-          <Icon size={24} />
-        </span>
         <div className="account-card__details">
           <div className="account-card__name">{name}</div>
           <div className="account-card__balance">
