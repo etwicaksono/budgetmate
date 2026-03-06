@@ -130,10 +130,34 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Map to track in-flight GET requests for deduplication
+const pendingGetRequests = new Map<string, Promise<any>>();
+
 // Base API methods
 export const api = {
   get: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> => {
-    return apiClient.get(url, config).then(response => response.data);
+    // Generate a deduplication cache key from the URL and params
+    const cacheKey = config?.params
+      ? `${url}?${JSON.stringify(config.params)}`
+      : url;
+
+    // If a request with the same key is already in flight, return its Promise
+    if (pendingGetRequests.has(cacheKey)) {
+      return pendingGetRequests.get(cacheKey) as Promise<T>;
+    }
+
+    // Otherwise, create a new request promise
+    const requestPromise = apiClient.get(url, config)
+      .then(response => response.data)
+      .finally(() => {
+        // Remove the promise from the Map once it resolves or rejects
+        pendingGetRequests.delete(cacheKey);
+      });
+
+    // Store the pending promise
+    pendingGetRequests.set(cacheKey, requestPromise);
+
+    return requestPromise;
   },
 
   post: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {

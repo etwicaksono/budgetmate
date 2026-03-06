@@ -201,7 +201,7 @@ function SortDropdown({ id, value, onChange }: SortDropdownProps): React.JSX.Ele
   );
 }
 
-interface DesktopFilterSidebarProps {
+interface FilterSidebarProps {
   title: string;
   filterVisibility?: FilterVisibility;
   onFilterVisibilityChange?: React.Dispatch<React.SetStateAction<FilterVisibility>>;
@@ -252,7 +252,7 @@ const noopSortDispatch: React.Dispatch<React.SetStateAction<SortValue>> = () => 
 const noopFilterVisibilityDispatch: React.Dispatch<React.SetStateAction<FilterVisibility>> =
   () => { };
 
-export const DesktopFilterSidebar: React.FC<DesktopFilterSidebarProps> = ({
+export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   title,
   filterVisibility = {
     search: true,

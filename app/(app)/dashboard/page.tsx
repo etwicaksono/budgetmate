@@ -496,60 +496,91 @@ function DashboardContent(): React.ReactElement {
 
       console.log('[Dashboard] Date range (UTC):', { startDate, endDate, startDateTime, endDateTime });
 
-      // Fetch all widget data in parallel
-      const [expensesData, transactionsResponse, budgetsData, trendData, incomeExpenseData] = await Promise.all([
-        analyticsService.fetchExpensesByCategory({ start_date: startDateTime, end_date: endDateTime }),
-        transactionService.fetchTransactions({ start_date: startDateTime, end_date: endDateTime, limit: 10 }),
-        budgetService.fetchBudgetStatus({ start_date: startDateTime, end_date: endDateTime }),
-        analyticsService.fetchTrends({
+      // Build conditional promises based on widgetVisibility
+      const expensesPromise = widgetVisibility.expensesByCategory
+        ? analyticsService.fetchExpensesByCategory({ start_date: startDateTime, end_date: endDateTime })
+        : Promise.resolve({ expenses: [], currencies: [] });
+
+      const transactionsPromise = widgetVisibility.recentTransactions
+        ? transactionService.fetchTransactions({ start_date: startDateTime, end_date: endDateTime, limit: 10 })
+        : Promise.resolve({ transactions: [], total: 0 });
+
+      const budgetsPromise = widgetVisibility.budgetStatus
+        ? budgetService.fetchBudgetStatus({ start_date: startDateTime, end_date: endDateTime })
+        : Promise.resolve([]);
+
+      const trendsPromise = widgetVisibility.balanceTrend
+        ? analyticsService.fetchTrends({
           metric: 'balance',
           period: 'daily',
           start_date: startDateTime,
           end_date: endDateTime,
-        }),
-        analyticsService.fetchIncomeVsExpenses({ start_date: startDateTime, end_date: endDateTime }),
+        })
+        : Promise.resolve({ labels: [], datasets: [] });
+
+      const incomeExpensePromise = widgetVisibility.incomeVsExpenses
+        ? analyticsService.fetchIncomeVsExpenses({ start_date: startDateTime, end_date: endDateTime })
+        : Promise.resolve({ data: {}, currencies: [] });
+
+      // Fetch widget data conditionally in parallel
+      const [expensesData, transactionsResponse, budgetsData, trendData, incomeExpenseData] = await Promise.all([
+        expensesPromise,
+        transactionsPromise,
+        budgetsPromise,
+        trendsPromise,
+        incomeExpensePromise,
       ]);
 
-      setExpenseCategories(expensesData.expenses);
-      setExpenseCurrencies(expensesData.currencies);
-      setTransactions(transactionsResponse.transactions || []);
-      // Transform budget data to include currency from API
-      const budgetsWithCurrency: BudgetStatusWithCurrency[] = budgetsData.map(b => ({
-        ...b,
-        currency: (b as BudgetStatusWithCurrency).currency || 'IDR',
-      }));
-      setBudgets(budgetsWithCurrency);
-
-      // Set income vs expense data from API
-      setIncomeExpenseCurrencies(incomeExpenseData.currencies || []);
-      if (Array.isArray(incomeExpenseData.data)) {
-        // Single currency response - wrap in object with first currency
-        const currency = incomeExpenseData.currencies[0] || 'IDR';
-        setIncomeExpenseByCurrency({ [currency]: incomeExpenseData.data as BarChartData[] });
-      } else if (typeof incomeExpenseData.data === 'object') {
-        // Multi-currency response
-        setIncomeExpenseByCurrency(incomeExpenseData.data as Record<string, BarChartData[]>);
+      if (widgetVisibility.expensesByCategory) {
+        setExpenseCategories(expensesData.expenses);
+        setExpenseCurrencies(expensesData.currencies);
       }
 
-      // Convert trend data to chart format with multi-currency support
-      if (trendData.labels && trendData.datasets && trendData.datasets.length > 0) {
-        console.log('[Dashboard] Raw trend data from API:', JSON.stringify(trendData, null, 2));
+      if (widgetVisibility.recentTransactions) {
+        setTransactions(transactionsResponse.transactions || []);
+      }
 
-        const chartData: TrendChartData[] = trendData.labels.map((label, index) => {
-          const dataPoint: TrendChartData = { date: label };
+      if (widgetVisibility.budgetStatus) {
+        // Transform budget data to include currency from API
+        const budgetsWithCurrency: BudgetStatusWithCurrency[] = budgetsData.map(b => ({
+          ...b,
+          currency: (b as BudgetStatusWithCurrency).currency || 'IDR',
+        }));
+        setBudgets(budgetsWithCurrency);
+      }
 
-          // Add data for each currency
-          trendData.datasets.forEach((dataset: { label: string; data: number[] }) => {
-            const currency = dataset.label;
-            const value = dataset.data[index] ?? 0;
-            dataPoint[currency] = value;
-            console.log(`[Dashboard] ${label} - ${currency}: ${value}`);
+      if (widgetVisibility.incomeVsExpenses) {
+        // Set income vs expense data from API
+        setIncomeExpenseCurrencies(incomeExpenseData.currencies || []);
+        if (Array.isArray(incomeExpenseData.data)) {
+          // Single currency response - wrap in object with first currency
+          const currency = incomeExpenseData.currencies[0] || 'IDR';
+          setIncomeExpenseByCurrency({ [currency]: incomeExpenseData.data as BarChartData[] });
+        } else if (typeof incomeExpenseData.data === 'object') {
+          // Multi-currency response
+          setIncomeExpenseByCurrency(incomeExpenseData.data as Record<string, BarChartData[]>);
+        }
+      }
+
+      if (widgetVisibility.balanceTrend) {
+        // Convert trend data to chart format with multi-currency support
+        if (trendData.labels && trendData.datasets && trendData.datasets.length > 0) {
+          console.log('[Dashboard] Raw trend data from API:', JSON.stringify(trendData, null, 2));
+
+          const chartData: TrendChartData[] = trendData.labels.map((label: string, index: number) => {
+            const dataPoint: TrendChartData = { date: label };
+
+            // Add data for each currency
+            trendData.datasets.forEach((dataset: { label: string; data: number[] }) => {
+              const currency = dataset.label;
+              const value = dataset.data[index] ?? 0;
+              dataPoint[currency] = value;
+            });
+
+            return dataPoint;
           });
-
-          return dataPoint;
-        });
-        console.log('[Dashboard] Transformed chart data:', JSON.stringify(chartData, null, 2));
-        setBalanceTrend(chartData);
+          setBalanceTrend(chartData);
+        }
       }
 
     } catch (err) {
@@ -558,7 +589,7 @@ function DashboardContent(): React.ReactElement {
     } finally {
       setLoading(false);
     }
-  }, [activePeriod, customRangeDraft]);
+  }, [activePeriod, customRangeDraft, widgetVisibility]);
 
   // Initial data fetch
   useEffect(() => {

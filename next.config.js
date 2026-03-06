@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  
+  reactStrictMode: false,
+
   // API configuration
   async headers() {
     return [
@@ -16,13 +16,13 @@ const nextConfig = {
       },
     ]
   },
-  
+
   // Environment variables to expose to client
   env: {
     NEXT_PUBLIC_API_URL: process.env['NEXT_PUBLIC_API_URL'],
     NEXT_PUBLIC_APP_URL: process.env['NEXT_PUBLIC_APP_URL'],
   },
-  
+
   // Image optimization
   images: {
     remotePatterns: [
@@ -37,7 +37,7 @@ const nextConfig = {
     ],
     formats: ['image/avif', 'image/webp'],
   },
-  
+
   // Experimental features
   experimental: {
     serverActions: {

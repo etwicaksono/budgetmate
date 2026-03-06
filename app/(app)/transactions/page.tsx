@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Container, Row, Col, Card } from 'react-bootstrap';
+import { Container, Row, Col, Card, Offcanvas, Button } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import { useTransaction } from '@/contexts/TransactionContext';
 import { transactionService, type Transaction } from '@/services/transactionService';
+import { FaFilter } from 'react-icons/fa';
 import { labelService, type Label } from '@/services/labelService';
 import { useFilterData } from '@/hooks/useFilterData';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
-import { DesktopFilterSidebar } from '@/components/FilterSidebar';
+import { FilterSidebar } from '@/components/FilterSidebar';
 import { RecordsHeader, RecordsList, RecordsSkeleton, type GroupedTransactions, type TransactionRecord } from '@/components/Records';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import PeriodNavigation, {
@@ -66,6 +67,7 @@ function TransactionsContent() {
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Saved filters
   const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
@@ -96,20 +98,20 @@ function TransactionsContent() {
     try {
       if (pageNum === 1) setLoading(true);
       else setIsLoadingMore(true);
-      
+
       // Convert date-only format to ISO datetime for API
       const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
       const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
-      
+
       const filters: Record<string, string | number> = {};
       if (startDateTime) filters['start_date'] = startDateTime;
       if (endDateTime) filters['end_date'] = endDateTime;
-      
+
       // Add search term filter
       if (searchTerm) {
         filters['search'] = searchTerm;
       }
-      
+
       // Add category filter (use category IDs from selected category names)
       if (selectedCategories.length > 0 && categories.length > 0) {
         const categoryIds = categories
@@ -119,7 +121,7 @@ function TransactionsContent() {
           filters['category_ids'] = categoryIds.join(',');
         }
       }
-      
+
       // Add account filter (use account IDs from selected account names)
       if (selectedAccounts.length > 0 && apiAccounts.length > 0) {
         const accountIds = apiAccounts
@@ -129,12 +131,12 @@ function TransactionsContent() {
           filters['account_ids'] = accountIds.join(',');
         }
       }
-      
+
       // Add label filter (use label IDs directly)
       if (selectedLabelIds.length > 0) {
         filters['label_ids'] = selectedLabelIds.join(',');
       }
-      
+
       // Add amount range filter
       if (minAmount > 0) {
         filters['min_amount'] = minAmount;
@@ -147,7 +149,7 @@ function TransactionsContent() {
       if (selectedCurrencies.length > 0) {
         filters['currencies'] = selectedCurrencies.join(',');
       }
-      
+
       // Add sort option - convert frontend format to API format
       if (sortOption) {
         switch (sortOption) {
@@ -177,12 +179,12 @@ function TransactionsContent() {
             break;
         }
       }
-      
+
       // Add pagination
       filters['page'] = pageNum;
-      
+
       const result = await transactionService.fetchTransactions(filters);
-      
+
       if (pageNum === 1) {
         setTransactions(result.transactions);
         // Capture totals from ALL filtered data (not just this page)
@@ -191,7 +193,7 @@ function TransactionsContent() {
       } else {
         setTransactions(prev => [...prev, ...result.transactions]);
       }
-      
+
       const totalPages = result.meta.totalPages || result.meta.total_pages || 1;
       setHasMore(result.meta.page < totalPages);
       setPage(pageNum);
@@ -202,15 +204,15 @@ function TransactionsContent() {
       else setIsLoadingMore(false);
     }
   }, [
-    dateRange.start, 
-    dateRange.end, 
-    searchTerm, 
-    selectedCategories, 
-    selectedAccounts, 
+    dateRange.start,
+    dateRange.end,
+    searchTerm,
+    selectedCategories,
+    selectedAccounts,
     selectedLabelIds,
     selectedCurrencies,
-    minAmount, 
-    maxAmount, 
+    minAmount,
+    maxAmount,
     sortOption,
     categories,
     apiAccounts
@@ -277,12 +279,12 @@ function TransactionsContent() {
 
       // Check if this is a transfer transaction
       const isTransfer = isTransferTransaction(transaction);
-      
+
       // Get category color and name
       let categoryColor = '#6c757d';
       let categoryName = 'Uncategorized';
       let categoryIcon = transaction.category?.icon;
-      
+
       if (isTransfer) {
         // Display as Transfer for transfer transactions
         categoryName = 'Transfer';
@@ -290,10 +292,10 @@ function TransactionsContent() {
         categoryColor = '#17a2b8'; // Teal/cyan color for transfers
       } else {
         categoryName = transaction.category?.name || 'Uncategorized';
-        
+
         // First try parent colors
         categoryColor = parentCategoryColors[categoryName] || '#6c757d';
-        
+
         // If not found, might be child category - find parent
         if (categoryColor === '#6c757d') {
           for (const [parent, children] of Object.entries(categoryTree)) {
@@ -375,12 +377,12 @@ function TransactionsContent() {
     // transfer_out: amount=-source, to_amount=destination
     // transfer_in: amount=+destination, to_amount=source (fixed in backend)
     const sourceAmount = Math.abs(transaction.amount);
-    const sourceCurrency = transaction.type === 'transfer_in' 
+    const sourceCurrency = transaction.type === 'transfer_in'
       ? transaction.transfer_currency || transaction.currency
       : transaction.currency;
     const destAmount = transaction.to_amount ? Math.abs(transaction.to_amount) : Math.abs(transaction.amount);
     const destCurrency = transaction.to_currency || transaction.currency;
-    
+
     // Prepare modal data (single responsibility)
     const modalData = {
       id: transaction.id,
@@ -542,7 +544,7 @@ function TransactionsContent() {
       <Row>
         {/* Desktop Filter Sidebar */}
         <Col lg={3} className="d-none d-lg-block">
-          <DesktopFilterSidebar
+          <FilterSidebar
             title="Transactions"
             filterVisibility={filterVisibility}
             onFilterVisibilityChange={setFilterVisibility}
@@ -583,17 +585,84 @@ function TransactionsContent() {
           />
         </Col>
 
+        {/* Mobile Filter Offcanvas */}
+        <Offcanvas
+          show={showMobileFilters}
+          onHide={() => setShowMobileFilters(false)}
+          placement="end"
+          className="d-lg-none"
+        >
+          <Offcanvas.Header closeButton className="border-bottom">
+            <Offcanvas.Title className="fw-bold">Filters</Offcanvas.Title>
+          </Offcanvas.Header>
+          <Offcanvas.Body className="p-0">
+            <FilterSidebar
+              title="Transactions"
+              filterVisibility={filterVisibility}
+              onFilterVisibilityChange={setFilterVisibility}
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              sortOption={sortOption}
+              onSortOptionChange={setSortOption}
+              selectedCategories={selectedCategories}
+              onSelectedCategoriesChange={setSelectedCategories}
+              allCategories={allCategories}
+              categoryTree={categoryTree}
+              parentCategoryColors={parentCategoryColors}
+              categoryIcons={categoryIcons}
+              selectedAccounts={selectedAccounts}
+              onSelectedAccountsChange={setSelectedAccounts}
+              selectableAccounts={selectableAccounts}
+              accountColors={accountColors}
+              accountIcons={accountIcons}
+              selectedLabelIds={selectedLabelIds}
+              onSelectedLabelIdsChange={setSelectedLabelIds}
+              labels={labels}
+              selectedCurrencies={selectedCurrencies}
+              onSelectedCurrenciesChange={setSelectedCurrencies}
+              availableCurrencies={availableCurrencies}
+              minAmount={minAmount}
+              maxAmount={maxAmount}
+              onMinAmountChange={setMinAmount}
+              onMaxAmountChange={setMaxAmount}
+              savedFilters={savedFilters}
+              activeFilterId={activeFilterId}
+              savedFiltersLoading={savedFiltersLoading}
+              onSaveFilter={saveCurrentFilter}
+              onLoadFilter={loadFilter}
+              onDeleteFilter={deleteFilter}
+              onRenameFilter={renameFilter}
+              onClearActiveFilter={clearActiveFilter}
+              onReorderFilter={reorderFilter}
+            />
+          </Offcanvas.Body>
+        </Offcanvas>
+
         {/* Main Content */}
         <Col lg={9}>
           {/* Period Navigation */}
-          <div className="d-flex justify-content-center mb-3">
-            <PeriodNavigation>
-              <PeriodRangeSelector
-                label={periodLabel}
-                activePeriod={activePeriod}
-                customRange={customRangeDraft}
-              />
-            </PeriodNavigation>
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div className="flex-grow-1 d-flex justify-content-center">
+              <PeriodNavigation>
+                <PeriodRangeSelector
+                  label={periodLabel}
+                  activePeriod={activePeriod}
+                  customRange={customRangeDraft}
+                />
+              </PeriodNavigation>
+            </div>
+            {/* Mobile Filter Toggle */}
+            <div className="d-lg-none">
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => setShowMobileFilters(true)}
+                className="d-flex align-items-center gap-2"
+              >
+                <FaFilter size={14} />
+                Filters
+              </Button>
+            </div>
           </div>
 
           {/* Transactions Card */}
@@ -605,8 +674,8 @@ function TransactionsContent() {
                 </div>
               ) : (
                 <>
-                  <div 
-                    className="border-bottom bg-white" 
+                  <div
+                    className="border-bottom bg-white"
                     style={{ position: 'sticky', top: '65px', zIndex: 100 }}
                   >
                     <RecordsHeader
@@ -621,7 +690,7 @@ function TransactionsContent() {
                       showBulkActions
                     />
                   </div>
-                  
+
                   <div>
                     <RecordsList
                       groupedTransactions={groupedTransactions}
@@ -632,7 +701,7 @@ function TransactionsContent() {
                       showCheckboxes
                       showDropdownMenu
                     />
-                    
+
                     {/* Infinite Scroll Observer Target */}
                     {hasMore && (
                       <div ref={observerTarget} className="py-4 text-center">

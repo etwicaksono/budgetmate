@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { Container, Row, Col, Nav } from 'react-bootstrap';
+import { Container, Row, Col, Nav, Offcanvas, Button } from 'react-bootstrap';
+import { FaFilter } from 'react-icons/fa';
 import { useFilterData } from '@/hooks/useFilterData';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
-import { DesktopFilterSidebar } from '@/components/FilterSidebar';
+import { FilterSidebar } from '@/components/FilterSidebar';
 import PeriodNavigation, {
   PeriodNavigationProvider,
   usePeriodNavigation,
@@ -28,6 +29,8 @@ function AnalyticsContent(): React.ReactElement {
   // Get active tab from URL, default to 'income-expense'
   const tabParam = searchParams.get('tab');
   const activeTab: TabKey = VALID_TABS.includes(tabParam as TabKey) ? (tabParam as TabKey) : 'income-expense';
+
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const setActiveTab = useCallback((tab: TabKey) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -66,13 +69,16 @@ function AnalyticsContent(): React.ReactElement {
     accountIcons,
     categories,
     apiAccounts,
+    selectedLabelIds,
+    setSelectedLabelIds,
+    labels,
   } = useFilterData();
 
   const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
     categories,
     accounts: apiAccounts,
-    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds: [], sortOption },
-    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds: (_v) => { }, setSortOption },
+    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption },
+    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption },
   });
 
   // Map selected names to IDs for API calls
@@ -163,7 +169,7 @@ function AnalyticsContent(): React.ReactElement {
       <Row>
         {/* Desktop Filter Sidebar */}
         <Col lg={3} className="mb-3 d-none d-lg-block">
-          <DesktopFilterSidebar
+          <FilterSidebar
             title="Analytics"
             filterVisibility={filterVisibility}
             onFilterVisibilityChange={setFilterVisibility}
@@ -203,9 +209,62 @@ function AnalyticsContent(): React.ReactElement {
 
         {/* Main Content */}
         <Col lg={9}>
-          {/* Header with Period Navigation */}
-          <div className="analytics-header mb-4">
-            <div className="d-flex justify-content-center align-items-center mb-3">
+          {/* Mobile Filter Offcanvas */}
+          <Offcanvas
+            show={showMobileFilters}
+            onHide={() => setShowMobileFilters(false)}
+            placement="end"
+            className="d-lg-none"
+          >
+            <Offcanvas.Header closeButton className="border-bottom">
+              <Offcanvas.Title className="fw-bold">Filters</Offcanvas.Title>
+            </Offcanvas.Header>
+            <Offcanvas.Body className="p-0">
+              <FilterSidebar
+                title="Analytics"
+                filterVisibility={filterVisibility}
+                onFilterVisibilityChange={setFilterVisibility}
+                searchTerm={searchTerm}
+                onSearchTermChange={setSearchTerm}
+                sortOption={sortOption}
+                onSortOptionChange={setSortOption}
+                selectedCategories={selectedCategories}
+                onSelectedCategoriesChange={setSelectedCategories}
+                allCategories={allCategories}
+                categoryTree={categoryTree}
+                parentCategoryColors={parentCategoryColors}
+                categoryIcons={categoryIcons}
+                selectedAccounts={selectedAccounts}
+                onSelectedAccountsChange={setSelectedAccounts}
+                selectableAccounts={selectableAccounts}
+                accountColors={accountColors}
+                accountIcons={accountIcons}
+                selectedLabelIds={selectedLabelIds}
+                onSelectedLabelIdsChange={setSelectedLabelIds}
+                labels={labels}
+                availableCurrencies={availableCurrencies}
+                selectedCurrencies={selectedCurrencies}
+                onSelectedCurrenciesChange={setSelectedCurrencies}
+                minAmount={minAmount}
+                maxAmount={maxAmount}
+                onMinAmountChange={setMinAmount}
+                onMaxAmountChange={setMaxAmount}
+                savedFilters={savedFilters}
+                activeFilterId={activeFilterId}
+                savedFiltersLoading={savedFiltersLoading}
+                onSaveFilter={saveCurrentFilter}
+                onLoadFilter={loadFilter}
+                onDeleteFilter={deleteFilter}
+                onRenameFilter={renameFilter}
+                onClearActiveFilter={clearActiveFilter}
+                onReorderFilter={reorderFilter}
+              />
+            </Offcanvas.Body>
+          </Offcanvas>
+
+          {/* Top Controls: Period Navigation + Mobile Filter Button */}
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div className="flex-grow-1 d-flex justify-content-center">
               <PeriodNavigation>
                 <PeriodRangeSelector
                   label={periodLabel}
@@ -214,7 +273,18 @@ function AnalyticsContent(): React.ReactElement {
                 />
               </PeriodNavigation>
             </div>
-
+            {/* Mobile Filter Toggle */}
+            <div className="d-lg-none">
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => setShowMobileFilters(true)}
+                className="d-flex align-items-center gap-2"
+              >
+                <FaFilter size={14} />
+                Filters
+              </Button>
+            </div>
           </div>
 
           {/* Tab Navigation */}

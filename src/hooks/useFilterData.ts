@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { accountService, type Account } from '@/services/accountService';
 import { categoryService, type Category } from '@/services/categoryService';
+import { labelService, type Label } from '@/services/labelService';
 
 export type SortValue =
   | 'timeAsc'
@@ -29,6 +30,7 @@ export const useFilterData = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [sortOption, setSortOption] = useState<SortValue>('timeDesc');
   const [minAmount, setMinAmount] = useState<number>(DEFAULT_MIN_AMOUNT);
   const [maxAmount, setMaxAmount] = useState<number>(DEFAULT_MAX_AMOUNT);
@@ -45,6 +47,7 @@ export const useFilterData = () => {
   // Data state
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Load filter visibility from localStorage
@@ -70,12 +73,14 @@ export const useFilterData = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [categoriesResponse, accountsData] = await Promise.all([
+        const [categoriesResponse, accountsData, labelsData] = await Promise.all([
           categoryService.fetchCategories(),
           accountService.fetchAccounts(),
+          labelService.fetchLabels(),
         ]);
         setCategories(categoriesResponse.data);
         setAccounts(accountsData);
+        setLabels(labelsData.data);
       } catch (error) {
         console.error('Failed to fetch filter data:', error);
       } finally {
@@ -238,6 +243,11 @@ export const useFilterData = () => {
     selectedCurrencies,
     setSelectedCurrencies,
     availableCurrencies,
+
+    // Label data
+    labels,
+    selectedLabelIds,
+    setSelectedLabelIds,
 
     // Loading state
     loading,
