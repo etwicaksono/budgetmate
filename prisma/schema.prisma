@@ -118,6 +118,7 @@ model Account {
 
   @@index([user_id])
   @@index([group_id])
+  @@index([user_id, deleted_at, order, created_at])
 }
 
 // ==================== CATEGORY MODEL ====================
@@ -189,7 +190,7 @@ model Transaction {
   attachments Attachment[]
 
   @@index([user_id, date])
-  @@index([account_id])
+  @@index([account_id, deleted_at])
   @@index([category_id])
   @@index([transfer_id])
   @@index([debt_id])
