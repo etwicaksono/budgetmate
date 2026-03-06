@@ -188,6 +188,7 @@ model Transaction {
   labels      TransactionLabel[]
   attachments Attachment[]
 
+  @@index([user_id, deleted_at, date(sort: Desc)])
   @@index([user_id, date])
   @@index([account_id, deleted_at])
   @@index([category_id])
