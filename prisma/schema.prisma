@@ -147,8 +147,7 @@ model Category {
   transactions      Transaction[]
   budget_categories BudgetCategory[]
   recurring         RecurringTransaction[]
-
-  @@index([user_id])
+  @@index([user_id, type, created_at])
   @@index([parent_id])
 }
 

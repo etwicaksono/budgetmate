@@ -62,7 +62,7 @@ export function useTransactionData(): TransactionDataHookResult {
 
       const [categoriesResponse, accountsData, labelsData] = await Promise.all([
         categoryService.fetchCategories(),
-        accountService.fetchAccounts(),
+        accountService.fetchAccounts({ include_balance: false }),
         labelService.fetchLabels(),
       ]);
 

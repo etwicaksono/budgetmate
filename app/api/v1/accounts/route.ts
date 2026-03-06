@@ -71,9 +71,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    // Calculate current balances for all accounts (single query)
+    // Calculate current balances for all accounts if requested (single query)
     const accountIds = accounts.map(a => a.id);
-    const balances = await balanceService.calculateAccountBalances(accountIds);
+    const balances = include_balance
+      ? await balanceService.calculateAccountBalances(accountIds)
+      : new Map<string, number>();
 
     // Transform response
     const transformedAccounts = accounts.map(account => ({
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       color: account.color,
       currency: account.currency,
       initial_balance: account.initial_balance.toNumber(),
-      current_balance: balances.get(account.id) ?? account.initial_balance.toNumber(), // ✅ Calculated balance
+      ...(include_balance ? { current_balance: balances.get(account.id) ?? account.initial_balance.toNumber() } : {}),
       credit_limit: account.credit_limit?.toNumber() ?? null,
       interest_rate: account.interest_rate?.toNumber() ?? null,
       is_active: account.is_active,
@@ -104,7 +106,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Calculate total from calculated balances
       meta['total_balance'] = transformedAccounts
         .filter(a => a.is_included_in_total && a.is_active)
-        .reduce((sum, a) => sum + a.current_balance, 0);
+        .reduce((sum, a) => sum + (a.current_balance ?? 0), 0);
     }
 
     return successResponse(transformedAccounts, meta);
