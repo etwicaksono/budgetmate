@@ -58,13 +58,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
    };
 
+   const sortBy = searchParams.get('sort_by') || 'date';
+   const sortOrder = searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc';
+
+   const validSortFields = ['date', 'counterparty', 'status', 'amount'];
+   const orderByField = validSortFields.includes(sortBy) && sortBy !== 'amount' ? sortBy : 'date';
+
    const debtsQuery: any = {
       where,
-      orderBy: { date: 'desc' },
+      orderBy: { [orderByField]: sortOrder },
       include: nestedInclude
    };
 
-   if (limit > 0) {
+   // Only apply DB-level pagination if we are NOT sorting in-memory by amount
+   if (limit > 0 && sortBy !== 'amount') {
       debtsQuery.skip = (page - 1) * limit;
       debtsQuery.take = limit;
    }
@@ -73,7 +80,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const rawDebts = await prisma.debt.findMany(debtsQuery);
 
       // Compute derived properties: amount and remaining_amount
-      const transformedDebts = rawDebts.map((debt: any) => {
+      let transformedDebts = rawDebts.map((debt: any) => {
          const allTxs = debt.transactions || [];
 
          // 1. Identify all initial debt transactions based on type (for increases)
@@ -123,6 +130,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             }))
          };
       });
+
+      // Handle in-memory sorting for 'amount'
+      if (sortBy === 'amount') {
+         transformedDebts.sort((a, b) => {
+            if (sortOrder === 'asc') {
+               return a.amount - b.amount;
+            } else {
+               return b.amount - a.amount;
+            }
+         });
+
+         // Apply pagination manually after sorting
+         if (limit > 0) {
+            const startIndex = (page - 1) * limit;
+            transformedDebts = transformedDebts.slice(startIndex, startIndex + limit);
+         }
+      }
 
       if (limit === 0) {
          return successResponse(transformedDebts);

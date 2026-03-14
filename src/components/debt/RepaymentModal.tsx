@@ -9,12 +9,15 @@ import { Debt, CreateRepaymentPayload } from '@/services/debtService';
 import { DEBT_TYPES } from '@/utils/constants';
 import { AccountSelect } from '@/components/transaction/AccountSelect';
 import { Account } from '@/services/accountService';
+import { ClearButton } from '@/components/common/ClearButton';
 
 interface RepaymentModalProps {
   show: boolean;
   onHide: () => void;
   debt: Debt | null;
   onSave: (debtId: string, payload: CreateRepaymentPayload) => Promise<void>;
+  editTransaction?: any;
+  onEdit?: (debtId: string, txId: string, payload: CreateRepaymentPayload) => Promise<void>;
   accounts: Account[];
 }
 
@@ -23,6 +26,8 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
   onHide,
   debt,
   onSave,
+  editTransaction,
+  onEdit,
   accounts
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,13 +40,20 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
 
   useEffect(() => {
     if (show && debt) {
-      setAccountId(debt.account_id); // Default to same account
-      setAmount(debt.remaining_amount || '');
-      setDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
-      setDescription('');
+      if (editTransaction) {
+        setAccountId(editTransaction.account?.id || editTransaction.account_id || debt.account_id);
+        setAmount(editTransaction.amount || '');
+        setDate(format(new Date(editTransaction.date), "yyyy-MM-dd'T'HH:mm"));
+        setDescription(editTransaction.description || '');
+      } else {
+        setAccountId(debt.account_id); // Default to same account
+        setAmount(debt.remaining_amount || '');
+        setDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
+        setDescription('');
+      }
       setError(null);
     }
-  }, [show, debt]);
+  }, [show, debt, editTransaction]);
 
   if (!debt) return null;
 
@@ -56,7 +68,7 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
       return;
     }
     
-    if (amount > remaining + 0.01) {
+    if (!editTransaction && amount > remaining + 0.01) {
        setError(`Repayment cannot exceed remaining amount (${remaining}).`);
        return;
     }
@@ -72,7 +84,11 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
          ...(description ? { description } : {})
       };
       
-      await onSave(debt.id, payload);
+      if (editTransaction && onEdit) {
+        await onEdit(debt.id, editTransaction.id, payload);
+      } else {
+        await onSave(debt.id, payload);
+      }
       onHide();
     } catch (err: any) {
        const apiError = err.response?.data?.error?.message || err.response?.data?.message || err.message;
@@ -86,7 +102,7 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
     <Modal show={show} onHide={onHide} centered backdrop="static">
       <Form onSubmit={handleSubmit}>
         <Modal.Header closeButton>
-          <Modal.Title>Record Repayment</Modal.Title>
+          <Modal.Title>{editTransaction ? 'Edit Repayment' : 'Record Repayment'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Alert variant="info" className="mb-4">
@@ -114,17 +130,29 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
 
             <Col xs={12} className="mb-3">
               <Form.Label>Amount <span className="text-danger">*</span></Form.Label>
-              <NumericFormat
-                 customInput={Form.Control as any}
-                 thousandSeparator={true}
-                 value={amount}
-                 onValueChange={(values) => setAmount(values.floatValue || '')}
-                 disabled={isSubmitting}
-                 max={remaining}
-                 placeholder="0"
-                 allowNegative={false}
-                 required
-              />
+              <div className="position-relative d-flex align-items-center">
+                <NumericFormat
+                   customInput={Form.Control as any}
+                   thousandSeparator={true}
+                   value={amount}
+                   onValueChange={(values) => setAmount(values.floatValue || '')}
+                   disabled={isSubmitting}
+                   max={remaining}
+                   placeholder="0"
+                   allowNegative={false}
+                   required
+                   style={{ paddingRight: amount !== '' && !isSubmitting ? '2.5rem' : undefined }}
+                />
+                {amount !== '' && !isSubmitting && (
+                  <div className="position-absolute end-0 pe-2 d-flex align-items-center">
+                    <ClearButton
+                      size={14}
+                      ariaLabel="Clear amount"
+                      onClick={() => setAmount('')}
+                    />
+                  </div>
+                )}
+              </div>
               <Form.Text className="text-muted">
                  Max: <NumericFormat value={remaining} displayType="text" thousandSeparator prefix={currencyPrefix} />
               </Form.Text>
@@ -143,14 +171,26 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
 
             <Col xs={12} className="mb-3">
                <Form.Label>Description</Form.Label>
-               <Form.Control
-                 as="textarea"
-                 rows={2}
-                 placeholder="Repayment note..."
-                 value={description}
-                 onChange={(e) => setDescription(e.target.value)}
-                 disabled={isSubmitting}
-               />
+               <div className="position-relative">
+                 <Form.Control
+                   as="textarea"
+                   rows={2}
+                   placeholder="Repayment note..."
+                   value={description}
+                   onChange={(e) => setDescription(e.target.value)}
+                   disabled={isSubmitting}
+                   style={{ paddingRight: description !== '' && !isSubmitting ? '2.5rem' : undefined }}
+                 />
+                 {description !== '' && !isSubmitting && (
+                   <div className="position-absolute end-0 top-0 pt-2 pe-2" style={{ zIndex: 5 }}>
+                     <ClearButton
+                       size={14}
+                       ariaLabel="Clear description"
+                       onClick={() => setDescription('')}
+                     />
+                   </div>
+                 )}
+               </div>
             </Col>
           </Row>
         </Modal.Body>
@@ -159,7 +199,7 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
             Cancel
           </Button>
           <Button type="submit" variant="success" disabled={isSubmitting}>
-             {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Record Repayment'}
+             {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : (editTransaction ? 'Save Changes' : 'Record Repayment')}
           </Button>
         </Modal.Footer>
       </Form>

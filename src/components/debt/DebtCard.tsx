@@ -50,7 +50,11 @@ export const DebtCard: React.FC<DebtCardProps> = ({
     : 0;
 
   return (
-    <div className={`debt-item ${!isActive ? 'debt-item-inactive' : ''}`}>
+    <div 
+      className={`debt-item ${!isActive ? 'debt-item-inactive' : ''}`}
+      onClick={() => onDetailClick(debt)}
+      style={{ cursor: 'pointer' }}
+    >
       <Row className="align-items-center mb-2">
         <Col xs={12} md={6} className="d-flex align-items-center gap-2 mb-2 mb-md-0">
           <Badge 
@@ -145,7 +149,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
           <Button 
             variant="outline-primary" 
             size="sm" 
-            onClick={() => onIncreaseClick(debt)}
+            onClick={(e) => { e.stopPropagation(); onIncreaseClick(debt); }}
             title="Increase Debt"
             className="rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
           >
@@ -156,7 +160,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
           <Button 
             variant="success" 
             size="sm" 
-            onClick={() => onRepayClick(debt)}
+            onClick={(e) => { e.stopPropagation(); onRepayClick(debt); }}
             title="Record Repayment"
             className="rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
           >
@@ -166,7 +170,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
         <Button 
           variant="light" 
           size="sm" 
-          onClick={() => onDetailClick(debt)}
+          onClick={(e) => { e.stopPropagation(); onDetailClick(debt); }}
           title="View Details"
           className="text-secondary rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
         >
@@ -176,7 +180,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
           <Button 
             variant="light" 
             size="sm" 
-            onClick={() => onEditClick(debt)}
+            onClick={(e) => { e.stopPropagation(); onEditClick(debt); }}
             title="Edit Debt"
             className="text-secondary rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
           >
@@ -186,7 +190,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
         <Button 
           variant="light" 
           size="sm" 
-          onClick={() => onDeleteClick(debt)}
+          onClick={(e) => { e.stopPropagation(); onDeleteClick(debt); }}
           title="Delete Debt"
           className="text-danger bg-opacity-10 rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
         >

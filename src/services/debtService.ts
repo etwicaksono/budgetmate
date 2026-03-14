@@ -63,6 +63,8 @@ interface FetchDebtsFilters {
    status?: string;
    type?: string;
    counterparty?: string;
+   sort_by?: string;
+   sort_order?: string;
 }
 
 class DebtService {
@@ -75,6 +77,8 @@ class DebtService {
          if (filters.status) params.append('status', filters.status);
          if (filters.type) params.append('type', filters.type);
          if (filters.counterparty) params.append('counterparty', filters.counterparty);
+         if (filters.sort_by) params.append('sort_by', filters.sort_by);
+         if (filters.sort_order) params.append('sort_order', filters.sort_order);
       }
 
       const queryString = params.toString() ? `?${params.toString()}` : '';
@@ -109,6 +113,16 @@ class DebtService {
 
    async increaseDebt(id: string, data: CreateRepaymentPayload): Promise<Debt> {
       const response = await api.post<{ data: Debt }>(`/debts/${id}/increase`, data);
+      return response.data;
+   }
+
+   async updateRepayment(debtId: string, transactionId: string, data: CreateRepaymentPayload): Promise<Debt> {
+      const response = await api.put<{ data: Debt }>(`/debts/${debtId}/repayments/${transactionId}`, data);
+      return response.data;
+   }
+
+   async updateIncrease(debtId: string, transactionId: string, data: CreateRepaymentPayload): Promise<Debt> {
+      const response = await api.put<{ data: Debt }>(`/debts/${debtId}/increase/${transactionId}`, data);
       return response.data;
    }
 }

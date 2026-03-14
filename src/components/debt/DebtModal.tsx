@@ -12,6 +12,7 @@ import { DebtTypeToggle } from './DebtTypeToggle';
 import { AccountSelect } from '@/components/transaction/AccountSelect';
 import { Account } from '@/services/accountService';
 import { getCurrencyPrefix } from '@/utils/formatters';
+import { ClearButton } from '@/components/common/ClearButton';
 
 interface DebtModalProps {
   show: boolean;
@@ -19,6 +20,7 @@ interface DebtModalProps {
   onSave: (data: CreateDebtPayload | UpdateDebtPayload) => Promise<void>;
   editDebt?: Debt | null;
   accounts: Account[];
+  defaultType?: typeof DEBT_TYPES.LEND | typeof DEBT_TYPES.BORROW;
 }
 
 export const DebtModal: React.FC<DebtModalProps> = ({
@@ -27,6 +29,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   onSave,
   editDebt,
   accounts,
+  defaultType,
 }) => {
   const isEdit = !!editDebt;
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,7 +54,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
         setDescription(editDebt.description || '');
         setStatus(editDebt.status);
       } else {
-        setType(DEBT_TYPES.LEND);
+        setType(defaultType ?? DEBT_TYPES.LEND);
         setCounterparty('');
         setAccountId('');
         setAmount('');
@@ -142,7 +145,17 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                   onChange={(e) => setCounterparty(e.target.value)}
                   disabled={isSubmitting}
                   required
+                  style={{ paddingRight: counterparty !== '' && !isSubmitting ? '2.5rem' : undefined }}
                 />
+                {counterparty !== '' && !isSubmitting && (
+                  <div className="position-absolute end-0 top-50 translate-middle-y pe-2 d-flex align-items-center" style={{ zIndex: 5 }}>
+                    <ClearButton
+                      size={14}
+                      ariaLabel="Clear counterparty"
+                      onClick={() => setCounterparty('')}
+                    />
+                  </div>
+                )}
               </InputGroup>
             </Col>
 
@@ -158,18 +171,30 @@ export const DebtModal: React.FC<DebtModalProps> = ({
 
             <Col xs={12} md={6} className="mb-3">
               <Form.Label>Amount <span className="text-danger">*</span></Form.Label>
-              <NumericFormat
-                 customInput={Form.Control as any}
-                 thousandSeparator={true}
-                 prefix={currencyPrefix}
-                 decimalScale={decimalScale}
-                 value={amount}
-                 onValueChange={(values) => setAmount(values.floatValue || '')}
-                 disabled={isSubmitting}
-                 placeholder="0"
-                 allowNegative={false}
-                 required
-              />
+              <div className="position-relative d-flex align-items-center">
+                <NumericFormat
+                   customInput={Form.Control as any}
+                   thousandSeparator={true}
+                   prefix={currencyPrefix}
+                   decimalScale={decimalScale}
+                   value={amount}
+                   onValueChange={(values) => setAmount(values.floatValue || '')}
+                   disabled={isSubmitting}
+                   placeholder="0"
+                   allowNegative={false}
+                   required
+                   style={{ paddingRight: amount !== '' && !isSubmitting ? '2.5rem' : undefined }}
+                />
+                {amount !== '' && !isSubmitting && (
+                  <div className="position-absolute end-0 pe-2 d-flex align-items-center">
+                    <ClearButton
+                      size={14}
+                      ariaLabel="Clear amount"
+                      onClick={() => setAmount('')}
+                    />
+                  </div>
+                )}
+              </div>
             </Col>
 
             <Col xs={12} md={6} className="mb-3">
@@ -199,14 +224,26 @@ export const DebtModal: React.FC<DebtModalProps> = ({
 
             <Col xs={12} className="mb-3">
                <Form.Label>Description</Form.Label>
-               <Form.Control
-                 as="textarea"
-                 rows={2}
-                 placeholder="Optional note"
-                 value={description}
-                 onChange={(e) => setDescription(e.target.value)}
-                 disabled={isSubmitting}
-               />
+               <div className="position-relative">
+                 <Form.Control
+                   as="textarea"
+                   rows={2}
+                   placeholder="Optional note"
+                   value={description}
+                   onChange={(e) => setDescription(e.target.value)}
+                   disabled={isSubmitting}
+                   style={{ paddingRight: description !== '' && !isSubmitting ? '2.5rem' : undefined }}
+                 />
+                 {description !== '' && !isSubmitting && (
+                   <div className="position-absolute end-0 top-0 pt-2 pe-2" style={{ zIndex: 5 }}>
+                     <ClearButton
+                       size={14}
+                       ariaLabel="Clear description"
+                       onClick={() => setDescription('')}
+                     />
+                   </div>
+                 )}
+               </div>
             </Col>
           </Row>
         </Modal.Body>

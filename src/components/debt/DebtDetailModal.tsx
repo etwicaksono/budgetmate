@@ -22,6 +22,8 @@ interface DebtDetailModalProps {
   debt: Debt | null;
   onIncreaseClick: (debt: Debt) => void;
   onRepayClick: (debt: Debt) => void;
+  onDecreaseClick?: (debt: Debt) => void;
+  onEditTransactionClick?: (debt: Debt, transaction: any, isIncrease: boolean) => void;
 }
 
 export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
@@ -29,7 +31,8 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
   onHide,
   debt,
   onIncreaseClick,
-  onRepayClick
+  onRepayClick,
+  onEditTransactionClick
 }) => {
   if (!debt) return null;
 
@@ -132,9 +135,15 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
                  const displayAmountClass = isIncrease ? 'text-primary' : txColorClass;
 
                  return (
-                    <div key={tx.id} className="repayment-timeline-item">
+                    <div 
+                      key={tx.id} 
+                      className="repayment-timeline-item"
+                      style={onEditTransactionClick ? { cursor: 'pointer' } : {}}
+                      onClick={onEditTransactionClick ? () => onEditTransactionClick(debt, tx, isIncrease) : undefined}
+                      title={onEditTransactionClick ? "Edit Transaction" : undefined}
+                    >
                        <div className={`repayment-timeline-dot ${!isLend ? 'borrow' : ''}`} />
-                       <Row>
+                       <Row className={onEditTransactionClick ? "hover-bg-light rounded p-1 transition-colors" : ""}>
                           <Col xs={7}>
                              <div className="fw-semibold small">
                                 {format(new Date(tx.date), 'MMM dd, yyyy HH:mm')}
@@ -146,8 +155,8 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
                                 {(() => {
                                    if (!tx.account?.icon) return null;
                                    const IconComponent = getIconComponent(tx.account.icon);
-                                   return <IconComponent />;
-                                })()} {tx.account?.name}
+                                   return <span className="d-flex align-items-center"><IconComponent /></span>;
+                                })()} <span>{tx.account?.name}</span>
                              </div>
                              {tx.description && (
                                 <div className="small text-muted mt-1 fst-italic">"{tx.description}"</div>
@@ -175,14 +184,14 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
         </Button>
         {(isActive || isSettled) && (
            <div className="d-flex gap-2">
-              <Button variant="outline-primary" onClick={() => onIncreaseClick(debt)}>
+              <Button variant="outline-primary" onClick={() => onIncreaseClick(debt)} className="d-flex align-items-center">
                  <FaPlusCircle className="me-2" /> Increase Debt
               </Button>
            </div>
         )}
         {isActive && (
            <div className="d-flex gap-2">
-              <Button variant="success" onClick={() => onRepayClick(debt)}>
+              <Button variant="success" onClick={() => onRepayClick(debt)} className="d-flex align-items-center">
                  <FaMoneyBillWave className="me-2" /> Record Repayment
               </Button>
            </div>

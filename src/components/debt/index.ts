@@ -4,3 +4,4 @@ export * from './DebtModal';
 export * from './RepaymentModal';
 export * from './DebtDetailModal';
 export * from './DebtIncreaseModal';
+export * from './DebtTabPane';

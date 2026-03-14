@@ -11,12 +11,15 @@ import { DEBT_TYPES } from '@/utils/constants';
 import { AccountSelect } from '@/components/transaction/AccountSelect';
 import { Account } from '@/services/accountService';
 import { getCurrencyPrefix } from '@/utils/formatters';
+import { ClearButton } from '@/components/common/ClearButton';
 
 interface DebtIncreaseModalProps {
   show: boolean;
   onHide: () => void;
   debt: Debt | null;
   onSave: (debtId: string, payload: CreateRepaymentPayload) => Promise<void>;
+  editTransaction?: any;
+  onEdit?: (debtId: string, txId: string, payload: CreateRepaymentPayload) => Promise<void>;
   accounts: Account[];
 }
 
@@ -25,6 +28,8 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
   onHide,
   debt,
   onSave,
+  editTransaction,
+  onEdit,
   accounts
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,13 +42,20 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
 
   useEffect(() => {
     if (show && debt) {
-      setAccountId(debt.account_id); // Default to same account
-      setAmount('');
-      setDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
-      setDescription('');
+      if (editTransaction) {
+        setAccountId(editTransaction.account?.id || editTransaction.account_id || debt.account_id);
+        setAmount(editTransaction.amount || '');
+        setDate(format(new Date(editTransaction.date), "yyyy-MM-dd'T'HH:mm"));
+        setDescription(editTransaction.description || '');
+      } else {
+        setAccountId(debt.account_id); // Default to same account
+        setAmount('');
+        setDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
+        setDescription('');
+      }
       setError(null);
     }
-  }, [show, debt]);
+  }, [show, debt, editTransaction]);
 
   if (!debt) return null;
 
@@ -68,7 +80,11 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
          ...(description ? { description } : {})
       };
       
-      await onSave(debt.id, payload);
+      if (editTransaction && onEdit) {
+        await onEdit(debt.id, editTransaction.id, payload);
+      } else {
+        await onSave(debt.id, payload);
+      }
       onHide();
     } catch (err: any) {
        const apiError = err.response?.data?.error?.message || err.response?.data?.message || err.message;
@@ -84,7 +100,7 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
         <Modal.Header closeButton>
           <Modal.Title className="d-flex align-items-center gap-2">
             <FaPlusCircle className="text-primary" />
-            Increase Debt
+            {editTransaction ? 'Edit Increase' : 'Increase Debt'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -115,18 +131,30 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
 
             <Col xs={12} className="mb-3">
               <Form.Label>Amount to Add <span className="text-danger">*</span></Form.Label>
-              <NumericFormat
-                 customInput={Form.Control as any}
-                 thousandSeparator={true}
-                 prefix={currencyPrefix}
-                 decimalScale={2}
-                 value={amount}
-                 onValueChange={(values) => setAmount(values.floatValue || '')}
-                 disabled={isSubmitting}
-                 placeholder="0"
-                 allowNegative={false}
-                 required
-              />
+              <div className="position-relative d-flex align-items-center">
+                <NumericFormat
+                   customInput={Form.Control as any}
+                   thousandSeparator={true}
+                   prefix={currencyPrefix}
+                   decimalScale={2}
+                   value={amount}
+                   onValueChange={(values) => setAmount(values.floatValue || '')}
+                   disabled={isSubmitting}
+                   placeholder="0"
+                   allowNegative={false}
+                   required
+                   style={{ paddingRight: amount !== '' && !isSubmitting ? '2.5rem' : undefined }}
+                />
+                {amount !== '' && !isSubmitting && (
+                  <div className="position-absolute end-0 pe-2 d-flex align-items-center">
+                    <ClearButton
+                      size={14}
+                      ariaLabel="Clear amount"
+                      onClick={() => setAmount('')}
+                    />
+                  </div>
+                )}
+              </div>
             </Col>
 
             <Col xs={12} className="mb-3">
@@ -142,14 +170,26 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
 
             <Col xs={12} className="mb-3">
                <Form.Label>Description</Form.Label>
-               <Form.Control
-                 as="textarea"
-                 rows={2}
-                 placeholder="Reason for increase..."
-                 value={description}
-                 onChange={(e) => setDescription(e.target.value)}
-                 disabled={isSubmitting}
-               />
+               <div className="position-relative">
+                 <Form.Control
+                   as="textarea"
+                   rows={2}
+                   placeholder="Reason for increase..."
+                   value={description}
+                   onChange={(e) => setDescription(e.target.value)}
+                   disabled={isSubmitting}
+                   style={{ paddingRight: description !== '' && !isSubmitting ? '2.5rem' : undefined }}
+                 />
+                 {description !== '' && !isSubmitting && (
+                   <div className="position-absolute end-0 top-0 pt-2 pe-2" style={{ zIndex: 5 }}>
+                     <ClearButton
+                       size={14}
+                       ariaLabel="Clear description"
+                       onClick={() => setDescription('')}
+                     />
+                   </div>
+                 )}
+               </div>
             </Col>
           </Row>
         </Modal.Body>
@@ -158,7 +198,7 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
             Cancel
           </Button>
           <Button type="submit" variant="primary" disabled={isSubmitting}>
-             {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Confirm Increase'}
+             {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : (editTransaction ? 'Save Changes' : 'Confirm Increase')}
           </Button>
         </Modal.Footer>
       </Form>
