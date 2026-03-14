@@ -23,7 +23,7 @@ export interface Transaction {
   currency: string;
   date: string;
   category?: string;
-  type: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out';
+  type: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out' | 'debt_in' | 'debt_out';
 }
 
 interface TransactionsListProps {

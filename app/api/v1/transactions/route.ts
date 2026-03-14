@@ -200,6 +200,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         payment_status: tx.payment_status,
         reference_number: tx.reference_number,
         labels: tx.labels.map(l => l.label),
+        debt_id: tx.debt_id,
         created_at: tx.created_at,
         updated_at: tx.updated_at
       };

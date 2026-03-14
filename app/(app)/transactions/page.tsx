@@ -12,6 +12,9 @@ import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { FilterSidebar } from '@/components/FilterSidebar';
 import { RecordsHeader, RecordsList, RecordsSkeleton, type GroupedTransactions, type TransactionRecord } from '@/components/Records';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
+import { DebtIncreaseModal } from '@/components/debt/DebtIncreaseModal';
+import { RepaymentModal } from '@/components/debt/RepaymentModal';
+import { Debt, debtService } from '@/services/debtService';
 import PeriodNavigation, {
   PeriodNavigationProvider,
   usePeriodNavigation,
@@ -65,9 +68,16 @@ function TransactionsContent() {
   const [summaryTotals, setSummaryTotals] = useState<Record<string, number>>({});
   const [totalRecords, setTotalRecords] = useState(0);
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
+  const [isGlobalSelectAll, setIsGlobalSelectAll] = useState(false);
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // Debt Modals State
+  const [showDebtIncreaseModal, setShowDebtIncreaseModal] = useState(false);
+  const [showRepaymentModal, setShowRepaymentModal] = useState(false);
+  const [targetDebt, setTargetDebt] = useState<Debt | null>(null);
+  const [targetDebtTransaction, setTargetDebtTransaction] = useState<any>(null);
 
   // Saved filters
   const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
@@ -307,6 +317,13 @@ function TransactionsContent() {
         }
       }
 
+      // Override for Debt transactions
+      if (transaction.type === 'debt_in' || transaction.type === 'debt_out') {
+        categoryName = transaction.category?.name || 'Debt';
+        categoryIcon = 'FaHandshake';
+        categoryColor = transaction.type === 'debt_in' ? '#059669' : '#dc3545';
+      }
+
       const record = {
         id: transaction.id,
         date: dateKey,
@@ -324,7 +341,12 @@ function TransactionsContent() {
         // - transfer_in: positive
         amount: transaction.amount,
         currency: transaction.currency,
-        type: isTransfer ? 'TRANSFER' : (transaction.type === 'income' ? 'INCOME' : 'EXPENSE'),
+        type: isTransfer ? 'TRANSFER' : (
+          transaction.type === 'debt_in' ? 'DEBT_IN' : 
+          transaction.type === 'debt_out' ? 'DEBT_OUT' : 
+          transaction.type === 'income' ? 'INCOME' : 'EXPENSE'
+        ),
+        debt_id: transaction.debt_id,
         labels: transaction.labels || [],
       } as TransactionRecord;
 
@@ -343,6 +365,7 @@ function TransactionsContent() {
       const newSet = new Set(prev);
       if (newSet.has(recordId)) {
         newSet.delete(recordId);
+        setIsGlobalSelectAll(false); // Clear global selection when individuals are disabled
       } else {
         newSet.add(recordId);
       }
@@ -353,17 +376,74 @@ function TransactionsContent() {
   const handleSelectAll = useCallback(() => {
     if (selectedTransactionIds.size === sortedTransactions.length) {
       setSelectedTransactionIds(new Set());
+      setIsGlobalSelectAll(false);
     } else {
       setSelectedTransactionIds(new Set(sortedTransactions.map((t) => t.id)));
     }
   }, [selectedTransactionIds.size, sortedTransactions]);
 
-
-
   // Edit handler following Single Responsibility Principle
-  const handleEditRecord = useCallback((record: TransactionRecord) => {
+  const handleEditRecord = useCallback(async (record: TransactionRecord) => {
     const transaction = transactions.find((t) => t.id === record.id);
     if (!transaction) return;
+
+    // Debt Modal Intercept Logic
+    if (transaction.type === 'debt_in' || transaction.type === 'debt_out') {
+      if (transaction.debt_id) {
+        try {
+          const debtDoc = await debtService.getDebtById(transaction.debt_id);
+          setTargetDebt(debtDoc);
+          setTargetDebtTransaction(transaction);
+
+          if (debtDoc.type === 'lend') {
+            if (transaction.type === 'debt_out') {
+              setShowDebtIncreaseModal(true);
+            } else {
+              setShowRepaymentModal(true);
+            }
+          } else if (debtDoc.type === 'borrow') {
+            if (transaction.type === 'debt_in') {
+              setShowDebtIncreaseModal(true);
+            } else {
+              setShowRepaymentModal(true);
+            }
+          }
+          return; // Skip opening the standard transaction modal
+        } catch (error) {
+          console.error("Failed to load debt for this transaction", error);
+          // Fallback to standard edit if debt load fails
+        }
+      }
+    }
+
+    // Debt Modal Intercept Logic
+    if (transaction.type === 'debt_in' || transaction.type === 'debt_out') {
+      if (transaction.debt_id) {
+        try {
+          const debtDoc = await debtService.getDebtById(transaction.debt_id);
+          setTargetDebt(debtDoc);
+          setTargetDebtTransaction(transaction);
+
+          if (debtDoc.type === 'lend') {
+            if (transaction.type === 'debt_out') {
+              setShowDebtIncreaseModal(true);
+            } else {
+              setShowRepaymentModal(true);
+            }
+          } else if (debtDoc.type === 'borrow') {
+            if (transaction.type === 'debt_in') {
+              setShowDebtIncreaseModal(true);
+            } else {
+              setShowRepaymentModal(true);
+            }
+          }
+          return; // Skip opening the standard transaction modal
+        } catch (error) {
+          console.error("Failed to load debt for this transaction", error);
+          // Fallback to standard edit if debt load fails
+        }
+      }
+    }
 
     // Extract label IDs (simple data transformation)
     const labelIds = transaction.labels?.map(label => label.id).filter((id): id is string => !!id) || [];
@@ -460,25 +540,31 @@ function TransactionsContent() {
     Swal.fire({
       icon: 'info',
       title: 'Bulk Edit',
-      text: `Bulk editing ${selectedTransactionIds.size} transaction(s) is not yet implemented`,
+      text: isGlobalSelectAll 
+        ? `Bulk editing ALL ${totalRecords} matching transactions is not yet implemented.`
+        : `Bulk editing ${selectedTransactionIds.size} transaction(s) is not yet implemented.`,
       confirmButtonColor: '#0d6efd',
     });
-  }, [selectedTransactionIds.size]);
+  }, [selectedTransactionIds.size, isGlobalSelectAll, totalRecords]);
 
   const handleBulkExport = useCallback(() => {
     Swal.fire({
       icon: 'info',
       title: 'Bulk Export',
-      text: `Exporting ${selectedTransactionIds.size} transaction(s) is not yet implemented`,
+      text: isGlobalSelectAll 
+        ? `Exporting ALL ${totalRecords} matching transactions is not yet implemented.`
+        : `Exporting ${selectedTransactionIds.size} transaction(s) is not yet implemented.`,
       confirmButtonColor: '#0d6efd',
     });
-  }, [selectedTransactionIds.size]);
+  }, [selectedTransactionIds.size, isGlobalSelectAll, totalRecords]);
 
   const handleBulkDelete = useCallback(async () => {
     const result = await Swal.fire({
       icon: 'warning',
-      title: 'Bulk Delete',
-      text: `Are you sure you want to delete ${selectedTransactionIds.size} transaction(s)?`,
+      title: isGlobalSelectAll ? 'Delete ALL Matching Records' : 'Bulk Delete',
+      text: isGlobalSelectAll 
+        ? `Are you sure you want to permanently delete ALL ${totalRecords} transactions matching your current filters? This cannot be undone.`
+        : `Are you sure you want to delete ${selectedTransactionIds.size} transaction(s)?`,
       showCancelButton: true,
       confirmButtonText: 'Yes, delete',
       cancelButtonText: 'Cancel',
@@ -488,32 +574,87 @@ function TransactionsContent() {
     });
 
     if (result.isConfirmed) {
-      Swal.fire({
-        icon: 'info',
-        title: 'Coming Soon',
-        text: 'Bulk delete is not yet implemented',
-        confirmButtonColor: '#0d6efd',
-      });
-    }
-  }, [selectedTransactionIds.size]);
+      try {
+        let payload: any = {};
+        
+        if (isGlobalSelectAll) {
+          const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
+          const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
 
-  // Total transactions count:
-  //   - When nothing selected: use totalRecords from API meta (covers ALL filtered data)
-  //   - When selection active: count only the selected visible rows
-  const displayTotalCount = useMemo(() => {
-    const hasSelection = selectedTransactionIds.size > 0;
-    if (!hasSelection) {
-      return totalRecords;
+          payload = {
+            allMatching: true,
+            filters: {
+              ...(startDateTime && { start_date: startDateTime }),
+              ...(endDateTime && { end_date: endDateTime }),
+              ...(searchTerm && { search: searchTerm }),
+              ...(selectedCategories.length > 0 && categories.length > 0 && {
+                category_ids: categories.filter(cat => selectedCategories.includes(cat.name)).map(cat => cat.id).join(',')
+              }),
+              ...(selectedAccounts.length > 0 && apiAccounts.length > 0 && {
+                account_ids: apiAccounts.filter(acc => selectedAccounts.includes(acc.name)).map(acc => acc.id).join(',')
+              }),
+              ...(selectedLabelIds.length > 0 && { label_ids: selectedLabelIds.join(',') }),
+              ...(minAmount > 0 && { min_amount: minAmount }),
+              ...(maxAmount < Infinity && { max_amount: maxAmount }),
+              ...(selectedCurrencies.length > 0 && { currencies: selectedCurrencies.join(',') })
+            }
+          };
+        } else {
+          payload = {
+            allMatching: false,
+            ids: Array.from(selectedTransactionIds)
+          };
+        }
+
+        const res = await transactionService.bulkDeleteTransactions(payload);
+        
+        await Swal.fire({
+          icon: 'success',
+          title: 'Deleted',
+          text: `Successfully deleted ${res.deletedCount} transaction(s)`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+
+        // Reset state and fetch
+        setSelectedTransactionIds(new Set());
+        setIsGlobalSelectAll(false);
+        fetchTransactions(1);
+      } catch (error) {
+        console.error('Failed to bulk delete:', error);
+        await Swal.fire({
+          icon: 'error',
+          title: 'Delete Failed',
+          text: 'Failed to delete transactions',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc3545'
+        });
+      }
     }
-    return selectedTransactionIds.size;
-  }, [selectedTransactionIds.size, totalRecords]);
+  }, [
+    selectedTransactionIds, 
+    isGlobalSelectAll, 
+    totalRecords, 
+    dateRange, 
+    searchTerm, 
+    selectedCategories, 
+    categories, 
+    selectedAccounts, 
+    apiAccounts, 
+    selectedLabelIds, 
+    minAmount, 
+    maxAmount, 
+    selectedCurrencies,
+    fetchTransactions
+  ]);
+
 
   // Net totals:
   //   - When nothing selected: use summaryTotals from API meta (covers ALL filtered data)
-  //   - When selection active: sum only the selected visible rows
+  //   - When selection active: sum only the selected visible rows, UNLESS it's a global selection
   const netTotalsByCurrency = useMemo(() => {
     const hasSelection = selectedTransactionIds.size > 0;
-    if (!hasSelection) {
+    if (!hasSelection || isGlobalSelectAll) {
       return summaryTotals;
     }
     const totals: Record<string, number> = {};
@@ -641,8 +782,8 @@ function TransactionsContent() {
         {/* Main Content */}
         <Col lg={9}>
           {/* Period Navigation */}
-          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <div className="flex-grow-1 d-flex justify-content-center">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div className="d-flex justify-content-center align-items-center me-2 flex-grow-1">
               <PeriodNavigation>
                 <PeriodRangeSelector
                   label={periodLabel}
@@ -652,15 +793,15 @@ function TransactionsContent() {
               </PeriodNavigation>
             </div>
             {/* Mobile Filter Toggle */}
-            <div className="d-lg-none">
+            <div className="d-lg-none flex-shrink-0">
               <Button
                 variant="outline-secondary"
                 size="sm"
                 onClick={() => setShowMobileFilters(true)}
-                className="d-flex align-items-center gap-2"
+                className="d-flex align-items-center"
+                style={{ padding: '0.375rem 0.5rem', minWidth: '40px', justifyContent: 'center' }}
               >
-                <FaFilter size={14} />
-                Filters
+                <FaFilter size={16} />
               </Button>
             </div>
           </div>
@@ -680,7 +821,7 @@ function TransactionsContent() {
                   >
                     <RecordsHeader
                       selectedCount={selectedTransactionIds.size}
-                      totalCount={displayTotalCount}
+                      totalCount={totalRecords}
                       allSelected={allSelected}
                       onSelectAll={handleSelectAll}
                       onBulkEdit={handleBulkEdit}
@@ -688,6 +829,8 @@ function TransactionsContent() {
                       onBulkDelete={handleBulkDelete}
                       summaryText={formatNetTotals(netTotalsByCurrency)}
                       showBulkActions
+                      isGlobalSelectAll={isGlobalSelectAll}
+                      onSelectGlobal={setIsGlobalSelectAll}
                     />
                   </div>
 
@@ -727,6 +870,41 @@ function TransactionsContent() {
           </Card>
         </Col>
       </Row>
+
+      {/* Debt Specific Modals */}
+      <RepaymentModal
+        show={showRepaymentModal}
+        onHide={() => {
+          setShowRepaymentModal(false);
+          setTargetDebtTransaction(null);
+        }}
+        debt={targetDebt}
+        onSave={async () => { /* New repayments typically not made from transactions list, handled as edit */ }}
+        editTransaction={targetDebtTransaction}
+        onEdit={async (debtId, txId, payload) => {
+          await debtService.updateRepayment(debtId, txId, payload);
+          setShowRepaymentModal(false);
+          fetchTransactions(1);
+        }}
+        accounts={apiAccounts}
+      />
+
+      <DebtIncreaseModal
+        show={showDebtIncreaseModal}
+        onHide={() => {
+          setShowDebtIncreaseModal(false);
+          setTargetDebtTransaction(null);
+        }}
+        debt={targetDebt}
+        onSave={async () => { /* New increases typically not made from transactions list */ }}
+        editTransaction={targetDebtTransaction}
+        onEdit={async (debtId, txId, payload) => {
+          await debtService.updateIncrease(debtId, txId, payload);
+          setShowDebtIncreaseModal(false);
+          fetchTransactions(1);
+        }}
+        accounts={apiAccounts}
+      />
     </Container>
   );
 }

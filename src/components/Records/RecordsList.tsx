@@ -1,6 +1,6 @@
 import React from 'react';
 import { Form, Dropdown, Card } from 'react-bootstrap';
-import { FaEllipsisV } from 'react-icons/fa';
+import { FaEllipsisV, FaCheck } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import './Records.css';
@@ -17,7 +17,8 @@ export interface TransactionRecord {
   payer?: string;
   amount: number;
   currency: string;
-  type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_IN' | 'DEBT_OUT';
+  debt_id?: string;
   labels?: Array<{
     id?: string;
     name: string;
@@ -48,6 +49,7 @@ export const RecordsList: React.FC<RecordsListProps> = ({
   showDropdownMenu = true,
 }) => {
   const { formatCurrency } = useFormattedCurrency();
+  const longPressTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const resolveIconComponent = (
     iconName?: string
@@ -157,12 +159,34 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                   <Card key={transaction.id} className="records-item-card mb-2">
                     <div
                       className={`records-item ${isSelected ? 'records-item--selected' : ''}`}
-                      onClick={() => onEditRecord(transaction)}
+                      onClick={() => {
+                        if (selectedRecords.size > 0) {
+                          onSelectRecord(transaction.id);
+                        } else {
+                          onEditRecord(transaction);
+                        }
+                      }}
+                      onTouchStart={() => {
+                        if (selectedRecords.size === 0) {
+                          longPressTimerRef.current = setTimeout(() => {
+                            onSelectRecord(transaction.id);
+                            if (window.navigator?.vibrate) {
+                              window.navigator.vibrate(50);
+                            }
+                          }, 500);
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                      }}
+                      onTouchMove={() => {
+                        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+                      }}
                       style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', position: 'relative' }}
                     >
                       {showCheckboxes && (
                         <div
-                          className="records-item-checkbox"
+                          className="records-item-checkbox d-none d-md-block"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Form.Check
@@ -174,69 +198,104 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                         </div>
                       )}
 
-                      <div className="records-item-icon" style={{ width: '48px', flexShrink: 0 }}>
+                      <div className="records-item-icon" style={{ flexShrink: 0 }}>
                         <span
-                          className="d-inline-flex align-items-center justify-content-center rounded-circle"
+                          className={`d-inline-flex align-items-center justify-content-center rounded-circle ${isSelected ? 'bg-primary' : ''}`}
                           style={{
-                            width: 40,
-                            height: 40,
-                            backgroundColor: transaction.categoryIconColor || '#6c757d',
+                            width: 36,
+                            height: 36,
+                            backgroundColor: isSelected ? undefined : (transaction.categoryIconColor || '#6c757d'),
                             color: '#fff',
-                            fontSize: '1rem',
+                            fontSize: '0.9rem',
+                            transition: 'background-color 0.2s',
                           }}
                         >
-                          {CategoryIcon ? <CategoryIcon size={18} /> : <span>📦</span>}
+                          {isSelected ? (
+                            <>
+                              <FaCheck size={16} className="d-md-none" />
+                              {CategoryIcon ? (
+                                <span className="d-none d-md-block"><CategoryIcon size={16} /></span>
+                              ) : (
+                                <span className="d-none d-md-block">📦</span>
+                              )}
+                            </>
+                          ) : CategoryIcon ? (
+                            <CategoryIcon size={16} />
+                          ) : (
+                            <span>📦</span>
+                          )}
                         </span>
                       </div>
+                      {/* Middle Details */}
+                      <div className="records-item-details d-flex flex-column pe-2 overflow-hidden mx-1" style={{ flex: '1 1 auto', minWidth: 0 }}>
+                        <div className="records-item-category fw-bold text-truncate" style={{ fontSize: '0.95rem' }}>
+                          {transaction.categoryName}
+                        </div>
+                        {/* Mobile: Stacked, Desktop: Inline */}
+                        <div className="d-flex flex-column flex-md-row align-items-md-center text-muted small mt-1 w-100 overflow-hidden">
+                          {/* Account Line */}
+                          <div className="d-flex align-items-center mb-1 mb-md-0 flex-shrink-0" style={{ maxWidth: '100%' }}>
+                            <div
+                              className="d-none d-md-block"
+                              style={{
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                backgroundColor: transaction.categoryIconColor || '#6c757d',
+                                flexShrink: 0,
+                                marginRight: '6px'
+                              }}
+                            />
+                            <div className="text-truncate" style={{ maxWidth: '100%' }}>{transaction.accountName}</div>
+                          </div>
 
-                      <div className="records-item-category fw-bold" style={{ width: '200px', flexShrink: 0 }}>
-                        {transaction.categoryName}
-                      </div>
-
-                      <div className="d-flex align-items-center gap-2" style={{ width: '200px', flexShrink: 0 }}>
-                        <span
-                          style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            backgroundColor: transaction.categoryIconColor || '#6c757d',
-                            display: 'inline-block',
-                            flexShrink: 0,
-                          }}
-                        />
-                        <span className="text-truncate">{transaction.accountName}</span>
-                      </div>
-
-                      <div className="text-muted small" style={{ width: '220px', flexShrink: 0 }}>
-                        <span className="text-truncate d-block">{transaction.description}</span>
-                      </div>
-
-                      <div className="d-flex gap-1 flex-wrap" style={{ flex: '1 1 auto', minWidth: 0 }}>
-                        {Array.isArray(transaction.labels) && transaction.labels.length > 0 ? (
-                          transaction.labels.map((label) => {
-                            const labelKey = label.id ?? `${label.name}-${label.color ?? 'default'}`;
-                            return (
-                              <span
-                                key={labelKey}
-                                className="badge text-uppercase"
-                                style={{ 
-                                  backgroundColor: label.color || '#6c757d',
-                                  color: '#fff',
-                                  fontSize: '0.65rem',
-                                  padding: '0.2rem 0.5rem',
-                                  fontWeight: '600'
+                          {/* Description Line */}
+                          {transaction.description && (
+                            <div className="d-flex align-items-start align-items-md-center flex-shrink-1 ps-md-1 overflow-hidden w-100">
+                              <div className="d-none d-md-block flex-shrink-0 mx-1">•</div>
+                              <div
+                                className="description-text w-100"
+                                style={{
+                                  fontStyle: 'italic',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
                                 }}
                               >
-                                {label.name}
-                              </span>
-                            );
-                          })
-                        ) : (
-                          <span></span>
+                                {transaction.description}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {Array.isArray(transaction.labels) && transaction.labels.length > 0 && (
+                          <div className="d-flex gap-1 flex-wrap mt-1">
+                            {transaction.labels.map((label) => {
+                              const labelKey = label.id ?? `${label.name}-${label.color ?? 'default'}`;
+                              return (
+                                <span
+                                  key={labelKey}
+                                  className="badge text-uppercase text-truncate"
+                                  style={{
+                                    backgroundColor: label.color || '#6c757d',
+                                    color: '#fff',
+                                    fontSize: '0.6rem',
+                                    padding: '0.15rem 0.4rem',
+                                    fontWeight: '600',
+                                    maxWidth: '80px'
+                                  }}
+                                >
+                                  {label.name}
+                                </span>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
 
-                      <div className="ms-auto text-end" style={{ flexShrink: 0, paddingRight: '1rem' }}>
+                      {/* Right Side Amount */}
+                      <div className="records-item-amount text-end flex-shrink-0 ms-auto d-flex flex-column justify-content-start pe-md-4" style={{ whiteSpace: 'nowrap', minWidth: 'fit-content' }}>
                         <div>
                           <strong
                             className={
@@ -244,26 +303,61 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                                 ? 'text-danger'
                                 : 'text-success'
                             }
+                            style={{ fontSize: '0.95rem' }}
                           >
-                            {/* Display amount with sign exactly as stored in database:
-                                - transfer_out: negative amount → show -USD 100.00 (red)
-                                - transfer_in: positive amount → show +USD 100.00 (green)
-                                - expense: negative amount → show -USD 100.00 (red)
-                                - income: positive amount → show +USD 100.00 (green) */}
                             {transaction.amount < 0 ? '-' : transaction.amount > 0 ? '+' : ''}
-                            {formatCurrency(Math.abs(transaction.amount), transaction.currency || 'USD')}
+                            {formatCurrency(Math.abs(transaction.amount), transaction.currency || 'USD').replace(/\.00$/, '')}
                           </strong>
                         </div>
-                        <div className="text-muted small">
-                          {transaction.time}
+                        <div className="text-muted d-flex align-items-center justify-content-end" style={{ fontSize: '0.75rem', marginTop: '0.1rem' }}>
+                          <span>{transaction.time}</span>
+                          {/* Move action menu here on mobile for better space utilization */}
+                          {showDropdownMenu && (
+                            <div
+                              className="d-md-none ms-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+
+                              {/* Action Menu */}
+                              <Dropdown>
+                                <Dropdown.Toggle
+                                  as="button"
+                                  className="btn btn-link text-muted p-0 border-0 bg-transparent records-menu-toggle"
+                                  id={`menu-mobile-${transaction.id}`}
+                                  bsPrefix="records-menu"
+                                  style={{ transform: 'rotate(90deg)' }}
+                                >
+                                  <FaEllipsisV size={14} />
+                                </Dropdown.Toggle>
+
+                                <Dropdown.Menu align="end" style={{ zIndex: 1050 }}>
+                                  <Dropdown.Item onClick={() => onEditRecord(transaction)}>
+                                    Edit
+                                  </Dropdown.Item>
+                                  {onDeleteRecord && (
+                                    <>
+                                      <Dropdown.Divider />
+                                      <Dropdown.Item
+                                        className="text-danger"
+                                        onClick={() => onDeleteRecord(transaction.id)}
+                                      >
+                                        Delete
+                                      </Dropdown.Item>
+                                    </>
+                                  )}
+                                </Dropdown.Menu>
+                              </Dropdown>
+                            </div>
+                          )}
                         </div>
                       </div>
 
+                      {/* Action Menu (Desktop only) */}
                       {showDropdownMenu && (
                         <div
-                          className="records-item-actions"
+                          className="records-item-actions d-none d-md-flex align-items-center"
+                          style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)' }}
                           onClick={(e) => e.stopPropagation()}
-                          style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}
                         >
                           <Dropdown>
                             <Dropdown.Toggle

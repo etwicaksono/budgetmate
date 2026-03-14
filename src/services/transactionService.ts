@@ -20,8 +20,9 @@ export interface Transaction {
     type: string;
   };
   amount: number;
-  type: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out';
+  type: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out' | 'debt_in' | 'debt_out';
   description?: string;
+  debt_id?: string;
   currency: string;
   payee?: string;
   payment_method?: string;
@@ -49,7 +50,7 @@ export interface CreateTransactionRequest {
   account_id: string;
   category_id?: string;
   amount: number;
-  type: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out';
+  type: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out' | 'debt_in' | 'debt_out';
   description?: string;
   currency?: string;
   payee?: string;
@@ -66,7 +67,7 @@ export interface TransactionFilters {
   limit?: number;
   account_id?: string;
   category_id?: string;
-  type?: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out';
+  type?: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out' | 'debt_in' | 'debt_out';
   start_date?: string;
   end_date?: string;
   min_amount?: number;
@@ -91,6 +92,12 @@ export interface TransactionsResponse {
     hasPrev?: boolean;
     totals_by_currency?: Record<string, number>;
   };
+}
+
+export interface BulkDeleteTransactionsRequest {
+  allMatching?: boolean;
+  ids?: string[];
+  filters?: TransactionFilters;
 }
 
 export interface TransactionSummary {
@@ -161,6 +168,15 @@ class TransactionService {
 
   async deleteTransaction(id: string): Promise<void> {
     await api.delete(`/transactions/${id}`);
+  }
+
+  async bulkDeleteTransactions(payload: BulkDeleteTransactionsRequest): Promise<{ deletedCount: number }> {
+    // Delete typically doesn't have a body but axios supports config.data
+    const response = await api.delete<{ success: boolean; data: { deletedCount: number } }>(
+      '/transactions/bulk',
+      { data: payload }
+    );
+    return response.data;
   }
 
   async fetchTransactionSummary(filters?: {

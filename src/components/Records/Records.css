@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem;
+  padding: 0.5rem 1rem;
   border-bottom: 1px solid #dee2e6;
   background-color: #f8f9fa;
 }
@@ -122,23 +122,29 @@
 
 /* Records Item */
 .records-item-card {
-  border: 1px solid #dee2e6;
+  border: none;
+  border-bottom: 1px solid #dee2e6;
+  border-radius: 0;
+  margin-bottom: 0 !important;
   transition: all 0.2s;
   position: relative;
   z-index: 1;
 }
 
+.records-item-card:last-child {
+  border-bottom: none;
+}
+
 .records-item-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-color: #adb5bd;
+  background-color: #f8f9fa;
   z-index: 100;
 }
 
 .records-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
   transition: background-color 0.2s;
 }
 
@@ -167,7 +173,7 @@
 
 .records-item-category {
   font-size: 1rem;
-  line-height: 1.4;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -187,7 +193,7 @@
 
 .records-item-amount {
   flex-shrink: 0;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .records-item-labels {
@@ -212,6 +218,12 @@
   opacity: 1;
 }
 
+@media (pointer: coarse) {
+  .records-item-actions {
+    opacity: 1;
+  }
+}
+
 .records-menu-toggle::after {
   display: none !important;
 }
@@ -230,15 +242,8 @@
   }
 
   .records-item {
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-
-  .records-item-details {
-    flex-basis: 100%;
-  }
-
-  .records-item-amount {
-    margin-left: auto;
+    padding: 0.85rem 0.75rem;
+    /* Slightly taller for 3-line stack */
+    gap: 0.5rem;
   }
 }
