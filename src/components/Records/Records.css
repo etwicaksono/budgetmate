@@ -60,7 +60,8 @@
 
 /* Records List */
 .records-list {
-  padding: 1rem 0;
+  padding: 0 0 1rem;
+  display: flow-root;
 }
 
 .records-empty {
@@ -74,10 +75,10 @@
 
 .records-day-header {
   position: sticky;
-  top: 138px;
-  z-index: 10;
+  top: calc(var(--navbar-height, 65px) + var(--records-header-height, 73px));
+  z-index: 1005;
   background-color: #fff;
-  padding: 0.75rem 1rem;
+  padding: 0.2rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -246,4 +247,19 @@
     /* Slightly taller for 3-line stack */
     gap: 0.5rem;
   }
+
+/* Description line clamp: 1 line on mobile, 2 lines on desktop */
+.description-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+@media (min-width: 768px) {
+  .description-clamp {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
 }

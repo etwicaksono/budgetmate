@@ -1,5 +1,32 @@
 /* Dashboard Layout Styles */
 
+:root {
+  --navbar-height: 73px;
+}
+
+@media (max-width: 991.98px) {
+  :root {
+    --navbar-height: 61px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  :root {
+    --navbar-height: 57px;
+  }
+}
+
+/* Custom responsive width for Period Navigation */
+.period-nav-responsive {
+  width: 100%;
+}
+
+@media (min-width: 992px) {
+  .period-nav-responsive {
+    width: auto !important;
+  }
+}
+
 .app {
   min-height: 100vh;
   background-color: #f8f9fa;

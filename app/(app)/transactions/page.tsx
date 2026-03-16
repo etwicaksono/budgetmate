@@ -89,7 +89,36 @@ function TransactionsContent() {
 
   // Ref for infinite scroll observer
   const observerTarget = useRef<HTMLDivElement>(null);
-
+  
+  // Callback ref for sticky RecordsHeader to attach ResizeObserver safely
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const handleRecordsHeaderRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    
+    if (node !== null) {
+      let lastHeight = 0;
+      const update = () => {
+        const measured = node.getBoundingClientRect().height;
+        const newHeight = Math.round(measured);
+        
+        // Only update CSS variable if height changes by >= 1px to prevent 
+        // subpixel ResizeObserver infinite loops on mobile (which disables sticky positioning)
+        if (Math.abs(newHeight - lastHeight) >= 1) {
+          lastHeight = newHeight;
+          document.documentElement.style.setProperty(
+            '--records-header-height',
+            `${newHeight}px`
+          );
+        }
+      };
+      update(); // set immediately
+      observerRef.current = new ResizeObserver(update);
+      observerRef.current.observe(node);
+    }
+  }, []);
   // Fetch labels
   useEffect(() => {
     const loadLabels = async () => {
@@ -816,8 +845,9 @@ function TransactionsContent() {
               ) : (
                 <>
                   <div
+                    ref={handleRecordsHeaderRef}
                     className="border-bottom bg-white"
-                    style={{ position: 'sticky', top: '65px', zIndex: 100 }}
+                    style={{ position: 'sticky', top: 'calc(var(--navbar-height, 73px) - 1px)', zIndex: 1010 }}
                   >
                     <RecordsHeader
                       selectedCount={selectedTransactionIds.size}

@@ -63,7 +63,8 @@ const PeriodNavigation: React.FC<PeriodNavigationProps> = ({
     'justify-content-center',
     'align-items-center',
     'gap-2',
-    'flex-wrap',
+    'flex-nowrap',
+    'period-nav-responsive',
     className,
   ]
     .filter(Boolean)
@@ -77,6 +78,7 @@ const PeriodNavigation: React.FC<PeriodNavigationProps> = ({
         onClick={previousHandler}
         disabled={previousDisabled}
         aria-label={previousAriaLabel}
+        style={{ flexShrink: 0 }}
       >
         {renderIcon(FaChevronLeft)}
       </Button>
@@ -87,6 +89,7 @@ const PeriodNavigation: React.FC<PeriodNavigationProps> = ({
         onClick={nextHandler}
         disabled={nextDisabled}
         aria-label={nextAriaLabel}
+        style={{ flexShrink: 0 }}
       >
         {renderIcon(FaChevronRight)}
       </Button>

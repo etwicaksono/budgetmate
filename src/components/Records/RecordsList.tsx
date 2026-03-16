@@ -254,12 +254,9 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                             <div className="d-flex align-items-start align-items-md-center flex-shrink-1 ps-md-1 overflow-hidden w-100">
                               <div className="d-none d-md-block flex-shrink-0 mx-1">•</div>
                               <div
-                                className="description-text w-100"
+                                className="description-text w-100 description-clamp"
                                 style={{
                                   fontStyle: 'italic',
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: 2,
-                                  WebkitBoxOrient: 'vertical',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis'
                                 }}
