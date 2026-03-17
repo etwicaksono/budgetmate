@@ -16,20 +16,20 @@ export const DebtTypeToggle: React.FC<DebtTypeToggleProps> = ({ value, onChange,
   return (
     <ButtonGroup className="w-100 mb-3">
       <Button
-        variant={value === DEBT_TYPES.LEND ? 'success' : 'outline-secondary'}
+        variant={value === DEBT_TYPES.LEND ? 'danger' : 'outline-secondary'}
         onClick={() => onChange(DEBT_TYPES.LEND as typeof DEBT_TYPES.LEND)}
         disabled={disabled}
         className="d-flex align-items-center justify-content-center gap-2 py-2"
       >
-        <FaArrowCircleUp /> Lend
+        <FaArrowCircleDown /> Lend
       </Button>
       <Button
-        variant={value === DEBT_TYPES.BORROW ? 'danger' : 'outline-secondary'}
+        variant={value === DEBT_TYPES.BORROW ? 'success' : 'outline-secondary'}
         onClick={() => onChange(DEBT_TYPES.BORROW as typeof DEBT_TYPES.BORROW)}
         disabled={disabled}
         className="d-flex align-items-center justify-content-center gap-2 py-2"
       >
-        <FaArrowCircleDown /> Borrow
+        <FaArrowCircleUp /> Borrow
       </Button>
     </ButtonGroup>
   );

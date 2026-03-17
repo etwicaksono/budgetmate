@@ -810,29 +810,29 @@ function TransactionsContent() {
 
         {/* Main Content */}
         <Col lg={9}>
+          {/* Mobile Page Title + Filter Toggle */}
+          <div className="d-flex justify-content-between align-items-center mb-2 d-lg-none">
+            <h2 className="page-mobile-title">Transactions</h2>
+            <Button
+              variant="outline-secondary"
+              className="d-flex align-items-center justify-content-center p-2 position-relative"
+              onClick={() => setShowMobileFilters(true)}
+              style={{ width: '36px', height: '36px' }}
+              aria-label="Toggle Filters"
+            >
+              <FaFilter size={14} />
+            </Button>
+          </div>
+
           {/* Period Navigation */}
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div className="d-flex justify-content-center align-items-center me-2 flex-grow-1">
-              <PeriodNavigation>
-                <PeriodRangeSelector
-                  label={periodLabel}
-                  activePeriod={activePeriod}
-                  customRange={customRangeDraft}
-                />
-              </PeriodNavigation>
-            </div>
-            {/* Mobile Filter Toggle */}
-            <div className="d-lg-none flex-shrink-0">
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={() => setShowMobileFilters(true)}
-                className="d-flex align-items-center"
-                style={{ padding: '0.375rem 0.5rem', minWidth: '40px', justifyContent: 'center' }}
-              >
-                <FaFilter size={16} />
-              </Button>
-            </div>
+          <div className="d-flex justify-content-center align-items-center mb-3">
+            <PeriodNavigation>
+              <PeriodRangeSelector
+                label={periodLabel}
+                activePeriod={activePeriod}
+                customRange={customRangeDraft}
+              />
+            </PeriodNavigation>
           </div>
 
           {/* Transactions Card */}

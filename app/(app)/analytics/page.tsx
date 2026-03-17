@@ -262,35 +262,35 @@ function AnalyticsContent(): React.ReactElement {
             </Offcanvas.Body>
           </Offcanvas>
 
-          {/* Top Controls: Period Navigation + Mobile Filter Button */}
-          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <div className="flex-grow-1 d-flex justify-content-center">
-              <PeriodNavigation>
-                <PeriodRangeSelector
-                  label={periodLabel}
-                  activePeriod={activePeriod}
-                  customRange={customRangeDraft}
-                />
-              </PeriodNavigation>
-            </div>
-            {/* Mobile Filter Toggle */}
-            <div className="d-lg-none">
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={() => setShowMobileFilters(true)}
-                className="d-flex align-items-center gap-2"
-              >
-                <FaFilter size={14} />
-                Filters
-              </Button>
-            </div>
+          {/* Mobile Page Title + Filter Toggle */}
+          <div className="d-flex justify-content-between align-items-center mb-2 d-lg-none">
+            <h2 className="page-mobile-title">Analytics</h2>
+            <Button
+              variant="outline-secondary"
+              className="d-flex align-items-center justify-content-center p-2"
+              onClick={() => setShowMobileFilters(true)}
+              style={{ width: '36px', height: '36px' }}
+              aria-label="Toggle Filters"
+            >
+              <FaFilter size={14} />
+            </Button>
+          </div>
+
+          {/* Period Navigation */}
+          <div className="d-flex justify-content-center align-items-center mb-3">
+            <PeriodNavigation>
+              <PeriodRangeSelector
+                label={periodLabel}
+                activePeriod={activePeriod}
+                customRange={customRangeDraft}
+              />
+            </PeriodNavigation>
           </div>
 
           {/* Tab Navigation */}
           <div
             className="border-bottom bg-white mb-4 pt-2 pb-2"
-            style={{ position: 'sticky', top: '65px', zIndex: 100 }}
+            style={{ position: 'sticky', top: 'var(--navbar-height)', zIndex: 100 }}
           >
             <Nav variant="pills" className="analytics-tabs flex-nowrap overflow-auto">
               <Nav.Item>

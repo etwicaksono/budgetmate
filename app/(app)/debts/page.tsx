@@ -10,12 +10,13 @@ import {
   FaCheck,
   FaFilter
 } from 'react-icons/fa';
+import { NumericFormat } from 'react-number-format';
 
 import './Debts.css';
 import { debtService } from '@/services/debtService';
 import { DEBT_STATUSES } from '@/utils/constants';
-import { accountService, Account } from '@/services/accountService';
 import { DebtTabPane } from '@/components/debt';
+import { useDebt } from '@/contexts/DebtContext';
 import { ClearButton } from '@/components/common/ClearButton';
 
 interface DebtSortDropdownProps {
@@ -129,8 +130,6 @@ function DebtSortDropdown({ sortBy, sortOrder, onSortChange }: DebtSortDropdownP
 }
 
 export default function DebtsPage() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-
   // Shared filters
   const [statusFilter, setStatusFilter] = useState('');
   const [counterpartyFilter, setCounterpartyFilter] = useState('');
@@ -142,12 +141,17 @@ export default function DebtsPage() {
   // Mobile filter visibility
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
-  // Active tab
-  const [activeTab, setActiveTab] = useState<'lend' | 'borrow'>('lend');
+  // Active tab (global context via DebtContext)
+  const { activeDebtTab: activeTab, setActiveDebtTab: setActiveTab } = useDebt();
 
   // Summary totals
   const [totalLent, setTotalLent] = useState(0);
   const [totalBorrowed, setTotalBorrowed] = useState(0);
+
+  const [tabStates, setTabStates] = useState({
+    lend: { loading: true, count: 0 },
+    borrow: { loading: true, count: 0 }
+  });
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -167,7 +171,6 @@ export default function DebtsPage() {
 
   useEffect(() => {
     // Load accounts once
-    accountService.fetchAccounts({ include_balance: false }).then(setAccounts).catch(() => { });
     fetchSummary();
   }, [fetchSummary]);
 
@@ -273,45 +276,70 @@ export default function DebtsPage() {
 
         {/* Tab area */}
         <Col xs={12} lg={9}>
-          {/* Tab Navigation & Mobile Filter Toggle */}
-          <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-end border-bottom gap-3 bg-white debt-tabs-wrapper">
-            <Nav variant="tabs" className="debt-type-tabs border-bottom-0 mb-0 flex-grow-1">
-              <Nav.Item className="ms-sm-2">
-                <Nav.Link
-                  active={activeTab === 'lend'}
-                  onClick={() => setActiveTab('lend')}
-                  className="d-flex align-items-center gap-2 px-3 pe-sm-4"
-                >
-                  <FaArrowCircleUp className="text-success" />
-                  Credit
-                  {hasActiveFilter && activeTab !== 'lend' && (
-                    <Badge bg="success" pill style={{ fontSize: '10px' }}>filtered</Badge>
-                  )}
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link
-                  active={activeTab === 'borrow'}
-                  onClick={() => setActiveTab('borrow')}
-                  className="d-flex align-items-center gap-2 px-3"
-                >
-                  <FaArrowCircleDown className="text-danger" />
-                  Debit
-                  {hasActiveFilter && activeTab !== 'borrow' && (
-                    <Badge bg="danger" pill style={{ fontSize: '10px' }}>filtered</Badge>
-                  )}
-                </Nav.Link>
-              </Nav.Item>
-            </Nav>
 
+          <div className="d-flex justify-content-between align-items-center mb-2 px-3 d-lg-none">
+            <h2 className="page-mobile-title">Debts</h2>
             <Button
               variant={hasActiveFilter ? 'primary' : 'outline-secondary'}
-              className="d-lg-none d-flex align-items-center justify-content-center gap-2 mb-2"
+              className="d-flex align-items-center justify-content-center p-2 position-relative"
               onClick={() => setShowMobileFilter(!showMobileFilter)}
+              style={{ width: '36px', height: '36px' }}
+              aria-label="Toggle Filters"
             >
               <FaFilter size={14} />
-              <span>Filters {hasActiveFilter && <span className="badge bg-white text-primary ms-1">Active</span>}</span>
+              {hasActiveFilter && (
+                <span className="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                  <span className="visually-hidden">Active filters</span>
+                </span>
+              )}
             </Button>
+          </div>
+
+          {/* Sticky Wrapper for Header and Tab Navigation */}
+          <div className="bg-white debt-tabs-wrapper border-bottom">
+            {/* Header */}
+            <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-white debt-list-header">
+              <div className="fw-semibold small">
+                {tabStates[activeTab].loading && tabStates[activeTab].count === 0
+                  ? 'Loading…'
+                  : `${tabStates[activeTab].count} records`}
+              </div>
+              <div className={`fw-bold small ${activeTab === 'lend' ? 'text-danger' : 'text-success'}`}>
+                Total: <NumericFormat value={activeTab === 'lend' ? totalLent : totalBorrowed} displayType="text" thousandSeparator prefix="Rp " decimalScale={0} />
+              </div>
+            </div>
+
+            {/* Tab Navigation & Mobile Filter Toggle */}
+            <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-end gap-3 pt-2 px-2">
+              <Nav variant="tabs" className="debt-type-tabs border-bottom-0 mb-0 flex-grow-1">
+                <Nav.Item className="ms-sm-2">
+                  <Nav.Link
+                    active={activeTab === 'lend'}
+                    onClick={() => setActiveTab('lend')}
+                    className="d-flex align-items-center gap-2 px-3 pe-sm-4"
+                  >
+                    <FaArrowCircleUp className="text-danger" />
+                    <span className="text-danger" >Credit</span>
+                    {hasActiveFilter && activeTab !== 'lend' && (
+                      <Badge bg="danger" pill style={{ fontSize: '10px' }}>filtered</Badge>
+                    )}
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link
+                    active={activeTab === 'borrow'}
+                    onClick={() => setActiveTab('borrow')}
+                    className="d-flex align-items-center gap-2 px-3"
+                  >
+                    <FaArrowCircleDown className="text-success" />
+                    <span className="text-success" >Debit</span>
+                    {hasActiveFilter && activeTab !== 'borrow' && (
+                      <Badge bg="success" pill style={{ fontSize: '10px' }}>filtered</Badge>
+                    )}
+                  </Nav.Link>
+                </Nav.Item>
+              </Nav>
+            </div>
           </div>
 
 
@@ -324,9 +352,9 @@ export default function DebtsPage() {
               counterpartyFilter={counterpartyFilter}
               sortBy={sortBy}
               sortOrder={sortOrder}
-              accounts={accounts}
               onMutated={fetchSummary}
               totalAmount={totalLent}
+              onStateChange={(loading, count) => setTabStates(prev => ({ ...prev, lend: { loading, count } }))}
             />
           </div>
           <div className={activeTab === 'borrow' ? 'debt-tab-content' : 'debt-tab-content d-none'}>
@@ -336,9 +364,9 @@ export default function DebtsPage() {
               counterpartyFilter={counterpartyFilter}
               sortBy={sortBy}
               sortOrder={sortOrder}
-              accounts={accounts}
               onMutated={fetchSummary}
               totalAmount={totalBorrowed}
+              onStateChange={(loading, count) => setTabStates(prev => ({ ...prev, borrow: { loading, count } }))}
             />
           </div>
         </Col>

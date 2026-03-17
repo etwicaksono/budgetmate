@@ -5,7 +5,9 @@ import { Container } from 'react-bootstrap';
 import Header from './Header';
 import ProtectedRoute from './ProtectedRoute';
 import { TransactionProvider } from '@/contexts/TransactionContext';
+import { DebtProvider } from '@/contexts/DebtContext';
 import { GlobalTransactionModal } from './transactions/GlobalTransactionModal';
+import { GlobalDebtModal } from './debt/GlobalDebtModal';
 import './AppLayout.css';
 
 interface AppLayoutProps {
@@ -16,15 +18,18 @@ export default function AppLayout({ children }: AppLayoutProps): React.ReactElem
   return (
     <ProtectedRoute>
       <TransactionProvider>
-        <div className="app">
-          <Header />
-          <main className="app-content">
-            <Container fluid className="py-4">
-              {children}
-            </Container>
-          </main>
-          <GlobalTransactionModal />
-        </div>
+        <DebtProvider>
+          <div className="app">
+            <Header />
+            <main className="app-content">
+              <Container fluid className="py-2">
+                {children}
+              </Container>
+            </main>
+            <GlobalTransactionModal />
+            <GlobalDebtModal />
+          </div>
+        </DebtProvider>
       </TransactionProvider>
     </ProtectedRoute>
   );

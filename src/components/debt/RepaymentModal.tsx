@@ -198,7 +198,7 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
           <Button variant="secondary" onClick={onHide} disabled={isSubmitting} className="me-auto">
             Cancel
           </Button>
-          <Button type="submit" variant="success" disabled={isSubmitting}>
+          <Button type="submit" variant={isLend ? "danger" : "success"} disabled={isSubmitting}>
              {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : (editTransaction ? 'Save Changes' : 'Record Repayment')}
           </Button>
         </Modal.Footer>

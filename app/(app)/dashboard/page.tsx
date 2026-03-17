@@ -955,8 +955,11 @@ function DashboardContent(): React.ReactElement {
       <section className="mb-4">
         <Row>
           <Col lg={12}>
-            <div className="d-flex align-items-center justify-content-between mb-4">
-              <div style={{ flex: 1 }}></div>
+            <div className="d-flex flex-column flex-lg-row align-items-center justify-content-lg-between mb-4 gap-2">
+              {/* Spacer — desktop only */}
+              <div className="d-none d-lg-block" style={{ flex: 1 }}></div>
+
+              {/* Period Navigation — always centered */}
               <PeriodNavigation>
                 <PeriodRangeSelector
                   label={periodLabel}
@@ -964,7 +967,9 @@ function DashboardContent(): React.ReactElement {
                   customRange={customRangeDraft}
                 />
               </PeriodNavigation>
-              <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+
+              {/* Widget Controls — right on desktop, below on mobile */}
+              <div className="d-flex justify-content-end w-100" style={{ flex: 1 }}>
                 {/* Widget Control Panel */}
                 <Dropdown show={showControlPanel} onToggle={setShowControlPanel}>
                   <Dropdown.Toggle

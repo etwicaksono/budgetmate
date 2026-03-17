@@ -73,7 +73,7 @@
 .accordion-button:not(.collapsed) {
   background-color: #f8fafc;
   color: #0f172a;
-  box-shadow: inset 0 -1px 0 rgba(0,0,0,.125);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .125);
 }
 
 .accordion-button:focus {
@@ -83,13 +83,13 @@
 
 /* Refined shadow for summary cards */
 .debt-summary-card {
-  box-shadow: 0 10px 25px rgba(0,0,0,0.05) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .debt-summary-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 15px 35px rgba(0,0,0,0.08) !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* ── Tab strip ─────────────────────────────────────────────────── */
@@ -124,23 +124,51 @@
 /* ── Sticky Headers ──────────────────────────────────────────────────────── */
 .debt-tabs-wrapper {
   position: sticky;
-  top: 65px;
+  top: 64px; /* Default Desktop */
   z-index: 105;
-  padding-top: 1rem;
   padding-bottom: 0;
   margin-bottom: 0 !important;
 }
 
+@media (max-width: 1199.98px) {
+  .debt-tabs-wrapper {
+    top: 62px;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .debt-tabs-wrapper {
+    top: 60px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .debt-tabs-wrapper {
+    top: 55px;
+  }
+}
+
 .debt-list-header {
-  position: sticky;
-  /* Top value accounts for Navbar(65px) + Mobile flex-column Tabs layout */
-  top: 165px; 
+  /* Inherits stickiness from parent debt-tabs-wrapper */
   z-index: 100;
 }
 
-/* Tablet / Desktop offset since Tabs row doesn't break into two lines */
-@media (min-width: 576px) {
-  .debt-list-header {
-    top: 126px;
-  }
+/* ── DebtCard Action Buttons ─────────────────────────────────────────────── */
+
+/* Desktop: hidden by default, revealed on hover */
+.debt-card-actions {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.debt-item:hover .debt-card-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Mobile: 3-dots button inline at the far right */
+.debt-card-mobile-menu {
+  margin-left: auto;
+  flex-shrink: 0;
 }

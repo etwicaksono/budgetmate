@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { FaBars, FaBug, FaCog, FaPlus, FaQuestionCircle, FaSignOutAlt } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import { useTransaction } from '@/contexts/TransactionContext';
+import { useDebt } from '@/contexts/DebtContext';
 import './Header.css';
 import Image from 'next/image';
 
@@ -20,8 +21,9 @@ export default function Header(): React.ReactElement {
   const pathname = usePathname() || '/';
   const router = useRouter();
   const [showSidebar, setShowSidebar] = useState<boolean>(false);
-  const { user, logout } = useAuth();
+  const { logout, user } = useAuth();
   const { openAddModal } = useTransaction();
+  const { openAddDebtModal, activeDebtTab } = useDebt();
 
   const handleClose = useCallback(() => {
     setShowSidebar(false);
@@ -67,10 +69,19 @@ export default function Header(): React.ReactElement {
     [pathname]
   );
 
+  const isDebtPage = pathname.startsWith('/debts');
+
   const handleRecordClick = useCallback((): void => {
-    openAddModal();
+    if (isDebtPage) {
+      openAddDebtModal(activeDebtTab);
+    } else {
+      openAddModal();
+    }
     setShowSidebar(false);
-  }, [openAddModal]);
+  }, [openAddModal, openAddDebtModal, isDebtPage, activeDebtTab]);
+
+  const buttonVariant = isDebtPage ? (activeDebtTab === 'lend' ? 'danger' : 'success') : 'success';
+  const buttonText = isDebtPage ? (activeDebtTab === 'lend' ? 'Credit' : 'Debit') : 'Transaction';
 
   const handleLogout = useCallback(async (): Promise<void> => {
     try {
@@ -114,12 +125,12 @@ export default function Header(): React.ReactElement {
 
         <div className="app-header__right">
           <Button
-            variant="success"
+            variant={buttonVariant}
             className="app-header__record-btn"
             onClick={handleRecordClick}
           >
             <FaPlus className="me-2" size={12} />
-            Record
+            {buttonText}
           </Button>
 
           <Dropdown className="d-none d-lg-flex">
@@ -197,7 +208,7 @@ export default function Header(): React.ReactElement {
               <Button
                 key={to}
                 variant="link"
-                className={`app-header__mobile-link ${isActiveLink(to, exact) ? 'app-header__mobile-link--active' : ''
+                className={`app-header__mobile-link text-start ${isActiveLink(to, exact) ? 'app-header__mobile-link--active' : ''
                   }`}
                 onClick={() => {
                   router.push(to);
@@ -208,15 +219,6 @@ export default function Header(): React.ReactElement {
               </Button>
             ))}
           </nav>
-
-          <Button
-            variant="success"
-            className="app-header__mobile-record"
-            onClick={handleRecordClick}
-          >
-            <FaPlus className="me-2" size={12} />
-            Record Transaction
-          </Button>
         </Offcanvas.Body>
       </Offcanvas>
     </header>

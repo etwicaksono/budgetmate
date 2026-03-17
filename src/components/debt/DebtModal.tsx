@@ -126,7 +126,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
     <Modal show={show} onHide={onHide} size="lg" centered backdrop="static">
       <Form onSubmit={(e) => handleSubmit(e, false)}>
         <Modal.Header closeButton>
-          <Modal.Title>{isEdit ? 'Edit Debt' : 'New Debt'}</Modal.Title>
+          <Modal.Title>{isEdit ? (type === DEBT_TYPES.LEND ? 'Edit Credit' : 'Edit Debit') : (type === DEBT_TYPES.LEND ? 'New Credit' : 'New Debit')}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {error && <div className="alert alert-danger py-2">{error}</div>}
@@ -253,14 +253,14 @@ export const DebtModal: React.FC<DebtModalProps> = ({
           </Button>
           {!isEdit && (
              <Button
-                variant="outline-success"
+                variant={type === DEBT_TYPES.LEND ? "outline-danger" : "outline-success"}
                 onClick={(e) => handleSubmit(e, true)}
                 disabled={isSubmitting}
              >
                 {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Save & Create Another'}
              </Button>
           )}
-          <Button type="submit" variant="success" disabled={isSubmitting}>
+          <Button type="submit" variant={type === DEBT_TYPES.LEND ? "danger" : "success"} disabled={isSubmitting}>
              {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Save'}
           </Button>
         </Modal.Footer>

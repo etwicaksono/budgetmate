@@ -85,14 +85,12 @@
   border-radius: 999px;
   padding: 0.45rem 1.25rem;
   font-weight: 600;
-  background-color: #0f9d58;
-  border-color: #0f9d58;
+  color: #fff;
 }
 
 .app-header__record-btn:hover,
 .app-header__record-btn:focus {
-  background-color: #0b7d46;
-  border-color: #0b7d46;
+  color: #fff;
 }
 
 .app-header__profile {
@@ -189,25 +187,6 @@
   color: #047857;
 }
 
-.app-header__mobile-record {
-  width: 100%;
-  margin-top: 2rem;
-  border-radius: 999px;
-  padding: 0.75rem 1.25rem;
-  font-weight: 600;
-  background-color: #0f9d58;
-  border-color: #0f9d58;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.app-header__mobile-record:hover,
-.app-header__mobile-record:focus {
-  background-color: #0b7d46;
-  border-color: #0b7d46;
-}
 
 @media (max-width: 1199.98px) {
   .app-header__container {

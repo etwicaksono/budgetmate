@@ -308,44 +308,6 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                         </div>
                         <div className="text-muted d-flex align-items-center justify-content-end" style={{ fontSize: '0.75rem', marginTop: '0.1rem' }}>
                           <span>{transaction.time}</span>
-                          {/* Move action menu here on mobile for better space utilization */}
-                          {showDropdownMenu && (
-                            <div
-                              className="d-md-none ms-1"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-
-                              {/* Action Menu */}
-                              <Dropdown>
-                                <Dropdown.Toggle
-                                  as="button"
-                                  className="btn btn-link text-muted p-0 border-0 bg-transparent records-menu-toggle"
-                                  id={`menu-mobile-${transaction.id}`}
-                                  bsPrefix="records-menu"
-                                  style={{ transform: 'rotate(90deg)' }}
-                                >
-                                  <FaEllipsisV size={14} />
-                                </Dropdown.Toggle>
-
-                                <Dropdown.Menu align="end" style={{ zIndex: 1050 }}>
-                                  <Dropdown.Item onClick={() => onEditRecord(transaction)}>
-                                    Edit
-                                  </Dropdown.Item>
-                                  {onDeleteRecord && (
-                                    <>
-                                      <Dropdown.Divider />
-                                      <Dropdown.Item
-                                        className="text-danger"
-                                        onClick={() => onDeleteRecord(transaction.id)}
-                                      >
-                                        Delete
-                                      </Dropdown.Item>
-                                    </>
-                                  )}
-                                </Dropdown.Menu>
-                              </Dropdown>
-                            </div>
-                          )}
                         </div>
                       </div>
 

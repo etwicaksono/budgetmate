@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Badge, ProgressBar, Button, Row, Col } from 'react-bootstrap';
+import { Badge, ProgressBar, Button, Row, Col, Dropdown } from 'react-bootstrap';
 import { 
   FaArrowCircleUp, 
   FaArrowCircleDown, 
@@ -10,7 +10,8 @@ import {
   FaEye, 
   FaPencilAlt, 
   FaTrash,
-  FaWallet
+  FaWallet,
+  FaEllipsisV
 } from 'react-icons/fa';
 import { format } from 'date-fns';
 import { NumericFormat } from 'react-number-format';
@@ -58,20 +59,59 @@ export const DebtCard: React.FC<DebtCardProps> = ({
       <Row className="align-items-center mb-2">
         <Col xs={12} md={6} className="d-flex align-items-center gap-2 mb-2 mb-md-0">
           <Badge 
-            bg={isLend ? 'success' : 'danger'} 
+            bg={isLend ? 'danger' : 'success'} 
             pill 
             className="d-inline-flex align-items-center justify-content-center gap-1"
           >
-            {isLend ? <FaArrowCircleUp size={10} /> : <FaArrowCircleDown size={10} />}
+            {isLend ? <FaArrowCircleDown size={10} /> : <FaArrowCircleUp size={10} />}
             {isLend ? 'LEND' : 'BORROW'}
           </Badge>
           <span className="fw-semibold fs-6 text-truncate">
             {debt.counterparty}
           </span>
+
+          {/* Mobile 3-dots menu — inline at the far right of the first row */}
+          <div className="debt-card-mobile-menu d-md-none" onClick={(e) => e.stopPropagation()}>
+            <Dropdown align="end">
+              <Dropdown.Toggle
+                as="button"
+                className="btn btn-link text-muted p-0 border-0 bg-transparent records-menu-toggle"
+                id={`debt-menu-mobile-${debt.id}`}
+                bsPrefix="records-menu"
+                style={{ transform: 'rotate(90deg)' }}
+              >
+                <FaEllipsisV size={14} />
+              </Dropdown.Toggle>
+              <Dropdown.Menu style={{ zIndex: 1050 }}>
+                {(isActive || isSettled) && (
+                  <Dropdown.Item onClick={() => onIncreaseClick(debt)}>
+                    <span className="d-flex align-items-center gap-2"><FaPlusCircle className="text-primary" size={13} />Increase</span>
+                  </Dropdown.Item>
+                )}
+                {isActive && (
+                  <Dropdown.Item onClick={() => onRepayClick(debt)}>
+                    <span className="d-flex align-items-center gap-2"><FaMoneyBillWave className="text-success" size={13} />Repay</span>
+                  </Dropdown.Item>
+                )}
+                <Dropdown.Item onClick={() => onDetailClick(debt)}>
+                  <span className="d-flex align-items-center gap-2"><FaEye className="text-secondary" size={13} />View Detail</span>
+                </Dropdown.Item>
+                {isActive && (
+                  <Dropdown.Item onClick={() => onEditClick(debt)}>
+                    <span className="d-flex align-items-center gap-2"><FaPencilAlt className="text-secondary" size={13} />Edit</span>
+                  </Dropdown.Item>
+                )}
+                <Dropdown.Divider />
+                <Dropdown.Item className="text-danger" onClick={() => onDeleteClick(debt)}>
+                  <span className="d-flex align-items-center gap-2"><FaTrash size={13} />Delete</span>
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
         </Col>
         
         <Col xs={12} md={6} className="text-md-end text-start">
-          <div className={`fw-bold ${isLend ? 'text-success' : 'text-danger'}`}>
+          <div className={`fw-bold ${isLend ? 'text-danger' : 'text-success'}`}>
             <NumericFormat
               value={totalAmount}
               displayType={'text'}
@@ -125,7 +165,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
                <div className="d-flex align-items-center gap-2">
                  <div className="flex-grow-1">
                    <ProgressBar 
-                     variant={isLend ? "success" : "danger"} 
+                     variant={isLend ? "danger" : "success"} 
                      now={progressPercent} 
                      className="debt-progress"
                    />
@@ -144,7 +184,8 @@ export const DebtCard: React.FC<DebtCardProps> = ({
          </Col>
       </Row>
 
-      <div className="d-flex justify-content-end gap-2 mt-2">
+      {/* Desktop action buttons — hover-reveal only */}
+      <div className="debt-card-actions d-none d-md-flex justify-content-end gap-2 mt-2">
         {(isActive || isSettled) && (
           <Button 
             variant="outline-primary" 
@@ -153,7 +194,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
             title="Increase Debt"
             className="rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
           >
-            <FaPlusCircle /> <span className="d-none d-md-inline ms-1">Increase</span>
+            <FaPlusCircle /> <span className="ms-1">Increase</span>
           </Button>
         )}
         {isActive && (
@@ -164,7 +205,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
             title="Record Repayment"
             className="rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
           >
-            <FaMoneyBillWave /> <span className="d-none d-md-inline ms-1">Repay</span>
+            <FaMoneyBillWave /> <span className="ms-1">Repay</span>
           </Button>
         )}
         <Button 
@@ -174,7 +215,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
           title="View Details"
           className="text-secondary rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
         >
-          <FaEye /> <span className="d-none d-md-inline ms-1">Detail</span>
+          <FaEye /> <span className="ms-1">Detail</span>
         </Button>
         {isActive && (
           <Button 
@@ -184,7 +225,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
             title="Edit Debt"
             className="text-secondary rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
           >
-            <FaPencilAlt /> <span className="d-none d-md-inline ms-1">Edit</span>
+            <FaPencilAlt /> <span className="ms-1">Edit</span>
           </Button>
         )}
         <Button 
@@ -194,7 +235,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
           title="Delete Debt"
           className="text-danger bg-opacity-10 rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
         >
-          <FaTrash /> <span className="d-none d-md-inline ms-1">Delete</span>
+          <FaTrash /> <span className="ms-1">Delete</span>
         </Button>
       </div>
     </div>
