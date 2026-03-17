@@ -155,11 +155,29 @@
 
 /* ── DebtCard Action Buttons ─────────────────────────────────────────────── */
 
-/* Desktop: hidden by default, revealed on hover */
+/* Required for absolute overlay positioning */
+.debt-item {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Desktop: vertical stacked overlay, revealed on hover */
 .debt-card-actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
+  padding: 0.25rem 0.5rem 0.25rem 2rem;
+  background: linear-gradient(to right, transparent, #fff 25%);
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.18s ease;
   pointer-events: none;
+  z-index: 10;
 }
 
 .debt-item:hover .debt-card-actions {
@@ -167,8 +185,64 @@
   pointer-events: auto;
 }
 
+/* Each action button: slide in from right, staggered */
+.debt-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateX(20px);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease;
+}
+
+.debt-action-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Staggered entry on card hover */
+.debt-item:hover .debt-action-btn {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.debt-item:hover .debt-action-btn:nth-child(1) { transition-delay: 0ms; }
+.debt-item:hover .debt-action-btn:nth-child(2) { transition-delay: 55ms; }
+.debt-item:hover .debt-action-btn:nth-child(3) { transition-delay: 110ms; }
+.debt-item:hover .debt-action-btn:nth-child(4) { transition-delay: 165ms; }
+
 /* Mobile: 3-dots button inline at the far right */
 .debt-card-mobile-menu {
   margin-left: auto;
   flex-shrink: 0;
 }
+
+/* Mobile dropdown: staggered slide-in animation for each item */
+@keyframes debtMenuItemIn {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.debt-card-mobile-menu .dropdown-menu.show .dropdown-item {
+  animation: debtMenuItemIn 0.18s ease forwards;
+  opacity: 0;
+}
+
+.debt-card-mobile-menu .dropdown-menu.show .dropdown-item:nth-child(1) { animation-delay: 0ms; }
+.debt-card-mobile-menu .dropdown-menu.show .dropdown-item:nth-child(2) { animation-delay: 40ms; }
+.debt-card-mobile-menu .dropdown-menu.show .dropdown-item:nth-child(3) { animation-delay: 80ms; }
+.debt-card-mobile-menu .dropdown-menu.show .dropdown-item:nth-child(4) { animation-delay: 120ms; }
+.debt-card-mobile-menu .dropdown-menu.show .dropdown-item:nth-child(5) { animation-delay: 160ms; }

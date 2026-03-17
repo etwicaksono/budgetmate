@@ -1,6 +1,6 @@
 import React from 'react';
-import { Form, Dropdown, Card } from 'react-bootstrap';
-import { FaEllipsisV, FaCheck } from 'react-icons/fa';
+import { Form, Card } from 'react-bootstrap';
+import { FaCheck, FaTrash } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import './Records.css';
@@ -292,7 +292,7 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                       </div>
 
                       {/* Right Side Amount */}
-                      <div className="records-item-amount text-end flex-shrink-0 ms-auto d-flex flex-column justify-content-start pe-md-4" style={{ whiteSpace: 'nowrap', minWidth: 'fit-content' }}>
+                      <div className="records-item-amount text-end flex-shrink-0 ms-auto d-flex flex-column justify-content-start" style={{ whiteSpace: 'nowrap', minWidth: 'fit-content' }}>
                         <div>
                           <strong
                             className={
@@ -312,39 +312,19 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                       </div>
 
                       {/* Action Menu (Desktop only) */}
-                      {showDropdownMenu && (
+                      {showDropdownMenu && onDeleteRecord && (
                         <div
                           className="records-item-actions d-none d-md-flex align-items-center"
-                          style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)' }}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <Dropdown>
-                            <Dropdown.Toggle
-                              as="button"
-                              className="btn btn-link text-muted p-0 border-0 bg-transparent records-menu-toggle"
-                              id={`menu-${transaction.id}`}
-                              bsPrefix="records-menu"
-                            >
-                              <FaEllipsisV size={20} />
-                            </Dropdown.Toggle>
-
-                            <Dropdown.Menu align="end" style={{ zIndex: 1050 }}>
-                              <Dropdown.Item onClick={() => onEditRecord(transaction)}>
-                                Edit
-                              </Dropdown.Item>
-                              {onDeleteRecord && (
-                                <>
-                                  <Dropdown.Divider />
-                                  <Dropdown.Item
-                                    className="text-danger"
-                                    onClick={() => onDeleteRecord(transaction.id)}
-                                  >
-                                    Delete
-                                  </Dropdown.Item>
-                                </>
-                              )}
-                            </Dropdown.Menu>
-                          </Dropdown>
+                          <button
+                            className="records-action-btn text-danger"
+                            onClick={() => onDeleteRecord(transaction.id)}
+                            title="Delete Record"
+                          >
+                            <FaTrash size={14} />
+                            <span>Delete</span>
+                          </button>
                         </div>
                       )}
                     </div>

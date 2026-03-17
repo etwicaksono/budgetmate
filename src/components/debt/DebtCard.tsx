@@ -1,13 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Badge, ProgressBar, Button, Row, Col, Dropdown } from 'react-bootstrap';
+import { Badge, ProgressBar, Row, Col, Dropdown } from 'react-bootstrap';
 import { 
   FaArrowCircleUp, 
   FaArrowCircleDown, 
   FaMoneyBillWave, 
   FaPlusCircle,
-  FaEye, 
   FaPencilAlt, 
   FaTrash,
   FaWallet,
@@ -93,15 +92,13 @@ export const DebtCard: React.FC<DebtCardProps> = ({
                     <span className="d-flex align-items-center gap-2"><FaMoneyBillWave className="text-success" size={13} />Repay</span>
                   </Dropdown.Item>
                 )}
-                <Dropdown.Item onClick={() => onDetailClick(debt)}>
-                  <span className="d-flex align-items-center gap-2"><FaEye className="text-secondary" size={13} />View Detail</span>
-                </Dropdown.Item>
+
                 {isActive && (
                   <Dropdown.Item onClick={() => onEditClick(debt)}>
                     <span className="d-flex align-items-center gap-2"><FaPencilAlt className="text-secondary" size={13} />Edit</span>
                   </Dropdown.Item>
                 )}
-                <Dropdown.Divider />
+
                 <Dropdown.Item className="text-danger" onClick={() => onDeleteClick(debt)}>
                   <span className="d-flex align-items-center gap-2"><FaTrash size={13} />Delete</span>
                 </Dropdown.Item>
@@ -184,59 +181,49 @@ export const DebtCard: React.FC<DebtCardProps> = ({
          </Col>
       </Row>
 
-      {/* Desktop action buttons — hover-reveal only */}
-      <div className="debt-card-actions d-none d-md-flex justify-content-end gap-2 mt-2">
+      {/* Desktop action buttons — vertical staggered overlay on hover */}
+      <div
+        className="debt-card-actions d-none d-md-flex"
+        onClick={(e) => e.stopPropagation()}
+      >
         {(isActive || isSettled) && (
-          <Button 
-            variant="outline-primary" 
-            size="sm" 
-            onClick={(e) => { e.stopPropagation(); onIncreaseClick(debt); }}
+          <button
+            className="debt-action-btn text-primary"
+            onClick={() => onIncreaseClick(debt)}
             title="Increase Debt"
-            className="rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
           >
-            <FaPlusCircle /> <span className="ms-1">Increase</span>
-          </Button>
+            <FaPlusCircle size={14} />
+            <span>Increase</span>
+          </button>
         )}
         {isActive && (
-          <Button 
-            variant="success" 
-            size="sm" 
-            onClick={(e) => { e.stopPropagation(); onRepayClick(debt); }}
+          <button
+            className="debt-action-btn text-success"
+            onClick={() => onRepayClick(debt)}
             title="Record Repayment"
-            className="rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
           >
-            <FaMoneyBillWave /> <span className="ms-1">Repay</span>
-          </Button>
+            <FaMoneyBillWave size={14} />
+            <span>Repay</span>
+          </button>
         )}
-        <Button 
-          variant="light" 
-          size="sm" 
-          onClick={(e) => { e.stopPropagation(); onDetailClick(debt); }}
-          title="View Details"
-          className="text-secondary rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
-        >
-          <FaEye /> <span className="ms-1">Detail</span>
-        </Button>
         {isActive && (
-          <Button 
-            variant="light" 
-            size="sm" 
-            onClick={(e) => { e.stopPropagation(); onEditClick(debt); }}
+          <button
+            className="debt-action-btn text-secondary"
+            onClick={() => onEditClick(debt)}
             title="Edit Debt"
-            className="text-secondary rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
           >
-            <FaPencilAlt /> <span className="ms-1">Edit</span>
-          </Button>
+            <FaPencilAlt size={14} />
+            <span>Edit</span>
+          </button>
         )}
-        <Button 
-          variant="light" 
-          size="sm" 
-          onClick={(e) => { e.stopPropagation(); onDeleteClick(debt); }}
+        <button
+          className="debt-action-btn text-danger"
+          onClick={() => onDeleteClick(debt)}
           title="Delete Debt"
-          className="text-danger bg-opacity-10 rounded-pill px-3 d-inline-flex align-items-center justify-content-center"
         >
-          <FaTrash /> <span className="ms-1">Delete</span>
-        </Button>
+          <FaTrash size={14} />
+          <span>Delete</span>
+        </button>
       </div>
     </div>
   );

@@ -208,15 +208,53 @@
   margin-top: 0.25rem;
 }
 
+/* ── RecordsItem Action Overlay (Desktop) ───────────────────────────────── */
 .records-item-actions {
-  flex-shrink: 0;
-  margin-left: 0.5rem;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 0.75rem 0 3rem;
+  background: linear-gradient(to right, transparent, var(--bs-card-bg, #fff) 25%);
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+  z-index: 10;
 }
 
 .records-item-card:hover .records-item-actions {
   opacity: 1;
+  pointer-events: auto;
+}
+
+/* Slide-in button */
+.records-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateX(15px);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease;
+}
+
+.records-action-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.records-item-card:hover .records-action-btn {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 @media (pointer: coarse) {
