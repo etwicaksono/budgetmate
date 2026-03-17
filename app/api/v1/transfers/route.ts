@@ -225,7 +225,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           amount: -Math.abs(data.amount), // Negative for expense
           currency: fromAccount.currency,
           date: new Date(data.date),
-          description: data.description ?? `Transfer to ${toAccount.name}`,
+          description: data.description ?? `Transfer from ${fromAccount.name} to ${toAccount.name}`,
           transfer_id: transfer.id,
           created_by: user.user_id
         }
@@ -240,7 +240,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           amount: Math.abs(destinationAmount), // Positive for income
           currency: toAccount.currency,
           date: new Date(data.date),
-          description: data.description ?? `Transfer from ${fromAccount.name}`,
+          description: data.description ?? `Transfer from ${fromAccount.name} to ${toAccount.name}`,
           transfer_id: transfer.id,
           created_by: user.user_id
         }

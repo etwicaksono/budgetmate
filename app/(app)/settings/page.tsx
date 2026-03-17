@@ -110,17 +110,19 @@ export default function SettingsPage(): React.ReactElement {
   const initialSection: SettingsSection = isValidSection(sectionParam) ? sectionParam : 'categories';
 
   const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
+  const [showMobileMenu, setShowMobileMenu] = useState<boolean>(!searchParams.has('section'));
 
   const handleSectionChange = (section: SettingsSection): void => {
     setActiveSection(section);
+    setShowMobileMenu(false);
     router.replace(`/settings?section=${section}`, { scroll: false });
   };
 
   return (
     <Container fluid>
       <Row className="g-3">
-        {/* Sidebar */}
-        <Col lg={3} className="mb-2 d-lg-block">
+        {/* Sidebar (Master View) */}
+        <Col lg={3} className={showMobileMenu ? 'mb-2' : 'd-none d-lg-block mb-2'}>
           <Card>
             <Card.Header>
               <h1 className="settings-title mb-0">Settings</h1>
@@ -150,10 +152,18 @@ export default function SettingsPage(): React.ReactElement {
           </Card>
         </Col>
 
-        {/* Main Content */}
-        <Col lg={9}>
+        {/* Main Content (Detail View) */}
+        <Col lg={9} className={!showMobileMenu ? '' : 'd-none d-lg-block'}>
           <Card>
             <Card.Body className="settings-section-content">
+              {/* Mobile Back Button */}
+              <button 
+                className="btn btn-link text-decoration-none text-muted p-0 mb-3 d-flex align-items-center gap-2 d-lg-none"
+                onClick={() => setShowMobileMenu(true)}
+              >
+                ← Back to Settings Menu
+              </button>
+
               {activeSection === 'categories' && <CategoriesSection />}
               {activeSection === 'templates' && <TemplatesSection />}
               {activeSection === 'labels' && <LabelsSection />}

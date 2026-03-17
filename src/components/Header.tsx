@@ -208,7 +208,7 @@ export default function Header(): React.ReactElement {
               <Button
                 key={to}
                 variant="link"
-                className={`app-header__mobile-link text-start ${isActiveLink(to, exact) ? 'app-header__mobile-link--active' : ''
+                className={`app-header__mobile-link text-start w-100 d-flex justify-content-start align-items-center ${isActiveLink(to, exact) ? 'app-header__mobile-link--active' : ''
                   }`}
                 onClick={() => {
                   router.push(to);
@@ -218,6 +218,35 @@ export default function Header(): React.ReactElement {
                 {label}
               </Button>
             ))}
+          </nav>
+
+          <hr className="my-3 text-muted" />
+
+          <nav className="app-header__mobile-nav">
+            <Button
+              variant="link"
+              className={`app-header__mobile-link text-start w-100 d-flex justify-content-start align-items-center ${isActiveLink('/settings') ? 'app-header__mobile-link--active' : ''}`}
+              onClick={() => {
+                router.push('/settings');
+                handleClose();
+              }}
+            >
+              <div className="d-flex align-items-center gap-2">
+                <FaCog size={16} /> Settings
+              </div>
+            </Button>
+            
+            <Button variant="link" className="app-header__mobile-link text-start w-100 d-flex justify-content-start align-items-center" onClick={handleClose}>
+              <div className="d-flex align-items-center gap-2"><FaQuestionCircle size={16} /> Help</div>
+            </Button>
+            
+            <Button variant="link" className="app-header__mobile-link text-start w-100 d-flex justify-content-start align-items-center" onClick={handleClose}>
+              <div className="d-flex align-items-center gap-2"><FaBug size={16} /> Report a bug</div>
+            </Button>
+
+            <Button variant="link" className="app-header__mobile-link text-start w-100 d-flex justify-content-start align-items-center text-danger mt-2" onClick={() => { handleLogout(); handleClose(); }}>
+              <div className="d-flex align-items-center gap-2"><FaSignOutAlt size={16} /> Log out</div>
+            </Button>
           </nav>
         </Offcanvas.Body>
       </Offcanvas>
