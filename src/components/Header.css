@@ -187,6 +187,11 @@
   color: #047857;
 }
 
+/* Force offcanvas above all sticky page elements */
+.sidebar-offcanvas {
+  z-index: 1060 !important;
+}
+
 
 @media (max-width: 1199.98px) {
   .app-header__container {

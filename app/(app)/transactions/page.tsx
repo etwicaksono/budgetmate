@@ -825,7 +825,7 @@ function TransactionsContent() {
           </div>
 
           {/* Period Navigation */}
-          <div className="d-flex justify-content-center align-items-center mb-3" style={{ position: 'relative', zIndex: 1050 }}>
+          <div className="d-flex justify-content-center align-items-center mb-3" style={{ position: 'relative', zIndex: 1020 }}>
             <PeriodNavigation>
               <PeriodRangeSelector
                 label={periodLabel}
