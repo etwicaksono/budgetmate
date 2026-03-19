@@ -5,6 +5,17 @@
   overflow-y: auto;
 }
 
+/* Desktop-specific sticky styles */
+@media (min-width: 992px) {
+  .desktop-filter-sidebar {
+    position: sticky;
+    top: 85px; /* Below the 65px header + 20px padding margin */
+    max-height: calc(100vh - 105px); /* Prevent overflowing viewport */
+    display: flex;
+    flex-direction: column;
+  }
+}
+
 .filter-list {
   max-height: 200px;
   overflow-y: auto;

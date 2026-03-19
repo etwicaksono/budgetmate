@@ -6,7 +6,6 @@ import { FaListUl, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
 import { Icon } from '@/utils/iconResolver';
 import { analyticsService, type IncomeExpenseReport, type CategoryReport, type CurrencyReport } from '@/services/analyticsService';
-import { categoryService, type Category } from '@/services/categoryService';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import { useAuth } from '@/context/AuthContext';
 import CategoryTransactionsModal from './CategoryTransactionsModal';
@@ -43,7 +42,6 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   selectedCurrencies
 }) => {
   const [data, setData] = useState<IncomeExpenseReport | null>(null);
-  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -78,7 +76,6 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
         setLoading(true);
         setError(null);
 
-        // Fetch report data and all categories in parallel
         const params: {
           start_date?: string;
           end_date?: string;
@@ -97,13 +94,9 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
         if (selectedAccounts?.length) params.account_ids = selectedAccounts;
         if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
 
-        const [reportData, categoriesResponse] = await Promise.all([
-          analyticsService.fetchIncomeExpenseReport(params),
-          categoryService.fetchCategories(),
-        ]);
+        const reportData = await analyticsService.fetchIncomeExpenseReport(params);
 
         setData(reportData);
-        setAllCategories(categoriesResponse.data || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load report');
       } finally {
@@ -358,127 +351,360 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     );
   };
 
+  const renderMobileCategoryRow = (
+    category: CategoryReport,
+    type: 'income' | 'expense',
+    currency: string,
+    isChild = false
+  ) => {
+    const hasChildren = category.hasSubItems && category.subItems && category.subItems.length > 0;
+    const isExpanded = expandedCategories.has(category.id);
+    const prefix = type === 'expense' ? '-' : '';
+    const iconSize = '24px'; // Uniformly smaller container for both parent and child
+
+    const currentAmount = category.amounts[0] || 0;
+    const prevAmount = category.amounts[1] || 0;
+    
+    // Always calculate trend for mobile
+    const diffNode = (() => {
+      if (prevAmount === 0 && currentAmount !== 0) {
+         return (
+           <span className="ms-1 text-success" style={{ fontSize: '11px', fontWeight: 600 }}>
+             +100% <span className="text-muted" style={{ fontWeight: 400 }}>vs prev</span>
+           </span>
+         );
+      }
+      if (prevAmount === 0) return null;
+      
+      const diff = ((currentAmount - prevAmount) / Math.abs(prevAmount)) * 100;
+      const pctStr = diff >= 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
+      
+      // Incomes: + is good (success), - is bad (danger)
+      // Expenses: + is usually bad (danger), but taking absolute math, so we'll match desktop behavior
+      const isPositive = type === 'income' ? diff >= 0 : diff < 0; // if expense decreased, it's good (success)
+      
+      return (
+        <span className={`ms-1 ${isPositive ? 'text-success' : 'text-danger'}`} style={{ fontSize: '11px', fontWeight: 600 }}>
+          {pctStr} <span className="text-muted" style={{ fontWeight: 400 }}>vs prev</span>
+        </span>
+      );
+    })();
+
+    return (
+      <React.Fragment key={category.id}>
+        <div
+          className={`d-flex align-items-center justify-content-between p-3 border-bottom bg-white mobile-cat-row flex-nowrap`}
+          onClick={() => hasChildren && toggleCategory(category.id)}
+          style={{ cursor: hasChildren ? 'pointer' : 'default', paddingLeft: isChild ? '2.5rem' : '1rem', gap: '8px' }}
+        >
+          <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ minWidth: 0 }}>
+            {!isChild && hasChildren && (
+              <span className="text-muted flex-shrink-0" style={{ fontSize: '0.75rem', width: '12px', textAlign: 'center' }}>
+                {isExpanded ? <FaChevronDown /> : <FaChevronRight />}
+              </span>
+            )}
+            <span
+              className="d-inline-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
+              style={{
+                width: iconSize,
+                height: iconSize,
+                backgroundColor: category.color,
+                color: '#fff',
+                marginLeft: (!isChild && !hasChildren) ? '20px' : '0' // align with children if no chevron
+              }}
+            >
+              <Icon name={category.icon} size={10} />
+            </span>
+            <div className="d-flex flex-column text-truncate">
+              <span className="text-truncate" style={{ fontSize: isChild ? '13px' : '14px', fontWeight: isChild ? 500 : 600, color: '#111827' }}>
+                {category.name}
+              </span>
+              {!isChild && hasChildren && (
+                <span className="text-truncate" style={{ fontSize: '11px', color: '#6B7280' }}>
+                  {category.subItems?.length || 0} sub-categories
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="d-flex flex-column align-items-end flex-shrink-0" style={{ whiteSpace: 'nowrap' }}>
+             <span 
+               style={{ fontSize: '13px', fontWeight: 600, color: '#374151', cursor: 'pointer', textDecoration: currentAmount !== 0 ? 'underline dotted' : 'none' }} 
+               onClick={(e) => {
+                 if (currentAmount !== 0) handleShowTransactions(category, 0, e);
+               }}
+             >
+               {prefix}{formatCurrency(currentAmount, currency)}
+             </span>
+             {diffNode}
+          </div>
+        </div>
+        {hasChildren && isExpanded && category.subItems?.map((subItem) =>
+          renderMobileCategoryRow(subItem, type, currency, true)
+        )}
+      </React.Fragment>
+    );
+  };
+
+  const renderMobileList = (currencyData: CurrencyReport, currency: string) => {
+    return (
+       <div className="d-flex flex-column mb-4 rounded border overflow-hidden shadow-sm">
+         {/* Income Categories */}
+          <div className="px-3 py-2 bg-light border-bottom text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
+             Income Breakdown
+          </div>
+          <div className="bg-white p-3 border-bottom">
+             {/* Income Summary */}
+             <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#ECFDF5', border: '1px solid #D1FAE5' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#065F46', marginBottom: '4px' }}>Total Income</span>
+                <span className="text-truncate" style={{ fontSize: '16px', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
+                  {formatCurrency(currencyData.totalIncomes[0] || 0, currency)}
+                </span>
+                {(() => {
+                   const prev = currencyData.totalIncomes[1] || 0;
+                   if (prev === 0) return null;
+                   const diff = (((currencyData.totalIncomes[0] || 0) - prev) / prev) * 100;
+                   const isPositive = diff >= 0;
+                   return (
+                     <div className="d-flex align-items-center flex-wrap gap-1 mt-1">
+                       <span style={{ fontSize: '12px', color: isPositive ? '#059669' : '#DC2626', fontWeight: 600 }}>
+                         {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
+                       </span>
+                       <span style={{ fontSize: '11px', color: '#6B7280' }}>vs prev</span>
+                     </div>
+                   );
+                })()}
+             </div>
+          </div>
+          <div className="d-flex flex-column bg-white">
+             {sortCategories(currencyData.incomeCategories).map((category) => renderMobileCategoryRow(category, 'income', currency))}
+          </div>
+
+          {/* Expense Categories */}
+          <div className="px-3 py-2 bg-light border-bottom border-top text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
+             Expense Breakdown
+          </div>
+          <div className="bg-white p-3 border-bottom">
+             {/* Expense Summary */}
+             <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FEE2E2' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#991B1B', marginBottom: '4px' }}>Total Expense</span>
+                <span className="text-truncate" style={{ fontSize: '16px', fontWeight: 700, color: '#DC2626', whiteSpace: 'nowrap' }}>
+                  -{formatCurrency(currencyData.totalExpenses[0] || 0, currency)}
+                </span>
+                {(() => {
+                   const prev = Math.abs(currencyData.totalExpenses[1] || 0);
+                   if (prev === 0) return null;
+                   const current = Math.abs(currencyData.totalExpenses[0] || 0);
+                   const diff = ((current - prev) / prev) * 100;
+                   const expenseDecreased = diff < 0;
+                   return (
+                     <div className="d-flex align-items-center gap-1 mt-1">
+                       <span style={{ fontSize: '12px', color: expenseDecreased ? '#059669' : '#DC2626', fontWeight: 600 }}>
+                         {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
+                       </span>
+                       <span style={{ fontSize: '11px', color: '#6B7280' }}>vs prev</span>
+                     </div>
+                   );
+                })()}
+             </div>
+          </div>
+          <div className="d-flex flex-column bg-white" style={{ borderBottom: 'none' }}>
+             {sortCategories(currencyData.expenseCategories).map((category) => renderMobileCategoryRow(category, 'expense', currency))}
+          </div>
+       </div>
+    );
+  };
+
   // Skeleton loading component
   const renderSkeleton = () => {
     const skeletonRows = Array.from({ length: 8 }, (_, i) => i);
     const skeletonCols = Array.from({ length: numberOfColumns }, (_, i) => i);
 
     return (
-      <div>
-        {/* Currency pills skeleton */}
-        <div className="d-flex justify-content-center align-items-center gap-2 mb-3">
-          <Placeholder animation="glow">
-            <Placeholder className="rounded-pill" style={{ width: 60, height: 32 }} />
-          </Placeholder>
-          <Placeholder animation="glow">
-            <Placeholder className="rounded-pill" style={{ width: 60, height: 32 }} />
-          </Placeholder>
-        </div>
+      <React.Fragment>
+        {/* Desktop Skeleton */}
+        <div className="d-none d-md-block">
+          {/* Currency pills skeleton */}
+          <div className="d-flex justify-content-center align-items-center gap-2 mb-3">
+            <Placeholder animation="glow">
+              <Placeholder className="rounded-pill" style={{ width: 60, height: 32 }} />
+            </Placeholder>
+            <Placeholder animation="glow">
+              <Placeholder className="rounded-pill" style={{ width: 60, height: 32 }} />
+            </Placeholder>
+          </div>
 
-        {/* Table skeleton */}
-        <Table responsive bordered>
-          <thead>
-            <tr>
-              <th style={{ width: '30%' }}>
-                <Placeholder animation="glow">
-                  <Placeholder xs={4} />
-                </Placeholder>
-              </th>
-              {skeletonCols.map((i) => (
-                <th key={i} className="text-center">
+          {/* Table skeleton */}
+          <Table responsive bordered>
+            <thead>
+              <tr>
+                <th style={{ width: '30%' }}>
                   <Placeholder animation="glow">
-                    <Placeholder xs={8} />
+                    <Placeholder xs={4} />
                   </Placeholder>
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {/* Total Income skeleton */}
-            <tr className="total-row">
-              <td>
-                <Placeholder animation="glow">
-                  <Placeholder xs={6} />
-                </Placeholder>
-              </td>
-              {skeletonCols.map((i) => (
-                <td key={i} className="text-end">
+                {skeletonCols.map((i) => (
+                  <th key={i} className="text-center">
+                    <Placeholder animation="glow">
+                      <Placeholder xs={8} />
+                    </Placeholder>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {/* Total Income skeleton */}
+              <tr className="total-row">
+                <td>
                   <Placeholder animation="glow">
-                    <Placeholder xs={8} />
+                    <Placeholder xs={6} />
                   </Placeholder>
                 </td>
-              ))}
-            </tr>
-
-            {/* Income category skeletons */}
-            {skeletonRows.slice(0, 4).map((i) => (
-              <tr key={`income-${i}`}>
-                <td>
-                  <div className="d-flex align-items-center gap-2">
+                {skeletonCols.map((i) => (
+                  <td key={i} className="text-end">
                     <Placeholder animation="glow">
-                      <Placeholder className="rounded" style={{ width: 20, height: 20 }} />
-                    </Placeholder>
-                    <Placeholder animation="glow" className="flex-grow-1">
-                      <Placeholder xs={i % 2 === 0 ? 7 : 5} />
-                    </Placeholder>
-                  </div>
-                </td>
-                {skeletonCols.map((j) => (
-                  <td key={j} className="text-end">
-                    <Placeholder animation="glow">
-                      <Placeholder xs={6} />
+                      <Placeholder xs={8} />
                     </Placeholder>
                   </td>
                 ))}
               </tr>
-            ))}
 
-            {/* Spacer */}
-            <tr>
-              <td colSpan={numberOfColumns + 1} style={{ height: '1rem', padding: 0, border: 'none' }}></td>
-            </tr>
+              {/* Income category skeletons */}
+              {skeletonRows.slice(0, 4).map((i) => (
+                <tr key={`income-${i}`}>
+                  <td>
+                    <div className="d-flex align-items-center gap-2">
+                      <Placeholder animation="glow">
+                        <Placeholder className="rounded" style={{ width: 20, height: 20 }} />
+                      </Placeholder>
+                      <Placeholder animation="glow" className="flex-grow-1">
+                        <Placeholder xs={i % 2 === 0 ? 7 : 5} />
+                      </Placeholder>
+                    </div>
+                  </td>
+                  {skeletonCols.map((j) => (
+                    <td key={j} className="text-end">
+                      <Placeholder animation="glow">
+                        <Placeholder xs={6} />
+                      </Placeholder>
+                    </td>
+                  ))}
+                </tr>
+              ))}
 
-            {/* Total Expense skeleton */}
-            <tr className="total-row">
-              <td>
-                <Placeholder animation="glow">
-                  <Placeholder xs={6} />
-                </Placeholder>
-              </td>
-              {skeletonCols.map((i) => (
-                <td key={i} className="text-end">
+              {/* Spacer */}
+              <tr>
+                <td colSpan={numberOfColumns + 1} style={{ height: '1rem', padding: 0, border: 'none' }}></td>
+              </tr>
+
+              {/* Total Expense skeleton */}
+              <tr className="total-row">
+                <td>
                   <Placeholder animation="glow">
-                    <Placeholder xs={8} />
+                    <Placeholder xs={6} />
                   </Placeholder>
                 </td>
-              ))}
-            </tr>
-
-            {/* Expense category skeletons */}
-            {skeletonRows.slice(0, 4).map((i) => (
-              <tr key={`expense-${i}`}>
-                <td>
-                  <div className="d-flex align-items-center gap-2">
+                {skeletonCols.map((i) => (
+                  <td key={i} className="text-end">
                     <Placeholder animation="glow">
-                      <Placeholder className="rounded" style={{ width: 20, height: 20 }} />
-                    </Placeholder>
-                    <Placeholder animation="glow" className="flex-grow-1">
-                      <Placeholder xs={i % 2 === 0 ? 6 : 8} />
-                    </Placeholder>
-                  </div>
-                </td>
-                {skeletonCols.map((j) => (
-                  <td key={j} className="text-end">
-                    <Placeholder animation="glow">
-                      <Placeholder xs={5} />
+                      <Placeholder xs={8} />
                     </Placeholder>
                   </td>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </Table>
-      </div>
+
+              {/* Expense category skeletons */}
+              {skeletonRows.slice(0, 4).map((i) => (
+                <tr key={`expense-${i}`}>
+                  <td>
+                    <div className="d-flex align-items-center gap-2">
+                      <Placeholder animation="glow">
+                        <Placeholder className="rounded" style={{ width: 20, height: 20 }} />
+                      </Placeholder>
+                      <Placeholder animation="glow" className="flex-grow-1">
+                        <Placeholder xs={i % 2 === 0 ? 6 : 8} />
+                      </Placeholder>
+                    </div>
+                  </td>
+                  {skeletonCols.map((j) => (
+                    <td key={j} className="text-end">
+                      <Placeholder animation="glow">
+                        <Placeholder xs={5} />
+                      </Placeholder>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+
+        {/* Mobile Skeleton */}
+        <div className="d-md-none">
+          <div className="d-flex flex-column mb-4 rounded border overflow-hidden shadow-sm">
+            {/* Income Breakdown Header */}
+            <div className="px-3 py-2 bg-light border-bottom text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
+              <Placeholder animation="glow"><Placeholder xs={4} /></Placeholder>
+            </div>
+            
+            <div className="bg-white p-3 border-bottom">
+              <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#ECFDF5', border: '1px solid #D1FAE5' }}>
+                <Placeholder animation="glow" className="mb-2"><Placeholder xs={3} size="sm" /></Placeholder>
+                <Placeholder animation="glow" className="mb-1"><Placeholder xs={6} size="lg" /></Placeholder>
+                <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
+              </div>
+            </div>
+
+            <div className="d-flex flex-column bg-white">
+              {skeletonRows.slice(0, 3).map((i) => (
+                <div key={`mob-inc-${i}`} className="d-flex align-items-center justify-content-between p-3 border-bottom flex-nowrap gap-2">
+                   <div className="d-flex align-items-center gap-2 flex-grow-1">
+                     <Placeholder animation="glow"><Placeholder className="rounded-circle" style={{ width: '24px', height: '24px' }} /></Placeholder>
+                     <div className="d-flex flex-column flex-grow-1">
+                       <Placeholder animation="glow"><Placeholder xs={8} /></Placeholder>
+                       <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
+                     </div>
+                   </div>
+                   <div className="d-flex flex-column align-items-end flex-shrink-0">
+                     <Placeholder animation="glow"><Placeholder xs={12} style={{ width: '60px' }} /></Placeholder>
+                     <Placeholder animation="glow"><Placeholder xs={12} size="sm" style={{ width: '40px' }} /></Placeholder>
+                   </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Expense Breakdown Header */}
+            <div className="px-3 py-2 bg-light border-bottom border-top text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
+              <Placeholder animation="glow"><Placeholder xs={4} /></Placeholder>
+            </div>
+            
+            <div className="bg-white p-3 border-bottom">
+              <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FEE2E2' }}>
+                <Placeholder animation="glow" className="mb-2"><Placeholder xs={3} size="sm" /></Placeholder>
+                <Placeholder animation="glow" className="mb-1"><Placeholder xs={6} size="lg" /></Placeholder>
+                <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
+              </div>
+            </div>
+
+            <div className="d-flex flex-column bg-white" style={{ borderBottom: 'none' }}>
+              {skeletonRows.slice(0, 4).map((i) => (
+                <div key={`mob-exp-${i}`} className="d-flex align-items-center justify-content-between p-3 border-bottom flex-nowrap gap-2">
+                   <div className="d-flex align-items-center gap-2 flex-grow-1">
+                     <Placeholder animation="glow"><Placeholder className="rounded-circle" style={{ width: '24px', height: '24px' }} /></Placeholder>
+                     <div className="d-flex flex-column flex-grow-1">
+                       <Placeholder animation="glow"><Placeholder xs={8} /></Placeholder>
+                       <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
+                     </div>
+                   </div>
+                   <div className="d-flex flex-column align-items-end flex-shrink-0">
+                     <Placeholder animation="glow"><Placeholder xs={12} style={{ width: '60px' }} /></Placeholder>
+                     <Placeholder animation="glow"><Placeholder xs={12} size="sm" style={{ width: '40px' }} /></Placeholder>
+                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </React.Fragment>
     );
   };
 
@@ -494,88 +720,14 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     );
   }
 
-  // Convert Category to CategoryReport with zero values
-  const categoryToCategoryReport = (cat: Category, numMonths: number): CategoryReport => ({
-    id: cat.id,
-    name: cat.name,
-    icon: cat.icon || 'FaQuestion',
-    color: cat.color || '#6c757d',
-    amounts: new Array(numMonths).fill(0),
-    hasSubItems: false,
-    subItems: [],
-  });
-
-  // Build category tree from flat list
-  const buildCategoryTree = (categories: Category[], type: 'income' | 'expense' | 'both', numMonths: number): CategoryReport[] => {
-    const filteredCats = categories.filter(c => c.type === type || c.type === 'both');
-    const parentCats = filteredCats.filter(c => !c.parent_id);
-
-    return parentCats.map(parent => {
-      const children = filteredCats.filter(c => c.parent_id === parent.id);
-      return {
-        ...categoryToCategoryReport(parent, numMonths),
-        hasSubItems: children.length > 0,
-        subItems: children.map(child => categoryToCategoryReport(child, numMonths)),
-      };
-    });
-  };
-
-  // Merge report categories with all categories (showing zeros for missing ones)
-  const mergeCategories = (
-    reportCategories: CategoryReport[],
-    allCats: Category[],
-    type: 'income' | 'expense',
-    numMonths: number
-  ): CategoryReport[] => {
-    const reportCatIds = new Set<string>();
-
-    // Collect all IDs from report (including children)
-    const collectIds = (cats: CategoryReport[]) => {
-      cats.forEach(cat => {
-        reportCatIds.add(cat.id);
-        if (cat.subItems) collectIds(cat.subItems);
-      });
-    };
-    collectIds(reportCategories);
-
-    // Get categories not in report
-    const missingCats = allCats.filter(
-      c => (c.type === type || c.type === 'both') && !reportCatIds.has(c.id)
-    );
-
-    // Build tree for missing categories
-    const missingTree = buildCategoryTree(missingCats, type, numMonths);
-
-    // Merge: report categories first, then missing ones
-    return [...reportCategories, ...missingTree];
-  };
-
-  // Create currency data with all categories
-  const createCurrencyDataWithAllCategories = (
-    reportData: CurrencyReport | undefined,
-    numMonths: number
-  ): CurrencyReport => {
-    const baseData: CurrencyReport = reportData || {
-      totalIncomes: new Array(numMonths).fill(0),
-      totalExpenses: new Array(numMonths).fill(0),
-      incomeCategories: [],
-      expenseCategories: [],
-    };
-
-    return {
-      ...baseData,
-      incomeCategories: mergeCategories(baseData.incomeCategories, allCategories, 'income', numMonths),
-      expenseCategories: mergeCategories(baseData.expenseCategories, allCategories, 'expense', numMonths),
-    };
-  };
-
-  const numMonths = data.monthNames?.length || numberOfColumns;
-  const currentCurrencyData = createCurrencyDataWithAllCategories(
-    data.currencies.length > 0 ? data.data[selectedCurrency] : undefined,
-    numMonths
-  );
-
   const displayCurrency = selectedCurrency || defaultCurrency;
+  // Provide an empty fallback if no data exists
+  const currentCurrencyData = data.data[displayCurrency] || {
+    incomeCategories: [],
+    expenseCategories: [],
+    totalIncomes: new Array(data.monthNames?.length || numberOfColumns).fill(0),
+    totalExpenses: new Array(data.monthNames?.length || numberOfColumns).fill(0),
+  };
 
   return (
     <div className="incomes-expenses-report">
@@ -631,7 +783,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       `}</style>
 
       {/* Header with Currency Pills and Settings */}
-      <div className="d-flex align-items-center justify-content-between mb-3">
+      <div className="d-none d-md-flex align-items-center justify-content-between mb-3">
         {/* Currency Pills - Left */}
         <div className="d-flex gap-2 flex-wrap">
           {sortedCurrencies.length > 1 ? (
@@ -649,6 +801,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
 
         {/* Settings Dropdown */}
         <Dropdown
+          className="d-none d-md-block"
           show={showSettingsDropdown}
           onToggle={(isOpen) => setShowSettingsDropdown(isOpen ?? false)}
         >
@@ -762,8 +915,19 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
         </Dropdown>
       </div>
 
-      {/* Report Table */}
-      {currentCurrencyData && renderReport(currentCurrencyData, displayCurrency)}
+      {/* Desktop Report Table */}
+      {currentCurrencyData && (
+        <div className="d-none d-md-block">
+          {renderReport(currentCurrencyData, displayCurrency)}
+        </div>
+      )}
+
+      {/* Mobile Report List (1 column focus) */}
+      {currentCurrencyData && (
+        <div className="d-md-none">
+          {renderMobileList(currentCurrencyData, displayCurrency)}
+        </div>
+      )}
 
       {/* Category Transactions Modal */}
       <CategoryTransactionsModal

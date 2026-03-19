@@ -133,7 +133,7 @@ const renderIcon = (
 ): React.ReactNode => React.createElement(IconComponent as React.ComponentType<IconBaseProps>, props);
 
 const VIEW_TABS: Array<{ key: ViewMode; label: string }> = [
-  { key: 'custom', label: 'Custom range' },
+  { key: 'custom', label: 'Custom' },
   { key: 'weeks', label: 'Weeks' },
   { key: 'months', label: 'Months' },
   { key: 'years', label: 'Years' },
@@ -383,8 +383,8 @@ const PeriodRangeSelector: React.FC<PeriodRangeSelectorProps> = ({
         }
       }
       const style: React.CSSProperties = {
-        width: '2.25rem',
-        height: '2.25rem',
+        width: '2rem',
+        height: '2rem',
         backgroundColor: !isActive && cell.inRange ? 'rgba(25,135,84,0.15)' : undefined,
       };
       return (
@@ -512,8 +512,8 @@ const PeriodRangeSelector: React.FC<PeriodRangeSelectorProps> = ({
       }
       
       const style: React.CSSProperties = {
-        width: '2.25rem',
-        height: '2.25rem',
+        width: '2rem',
+        height: '2rem',
         backgroundColor,
         color: textColor,
         borderRadius: isSelected
@@ -598,11 +598,13 @@ const PeriodRangeSelector: React.FC<PeriodRangeSelectorProps> = ({
 
   return (
     <Dropdown show={show} onToggle={handleToggle} className="period-range-dropdown">
-      <Dropdown.Toggle variant="outline-secondary" className="d-flex align-items-center gap-2 w-100">
-        {renderIcon(FaCalendarAlt)}
-        <span className="period-range-selector__year-label">{resolvedLabel}</span>
+      <Dropdown.Toggle variant="outline-secondary" className="d-flex align-items-center justify-content-between w-100">
+        <div className="d-flex align-items-center gap-2 m-auto">
+          {renderIcon(FaCalendarAlt)}
+          <span className="period-range-selector__year-label">{resolvedLabel}</span>
+        </div>
       </Dropdown.Toggle>
-      <Dropdown.Menu className="p-3 period-range-selector w-100">
+      <Dropdown.Menu className="p-2 p-md-3 period-range-selector w-100">
         <ButtonGroup className="w-100 mb-3">
           {VIEW_TABS.map((tab) => (
             <Button
@@ -650,7 +652,7 @@ const PeriodRangeSelector: React.FC<PeriodRangeSelectorProps> = ({
                   </div>
                 ))}
               </div>
-              <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem' }}>
+              <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem' }}>
                 {calendarCells.map((cell) => renderDayButton(cell))}
               </div>
             </div>
@@ -741,7 +743,7 @@ const PeriodRangeSelector: React.FC<PeriodRangeSelectorProps> = ({
             </div>
             <div
               className="d-grid"
-              style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.5rem' }}
+              style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.25rem' }}
             >
               {MONTH_NAMES.map((monthName, index) => {
                 const isSelected =
@@ -794,7 +796,7 @@ const PeriodRangeSelector: React.FC<PeriodRangeSelectorProps> = ({
             </div>
             <div
               className="d-grid"
-              style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.5rem' }}
+              style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.25rem' }}
             >
               {Array.from({ length: 12 }, (_, index) => yearRangeStart + index).map((year) => {
                 const isSelected =

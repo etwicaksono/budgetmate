@@ -155,6 +155,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     allPeriodTransactions.forEach((periodTxns) => {
       periodTxns.forEach((t) => currencySet.add(t.currency));
     });
+    // Ensure we have at least one currency (e.g., USD) to build an empty tree for new users
+    if (currencySet.size === 0) {
+      currencySet.add('USD');
+    }
     const currencies = Array.from(currencySet).sort();
 
     // Create lookup maps for amounts by period and currency

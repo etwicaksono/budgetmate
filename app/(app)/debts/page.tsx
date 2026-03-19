@@ -275,7 +275,7 @@ export default function DebtsPage() {
         </Col>
 
         {/* Tab area */}
-        <Col xs={12} lg={9}>
+        <Col xs={12} lg={9} className="p-0">
 
           <div className="d-flex justify-content-between align-items-center mb-2 px-3 d-lg-none">
             <h2 className="page-mobile-title">Debts</h2>

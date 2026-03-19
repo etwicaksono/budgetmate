@@ -37,6 +37,7 @@ interface RecordsListProps {
   onDeleteRecord?: (recordId: string) => void;
   showCheckboxes?: boolean;
   showDropdownMenu?: boolean;
+  isModal?: boolean;
 }
 
 export const RecordsList: React.FC<RecordsListProps> = ({
@@ -47,6 +48,7 @@ export const RecordsList: React.FC<RecordsListProps> = ({
   onDeleteRecord,
   showCheckboxes = true,
   showDropdownMenu = true,
+  isModal = false,
 }) => {
   const { formatCurrency } = useFormattedCurrency();
   const longPressTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -120,7 +122,10 @@ export const RecordsList: React.FC<RecordsListProps> = ({
 
         return (
           <div key={dateKey} className="records-day-group">
-            <div className="records-day-header">
+            <div 
+              className="records-day-header"
+              style={isModal ? { position: 'static' } : {}}
+            >
               <div className="records-day-header-left">
                 {shouldShowDayCheckbox && (
                   <Form.Check
@@ -138,10 +143,10 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                   <React.Fragment key={currency}>
                     {index > 0 && <span className="mx-2">|</span>}
                     <strong
-                      style={{ color: '#6C757D' }}
+                      style={{ color: '#6C757D', whiteSpace: 'nowrap' }}
                     >
                       {total < 0 ? '-' : total > 0 ? '+' : ''}
-                      {formatCurrency(Math.abs(total), currency)}
+                      {formatCurrency(Math.abs(total), currency).replace(/\.00$/, '')}
                     </strong>
                   </React.Fragment>
                 ))}

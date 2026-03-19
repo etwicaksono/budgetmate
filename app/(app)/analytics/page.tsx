@@ -2,7 +2,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { Container, Row, Col, Nav, Offcanvas, Button } from 'react-bootstrap';
+import { Container, Row, Col, Nav, Offcanvas, Button, Dropdown } from 'react-bootstrap';
 import { FaFilter } from 'react-icons/fa';
 import { useFilterData } from '@/hooks/useFilterData';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
@@ -20,6 +20,13 @@ import AdvancedChartsReport from '@/components/analytics/AdvancedChartsReport';
 type TabKey = 'income-expense' | 'balance-trend' | 'cash-flow' | 'advanced-charts';
 
 const VALID_TABS: TabKey[] = ['income-expense', 'balance-trend', 'cash-flow', 'advanced-charts'];
+
+const TABS: { key: TabKey; label: string; icon: string }[] = [
+  { key: 'income-expense', label: 'Incomes & Expenses Report', icon: '📊' },
+  { key: 'balance-trend', label: 'Balance Trend', icon: '📈' },
+  { key: 'cash-flow', label: 'Cash flow', icon: '💰' },
+  { key: 'advanced-charts', label: 'Advanced Charts and Reports', icon: '📉' },
+];
 
 function AnalyticsContent(): React.ReactElement {
   const searchParams = useSearchParams();
@@ -208,7 +215,7 @@ function AnalyticsContent(): React.ReactElement {
         </Col>
 
         {/* Main Content */}
-        <Col lg={9}>
+        <Col lg={9} className="p-0">
           {/* Mobile Filter Offcanvas */}
           <Offcanvas
             show={showMobileFilters}
@@ -276,64 +283,91 @@ function AnalyticsContent(): React.ReactElement {
             </Button>
           </div>
 
-          {/* Period Navigation */}
-          <div className="d-flex justify-content-center align-items-center mb-3">
-            <PeriodNavigation>
-              <PeriodRangeSelector
-                label={periodLabel}
-                activePeriod={activePeriod}
-                customRange={customRangeDraft}
-              />
-            </PeriodNavigation>
-          </div>
+          {/* Period & Tab Navigation Container */}
+          <div className="analytics-nav-container mb-4">
+            {/* Desktop Period Navigation */}
+            <div className="d-none d-md-flex justify-content-center align-items-center mb-3">
+              <PeriodNavigation>
+                <PeriodRangeSelector
+                  label={periodLabel}
+                  activePeriod={activePeriod}
+                  customRange={customRangeDraft}
+                />
+              </PeriodNavigation>
+            </div>
 
-          {/* Tab Navigation */}
-          <div
-            className="border-bottom bg-white mb-4 pt-2 pb-2"
-            style={{ position: 'sticky', top: 'var(--navbar-height)', zIndex: 100 }}
-          >
-            <Nav variant="pills" className="analytics-tabs flex-nowrap overflow-auto">
-              <Nav.Item>
-                <Nav.Link
-                  className={`d-flex align-items-center ${activeTab === 'income-expense' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('income-expense')}
-                  style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
+            {/* Desktop Tab Navigation */}
+            <div
+              className="border-bottom bg-white pt-2 pb-2 d-none d-md-block"
+              style={{ position: 'sticky', top: 'var(--navbar-height)', zIndex: 100 }}
+            >
+              <Nav variant="pills" className="analytics-tabs flex-nowrap overflow-auto">
+                {TABS.map((tab) => (
+                  <Nav.Item key={tab.key}>
+                    <Nav.Link
+                      className={`d-flex align-items-center ${activeTab === tab.key ? 'active' : ''}`}
+                      onClick={() => setActiveTab(tab.key)}
+                      style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      <span className="me-2">{tab.icon}</span>
+                      {tab.label}
+                    </Nav.Link>
+                  </Nav.Item>
+                ))}
+              </Nav>
+            </div>
+
+            {/* Mobile Sticky Controls Wrapper */}
+            <div
+              className="d-flex flex-column d-md-none gap-2 pb-2"
+              style={{
+                position: 'sticky',
+                top: 'var(--navbar-height)',
+                zIndex: 100,
+                backgroundColor: 'var(--bs-body-bg)',
+                paddingTop: '8px',
+                marginTop: '-8px'
+              }}
+            >
+              <div className="d-flex justify-content-center align-items-center">
+                <PeriodNavigation>
+                  <PeriodRangeSelector
+                    label={periodLabel}
+                    activePeriod={activePeriod}
+                    customRange={customRangeDraft}
+                  />
+                </PeriodNavigation>
+              </div>
+
+              <Dropdown className="w-100 shadow-sm">
+                <Dropdown.Toggle
+                  variant="outline-secondary"
+                  id="mobile-analytics-tabs-dropdown"
+                  className="w-100 d-flex justify-content-between align-items-center bg-white"
+                  style={{ textAlign: 'left' }}
                 >
-                  <span className="me-2">📊</span>
-                  Incomes &amp; Expenses Report
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link
-                  className={`d-flex align-items-center ${activeTab === 'balance-trend' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('balance-trend')}
-                  style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
-                >
-                  <span className="me-2">📈</span>
-                  Balance Trend
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link
-                  className={`d-flex align-items-center ${activeTab === 'cash-flow' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('cash-flow')}
-                  style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
-                >
-                  <span className="me-2">💰</span>
-                  Cash flow
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link
-                  className={`d-flex align-items-center ${activeTab === 'advanced-charts' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('advanced-charts')}
-                  style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
-                >
-                  <span className="me-2">📉</span>
-                  Advanced Charts and Reports
-                </Nav.Link>
-              </Nav.Item>
-            </Nav>
+                  <span className="d-flex align-items-center text-truncate">
+                    <span className="me-2">{TABS.find((t) => t.key === activeTab)?.icon}</span>
+                    {TABS.find((t) => t.key === activeTab)?.label}
+                  </span>
+                </Dropdown.Toggle>
+                <Dropdown.Menu className="w-100 shadow-sm">
+                  {TABS.map((tab) => (
+                    <Dropdown.Item
+                      key={tab.key}
+                      active={activeTab === tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                      className="d-flex align-items-center py-2"
+                    >
+                      <span className="me-2" style={{ width: '20px', textAlign: 'center' }}>
+                        {tab.icon}
+                      </span>
+                      {tab.label}
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown>
+            </div>
           </div>
 
           {/* Tab Content */}

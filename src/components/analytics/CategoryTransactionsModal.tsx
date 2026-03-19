@@ -79,9 +79,9 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
     transactions.forEach((txn) => {
       const dateObj = new Date(txn.date);
       const dateKey = dateObj.toLocaleDateString('en-US', {
-        weekday: 'long',
+        weekday: 'short',
         year: 'numeric',
-        month: 'long',
+        month: 'short',
         day: 'numeric',
       });
       
@@ -183,6 +183,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
         {!loading && !error && (
           <EditableRecordsList
             groupedTransactions={groupedTransactions}
+            isModal={true}
           />
         )}
       </Modal.Body>

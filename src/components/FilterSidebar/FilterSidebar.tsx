@@ -323,16 +323,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   };
 
   return (
-    <Card
-      className="desktop-filter-sidebar shadow-sm border-0"
-      style={{
-        position: 'sticky',
-        top: '85px', // Below the 65px header + 20px padding margin
-        maxHeight: 'calc(100vh - 105px)', // Prevent overflowing viewport
-        display: 'flex',
-        flexDirection: 'column'
-      }}
-    >
+    <Card className="desktop-filter-sidebar shadow-sm border-0">
       <Card.Header className="d-flex align-items-center justify-content-between bg-white border-bottom">
         <span className="h4 mb-0 fw-bold">{title}</span>
         <div className="d-flex gap-2">

@@ -89,7 +89,7 @@ function TransactionsContent() {
 
   // Ref for infinite scroll observer
   const observerTarget = useRef<HTMLDivElement>(null);
-  
+
   // Callback ref for sticky RecordsHeader to attach ResizeObserver safely
   const observerRef = useRef<ResizeObserver | null>(null);
   const handleRecordsHeaderRef = useCallback((node: HTMLDivElement | null) => {
@@ -97,13 +97,13 @@ function TransactionsContent() {
       observerRef.current.disconnect();
       observerRef.current = null;
     }
-    
+
     if (node !== null) {
       let lastHeight = 0;
       const update = () => {
         const measured = node.getBoundingClientRect().height;
         const newHeight = Math.round(measured);
-        
+
         // Only update CSS variable if height changes by >= 1px to prevent 
         // subpixel ResizeObserver infinite loops on mobile (which disables sticky positioning)
         if (Math.abs(newHeight - lastHeight) >= 1) {
@@ -371,9 +371,9 @@ function TransactionsContent() {
         amount: transaction.amount,
         currency: transaction.currency,
         type: isTransfer ? 'TRANSFER' : (
-          transaction.type === 'debt_in' ? 'DEBT_IN' : 
-          transaction.type === 'debt_out' ? 'DEBT_OUT' : 
-          transaction.type === 'income' ? 'INCOME' : 'EXPENSE'
+          transaction.type === 'debt_in' ? 'DEBT_IN' :
+            transaction.type === 'debt_out' ? 'DEBT_OUT' :
+              transaction.type === 'income' ? 'INCOME' : 'EXPENSE'
         ),
         debt_id: transaction.debt_id,
         labels: transaction.labels || [],
@@ -569,7 +569,7 @@ function TransactionsContent() {
     Swal.fire({
       icon: 'info',
       title: 'Bulk Edit',
-      text: isGlobalSelectAll 
+      text: isGlobalSelectAll
         ? `Bulk editing ALL ${totalRecords} matching transactions is not yet implemented.`
         : `Bulk editing ${selectedTransactionIds.size} transaction(s) is not yet implemented.`,
       confirmButtonColor: '#0d6efd',
@@ -580,7 +580,7 @@ function TransactionsContent() {
     Swal.fire({
       icon: 'info',
       title: 'Bulk Export',
-      text: isGlobalSelectAll 
+      text: isGlobalSelectAll
         ? `Exporting ALL ${totalRecords} matching transactions is not yet implemented.`
         : `Exporting ${selectedTransactionIds.size} transaction(s) is not yet implemented.`,
       confirmButtonColor: '#0d6efd',
@@ -591,7 +591,7 @@ function TransactionsContent() {
     const result = await Swal.fire({
       icon: 'warning',
       title: isGlobalSelectAll ? 'Delete ALL Matching Records' : 'Bulk Delete',
-      text: isGlobalSelectAll 
+      text: isGlobalSelectAll
         ? `Are you sure you want to permanently delete ALL ${totalRecords} transactions matching your current filters? This cannot be undone.`
         : `Are you sure you want to delete ${selectedTransactionIds.size} transaction(s)?`,
       showCancelButton: true,
@@ -605,7 +605,7 @@ function TransactionsContent() {
     if (result.isConfirmed) {
       try {
         let payload: any = {};
-        
+
         if (isGlobalSelectAll) {
           const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
           const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
@@ -636,7 +636,7 @@ function TransactionsContent() {
         }
 
         const res = await transactionService.bulkDeleteTransactions(payload);
-        
+
         await Swal.fire({
           icon: 'success',
           title: 'Deleted',
@@ -661,18 +661,18 @@ function TransactionsContent() {
       }
     }
   }, [
-    selectedTransactionIds, 
-    isGlobalSelectAll, 
-    totalRecords, 
-    dateRange, 
-    searchTerm, 
-    selectedCategories, 
-    categories, 
-    selectedAccounts, 
-    apiAccounts, 
-    selectedLabelIds, 
-    minAmount, 
-    maxAmount, 
+    selectedTransactionIds,
+    isGlobalSelectAll,
+    totalRecords,
+    dateRange,
+    searchTerm,
+    selectedCategories,
+    categories,
+    selectedAccounts,
+    apiAccounts,
+    selectedLabelIds,
+    minAmount,
+    maxAmount,
     selectedCurrencies,
     fetchTransactions
   ]);
@@ -809,7 +809,7 @@ function TransactionsContent() {
         </Offcanvas>
 
         {/* Main Content */}
-        <Col lg={9}>
+        <Col lg={9} className="p-0">
           {/* Mobile Page Title + Filter Toggle */}
           <div className="d-flex justify-content-between align-items-center mb-2 d-lg-none">
             <h2 className="page-mobile-title">Transactions</h2>
@@ -825,7 +825,7 @@ function TransactionsContent() {
           </div>
 
           {/* Period Navigation */}
-          <div className="d-flex justify-content-center align-items-center mb-3">
+          <div className="d-flex justify-content-center align-items-center mb-3" style={{ position: 'relative', zIndex: 1050 }}>
             <PeriodNavigation>
               <PeriodRangeSelector
                 label={periodLabel}

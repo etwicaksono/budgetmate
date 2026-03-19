@@ -11,6 +11,7 @@ interface EditableRecordsListProps {
   onDeleteRecord?: (recordId: string) => void;
   showCheckboxes?: boolean;
   showDropdownMenu?: boolean;
+  isModal?: boolean;
 }
 
 export const EditableRecordsList: React.FC<EditableRecordsListProps> = ({
@@ -20,6 +21,7 @@ export const EditableRecordsList: React.FC<EditableRecordsListProps> = ({
   onDeleteRecord,
   showCheckboxes = false,
   showDropdownMenu = false,
+  isModal = false,
 }) => {
   const { openEditModal } = useTransaction();
 
@@ -46,6 +48,7 @@ export const EditableRecordsList: React.FC<EditableRecordsListProps> = ({
       onEditRecord={handleEditRecord}
       showCheckboxes={showCheckboxes}
       showDropdownMenu={showDropdownMenu}
+      isModal={isModal}
       {...(onDeleteRecord && { onDeleteRecord })}
     />
   );

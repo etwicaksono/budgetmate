@@ -339,7 +339,7 @@ const AccountsPage: React.FC = () => {
     <Container fluid className="accounts-page">
       <Row className="g-4">
         {/* Sidebar */}
-        <Col xl={3} lg={4} xs={12}>
+        <Col xl={3} lg={4} xs={12} className="p-0">
           <Card className="accounts-sidebar">
             <Card.Body>
               {isLoading ? (
@@ -404,7 +404,7 @@ const AccountsPage: React.FC = () => {
         </Col>
 
         {/* Accounts List */}
-        <Col xl={9} lg={8} xs={12}>
+        <Col xl={9} lg={8} xs={12} className="p-0">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
