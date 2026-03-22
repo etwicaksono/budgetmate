@@ -7,6 +7,7 @@ import { AuthStateProvider } from '@/context/AuthStateContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { TransactionModalProvider } from '@/context/TransactionModalContext';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -38,6 +39,7 @@ export default function RootLayout({
             </AuthProvider>
           </AuthStateProvider>
         </ToastProvider>
+        <SpeedInsights />
       </body>
     </html>
   );

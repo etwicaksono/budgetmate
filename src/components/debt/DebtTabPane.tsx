@@ -99,7 +99,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
   }, [isLoading, debts.length]);
 
   // Re-fetch from page 1 whenever filters or type change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     fetchDebts();
     // intentionally omitting `page` so this only triggers on filter/type changes
