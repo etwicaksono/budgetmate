@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Modal, Form, Button, Row, Col, Alert, Spinner } from 'react-bootstrap';
 import { format } from 'date-fns';
 import { NumericFormat } from 'react-number-format';
@@ -37,6 +37,18 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
   const [amount, setAmount] = useState<number | ''>('');
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   const [description, setDescription] = useState('');
+
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDateClick = useCallback(() => {
+    if (dateInputRef.current) {
+      try {
+        dateInputRef.current.showPicker?.();
+      } catch {
+        // showPicker() not supported or blocked, ignore
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (show && debt) {
@@ -161,9 +173,11 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
             <Col xs={12} className="mb-3">
               <Form.Label>Date & Time <span className="text-danger">*</span></Form.Label>
               <Form.Control
+                 ref={dateInputRef}
                  type="datetime-local"
                  value={date}
                  onChange={(e) => setDate(e.target.value)}
+                 onClick={handleDateClick}
                  disabled={isSubmitting}
                  required
               />

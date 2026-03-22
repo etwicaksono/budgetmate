@@ -202,28 +202,30 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
       </Card>
 
       {/* Account list skeleton */}
-      <ListGroup>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <ListGroup.Item key={i} className="d-flex justify-content-between align-items-center py-3">
-            <div className="d-flex align-items-center gap-3">
-              <Placeholder animation="glow">
-                <Placeholder className="rounded" style={{ width: 40, height: 40 }} />
-              </Placeholder>
-              <div>
+      <Card className="mb-4 shadow-sm overflow-hidden rounded-3">
+        <ListGroup variant="flush">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <ListGroup.Item key={i} className="d-flex justify-content-between align-items-center py-3">
+              <div className="d-flex align-items-center gap-3">
                 <Placeholder animation="glow">
-                  <Placeholder xs={8} style={{ width: 120 }} />
+                  <Placeholder className="rounded" style={{ width: 40, height: 40 }} />
                 </Placeholder>
-                <Placeholder animation="glow">
-                  <Placeholder xs={6} style={{ width: 80 }} className="d-block mt-1" />
-                </Placeholder>
+                <div>
+                  <Placeholder animation="glow">
+                    <Placeholder xs={8} style={{ width: 120 }} />
+                  </Placeholder>
+                  <Placeholder animation="glow">
+                    <Placeholder xs={6} style={{ width: 80 }} className="d-block mt-1" />
+                  </Placeholder>
+                </div>
               </div>
-            </div>
-            <Placeholder animation="glow">
-              <Placeholder xs={4} style={{ width: 100 }} />
-            </Placeholder>
-          </ListGroup.Item>
-        ))}
-      </ListGroup>
+              <Placeholder animation="glow">
+                <Placeholder xs={4} style={{ width: 100 }} />
+              </Placeholder>
+            </ListGroup.Item>
+          ))}
+        </ListGroup>
+      </Card>
     </div>
   );
 
@@ -320,124 +322,131 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
         </div>
       )}
 
-      {/* Header with total balance and percent change */}
-      <div className="mb-4">
-        <div className="d-flex justify-content-between align-items-start">
-          <div>
-            <div className="text-muted text-uppercase small mb-1">{periodLabel}</div>
-            <h2 className="mb-0" style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>
-              {formatCurrency(filteredData.totalBalance, displayCurrency)}
-            </h2>
-          </div>
-          {filteredData.percentChange !== 0 && (
-            <div className="text-end">
-              <small className="text-muted d-block mb-1">vs previous period</small>
-              <div
-                className="d-inline-flex align-items-center px-2 py-1 rounded"
-                style={{
-                  backgroundColor: isPositive ? '#d4edda' : '#f8d7da',
-                }}
-              >
-                {isPositive ? (
-                  <FaArrowUp size={12} color="#28a745" />
-                ) : (
-                  <FaArrowDown size={12} color="#dc3545" />
-                )}
-                <span
-                  className="ms-1"
+      {/* Overview & Chart Card */}
+      <Card className="mb-4 border-0 shadow-sm rounded-3">
+        <Card.Body className="p-3 p-md-4 pb-3">
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-start mb-4 gap-3">
+            <div>
+              <div className="text-muted text-uppercase small mb-1">{periodLabel}</div>
+              <h2 className="mb-0" style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>
+                {formatCurrency(filteredData.totalBalance, displayCurrency)}
+              </h2>
+            </div>
+            {filteredData.percentChange !== 0 && (
+              <div className="text-end">
+                <small className="text-muted d-block mb-1">vs previous period</small>
+                <div
+                  className="d-inline-flex align-items-center px-2 py-1 rounded"
                   style={{
-                    fontSize: '0.875rem',
-                    fontWeight: 'bold',
-                    color: isPositive ? '#28a745' : '#dc3545',
+                    backgroundColor: isPositive ? '#d4edda' : '#f8d7da',
                   }}
                 >
-                  {Math.abs(filteredData.percentChange)}%
-                </span>
+                  {isPositive ? (
+                    <FaArrowUp size={12} color="#28a745" />
+                  ) : (
+                    <FaArrowDown size={12} color="#dc3545" />
+                  )}
+                  <span
+                    className="ms-1"
+                    style={{
+                      fontSize: '0.875rem',
+                      fontWeight: 'bold',
+                      color: isPositive ? '#28a745' : '#dc3545',
+                    }}
+                  >
+                    {Math.abs(filteredData.percentChange)}%
+                  </span>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Balance Trend Chart */}
-      <Card className="mb-4 border-0 shadow-sm">
-        <Card.Body style={{ height: 350 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={filteredData.chartData}
-              margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 11, fill: '#6c757d' }}
-                tickMargin={10}
-                axisLine={{ stroke: '#e9ecef' }}
-                tickLine={false}
-              />
-              <YAxis
-                tickFormatter={formatNumberAbbreviation}
-                tick={{ fontSize: 11, fill: '#6c757d' }}
-                axisLine={false}
-                tickLine={false}
-                width={50}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Line
-                type="monotone"
-                dataKey="balance"
-                stroke="#2563eb"
-                strokeWidth={2}
-                dot={{ fill: '#2563eb', r: 3 }}
-                activeDot={{ r: 5 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+            )}
+          </div>
+          
+          <div style={{ height: 350 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={filteredData.chartData}
+                margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(val: string) => {
+                    const d = new Date(val);
+                    return !isNaN(d.getTime()) ? d.toLocaleDateString('default', { day: 'numeric', month: 'short' }) : val;
+                  }}
+                  tick={{ fontSize: 11, fill: '#6c757d' }}
+                  tickMargin={10}
+                  axisLine={{ stroke: '#e9ecef' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tickFormatter={formatNumberAbbreviation}
+                  tick={{ fontSize: 11, fill: '#6c757d' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={50}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Line
+                  type="monotone"
+                  dataKey="balance"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                  dot={{ fill: '#2563eb', r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </Card.Body>
       </Card>
 
       {/* Account List - Filtered by currency */}
-      <ListGroup className="mb-4 shadow-sm">
-        {filteredData.accounts.length > 0 ? (
-          filteredData.accounts.map(renderAccountItem)
-        ) : (
-          <ListGroup.Item className="text-center text-muted py-4">
-            No accounts in {displayCurrency}
-          </ListGroup.Item>
-        )}
-      </ListGroup>
+      <Card className="mb-4 border-0 shadow-sm overflow-hidden rounded-3">
+        <ListGroup variant="flush">
+          {filteredData.accounts.length > 0 ? (
+            filteredData.accounts.map(renderAccountItem)
+          ) : (
+            <ListGroup.Item className="text-center text-muted py-4">
+              No accounts in {displayCurrency}
+            </ListGroup.Item>
+          )}
+        </ListGroup>
+      </Card>
 
       {/* Currency Total Summary */}
-      <div className="mt-4">
-        <div className="d-flex justify-content-between align-items-center mb-2">
-          <span className="text-muted">
-            {currencyNames[displayCurrency] || displayCurrency}
-          </span>
-          <span
-            className="fw-bold"
-            style={{ color: filteredData.totalBalance < 0 ? '#dc3545' : undefined }}
-          >
-            {filteredData.totalBalance < 0 ? '-' : ''}
-            {formatCurrency(Math.abs(filteredData.totalBalance), displayCurrency)}
-          </span>
-        </div>
-        <div
-          className="rounded"
-          style={{
-            height: 8,
-            backgroundColor: '#e9ecef',
-            overflow: 'hidden',
-          }}
-        >
+      <Card className="border-0 shadow-sm rounded-3">
+        <Card.Body className="p-3 p-md-4">
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <span className="text-muted">
+              {currencyNames[displayCurrency] || displayCurrency}
+            </span>
+            <span
+              className="fw-bold"
+              style={{ color: filteredData.totalBalance < 0 ? '#dc3545' : undefined }}
+            >
+              {filteredData.totalBalance < 0 ? '-' : ''}
+              {formatCurrency(Math.abs(filteredData.totalBalance), displayCurrency)}
+            </span>
+          </div>
           <div
-            className="h-100 rounded"
+            className="rounded"
             style={{
-              width: '100%',
-              backgroundColor: filteredData.totalBalance < 0 ? '#dc3545' : '#2563eb',
+              height: 8,
+              backgroundColor: '#e9ecef',
+              overflow: 'hidden',
             }}
-          />
-        </div>
-      </div>
+          >
+            <div
+              className="h-100 rounded"
+              style={{
+                width: '100%',
+                backgroundColor: filteredData.totalBalance < 0 ? '#dc3545' : '#2563eb',
+              }}
+            />
+          </div>
+        </Card.Body>
+      </Card>
     </div>
   );
 };

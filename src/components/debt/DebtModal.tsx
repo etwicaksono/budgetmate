@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Modal, Form, Button, Row, Col, InputGroup, Spinner } from 'react-bootstrap';
 import { FaUser } from 'react-icons/fa';
 import { NumericFormat } from 'react-number-format';
@@ -42,6 +42,18 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<typeof DEBT_STATUSES.ACTIVE | typeof DEBT_STATUSES.SETTLED>(DEBT_STATUSES.ACTIVE);
+
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDateClick = useCallback(() => {
+    if (dateInputRef.current) {
+      try {
+        dateInputRef.current.showPicker?.();
+      } catch {
+        // showPicker() not supported or blocked, ignore
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (show) {
@@ -200,9 +212,11 @@ export const DebtModal: React.FC<DebtModalProps> = ({
             <Col xs={12} md={6} className="mb-3">
               <Form.Label>Date & Time <span className="text-danger">*</span></Form.Label>
               <Form.Control
+                 ref={dateInputRef}
                  type="datetime-local"
                  value={date}
                  onChange={(e) => setDate(e.target.value)}
+                 onClick={handleDateClick}
                  disabled={isSubmitting}
                  required
               />

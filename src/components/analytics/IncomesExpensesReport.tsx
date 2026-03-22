@@ -305,13 +305,25 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const renderReport = (currencyData: CurrencyReport, currency: string) => {
     const monthNames = data?.monthNames || [];
 
+    const now = new Date();
+    const currentLong = now.toLocaleString('default', { month: 'long' });
+    const currentShort = now.toLocaleString('default', { month: 'short' });
+    const currentYear = now.getFullYear();
+
+    const getDisplayName = (name: string) => {
+      if (name === currentLong || name === currentShort || name === `${currentLong} ${currentYear}` || name === `${currentShort} ${currentYear}`) {
+        return 'This Month';
+      }
+      return name;
+    };
+
     return (
       <Table responsive bordered hover>
         <thead>
           <tr>
             <th style={{ width: '30%' }}></th>
             {monthNames.map((name, idx) => (
-              <th key={idx} className="text-center">{name}</th>
+              <th key={idx} className="text-center">{getDisplayName(name)}</th>
             ))}
           </tr>
         </thead>

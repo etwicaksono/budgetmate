@@ -414,7 +414,7 @@ const AccountsPage: React.FC = () => {
               items={activeAccounts.map((a) => a.id)}
               strategy={verticalListSortingStrategy}
             >
-              <div className="accounts-list">
+              <div className="accounts-list ps-lg-3">
                 {isLoading ? (
                   <div className="d-flex flex-column gap-3 w-100">
                     {[1, 2, 3, 4].map((i) => (

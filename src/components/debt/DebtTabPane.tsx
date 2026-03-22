@@ -8,6 +8,7 @@ import { debtService, Debt } from '@/services/debtService';
 import { DEBT_STATUSES } from '@/utils/constants';
 import { useDebt } from '@/contexts/DebtContext';
 import { DebtCard } from './DebtCard';
+import { DebtSkeleton } from './DebtSkeleton';
 import { DebtDetailModal } from './DebtDetailModal';
 
 const Toast = Swal.mixin({
@@ -200,8 +201,8 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
           <Card className="border-0 shadow-sm debt-tab-panel">
             <Card.Body className="p-0">
               {isLoading && debts.length === 0 ? (
-                <div className="text-center py-5">
-                  <Spinner animation="border" style={{ color: debtType === 'lend' ? '#059669' : '#dc3545' }} />
+                <div className="py-2">
+                  <DebtSkeleton />
                 </div>
               ) : error ? (
                 <div className="alert alert-danger m-3">{error}</div>

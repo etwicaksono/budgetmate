@@ -371,7 +371,7 @@ function AnalyticsContent(): React.ReactElement {
           </div>
 
           {/* Tab Content */}
-          <div className="analytics-content">
+          <div className={activeTab === 'balance-trend' ? 'analytics-card-container mt-3' : 'analytics-content'}>
             {renderTabContent()}
           </div>
         </Col>
