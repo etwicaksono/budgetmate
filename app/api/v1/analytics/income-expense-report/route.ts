@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { getClientTimezoneOffset, getUtcFromLocal } from '@/lib/timezone';
 
 interface CategoryReport {
   id: string;
@@ -44,62 +45,87 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const startDateParam = searchParams.get('start_date');
   const endDateParam = searchParams.get('end_date');
 
+  const offsetMinutes = getClientTimezoneOffset(startDateParam);
+
+  const getUtcFromLocalWithOffset = (year: number, month: number, day: number, hours: number, minutes: number, seconds: number, ms: number = 0) => {
+    return getUtcFromLocal(year, month, day, hours, minutes, seconds, ms, offsetMinutes);
+  };
+
+  // Get the base date in local time so we can cleanly extract its logical month/year
+  const baseDateUtc = startDateParam ? new Date(startDateParam) : new Date(now.getFullYear(), now.getMonth(), 1);
+  const baseLocal = new Date(baseDateUtc.getTime() + offsetMinutes * 60000);
+
   // Calculate date ranges based on period type
   const periodRanges: { start: Date; end: Date; name: string }[] = [];
 
   if (periodType === 'month') {
-    const baseDate = startDateParam ? new Date(startDateParam) : new Date(now.getFullYear(), now.getMonth(), 1);
     for (let i = 0; i < numPeriods; i++) {
-      const periodStart = new Date(baseDate);
-      periodStart.setMonth(periodStart.getMonth() - i);
-      periodStart.setDate(1);
-      const periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0, 23, 59, 59);
-      const name = periodStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const year = baseLocal.getUTCFullYear();
+      const month = baseLocal.getUTCMonth() - i;
+      
+      const periodStart = getUtcFromLocalWithOffset(year, month, 1, 0, 0, 0, 0);
+      const periodEnd = getUtcFromLocalWithOffset(year, month + 1, 0, 23, 59, 59, 999);
+
+      const localStart = new Date(periodStart.getTime() + offsetMinutes * 60000);
+      const name = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(localStart);
+      
       periodRanges.push({ start: periodStart, end: periodEnd, name });
     }
   } else if (periodType === 'week') {
-    const baseDate = startDateParam ? new Date(startDateParam) : now;
-    // Get the Monday of the base week
-    const dayOfWeek = baseDate.getDay();
-    const monday = new Date(baseDate);
-    monday.setDate(baseDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    monday.setHours(0, 0, 0, 0);
+    const dayOfWeek = baseLocal.getUTCDay();
+    const mondayLocal = new Date(baseLocal);
+    mondayLocal.setUTCDate(baseLocal.getUTCDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    mondayLocal.setUTCHours(0, 0, 0, 0);
 
     for (let i = 0; i < numPeriods; i++) {
-      const periodStart = new Date(monday);
-      periodStart.setDate(monday.getDate() - (i * 7));
-      const periodEnd = new Date(periodStart);
-      periodEnd.setDate(periodStart.getDate() + 6);
-      periodEnd.setHours(23, 59, 59, 999);
+      const startLocal = new Date(mondayLocal);
+      startLocal.setUTCDate(mondayLocal.getUTCDate() - (i * 7));
+      
+      const endLocal = new Date(startLocal);
+      endLocal.setUTCDate(startLocal.getUTCDate() + 6);
+      endLocal.setUTCHours(23, 59, 59, 999);
 
-      const name = `${periodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      const periodStart = new Date(startLocal.getTime() - offsetMinutes * 60000);
+      const periodEnd = new Date(endLocal.getTime() - offsetMinutes * 60000);
+
+      const nameStart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(startLocal);
+      const nameEnd = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(endLocal);
+      const name = `${nameStart} - ${nameEnd}`;
+      
       periodRanges.push({ start: periodStart, end: periodEnd, name });
     }
   } else if (periodType === 'year') {
-    const baseYear = startDateParam ? new Date(startDateParam).getFullYear() : now.getFullYear();
+    const baseYear = baseLocal.getUTCFullYear();
     for (let i = 0; i < numPeriods; i++) {
       const year = baseYear - i;
-      const periodStart = new Date(year, 0, 1, 0, 0, 0);
-      const periodEnd = new Date(year, 11, 31, 23, 59, 59);
+      const periodStart = getUtcFromLocalWithOffset(year, 0, 1, 0, 0, 0, 0);
+      const periodEnd = getUtcFromLocalWithOffset(year, 11, 31, 23, 59, 59, 999);
       const name = year.toString();
       periodRanges.push({ start: periodStart, end: periodEnd, name });
     }
   } else {
-    // Custom range - divide the range into equal periods
-    const startDate = startDateParam ? new Date(startDateParam) : new Date(now.getFullYear(), now.getMonth(), 1);
-    const endDate = endDateParam ? new Date(endDateParam) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    // Custom range
+    const customStart = startDateParam ? new Date(startDateParam) : getUtcFromLocalWithOffset(baseLocal.getUTCFullYear(), baseLocal.getUTCMonth(), 1, 0, 0, 0, 0);
+    const customEnd = endDateParam ? new Date(endDateParam) : getUtcFromLocalWithOffset(baseLocal.getUTCFullYear(), baseLocal.getUTCMonth() + 1, 0, 23, 59, 59, 999);
 
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const totalDays = Math.ceil((customEnd.getTime() - customStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const daysPerPeriod = Math.max(1, Math.ceil(totalDays / numPeriods));
 
     for (let i = 0; i < numPeriods; i++) {
-      const periodStart = new Date(startDate);
-      periodStart.setDate(startDate.getDate() - (i * daysPerPeriod));
-      const periodEnd = new Date(periodStart);
-      periodEnd.setDate(periodStart.getDate() + daysPerPeriod - 1);
-      periodEnd.setHours(23, 59, 59, 999);
+      const startLocal = new Date(customStart.getTime() + offsetMinutes * 60000);
+      startLocal.setUTCDate(startLocal.getUTCDate() - (i * daysPerPeriod));
+      
+      const endLocal = new Date(startLocal);
+      endLocal.setUTCDate(startLocal.getUTCDate() + daysPerPeriod - 1);
+      endLocal.setUTCHours(23, 59, 59, 999);
 
-      const name = `${periodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      const periodStart = new Date(startLocal.getTime() - offsetMinutes * 60000);
+      const periodEnd = new Date(endLocal.getTime() - offsetMinutes * 60000);
+
+      const nameStart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(startLocal);
+      const nameEnd = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(endLocal);
+      const name = `${nameStart} - ${nameEnd}`;
+      
       periodRanges.push({ start: periodStart, end: periodEnd, name });
     }
   }

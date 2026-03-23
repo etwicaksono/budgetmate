@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { 
+  generateAnalyticsPeriods, 
+  getDayOfPeriod, 
+  formatDateLabelUtc 
+} from '@/lib/timezone';
 
 interface DailyCashFlow {
   date: string;
@@ -51,15 +56,6 @@ interface CashFlowResponse {
   currencies: string[];
 }
 
-function formatDateLabel(date: Date): string {
-  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
-}
-
-function getDayOfPeriod(date: Date, periodStart: Date): number {
-  const diffTime = date.getTime() - periodStart.getTime();
-  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
-}
-
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const authResult = await requireAuth(request);
   if ('error' in authResult) {
@@ -79,27 +75,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const maxAmount = searchParams.get('max_amount');
 
   try {
-    // Parse dates
-    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const end = endDate ? new Date(endDate) : new Date();
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
-
-    // Calculate period lengths
-    const periodLength = end.getTime() - start.getTime();
-    const periodDays = Math.ceil(periodLength / (1000 * 60 * 60 * 24)) + 1;
-
-    // Calculate previous period
-    const previousEnd = new Date(start.getTime() - 1);
-    const previousStart = new Date(previousEnd.getTime() - periodLength);
-    previousStart.setHours(0, 0, 0, 0);
-    previousEnd.setHours(23, 59, 59, 999);
-
-    // Calculate same period a year ago
-    const yearAgoStart = new Date(start);
-    yearAgoStart.setFullYear(yearAgoStart.getFullYear() - 1);
-    const yearAgoEnd = new Date(end);
-    yearAgoEnd.setFullYear(yearAgoEnd.getFullYear() - 1);
+    const { 
+      start, 
+      end, 
+      previousStart, 
+      previousEnd, 
+      yearAgoStart, 
+      yearAgoEnd, 
+      periodDays, 
+      offsetMinutes 
+    } = generateAnalyticsPeriods(startDate, endDate);
 
     const baseWhereClause: any = {
       user_id: user.user_id,
@@ -197,11 +182,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const dailyDataMap = new Map<string, { income: number; expense: number }>();
 
       // Initialize all days in period
-      const currentDate = new Date(start);
-      while (currentDate <= end) {
-        const dateKey = currentDate.toISOString().split('T')[0]!;
+      let currentLocalMap = new Date(start.getTime() + offsetMinutes * 60000);
+      currentLocalMap.setUTCHours(0, 0, 0, 0);
+      const endLocalMidnight = new Date(end.getTime() + offsetMinutes * 60000);
+      endLocalMidnight.setUTCHours(0, 0, 0, 0);
+
+      while (currentLocalMap <= endLocalMidnight) {
+        const dateKey = currentLocalMap.toISOString().split('T')[0]!;
         dailyDataMap.set(dateKey, { income: 0, expense: 0 });
-        currentDate.setDate(currentDate.getDate() + 1);
+        currentLocalMap.setUTCDate(currentLocalMap.getUTCDate() + 1);
       }
 
       let totalIncome = 0;
@@ -211,7 +200,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const txCurrency = tx.account?.currency || 'USD';
         if (filterCurrency && txCurrency !== filterCurrency) continue;
 
-        const dateKey = new Date(tx.date).toISOString().split('T')[0]!;
+        const txLocal = new Date(tx.date.getTime() + offsetMinutes * 60000);
+        const dateKey = txLocal.toISOString().split('T')[0]!;
         const amount = Math.abs(Number(tx.amount));
         const dayData = dailyDataMap.get(dateKey);
 
@@ -229,7 +219,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const dailyData: DailyCashFlow[] = Array.from(dailyDataMap.entries())
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([dateStr, data]) => ({
-          date: formatDateLabel(new Date(dateStr)),
+          date: formatDateLabelUtc(new Date(dateStr + 'T00:00:00Z')),
           income: data.income,
           expense: data.expense,
           cashFlow: data.income - data.expense,
@@ -282,10 +272,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         dayMap.set(i, { income: 0, expense: 0 });
       }
 
-      // Aggregate by day of period
       for (const tx of transactions) {
         const txDate = new Date(tx.date);
-        const dayOfPeriod = getDayOfPeriod(txDate, periodStart);
+        const dayOfPeriod = getDayOfPeriod(txDate, periodStart, offsetMinutes);
         if (dayOfPeriod >= 0 && dayOfPeriod < numDays) {
           const dayData = dayMap.get(dayOfPeriod)!;
           const rawAmount = tx.amount;
@@ -302,8 +291,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const result: ComparisonDataPoint[] = [];
       for (let i = 0; i < numDays; i++) {
         const dayData = dayMap.get(i)!;
-        const dateAtDay = new Date(start);
-        dateAtDay.setDate(start.getDate() + i);
+        const dateAtDayLocal = new Date(periodStart.getTime() + offsetMinutes * 60000);
+        dateAtDayLocal.setUTCHours(0, 0, 0, 0);
+        dateAtDayLocal.setUTCDate(dateAtDayLocal.getUTCDate() + i);
 
         let value = 0;
         if (metric === 'income') {
@@ -315,7 +305,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         }
 
         result.push({
-          date: formatDateLabel(dateAtDay),
+          date: formatDateLabelUtc(dateAtDayLocal),
           value,
         });
       }

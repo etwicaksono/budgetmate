@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { generateAnalyticsPeriods } from '@/lib/timezone';
 
 type DataType = 'balance' | 'cashflow' | 'cumulative_cashflow';
 type Granularity = 'day' | 'week' | 'month';
@@ -32,48 +33,49 @@ interface AdvancedChartsResponse {
   }>;
 }
 
-function formatDateLabel(date: Date, granularity: Granularity): string {
+function formatDateLabel(dateUtc: Date, granularity: Granularity): string {
   if (granularity === 'month') {
-    return `${date.getMonth() + 1}/${date.getFullYear()}`;
+    return `${dateUtc.getUTCMonth() + 1}/${dateUtc.getUTCFullYear()}`;
   }
-  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+  return `${dateUtc.getUTCMonth() + 1}/${dateUtc.getUTCDate()}/${dateUtc.getUTCFullYear()}`;
 }
 
-function getDateKey(date: Date, granularity: Granularity): string {
+function getDateKey(dateUtc: Date, granularity: Granularity): string {
   if (granularity === 'month') {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    return `${dateUtc.getUTCFullYear()}-${String(dateUtc.getUTCMonth() + 1).padStart(2, '0')}`;
   } else if (granularity === 'week') {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff);
+    const d = new Date(dateUtc);
+    const day = d.getUTCDay();
+    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+    d.setUTCDate(diff);
     return d.toISOString().split('T')[0]!;
   }
-  return date.toISOString().split('T')[0]!;
+  return dateUtc.toISOString().split('T')[0]!;
 }
 
-function generateDateRange(start: Date, end: Date, granularity: Granularity): Date[] {
+function generateDateRange(startLocal: Date, endLocal: Date, granularity: Granularity): Date[] {
   const dates: Date[] = [];
-  const current = new Date(start);
+  const current = new Date(startLocal);
+  current.setUTCHours(0,0,0,0);
 
   if (granularity === 'month') {
-    current.setDate(1);
-    while (current <= end) {
+    current.setUTCDate(1);
+    while (current <= endLocal) {
       dates.push(new Date(current));
-      current.setMonth(current.getMonth() + 1);
+      current.setUTCMonth(current.getUTCMonth() + 1);
     }
   } else if (granularity === 'week') {
-    const day = current.getDay();
-    const diff = current.getDate() - day + (day === 0 ? -6 : 1);
-    current.setDate(diff);
-    while (current <= end) {
+    const day = current.getUTCDay();
+    const diff = current.getUTCDate() - day + (day === 0 ? -6 : 1);
+    current.setUTCDate(diff);
+    while (current <= endLocal) {
       dates.push(new Date(current));
-      current.setDate(current.getDate() + 7);
+      current.setUTCDate(current.getUTCDate() + 7);
     }
   } else {
-    while (current <= end) {
+    while (current <= endLocal) {
       dates.push(new Date(current));
-      current.setDate(current.getDate() + 1);
+      current.setUTCDate(current.getUTCDate() + 1);
     }
   }
 
@@ -102,10 +104,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const maxAmount = searchParams.get('max_amount');
 
   try {
-    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const end = endDate ? new Date(endDate) : new Date();
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
+    const { start, end, startLocal, endLocal, offsetMinutes } = generateAnalyticsPeriods(startDate, endDate);
 
     const accountWhereClause: any = {
       user_id: user.user_id,
@@ -201,7 +200,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .sort((a, b) => b[1] - a[1])
       .map(([currency]) => currency);
 
-    const dateRange = generateDateRange(start, end, granularity);
+    const dateRange = generateDateRange(startLocal, endLocal, granularity);
 
     // Helper to build cashflow/cumulative data
     const buildCashflowData = (
@@ -216,7 +215,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       for (const tx of txs) {
-        const key = getDateKey(new Date(tx.date), granularity);
+        const txLocal = new Date(tx.date.getTime() + offsetMinutes * 60000);
+        const key = getDateKey(txLocal, granularity);
         const entry = dateMap.get(key);
         if (entry) {
           const amount = Math.abs(Number(tx.amount));
@@ -309,7 +309,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       for (const tx of filteredTxs) {
-        const key = getDateKey(new Date(tx.date), granularity);
+        const txLocal = new Date(tx.date.getTime() + offsetMinutes * 60000);
+        const key = getDateKey(txLocal, granularity);
         const current = dateMap.get(key) || 0;
         const amount = Number(tx.amount);
         if (tx.type === 'income') {
@@ -401,7 +402,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       for (const tx of txs) {
-        const key = getDateKey(new Date(tx.date), granularity);
+        const txLocal = new Date(tx.date.getTime() + offsetMinutes * 60000);
+        const key = getDateKey(txLocal, granularity);
         const entry = dateMap.get(key);
         if (entry) {
           const amount = Math.abs(Number(tx.amount));

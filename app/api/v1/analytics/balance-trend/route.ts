@@ -3,6 +3,11 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { balanceService } from '@/services/balanceService';
+import { 
+  generateAnalyticsPeriods, 
+  getLocalDateKey, 
+  formatDateLabelWithOffset 
+} from '@/lib/timezone';
 
 interface BalanceDataPoint {
   date: string;
@@ -36,9 +41,7 @@ interface BalanceTrendResponse {
   currencies: string[];
 }
 
-function formatDateLabel(date: Date): string {
-  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
-}
+
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const authResult = await requireAuth(request);
@@ -56,19 +59,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const currencyParams = searchParams.get('currencies')?.split(',').filter(Boolean) || [];
 
   try {
-    // Parse dates
-    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const end = endDate ? new Date(endDate) : new Date();
-
-    // Ensure end date includes the full day
-    end.setHours(23, 59, 59, 999);
-
-    // Calculate previous period for comparison
-    const periodLength = end.getTime() - start.getTime();
-    const previousEnd = new Date(start.getTime() - 1);
-    const previousStart = new Date(previousEnd.getTime() - periodLength);
-    previousStart.setHours(0, 0, 0, 0);
-    previousEnd.setHours(23, 59, 59, 999);
+    const { start, end, previousEnd, offsetMinutes } = generateAnalyticsPeriods(startDate, endDate);
 
     const accountWhereClause: any = {
       user_id: user.user_id,
@@ -173,7 +164,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const dailyChangesByCurrency = new Map<string, Map<string, number>>();
 
     for (const tx of transactions) {
-      const dateKey = new Date(tx.date).toISOString().split('T')[0]!;
+      const dateKey = getLocalDateKey(tx.date, offsetMinutes);
       const amount = Number(tx.amount);
       const currency = tx.account?.currency || 'USD';
 
@@ -197,7 +188,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Calculate balance up to the start date
       const sortedDates = Array.from(dailyChanges.keys()).sort();
       for (const dateKey of sortedDates) {
-        if (dateKey < start.toISOString().split('T')[0]!) {
+        if (dateKey < getLocalDateKey(start, offsetMinutes)) {
           runningBalance += dailyChanges.get(dateKey) || 0;
         }
       }
@@ -205,11 +196,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Generate data points for each day in the period
       const currentDate = new Date(start);
       while (currentDate <= end) {
-        const dateKey = currentDate.toISOString().split('T')[0]!;
+        const dateKey = getLocalDateKey(currentDate, offsetMinutes);
         runningBalance += dailyChanges.get(dateKey) || 0;
 
         currencyChartData.push({
-          date: formatDateLabel(currentDate),
+          date: formatDateLabelWithOffset(currentDate, offsetMinutes),
           balance: runningBalance,
         });
 
@@ -221,7 +212,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Calculate balance at the end of previous period for percent change
       let previousPeriodBalance = initialBalance;
       for (const dateKey of sortedDates) {
-        if (dateKey <= previousEnd.toISOString().split('T')[0]!) {
+        if (dateKey <= getLocalDateKey(previousEnd, offsetMinutes)) {
           previousPeriodBalance += dailyChanges.get(dateKey) || 0;
         }
       }
@@ -252,18 +243,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const allSortedDates = Array.from(allDailyChanges.keys()).sort();
     for (const dateKey of allSortedDates) {
-      if (dateKey < start.toISOString().split('T')[0]!) {
+      if (dateKey < getLocalDateKey(start, offsetMinutes)) {
         combinedRunningBalance += allDailyChanges.get(dateKey) || 0;
       }
     }
 
     const combinedCurrentDate = new Date(start);
     while (combinedCurrentDate <= end) {
-      const dateKey = combinedCurrentDate.toISOString().split('T')[0]!;
+      const dateKey = getLocalDateKey(combinedCurrentDate, offsetMinutes);
       combinedRunningBalance += allDailyChanges.get(dateKey) || 0;
 
       chartData.push({
-        date: formatDateLabel(combinedCurrentDate),
+        date: formatDateLabelWithOffset(combinedCurrentDate, offsetMinutes),
         balance: combinedRunningBalance,
       });
 
