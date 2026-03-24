@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Modal, Form, Button, Row, Col, Alert, InputGroup } from 'react-bootstrap';
+import { Modal, Form, Button, Row, Col, Alert, InputGroup, Spinner } from 'react-bootstrap';
 import { FaSearch, FaEllipsisH } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
@@ -426,7 +426,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={loading}>
-              {loading ? 'Saving...' : mode === 'add' ? 'Add Category' : 'Save Changes'}
+              {loading ? <Spinner as="span" animation="border" size="sm" /> : mode === 'add' ? 'Add Category' : 'Save Changes'}
             </Button>
           </Modal.Footer>
         </Form>

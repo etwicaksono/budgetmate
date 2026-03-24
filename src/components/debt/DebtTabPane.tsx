@@ -50,7 +50,18 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
   const [hasMore, setHasMore] = useState(true);
 
   // Modals
-  const { openAddDebtModal, openEditDebtModal, openRepaymentModal, openIncreaseModal } = useDebt();
+  const { 
+    openAddDebtModal, 
+    openEditDebtModal, 
+    openRepaymentModal, 
+    openIncreaseModal,
+    isOpen: isGlobalDebtModalOpen,
+    modalType: globalDebtModalType
+  } = useDebt();
+
+  const isNestedModalOpen = isGlobalDebtModalOpen && 
+    (globalDebtModalType === 'repayment' || globalDebtModalType === 'increase' || globalDebtModalType === 'debt');
+
 
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailDebt, setDetailDebt] = useState<Debt | null>(null);
@@ -269,7 +280,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
 
       {/* Modals scoped to this pane */}
       <DebtDetailModal
-        show={showDetailModal}
+        show={showDetailModal && !isNestedModalOpen}
         onHide={() => setShowDetailModal(false)}
         debt={detailDebt}
         onIncreaseClick={handleOpenIncrease}

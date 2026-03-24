@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Modal, Placeholder } from 'react-bootstrap';
 import { transactionService, type Transaction } from '@/services/transactionService';
+import { useTransaction } from '@/contexts/TransactionContext';
 import { EditableRecordsList } from '@/components/Records/EditableRecordsList';
 import { type GroupedTransactions, type TransactionRecord } from '@/components/Records/RecordsList';
 
@@ -31,6 +32,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { isOpen: isTransactionModalOpen } = useTransaction();
 
   const fetchTransactions = useCallback(async () => {
     if (!categoryIds || categoryIds.length === 0) return;
@@ -118,7 +120,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
   }, [transactions]);
 
   return (
-    <Modal show={show} onHide={onHide} size="xl" centered backdrop="static" keyboard={false} scrollable>
+    <Modal show={show && !isTransactionModalOpen} onHide={onHide} size="xl" centered backdrop="static" keyboard={false} scrollable>
       <Modal.Header closeButton>
         <Modal.Title>
           {categoryName} - {monthName}

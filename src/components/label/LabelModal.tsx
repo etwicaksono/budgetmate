@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Button } from 'react-bootstrap';
+import { Modal, Form, Button, Spinner } from 'react-bootstrap';
 import type { Label } from '@/services/labelService';
 
 interface LabelModalProps {
@@ -187,7 +187,7 @@ export function LabelModal({
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={saving}>
-            {saving ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Add Label'}
+            {saving ? <Spinner as="span" animation="border" size="sm" /> : mode === 'edit' ? 'Save Changes' : 'Add Label'}
           </Button>
         </Modal.Footer>
       </Form>

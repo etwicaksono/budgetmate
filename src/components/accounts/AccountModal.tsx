@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, Form, Button, Row, Col, Alert, InputGroup } from 'react-bootstrap';
+import { Modal, Form, Button, Row, Col, Alert, InputGroup, Spinner } from 'react-bootstrap';
 import { FaWallet, FaUniversity, FaPiggyBank, FaCreditCard, FaMoneyBillWave, FaSearch, FaEllipsisH } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
@@ -401,7 +401,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={loading}>
-            {loading ? 'Saving...' : mode === 'add' ? 'Add Account' : 'Save Changes'}
+            {loading ? <Spinner as="span" animation="border" size="sm" /> : mode === 'add' ? 'Add Account' : 'Save Changes'}
           </Button>
         </Modal.Footer>
       </Form>

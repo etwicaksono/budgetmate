@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useCallback, useRef, useState } from 'react';
-import { Modal, Form, Button, Row, Col } from 'react-bootstrap';
+import { Modal, Form, Button, Row, Col, Spinner } from 'react-bootstrap';
 import { FaArrowRight } from 'react-icons/fa';
 import { AccountSelect } from './AccountSelect';
 import { TransactionCategorySelect } from './TransactionCategorySelect';
@@ -35,6 +35,7 @@ export function TransactionModal({
   const { formData, errors, updateField, validateForm, resetForm, initializeFromTransaction } =
     useTransactionForm();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     categories,
@@ -141,6 +142,7 @@ export function TransactionModal({
           };
 
       try {
+        setIsSubmitting(true);
         await onSave(transactionData);
         setSubmitError(null);
         if (createAnother) {
@@ -151,6 +153,8 @@ export function TransactionModal({
       } catch (err: any) {
         const apiError = err.response?.data?.error?.message || err.response?.data?.message || err.message;
         setSubmitError(apiError || 'Failed to save transaction');
+      } finally {
+        setIsSubmitting(false);
       }
     },
     [formData, transaction, validateForm, onSave, onHide, resetForm, isEditMode, accounts]
@@ -524,21 +528,22 @@ export function TransactionModal({
 
       <Modal.Footer>
         <div className="d-flex gap-2 w-100">
-          <Button variant="success" onClick={() => handleSave(false)} className="flex-grow-1">
-            {isEditMode ? 'Save Changes' : 'Add Transaction'}
+          <Button variant="success" onClick={() => handleSave(false)} disabled={isSubmitting} className="flex-grow-1">
+            {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : (isEditMode ? 'Save Changes' : 'Add Transaction')}
           </Button>
 
           {!isEditMode && (
             <Button
               variant="outline-primary"
               onClick={() => handleSave(true)}
+              disabled={isSubmitting}
               className="flex-grow-1"
             >
-              Add & Create Another
+               {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Add & Create Another'}
             </Button>
           )}
 
-          <Button variant="outline-secondary" onClick={onHide}>
+          <Button variant="outline-secondary" onClick={onHide} disabled={isSubmitting}>
             Cancel
           </Button>
         </div>
