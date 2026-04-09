@@ -77,24 +77,32 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Amount range
+    // Amount range (filtering by absolute value)
     if (filters.min_amount !== undefined || filters.max_amount !== undefined) {
-      where.amount = {};
-      if (filters.min_amount !== undefined) {
-        where.amount.gte = filters.min_amount;
-      }
-      if (filters.max_amount !== undefined) {
-        where.amount.lte = filters.max_amount;
-      }
+      const min = filters.min_amount !== undefined ? Number(filters.min_amount) : 0;
+      const max = filters.max_amount !== undefined ? Number(filters.max_amount) : Number.MAX_SAFE_INTEGER;
+      
+      // We need to match either positive range [min, max] or negative range [-max, -min]
+      where.AND = where.AND || [];
+      (where.AND as any[]).push({
+        OR: [
+          { amount: { gte: min, lte: max } },
+          { amount: { gte: -max, lte: -min } }
+        ]
+      });
     }
 
     // Keyword search in description and payee
     // Support both 'keyword' and 'search' parameters
     const searchTerm = filters.keyword || filters.search;
     if (searchTerm) {
-      where.OR = [
-        { description: { contains: searchTerm, mode: 'insensitive' } },
-        { payee: { contains: searchTerm, mode: 'insensitive' } }
-      ];
+      where.AND = where.AND || [];
+      (where.AND as any[]).push({
+        OR: [
+          { description: { contains: searchTerm, mode: 'insensitive' } },
+          { payee: { contains: searchTerm, mode: 'insensitive' } }
+        ]
+      });
     }
 
     // Label filter
@@ -176,11 +184,44 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       })
     ]);
 
-    // Build totals_by_currency map: { USD: 1500.25, IDR: -50000 }
-    const totals_by_currency: Record<string, number> = {};
+    // Build totals_by_currency: separate income and expense sums, excluding transfers/debts
+    // Raw sum is misleading when transfers are included (transfer_out + transfer_in don't fully cancel
+    // when filtered by amount or type, causing large negative swings)
+    const totals_by_currency: Record<string, { income: number; expense: number; net: number }> = {};
     for (const row of currencyTotals) {
-      totals_by_currency[row.currency] = row._sum.amount?.toNumber() ?? 0;
+      const currency = row.currency;
+      totals_by_currency[currency] = { income: 0, expense: 0, net: 0 };
     }
+
+    // Re-aggregate by type for correct net
+    const typeGrouped = await prisma.transaction.groupBy({
+      by: ['currency', 'type'],
+      where,
+      _sum: { amount: true }
+    });
+
+    for (const row of typeGrouped) {
+      const currency = row.currency;
+      const amount = row._sum.amount?.toNumber() ?? 0;
+      if (!totals_by_currency[currency]) {
+        totals_by_currency[currency] = { income: 0, expense: 0, net: 0 };
+      }
+      if (row.type === 'income') {
+        totals_by_currency[currency]!.income += amount;
+      } else if (row.type === 'expense') {
+        totals_by_currency[currency]!.expense += amount; // already negative
+      }
+      // transfers/debts excluded from net intentionally — they net to zero across accounts
+    }
+
+    // Compute net = income + expense (expense is already negative)
+    for (const currency of Object.keys(totals_by_currency)) {
+      const t = totals_by_currency[currency]!;
+      t.net = t.income + t.expense;
+    }
+
+    console.log("=== API EXECUTING NEW LOGIC ===");
+    console.log("totals_by_currency computed:", totals_by_currency);
 
     // Transform response
     const transformedTransactions = transactions.map(tx => {

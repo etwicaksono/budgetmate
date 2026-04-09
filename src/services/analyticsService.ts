@@ -39,6 +39,8 @@ export interface CashFlow {
 export interface ExpenseByCategory {
   category_id: string;
   category_name: string;
+  parent_id: string | null;
+  parent_name: string | null;
   amount: number;
   percentage: number;
   color: string;

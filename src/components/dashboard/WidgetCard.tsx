@@ -68,83 +68,56 @@ export const SortableWidgetCard: React.FC<SortableWidgetCardProps> = ({
           <Card.Header className="d-flex justify-content-between align-items-center bg-white border-bottom">
             <span className="fw-bold">{widget.title}</span>
             <div className="d-flex gap-2 align-items-center">
-              <FaExpand
-                size={14}
-                className="text-muted"
-                style={{ cursor: 'pointer' }}
-                title="Expand to fullscreen"
-                onClick={handleExpandModal}
-              />
-            {visibility ? (
-              <FaEye
-                size={14}
-                className="text-muted"
-                style={{ cursor: 'pointer' }}
-                title="Hide widget"
-                onClick={() => onToggleVisibility(widgetId)}
-              />
-            ) : (
-              <FaEyeSlash
-                size={14}
-                className="text-muted"
-                style={{ cursor: 'pointer' }}
-                title="Show widget"
-                onClick={() => onToggleVisibility(widgetId)}
-              />
-            )}
-            <div style={{ cursor: 'grab' }} {...attributes} {...listeners}>
-              <FaGripVertical
-                size={14}
-                className="text-muted"
-                title="Drag to reorder"
-              />
+              <span className="d-none d-md-inline-flex">
+                <FaExpand
+                  size={14}
+                  className="text-muted"
+                  style={{ cursor: 'pointer' }}
+                  title="Expand to fullscreen"
+                  onClick={handleExpandModal}
+                />
+              </span>
+              {visibility ? (
+                <FaEye
+                  size={14}
+                  className="text-muted"
+                  style={{ cursor: 'pointer' }}
+                  title="Hide widget"
+                  onClick={() => onToggleVisibility(widgetId)}
+                />
+              ) : (
+                <FaEyeSlash
+                  size={14}
+                  className="text-muted"
+                  style={{ cursor: 'pointer' }}
+                  title="Show widget"
+                  onClick={() => onToggleVisibility(widgetId)}
+                />
+              )}
+              <div style={{ cursor: 'grab' }} {...attributes} {...listeners}>
+                <FaGripVertical size={14} className="text-muted" title="Drag to reorder" />
+              </div>
             </div>
-          </div>
-        </Card.Header>
-        <Card.Body className="p-0" style={{ overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: '100%' }}>
-            {widget.component}
-          </div>
-        </Card.Body>
-      </Card>
-    </Col>
+          </Card.Header>
+          <Card.Body className="p-0" style={{ overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: '100%' }}>
+              {widget.component}
+            </div>
+          </Card.Body>
+        </Card>
+      </Col>
 
       {/* Fullscreen Modal */}
       <Modal
         show={showModal}
         onHide={handleCloseModal}
-        dialogClassName="modal-fullscreen-custom"
+        fullscreen={true}
       >
-        <style>{`
-          .modal-fullscreen-custom {
-            max-width: calc(100vw - 5rem);
-            margin: 2.5rem auto;
-          }
-          .modal-fullscreen-custom .modal-content {
-            height: calc(100vh - 5rem);
-            display: flex;
-            flex-direction: column;
-          }
-          .modal-fullscreen-custom .modal-body {
-            flex: 1;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            padding: 0;
-          }
-          .widget-modal-content {
-            flex: 1;
-            width: 100%;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-          }
-        `}</style>
-        <Modal.Header closeButton className="border-0 pb-0">
+        <Modal.Header closeButton className="border-0 pb-0 shadow-sm z-1">
           <Modal.Title>{widget.title}</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <div className="widget-modal-content">
+        <Modal.Body className="p-0 d-flex flex-column position-relative">
+          <div className="flex-grow-1 w-100" style={{ minHeight: 0 }}>
             {React.isValidElement(widget.component)
               ? React.cloneElement(widget.component as React.ReactElement<{ height?: string }>, {
                   height: '100%',

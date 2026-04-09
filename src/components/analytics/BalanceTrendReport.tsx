@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, ListGroup, Placeholder } from 'react-bootstrap';
+import { useRouter } from 'next/navigation';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import { Icon } from '@/utils/iconResolver';
@@ -73,6 +74,7 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('');
+  const router = useRouter();
   const { formatCurrency } = useFormattedCurrency();
   const { user } = useAuth();
   const defaultCurrency = user?.currency || 'USD';
@@ -252,7 +254,10 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
     return (
       <ListGroup.Item
         key={account.id}
+        action
+        onClick={() => router.push(`/accounts/${account.id}`)}
         className="d-flex justify-content-between align-items-center py-3"
+        style={{ cursor: 'pointer' }}
       >
         <div className="d-flex align-items-center gap-3">
           <div

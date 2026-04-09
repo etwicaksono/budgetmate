@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
 
 /**
  * Format large numbers into abbreviated form
@@ -16,10 +16,10 @@ const formatNumberAbbreviation = (value: number): string => {
   const sign = value < 0 ? '-' : '';
   
   if (absValue >= 1_000_000_000) {
-    return `${sign}${(absValue / 1_000_000_000).toFixed(1)}B`;
+    return `${sign}${(absValue / 1_000_000_000).toFixed(0)}B`;
   }
   if (absValue >= 1_000_000) {
-    return `${sign}${(absValue / 1_000_000).toFixed(1)}M`;
+    return `${sign}${(absValue / 1_000_000).toFixed(0)}M`;
   }
   if (absValue >= 1_000) {
     return `${sign}${(absValue / 1_000).toFixed(0)}k`;
@@ -164,42 +164,58 @@ export const BalanceTrendChart: React.FC<BalanceTrendChartProps> = ({
 
   const chartContent = (
     <ResponsiveContainer width="100%" height={isFlexHeight ? '100%' : chartHeight}>
-      <LineChart 
+      <AreaChart 
         data={data}
-        margin={{ top: 5, right: 10, left: 10, bottom: 25 }}
+        margin={{ top: 5, right: 5, left: -10, bottom: 25 }}
       >
-        {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+        <defs>
+          {displayCurrencyKeys.map((currency) => {
+            const color = currencyColors[currencyKeys.indexOf(currency) % currencyColors.length] || '#2563eb';
+            return (
+              <linearGradient key={currency} id={`gradient-${currency}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={color} stopOpacity={0.25} />
+                <stop offset="95%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+            );
+          })}
+        </defs>
+        {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" vertical={false} />}
         <XAxis 
           dataKey="date"
-          tick={{ fontSize: 12 }}
-          height={60}
-          tickMargin={8}
+          tick={{ fontSize: 11, fill: '#9ca3af' }}
+          height={40}
+          tickMargin={6}
+          axisLine={false}
+          tickLine={false}
         />
         <YAxis 
           tickFormatter={(value) => formatNumberAbbreviation(value)}
-          tick={{ fontSize: 12 }}
-          width={60}
+          tick={{ fontSize: 11, fill: '#9ca3af' }}
+          width={38}
+          axisLine={false}
+          tickLine={false}
         />
         <Tooltip content={<CustomTooltip />} />
         {displayCurrencyKeys.map((currency) => {
           const lineName = isCombinedBalance ? 'Combined' : (currency === 'balance' ? 'Balance' : currency);
-          const lineColor = currencyColors[currencyKeys.indexOf(currency) % currencyColors.length];
+          const lineColor = currencyColors[currencyKeys.indexOf(currency) % currencyColors.length] || '#2563eb';
           
           return (
-            <Line 
+            <Area
               key={currency}
               type="monotone" 
               dataKey={currency}
               name={lineName}
-              stroke={lineColor} 
+              stroke={lineColor}
               strokeWidth={2}
-              dot={{ fill: lineColor, r: 4 }}
-              activeDot={{ r: 6 }}
+              fill={`url(#gradient-${currency})`}
+              dot={false}
+              activeDot={{ r: 5, fill: lineColor }}
               {...(isCombinedBalance && { strokeDasharray: '5 5' })}
             />
           );
         })}
-      </LineChart>
+      </AreaChart>
     </ResponsiveContainer>
   );
 
@@ -248,64 +264,33 @@ export const BalanceTrendChart: React.FC<BalanceTrendChartProps> = ({
         </div>
       )}
 
-      {/* Balance Summary */}
-      <div className="mb-4" style={{ flexShrink: 0 }}>
-        <div className="d-flex align-items-center justify-content-between">
-          <div style={{ flex: 1 }}>
-            <h5 className="mb-1" style={{ fontSize: '14px', color: '#6c757d', fontWeight: 'normal' }}>
+      {/* Balance Summary — inline style like reference app */}
+      <div className="mb-2" style={{ flexShrink: 0 }}>
+        <div className="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+          <div>
+            <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>
               {isMultiCurrency && !isCombinedBalance ? `${selectedCurrency} Balance` : 'Total Balance'}
-            </h5>
+            </div>
             {isMultiCurrency && !isCombinedBalance && selectedCurrencyBalance ? (
-              <h2 className="mb-0" style={{ fontSize: '28px', fontWeight: 'bold', color: '#212529' }}>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
                 {formatCurrency ? formatCurrency(selectedCurrencyBalance.balance, selectedCurrency) : `${selectedCurrency} ${formatValue(selectedCurrencyBalance.balance)}`}
-              </h2>
+              </div>
             ) : currencyBalances && currencyBalances.length > 0 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'baseline' }}>
-                {currencyBalances.map((cb, index) => (
-                  <h2 
-                    key={cb.currency} 
-                    className="mb-0" 
-                    style={{ 
-                      fontSize: index === 0 ? '28px' : '20px', 
-                      fontWeight: 'bold', 
-                      color: index === 0 ? '#212529' : '#6c757d' 
-                    }}
-                  >
-                    {formatCurrency ? formatCurrency(cb.balance, cb.currency) : `${cb.currency} ${formatValue(cb.balance)}`}
-                    {index < currencyBalances.length - 1 && <span style={{ margin: '0 8px', color: '#6c757d' }}>|</span>}
-                  </h2>
-                ))}
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
+                {formatCurrency ? formatCurrency(currencyBalances[0]!.balance, currencyBalances[0]!.currency) : formatValue(calculatedTotalBalance)}
               </div>
             ) : (
-              <h2 className="mb-0" style={{ fontSize: '28px', fontWeight: 'bold', color: '#212529' }}>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
                 {formatValue(calculatedTotalBalance)}
-              </h2>
+              </div>
             )}
           </div>
           {calculatedPercentChange !== 0 && (
-            <div
-              className="d-flex align-items-center"
-              style={{
-                padding: '8px 12px',
-                borderRadius: '8px',
-                backgroundColor: isPositive ? '#d4edda' : '#f8d7da',
-              }}
-            >
-              {isPositive ? (
-                <FaArrowUp size={14} color="#28a745" />
-              ) : (
-                <FaArrowDown size={14} color="#dc3545" />
-              )}
-              <span
-                className="ms-2"
-                style={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  color: isPositive ? '#28a745' : '#dc3545',
-                }}
-              >
-                {Math.abs(calculatedPercentChange)}%
-              </span>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '2px' }}>vs past period</div>
+              <div style={{ fontSize: '15px', fontWeight: 700, color: isPositive ? '#22c55e' : '#ef4444' }}>
+                {isPositive ? '+' : ''}{Math.abs(calculatedPercentChange)}%
+              </div>
             </div>
           )}
         </div>

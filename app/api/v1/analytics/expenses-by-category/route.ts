@@ -16,7 +16,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Parse query parameters
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
-  const limit = parseInt(searchParams.get('limit') || '10', 10);
+  const limit = parseInt(searchParams.get('limit') || '500', 10);
   const currencyFilter = searchParams.get('currency');
 
   try {
@@ -45,6 +45,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             id: true,
             name: true,
             color: true,
+            parent_id: true,
+            parent: {
+              select: {
+                id: true,
+                name: true,
+                color: true,
+              },
+            },
           },
         },
       },
@@ -55,6 +63,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const categoryMap = new Map<string, {
       category_id: string;
       category_name: string;
+      parent_id: string | null;
+      parent_name: string | null;
       amount: number;
       color: string;
       currency: string;
@@ -81,6 +91,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         categoryMap.set(key, {
           category_id: categoryId,
           category_name: transaction.category.name,
+          parent_id: transaction.category.parent_id ?? null,
+          parent_name: transaction.category.parent?.name ?? null,
           amount: amount,
           color: transaction.category.color || '#6c757d',
           currency: currency,

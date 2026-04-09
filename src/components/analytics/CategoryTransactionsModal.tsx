@@ -120,13 +120,13 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
   }, [transactions]);
 
   return (
-    <Modal show={show && !isTransactionModalOpen} onHide={onHide} size="xl" centered backdrop="static" keyboard={false} scrollable>
+    <Modal show={show && !isTransactionModalOpen} onHide={onHide} size="xl" fullscreen="md-down" centered backdrop="static" keyboard={false} scrollable>
       <Modal.Header closeButton>
         <Modal.Title>
           {categoryName} - {monthName}
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body className="p-0 p-md-3">
         {loading && (
           <div>
             {/* Skeleton for 2 date groups */}

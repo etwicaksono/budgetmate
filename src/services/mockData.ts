@@ -76,6 +76,8 @@ export const mockExpensesByCategory: ExpenseByCategory[] = [
   {
     category_id: 'cat-1',
     category_name: 'Food & Dining',
+    parent_id: null,
+    parent_name: null,
     amount: 1057350,
     percentage: 32.5,
     color: '#FF6384',
@@ -84,6 +86,8 @@ export const mockExpensesByCategory: ExpenseByCategory[] = [
   {
     category_id: 'cat-2',
     category_name: 'Shopping',
+    parent_id: null,
+    parent_name: null,
     amount: 2197050,
     percentage: 45.2,
     color: '#36A2EB',
@@ -92,6 +96,8 @@ export const mockExpensesByCategory: ExpenseByCategory[] = [
   {
     category_id: 'cat-3',
     category_name: 'Transportation',
+    parent_id: null,
+    parent_name: null,
     amount: 253000,
     percentage: 12.8,
     color: '#FFCE56',
@@ -100,6 +106,8 @@ export const mockExpensesByCategory: ExpenseByCategory[] = [
   {
     category_id: 'cat-4',
     category_name: 'Entertainment',
+    parent_id: null,
+    parent_name: null,
     amount: 645000,
     percentage: 9.5,
     color: '#4BC0C0',

@@ -90,7 +90,7 @@ export interface TransactionsResponse {
     totalPages?: number;
     hasNext?: boolean;
     hasPrev?: boolean;
-    totals_by_currency?: Record<string, number>;
+    totals_by_currency?: Record<string, { income: number; expense: number; net: number }>;
   };
 }
 

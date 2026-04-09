@@ -65,7 +65,7 @@ function TransactionsContent() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   // Totals for ALL filtered transactions (from meta, not just loaded pages)
-  const [summaryTotals, setSummaryTotals] = useState<Record<string, number>>({});
+  const [summaryTotals, setSummaryTotals] = useState<Record<string, { income: number; expense: number; net: number }>>({});
   const [totalRecords, setTotalRecords] = useState(0);
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
   const [isGlobalSelectAll, setIsGlobalSelectAll] = useState(false);
@@ -686,22 +686,31 @@ function TransactionsContent() {
     if (!hasSelection || isGlobalSelectAll) {
       return summaryTotals;
     }
-    const totals: Record<string, number> = {};
+    // Build income/expense/net from selected visible rows
+    const totals: Record<string, { income: number; expense: number; net: number }> = {};
     sortedTransactions
       .filter(t => selectedTransactionIds.has(t.id))
       .forEach((t) => {
         const currency = t.currency || 'USD';
-        totals[currency] = (totals[currency] || 0) + t.amount;
+        if (!totals[currency]) totals[currency] = { income: 0, expense: 0, net: 0 };
+        const amt = t.amount;
+        if (t.type === 'income' || t.type === 'debt_in') {
+          totals[currency]!.income += amt;
+        } else if (t.type === 'expense' || t.type === 'debt_out') {
+          totals[currency]!.expense += amt; // already negative
+        }
+        totals[currency]!.net = totals[currency]!.income + totals[currency]!.expense;
       });
     return totals;
-  }, [sortedTransactions, selectedTransactionIds, summaryTotals]);
+  }, [sortedTransactions, selectedTransactionIds, summaryTotals, isGlobalSelectAll]);
 
   // Format totals for display
-  const formatNetTotals = useCallback((totalsByCurrency: Record<string, number>) => {
+  const formatNetTotals = useCallback((totalsByCurrency: Record<string, { income: number; expense: number; net: number }>) => {
     return Object.entries(totalsByCurrency)
-      .map(([currency, total]) => {
-        const formatted = formatCurrency(Math.abs(total), currency);
-        const sign = total < 0 ? '-' : total > 0 ? '+' : '';
+      .map(([currency, t]) => {
+        const net = t.net;
+        const formatted = formatCurrency(Math.abs(net), currency);
+        const sign = net > 0 ? '+' : net < 0 ? '-' : '';
         return `${sign}${formatted}`;
       })
       .join(' | ');

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Row, Col, Dropdown, Form, Alert, Nav } from 'react-bootstrap';
 import { FaWallet, FaUniversity, FaPiggyBank, FaPencilAlt } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
@@ -260,12 +261,12 @@ const BudgetStatusWidget: React.FC<BudgetStatusWidgetProps> = ({
   );
 };
 
-// Expenses by Category Widget - handles expanded state
+// Expenses by Category Widget - handles expanded state + drill-down
 interface ExpensesByCategoryWidgetProps {
   expenseCurrencies: string[];
   selectedCurrency: string;
   setSelectedCurrency: (currency: string) => void;
-  filteredExpenseData: PieChartData[];
+  allExpenseCategories: import('@/services/analyticsService').ExpenseByCategory[];
   formatCurrencyValue: (value: number, currency?: string) => string;
   height?: string | number;
 }
@@ -274,26 +275,92 @@ const ExpensesByCategoryWidget: React.FC<ExpensesByCategoryWidgetProps> = ({
   expenseCurrencies,
   selectedCurrency,
   setSelectedCurrency,
-  filteredExpenseData,
+  allExpenseCategories,
   formatCurrencyValue,
   height,
 }) => {
   const isExpanded = height === '100%';
   const hasTabs = expenseCurrencies.length > 1;
+  const [drilledParent, setDrilledParent] = React.useState<{ id: string; name: string } | null>(null);
 
-  // Calculate chart height based on expanded state
-  // Use "100%" for expanded (flex container handles layout), fixed height otherwise
+  // Reset drill when currency changes
+  React.useEffect(() => {
+    setDrilledParent(null);
+  }, [selectedCurrency]);
+
+  // Group filteredExpenseData by parent category
+  const parentGroupedData = React.useMemo((): PieChartData[] => {
+    const rawForCurrency = allExpenseCategories.filter(e => e.currency === selectedCurrency);
+    const parentMap = new Map<string, { name: string; value: number; color: string; id: string }>();
+
+    for (const exp of rawForCurrency) {
+      if (exp.parent_id) {
+        // It's a child — roll up into parent
+        const existing = parentMap.get(exp.parent_id);
+        if (existing) {
+          existing.value += exp.amount;
+        } else {
+          parentMap.set(exp.parent_id, {
+            id: exp.parent_id,
+            name: exp.parent_name ?? exp.category_name,
+            value: exp.amount,
+            color: exp.color,
+          });
+        }
+      } else {
+        // It's a parent (or standalone)
+        const existing = parentMap.get(exp.category_id);
+        if (existing) {
+          existing.value += exp.amount;
+        } else {
+          parentMap.set(exp.category_id, {
+            id: exp.category_id,
+            name: exp.category_name,
+            value: exp.amount,
+            color: exp.color,
+          });
+        }
+      }
+    }
+
+    return Array.from(parentMap.values())
+      .sort((a, b) => b.value - a.value)
+      .map(p => ({ name: p.name, value: p.value, color: p.color, id: p.id }));
+  }, [allExpenseCategories, selectedCurrency]);
+
+  // Children of drilled parent
+  const childrenData = React.useMemo((): PieChartData[] => {
+    if (!drilledParent) return [];
+    // High-contrast palette (same as CategoryPieChart default)
+    const palette = [
+      '#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed',
+      '#0891b2', '#db2777', '#65a30d', '#ea580c', '#0d9488',
+      '#9333ea', '#ca8a04', '#be185d', '#047857', '#1d4ed8',
+    ];
+    const rawForCurrency = allExpenseCategories.filter(e => e.currency === selectedCurrency);
+    return rawForCurrency
+      .filter(e => e.parent_id === drilledParent.id || e.category_id === drilledParent.id)
+      .sort((a, b) => b.amount - a.amount)
+      .map((e, i) => ({ name: e.category_name, value: e.amount, color: palette[i % palette.length] ?? '#6c757d' }));
+  }, [allExpenseCategories, selectedCurrency, drilledParent]);
+
+  const chartData = drilledParent ? childrenData : parentGroupedData;
   const chartHeight = isExpanded ? '100%' : (hasTabs ? 310 : 350);
 
-  // Calculate outer radius based on expanded state
-  const outerRadius = isExpanded ? '35%' : 80;
+  const handleSliceClick = (entry: PieChartData) => {
+    if (drilledParent) return; // already drilled; no deeper
+    const parentId = (entry as PieChartData & { id?: string }).id;
+    if (!parentId) return;
+    const hasChildren = allExpenseCategories.some(
+      e => e.currency === selectedCurrency && e.parent_id === parentId
+    );
+    if (hasChildren) {
+      setDrilledParent({ id: parentId, name: entry.name });
+    }
+  };
 
   return (
-    <div style={{
-      height: isExpanded ? '100%' : 'auto',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
+    <div style={{ height: isExpanded ? '100%' : 'auto', display: 'flex', flexDirection: 'column' }}>
       {/* Currency Tabs */}
       {hasTabs && (
         <Nav variant="pills" className="justify-content-center py-2" style={{ gap: '8px', flexShrink: 0 }}>
@@ -302,12 +369,7 @@ const ExpensesByCategoryWidget: React.FC<ExpensesByCategoryWidgetProps> = ({
               <Nav.Link
                 className={selectedCurrency === currency ? 'active' : ''}
                 onClick={() => setSelectedCurrency(currency)}
-                style={{
-                  cursor: 'pointer',
-                  padding: '4px 12px',
-                  fontSize: '13px',
-                  borderRadius: '16px',
-                }}
+                style={{ cursor: 'pointer', padding: '4px 12px', fontSize: '13px', borderRadius: '16px' }}
               >
                 {currency}
               </Nav.Link>
@@ -315,18 +377,30 @@ const ExpensesByCategoryWidget: React.FC<ExpensesByCategoryWidgetProps> = ({
           ))}
         </Nav>
       )}
-      {/* Pie Chart */}
-      <div style={{
-        flex: isExpanded ? 1 : 'none',
-        minHeight: isExpanded ? 0 : 'auto',
-        height: isExpanded ? '100%' : 'auto',
-      }}>
-        {filteredExpenseData.length > 0 ? (
+
+      {/* Drill breadcrumb & back */}
+      {drilledParent && (
+        <div className="d-flex align-items-center gap-2 px-3 pb-1" style={{ flexShrink: 0 }}>
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            style={{ fontSize: '11px', padding: '2px 8px' }}
+            onClick={() => setDrilledParent(null)}
+          >
+            ← Back
+          </button>
+          <span style={{ fontSize: '12px', color: '#6c757d' }}>{drilledParent.name}</span>
+        </div>
+      )}
+
+      {/* Chart */}
+      <div style={{ flex: isExpanded ? 1 : 'none', minHeight: isExpanded ? 0 : 'auto', height: isExpanded ? '100%' : 'auto' }}>
+        {chartData.length > 0 ? (
           <CategoryPieChart
-            data={filteredExpenseData}
+            data={chartData}
             formatValue={(value) => formatCurrencyValue(value, selectedCurrency)}
             height={chartHeight}
-            outerRadius={outerRadius}
+            centerLabel={drilledParent ? drilledParent.name : 'All'}
+            {...(drilledParent ? {} : { onSliceClick: handleSliceClick })}
           />
         ) : (
           <div className="text-center py-5 text-muted">
@@ -415,6 +489,7 @@ const IncomeVsExpensesWidget: React.FC<IncomeVsExpensesWidgetProps> = ({
 };
 
 function DashboardContent(): React.ReactElement {
+  const router = useRouter();
   const [widgetOrder, setWidgetOrder] = useState<string[]>(() => localStorageService.loadWidgetOrder());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showControlPanel, setShowControlPanel] = useState(false);
@@ -490,9 +565,14 @@ function DashboardContent(): React.ReactElement {
       }
 
       // Convert date-only format to ISO datetime for API
-      // IMPORTANT: Use UTC timezone by appending 'Z' to avoid local timezone interpretation
-      const startDateTime = new Date(startDate + 'T00:00:00Z').toISOString();
-      const endDateTime = new Date(endDate + 'T23:59:59Z').toISOString();
+      // Use local midnight (start of day) to match how the transactions page filters.
+      // Parsing "YYYY-MM-DD" without a time component gives local midnight in the browser's timezone.
+      const startLocal = new Date(startDate);
+      startLocal.setHours(0, 0, 0, 0);
+      const endLocal = new Date(endDate);
+      endLocal.setHours(23, 59, 59, 999);
+      const startDateTime = startLocal.toISOString();
+      const endDateTime = endLocal.toISOString();
 
       console.log('[Dashboard] Date range (UTC):', { startDate, endDate, startDateTime, endDateTime });
 
@@ -716,24 +796,9 @@ function DashboardContent(): React.ReactElement {
     }
   }, [expenseCurrencies, primaryCurrency, selectedCurrency, currencyBalances, incomeExpenseCurrencies]);
 
-  // Transform API data for widgets - filter by selected currency
-  const expenseData: PieChartData[] = useMemo(() => {
-    const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
-    return expenseCategories
-      .filter(cat => cat.currency === selectedCurrency)
-      .map((cat, index) => ({
-        name: cat.category_name,
-        value: Math.abs(cat.amount),
-        color: cat.color || colors[index % colors.length] || '#000',
-      }));
-  }, [expenseCategories, selectedCurrency]);
 
-  // Filter expense data to only show categories with percentage >= 0.5% (rounds to 1% or more)
-  const filteredExpenseData = useMemo(() => {
-    const nonZero = expenseData.filter((item) => item.value > 0);
-    const total = nonZero.reduce((sum, item) => sum + item.value, 0);
-    return total > 0 ? nonZero.filter((item) => (item.value / total) >= 0.005) : [];
-  }, [expenseData]);
+
+
 
   // Transform transactions for widget display
   // Database already stores amounts with correct signs:
@@ -813,7 +878,7 @@ function DashboardContent(): React.ReactElement {
           expenseCurrencies={expenseCurrencies}
           selectedCurrency={selectedCurrency}
           setSelectedCurrency={setSelectedCurrency}
-          filteredExpenseData={filteredExpenseData}
+          allExpenseCategories={expenseCategories}
           formatCurrencyValue={formatCurrencyValue}
         />
       ),
@@ -909,7 +974,7 @@ function DashboardContent(): React.ReactElement {
                       color={account.color}
                       currency={account.currency}
                       icon={getIconComponent(account.icon)}
-                      onClick={() => accountModal.openEditModal(account)}
+                      onClick={() => router.push(`/accounts/${account.id}`)}
                     />
                     <button
                       className="edit-account-btn"

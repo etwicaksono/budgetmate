@@ -1,0 +1,8 @@
+app/(app)/accounts/[id]/page.tsx(3,8): error TS6133: 'React' is declared but its value is never read.
+app/(app)/accounts/[id]/page.tsx(6,25): error TS6133: 'FaTrash' is declared but its value is never read.
+app/(app)/accounts/[id]/page.tsx(6,34): error TS6133: 'FaEdit' is declared but its value is never read.
+app/(app)/accounts/[id]/page.tsx(107,9): error TS2322: Type 'BalanceDataPoint[]' is not assignable to type 'TrendChartData[]'.
+  Type 'BalanceDataPoint' is not assignable to type 'TrendChartData'.
+    Index signature for type 'string' is missing in type 'BalanceDataPoint'.
+app/(app)/accounts/[id]/page.tsx(345,35): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].
+app/(app)/accounts/[id]/page.tsx(345,60): error TS4111: Property 'id' comes from an index signature, so it must be accessed with ['id'].

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Container, Row, Col, Card, Button, Form } from 'react-bootstrap';
 import { FaPlus, FaBars, FaFolderOpen } from 'react-icons/fa';
 import {
@@ -172,6 +173,7 @@ const AccountsPage: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { formatCurrency } = useFormattedCurrency();
+  const router = useRouter();
 
   // Account Modal hook (DRY principle)
   const accountModal = useAccountModal(async () => {
@@ -328,7 +330,7 @@ const AccountsPage: React.FC = () => {
 
   // Handle account selection
   const handleSelectAccount = (account: Account): void => {
-    accountModal.openEditModal(account);
+    router.push(`/accounts/${account.id}`);
   };
 
   // Separate active and archived accounts
