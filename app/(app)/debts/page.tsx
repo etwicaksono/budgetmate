@@ -131,7 +131,7 @@ function DebtSortDropdown({ sortBy, sortOrder, onSortChange }: DebtSortDropdownP
 
 export default function DebtsPage() {
   // Shared filters
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>(DEBT_STATUSES.ACTIVE);
   const [counterpartyFilter, setCounterpartyFilter] = useState('');
 
   // Sorting
@@ -174,12 +174,12 @@ export default function DebtsPage() {
     fetchSummary();
   }, [fetchSummary]);
 
-  const hasActiveFilter = statusFilter !== '' || counterpartyFilter !== '';
+  const hasActiveFilter = statusFilter !== DEBT_STATUSES.ACTIVE || counterpartyFilter !== '';
 
   // Render Filter Form
   const handleResetFilters = () => {
     setCounterpartyFilter('');
-    setStatusFilter('');
+    setStatusFilter(DEBT_STATUSES.ACTIVE);
     setSortBy('date');
     setSortOrder('desc');
   };

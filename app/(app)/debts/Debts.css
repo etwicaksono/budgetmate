@@ -161,19 +161,19 @@
   overflow: hidden;
 }
 
-/* Desktop: vertical stacked overlay, revealed on hover */
+/* Desktop: horizontal stacked overlay, revealed on hover */
 .debt-card-actions {
   position: absolute;
   right: 0;
-  top: 0;
+  left: 0;
   bottom: 0;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
-  gap: 2px;
-  padding: 0.25rem 0.5rem 0.25rem 2rem;
-  background: linear-gradient(to right, transparent, #fff 25%);
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(to top, #f8f9fa 75%, transparent);
   opacity: 0;
   transition: opacity 0.18s ease;
   pointer-events: none;
@@ -185,38 +185,39 @@
   pointer-events: auto;
 }
 
-/* Each action button: slide in from right, staggered */
+/* Each action button: slide in from bottom, staggered */
 .debt-action-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
-  border: none;
-  background: transparent;
+  padding: 5px 12px;
+  border: 1px solid #dee2e6;
+  background: #fff;
   border-radius: 6px;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   opacity: 0;
-  transform: translateX(20px);
-  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease;
+  transform: translateY(10px);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .debt-action-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: #f1f3f5;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 /* Staggered entry on card hover */
 .debt-item:hover .debt-action-btn {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateY(0);
 }
 
 .debt-item:hover .debt-action-btn:nth-child(1) { transition-delay: 0ms; }
-.debt-item:hover .debt-action-btn:nth-child(2) { transition-delay: 55ms; }
-.debt-item:hover .debt-action-btn:nth-child(3) { transition-delay: 110ms; }
-.debt-item:hover .debt-action-btn:nth-child(4) { transition-delay: 165ms; }
+.debt-item:hover .debt-action-btn:nth-child(2) { transition-delay: 45ms; }
+.debt-item:hover .debt-action-btn:nth-child(3) { transition-delay: 90ms; }
+.debt-item:hover .debt-action-btn:nth-child(4) { transition-delay: 135ms; }
 
 /* Mobile: 3-dots button inline at the far right */
 .debt-card-mobile-menu {

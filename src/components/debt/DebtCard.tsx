@@ -110,7 +110,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
         <Col xs={12} md={6} className="text-md-end text-start">
           <div className={`fw-bold ${isLend ? 'text-danger' : 'text-success'}`}>
             <NumericFormat
-              value={totalAmount}
+              value={remainingAmount}
               displayType={'text'}
               thousandSeparator={true}
               prefix={getCurrencyPrefix(debt.account?.currency)}
@@ -119,13 +119,13 @@ export const DebtCard: React.FC<DebtCardProps> = ({
           </div>
           {isActive && (
             <div className="small text-muted">
-               <NumericFormat
-                value={remainingAmount}
+               {progressPercent}% of <NumericFormat
+                value={totalAmount}
                 displayType={'text'}
                 thousandSeparator={true}
                 prefix={getCurrencyPrefix(debt.account?.currency)}
                 decimalScale={2}
-              /> remaining
+              /> repaid
             </div>
           )}
         </Col>
@@ -159,18 +159,11 @@ export const DebtCard: React.FC<DebtCardProps> = ({
          
          <Col xs={12} md={6} className="mt-2 mt-md-0 d-flex flex-column justify-content-center">
             {isActive ? (
-               <div className="d-flex align-items-center gap-2">
-                 <div className="flex-grow-1">
-                   <ProgressBar 
-                     variant={isLend ? "danger" : "success"} 
-                     now={progressPercent} 
-                     className="debt-progress"
-                   />
-                 </div>
-                 <span className="small text-muted" style={{ width: '70px', textAlign: 'right' }}>
-                   {progressPercent}% repaid
-                 </span>
-               </div>
+               <ProgressBar 
+                 variant={isLend ? "danger" : "success"} 
+                 now={progressPercent} 
+                 className="debt-progress w-100"
+               />
             ) : (
                <div className="text-md-end">
                   <Badge bg={isSettled ? "secondary" : "dark"}>
