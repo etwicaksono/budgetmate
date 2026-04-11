@@ -57,7 +57,9 @@ export const TransactionFilterSchema = z.object({
   currencies: z.string().optional(), // comma-separated currency codes (e.g., 'USD,IDR')
   sort: z.string().optional(), // for frontend sort options like 'timeDesc', 'amountAsc'
   sort_by: z.enum(['date', 'amount', 'created_at']).default('date'),
-  sort_order: z.enum(['asc', 'desc']).default('desc')
+  sort_order: z.enum(['asc', 'desc']).default('desc'),
+  transfer_option: z.enum(['include', 'only', 'exclude']).optional(),
+  debt_option: z.enum(['include', 'only', 'exclude']).optional()
 });
 
 export type TransactionFilterInput = z.infer<typeof TransactionFilterSchema>;

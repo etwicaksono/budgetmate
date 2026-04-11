@@ -84,6 +84,27 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
           if (mappedType) {
             whereClause.type = mappedType as any;
           }
+        } else {
+          const includeTypes: string[] = [];
+          const excludeTypes: string[] = [];
+
+          if (filters.transfer_option === 'only') {
+            includeTypes.push('transfer', 'transfer_in', 'transfer_out');
+          } else if (filters.transfer_option === 'exclude') {
+            excludeTypes.push('transfer', 'transfer_in', 'transfer_out');
+          }
+
+          if (filters.debt_option === 'only') {
+            includeTypes.push('debt_in', 'debt_out');
+          } else if (filters.debt_option === 'exclude') {
+            excludeTypes.push('debt_in', 'debt_out');
+          }
+
+          if (includeTypes.length > 0) {
+            whereClause.type = { in: includeTypes as any[] };
+          } else if (excludeTypes.length > 0) {
+            whereClause.type = { notIn: excludeTypes as any[] };
+          }
         }
 
         if (filters.label_ids) {

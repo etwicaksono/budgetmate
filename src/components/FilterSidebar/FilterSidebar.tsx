@@ -1,19 +1,25 @@
 import React, { createElement, useState, useMemo } from 'react';
 import Swal from 'sweetalert2';
 import type { ComponentType } from 'react';
-import { Card, Button, Form, InputGroup, Dropdown, Modal } from 'react-bootstrap';
+import { Card, Button, Form, InputGroup, Dropdown, Modal, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import {
   FaSearch,
   FaTags,
   FaWallet,
   FaPlus,
   FaCheck,
+  FaFilter,
   FaSortAmountUp,
   FaSortAmountDown,
   FaSortAmountUpAlt,
   FaSortAmountDownAlt,
   FaMoneyBillWave,
   FaGripVertical,
+  FaSave,
+  FaBookmark,
+  FaExchangeAlt,
+  FaHandHoldingUsd,
+  FaInfoCircle,
 } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
 import type { IconType, IconBaseProps } from 'react-icons';
@@ -209,6 +215,10 @@ interface FilterSidebarProps {
   onSearchTermChange?: (value: string) => void;
   sortOption?: SortValue;
   onSortOptionChange?: React.Dispatch<React.SetStateAction<SortValue>>;
+  transferOption?: import('@/hooks/useFilterData').TransferOption;
+  onTransferOptionChange?: React.Dispatch<React.SetStateAction<import('@/hooks/useFilterData').TransferOption>>;
+  debtOption?: import('@/hooks/useFilterData').DebtOption;
+  onDebtOptionChange?: React.Dispatch<React.SetStateAction<import('@/hooks/useFilterData').DebtOption>>;
   selectedCategories?: string[];
   onSelectedCategoriesChange?: React.Dispatch<React.SetStateAction<string[]>>;
   categoryTree?: Record<string, string[]>;
@@ -239,6 +249,7 @@ interface FilterSidebarProps {
   activeFilterId?: string | null;
   savedFiltersLoading?: boolean;
   onSaveFilter?: (name: string) => Promise<{ success: boolean; duplicateName?: boolean }>;
+  onUpdateFilter?: (id: string, name: string) => Promise<{ success: boolean; duplicateName?: boolean }>;
   onLoadFilter?: (filter: import('@/services/savedFilterService').SavedFilter) => void;
   onDeleteFilter?: (id: string) => void;
   onRenameFilter?: (id: string, name: string) => Promise<{ success: boolean; duplicateName?: boolean }>;
@@ -249,6 +260,8 @@ interface FilterSidebarProps {
 const noop = () => { };
 const noopDispatch: React.Dispatch<React.SetStateAction<string[]>> = () => { };
 const noopSortDispatch: React.Dispatch<React.SetStateAction<SortValue>> = () => { };
+const noopTransferDispatch: React.Dispatch<React.SetStateAction<import('@/hooks/useFilterData').TransferOption>> = () => { };
+const noopDebtDispatch: React.Dispatch<React.SetStateAction<import('@/hooks/useFilterData').DebtOption>> = () => { };
 const noopFilterVisibilityDispatch: React.Dispatch<React.SetStateAction<FilterVisibility>> =
   () => { };
 
@@ -262,12 +275,18 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
     labels: true,
     amountRange: true,
     currencies: true,
+    transfers: true,
+    debts: true,
   },
   onFilterVisibilityChange = noopFilterVisibilityDispatch,
   searchTerm = '',
   onSearchTermChange = noop,
   sortOption = 'timeDesc',
   onSortOptionChange = noopSortDispatch,
+  transferOption = 'include',
+  onTransferOptionChange = noopTransferDispatch,
+  debtOption = 'include',
+  onDebtOptionChange = noopDebtDispatch,
   selectedCategories = [],
   onSelectedCategoriesChange = noopDispatch,
   categoryTree = {},
@@ -296,6 +315,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   activeFilterId = null,
   savedFiltersLoading = false,
   onSaveFilter = async () => ({ success: false, duplicateName: false } as { success: boolean; duplicateName?: boolean }),
+  onUpdateFilter,
   onLoadFilter = noop,
   onDeleteFilter = noop,
   onRenameFilter = async (): Promise<{ success: boolean; duplicateName?: boolean }> => ({ success: false, duplicateName: false }),
@@ -304,16 +324,75 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
 }) => {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showSavedFilters, setShowSavedFilters] = useState(false);
-  const [saveInputVisible, setSaveInputVisible] = useState(false);
-  const [saveInputValue, setSaveInputValue] = useState('');
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [showManageModal, setShowManageModal] = useState(false);
   // { id: string, value: string } | null
   const [renameState, setRenameState] = useState<{ id: string; value: string } | null>(null);
 
+  // Save button & modals
+  const [showSaveDropdown, setShowSaveDropdown] = useState(false);
+  const [showSaveAsNewModal, setShowSaveAsNewModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [saveModalName, setSaveModalName] = useState('');
+  const [saveModalError, setSaveModalError] = useState<string | null>(null);
+  const [saveModalLoading, setSaveModalLoading] = useState(false);
+
+  // Snapshot of filter state at the moment a saved filter is loaded — used to detect changes
+  type FilterSnapshot = {
+    selectedCategories: string[];
+    selectedAccounts: string[];
+    selectedLabelIds: string[];
+    selectedCurrencies: string[];
+    sortOption: SortValue;
+    transferOption: import('@/hooks/useFilterData').TransferOption;
+    debtOption: import('@/hooks/useFilterData').DebtOption;
+  };
+  const [loadedSnapshot, setLoadedSnapshot] = useState<FilterSnapshot | null>(null);
+
+  // Capture snapshot whenever a filter is loaded
+  const handleLoadFilter = (filter: import('@/services/savedFilterService').SavedFilter) => {
+    onLoadFilter(filter);
+    // Snapshot will lag one render behind; capture props-at-load
+    setLoadedSnapshot({
+      selectedCategories: filter.filters.selectedCategoryIds ?? [],
+      selectedAccounts: filter.filters.selectedAccountIds ?? [],
+      selectedLabelIds: filter.filters.selectedLabelIds ?? [],
+      selectedCurrencies: filter.filters.selectedCurrencies ?? [],
+      sortOption: (filter.filters.sortOption as SortValue) ?? 'timeDesc',
+      transferOption: (filter.filters.transferOption as import('@/hooks/useFilterData').TransferOption) ?? 'include',
+      debtOption: (filter.filters.debtOption as import('@/hooks/useFilterData').DebtOption) ?? 'include',
+    });
+  };
+
+  // Detect whether the current filter state has drifted from the loaded snapshot
+  const hasFilterChanged = useMemo(() => {
+    if (!activeFilterId || !loadedSnapshot) return false;
+    const arrEq = (a: string[], b: string[]) =>
+      a.length === b.length && [...a].sort().every((v, i) => v === [...b].sort()[i]);
+    return (
+      !arrEq(selectedCategories, loadedSnapshot.selectedCategories) ||
+      !arrEq(selectedAccounts, loadedSnapshot.selectedAccounts) ||
+      !arrEq(selectedLabelIds, loadedSnapshot.selectedLabelIds) ||
+      !arrEq(selectedCurrencies, loadedSnapshot.selectedCurrencies) ||
+      sortOption !== loadedSnapshot.sortOption ||
+      transferOption !== loadedSnapshot.transferOption ||
+      debtOption !== loadedSnapshot.debtOption
+    );
+  }, [
+    activeFilterId, loadedSnapshot,
+    selectedCategories, selectedAccounts, selectedLabelIds, selectedCurrencies, sortOption, transferOption, debtOption,
+  ]);
+
+  const saveButtonEnabled = true;
+  const canUpdateFilter = !!activeFilterId && hasFilterChanged;
+  const activeFilterName = activeFilterId
+    ? (savedFilters.find((f) => f.id === activeFilterId)?.name ?? '')
+    : '';
+
   const handleResetFilters = () => {
     onSearchTermChange('');
     onSortOptionChange('timeDesc' as SortValue);
+    onTransferOptionChange('include');
+    onDebtOptionChange('include');
     onSelectedCategoriesChange([]);
     onSelectedAccountsChange([]);
     onSelectedLabelIdsChange([]);
@@ -323,6 +402,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   };
 
   return (
+    <>
     <Card className="desktop-filter-sidebar shadow-sm border-0">
       <Card.Header className="d-flex align-items-center justify-content-between bg-white border-bottom">
         <span className="h4 mb-0 fw-bold">{title}</span>
@@ -466,6 +546,34 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   style={{ marginBottom: '10px', fontSize: '14px' }}
                   className="custom-widget-checkbox"
                 />
+                <Form.Check
+                  type="checkbox"
+                  id="filter-transfers"
+                  label="Transfers"
+                  checked={filterVisibility.transfers ?? true}
+                  onChange={() => {
+                    onFilterVisibilityChange((prev) => ({
+                      ...prev,
+                      transfers: !(prev.transfers ?? true),
+                    }));
+                  }}
+                  style={{ marginBottom: '10px', fontSize: '14px' }}
+                  className="custom-widget-checkbox"
+                />
+                <Form.Check
+                  type="checkbox"
+                  id="filter-debts"
+                  label="Debts"
+                  checked={filterVisibility.debts ?? true}
+                  onChange={() => {
+                    onFilterVisibilityChange((prev) => ({
+                      ...prev,
+                      debts: !(prev.debts ?? true),
+                    }));
+                  }}
+                  style={{ marginBottom: '10px', fontSize: '14px' }}
+                  className="custom-widget-checkbox"
+                />
               </div>
             </Dropdown.Menu>
           </Dropdown>
@@ -502,187 +610,218 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
       </Card.Header>
 
       <Card.Body className="overflow-auto pb-2" style={{ flex: '1 1 auto' }}>
-        {/* Saved Filters Dropdown */}
+        {/* Saved Filters — filter selector + save button row */}
         <div className="mb-3">
-          <Form.Label className="fw-semibold text-muted small">Saved Filters</Form.Label>
-          <Dropdown
-            show={showSavedFilters}
-            onToggle={(isOpen: boolean | null) => {
-              setShowSavedFilters(isOpen ?? false);
-              if (!isOpen) {
-                setSaveInputVisible(false);
-                setSaveInputValue('');
+          <Form.Label className="fw-semibold text-muted small d-flex align-items-center gap-1">
+            My filter
+            <OverlayTrigger
+              placement="top"
+              overlay={
+                <Tooltip id="my-filter-tooltip">
+                  My filters can be saved and reused later.
+                </Tooltip>
               }
-            }}
-            className="w-100"
-          >
-            <Dropdown.Toggle
-              variant="outline-secondary"
-              className="w-100 d-flex align-items-center justify-content-between"
-              style={{ textAlign: 'left', fontSize: '14px' }}
             >
-              <span className="d-flex align-items-center gap-2 text-truncate">
-                <span>🔖</span>
-                <span className="text-truncate">
-                  {activeFilterId
-                    ? (savedFilters.find((f) => f.id === activeFilterId)?.name ?? 'Saved Filters')
-                    : 'Saved Filters'}
-                </span>
+              <span style={{ cursor: 'default', lineHeight: 1 }}>
+                {renderIcon(FaInfoCircle, { size: 12, color: '#9ca3af' })}
               </span>
-            </Dropdown.Toggle>
+            </OverlayTrigger>
+          </Form.Label>
+          <div className="d-flex align-items-stretch gap-2">
+            {/* Filter selector dropdown */}
+            <Dropdown
+              show={showSavedFilters}
+              onToggle={(isOpen: boolean | null) => {
+                setShowSavedFilters(isOpen ?? false);
+              }}
+              className="flex-grow-1"
+            >
+              <Dropdown.Toggle
+                variant="outline-secondary"
+                className="w-100 d-flex align-items-center justify-content-between filter-selector-toggle filter-selector-no-caret position-relative"
+                style={{
+                  textAlign: 'left',
+                  fontSize: '14px',
+                  borderColor: activeFilterId ? '#198754' : undefined,
+                  color: activeFilterId ? '#198754' : undefined,
+                  paddingRight: activeFilterId ? '2rem' : undefined,
+                }}
+              >
+                <span className="d-flex align-items-center gap-2 text-truncate">
+                  {renderIcon(FaFilter, { size: 14, color: activeFilterId ? '#198754' : '#6b7280' })}
+                  <span className="text-truncate">
+                    {activeFilterId
+                      ? (savedFilters.find((f) => f.id === activeFilterId)?.name ?? 'Select filter')
+                      : 'Select filter'}
+                  </span>
+                </span>
+                {activeFilterId && (
+                  <span
+                    className="position-absolute end-0 top-50 translate-middle-y me-1"
+                    style={{ zIndex: 5 }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ClearButton
+                      onClick={() => {
+                        handleResetFilters();
+                        onClearActiveFilter();
+                        setLoadedSnapshot(null);
+                      }}
+                    />
+                  </span>
+                )}
+              </Dropdown.Toggle>
 
-            <Dropdown.Menu className="w-100 p-2" style={{ minWidth: '220px' }}>
-              {savedFiltersLoading ? (
-                <div className="text-center text-muted small py-2">Loading…</div>
-              ) : savedFilters.length === 0 && !saveInputVisible ? (
-                <div className="text-center text-muted small py-2">No saved filters yet</div>
-              ) : (
-                savedFilters.map((filter) => {
-                  const isActive = filter.id === activeFilterId;
-                  return (
-                    <div
-                      key={filter.id}
-                      className={`d-flex align-items-center gap-1 px-2 py-1 rounded mb-1 ${isActive ? 'bg-primary bg-opacity-10' : ''
+              <Dropdown.Menu className="w-100 p-2" style={{ minWidth: '220px' }}>
+                {savedFiltersLoading ? (
+                  <div className="text-center text-muted small py-2">Loading…</div>
+                ) : savedFilters.length === 0 ? (
+                  <div className="text-center text-muted small py-2">No saved filters yet</div>
+                ) : (
+                  savedFilters.map((filter) => {
+                    const isActive = filter.id === activeFilterId;
+                    return (
+                      <div
+                        key={filter.id}
+                        className={`d-flex align-items-center gap-1 px-2 py-1 rounded mb-1 ${
+                          isActive ? 'bg-success bg-opacity-10' : ''
                         }`}
-                    >
-                      {/* Active check */}
-                      <span
-                        style={{ width: '16px', flexShrink: 0, color: '#0d6efd', fontSize: '12px' }}
-                      >
-                        {isActive ? '✓' : ''}
-                      </span>
-
-                      {/* Filter name */}
-                      <span
-                        className="flex-grow-1 text-truncate"
-                        style={{ fontSize: '14px', cursor: 'pointer' }}
+                        style={{ cursor: 'pointer' }}
                         onClick={() => {
                           if (isActive) {
                             handleResetFilters();
                             onClearActiveFilter();
+                            setLoadedSnapshot(null);
                           } else {
-                            onLoadFilter(filter);
+                            handleLoadFilter(filter);
                           }
                           setShowSavedFilters(false);
                         }}
                       >
-                        {filter.name}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
+                        {/* Active check */}
+                        <span style={{ width: '16px', flexShrink: 0, color: '#198754', fontSize: '12px' }}>
+                          {isActive ? '✓' : ''}
+                        </span>
+                        {/* Filter name */}
+                        <span className="flex-grow-1 text-truncate" style={{ fontSize: '14px' }}>
+                          {filter.name}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
 
-              <Dropdown.Divider />
-
-              {saveInputVisible ? (
-                <div className="px-2 pb-1">
-                  <Form.Control
-                    autoFocus
-                    size="sm"
-                    type="text"
-                    placeholder="Filter name…"
-                    value={saveInputValue}
-                    isInvalid={!!saveError}
-                    onChange={(e) => {
-                      setSaveInputValue(e.target.value);
-                      setSaveError(null);
-                    }}
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Enter' && saveInputValue.trim()) {
-                        const result = await onSaveFilter(saveInputValue.trim());
-                        if (result?.duplicateName) {
-                          setSaveError(`"${saveInputValue.trim()}" already exists`);
-                        } else {
-                          setSaveInputVisible(false);
-                          setSaveInputValue('');
-                          setSaveError(null);
-                          setShowSavedFilters(false);
-                        }
-                      }
-                      if (e.key === 'Escape') {
-                        setSaveInputVisible(false);
-                        setSaveInputValue('');
-                        setSaveError(null);
-                      }
-                    }}
-                    className="mb-1"
-                  />
-                  {saveError && (
-                    <div style={{ fontSize: '12px', color: '#dc3545', marginBottom: '8px' }}>
-                      {saveError}
-                    </div>
-                  )}
-                  <div className="d-flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      className="flex-grow-1"
-                      disabled={!saveInputValue.trim()}
-                      onClick={async () => {
-                        if (saveInputValue.trim()) {
-                          const result = await onSaveFilter(saveInputValue.trim());
-                          if (result?.duplicateName) {
-                            setSaveError(`"${saveInputValue.trim()}" already exists`);
-                          } else {
-                            setSaveInputVisible(false);
-                            setSaveInputValue('');
-                            setSaveError(null);
-                            setShowSavedFilters(false);
-                          }
-                        }
+                {savedFilters.length > 0 && (
+                  <>
+                    <Dropdown.Divider />
+                    <Dropdown.Item
+                      as="button"
+                      type="button"
+                      className="d-flex align-items-center gap-2 text-muted"
+                      style={{ fontSize: '14px' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowSavedFilters(false);
+                        setShowManageModal(true);
                       }}
                     >
-                      Save
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline-secondary"
-                      onClick={() => {
-                        setSaveInputVisible(false);
-                        setSaveInputValue('');
-                        setSaveError(null);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
+                      {renderIcon(RiListSettingsLine, { size: 14 })}
+                      Manage filters
+                    </Dropdown.Item>
+                  </>
+                )}
+              </Dropdown.Menu>
+            </Dropdown>
+
+            {/* Save button with dropdown */}
+            <Dropdown
+              show={showSaveDropdown}
+              onToggle={(isOpen: boolean | null) => {
+                if (saveButtonEnabled) setShowSaveDropdown(isOpen ?? false);
+              }}
+              drop="down"
+              align="end"
+            >
+              <Dropdown.Toggle
+                as="button"
+                id="saved-filter-save-btn"
+                disabled={!saveButtonEnabled}
+                title="Save filter"
+                aria-label="Save filter"
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  flexShrink: 0,
+                  borderRadius: '8px',
+                  border: `1px solid ${saveButtonEnabled ? '#198754' : '#dee2e6'}`,
+                  backgroundColor: saveButtonEnabled ? '#198754' : '#f8f9fa',
+                  color: saveButtonEnabled ? '#fff' : '#adb5bd',
+                  cursor: saveButtonEnabled ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                  padding: 0,
+                }}
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                  e.preventDefault();
+                  if (saveButtonEnabled) setShowSaveDropdown((v) => !v);
+                }}
+              >
+                {renderIcon(FaSave, { size: 16 })}
+              </Dropdown.Toggle>
+
+              <Dropdown.Menu
+                align="end"
+                style={{
+                  minWidth: '200px',
+                  borderRadius: '10px',
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+                  border: '1px solid #e5e7eb',
+                  padding: '6px',
+                  marginTop: '4px',
+                }}
+              >
+                {/* Save as new */}
                 <Dropdown.Item
                   as="button"
                   type="button"
-                  className="d-flex align-items-center gap-2"
-                  style={{ fontSize: '14px' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSaveInputVisible(true);
+                  className="d-flex align-items-center gap-2 save-action-item"
+                  style={{ fontSize: '14px', borderRadius: '6px', padding: '8px 10px' }}
+                  onClick={() => {
+                    setShowSaveDropdown(false);
+                    setSaveModalName('');
+                    setSaveModalError(null);
+                    setShowSaveAsNewModal(true);
                   }}
                 >
-                  <span style={{ fontSize: '16px' }}>+</span>
-                  Save current filters
+                  {renderIcon(FaSave, { size: 14 })}
+                  Save as new
                 </Dropdown.Item>
-              )}
-              {savedFilters.length > 0 && !saveInputVisible && (
-                <>
-                  <Dropdown.Divider />
+
+                {/* Update existing — only when a filter is active and has changes */}
+                {canUpdateFilter && (
                   <Dropdown.Item
                     as="button"
                     type="button"
-                    className="d-flex align-items-center gap-2 text-muted"
-                    style={{ fontSize: '14px' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowSavedFilters(false);
-                      setShowManageModal(true);
+                    className="d-flex align-items-center gap-2 save-action-item save-action-item--update"
+                    style={{ fontSize: '14px', borderRadius: '6px', padding: '8px 10px' }}
+                    onClick={() => {
+                      setShowSaveDropdown(false);
+                      setSaveModalName(activeFilterName);
+                      setSaveModalError(null);
+                      setShowUpdateModal(true);
                     }}
                   >
-                    <span>⚙️</span> Manage filters
+                    {renderIcon(FaBookmark, { size: 14 })}
+                    <span style={{ fontWeight: 500 }}>
+                      Update {activeFilterName}
+                    </span>
                   </Dropdown.Item>
-                </>
-              )}
-            </Dropdown.Menu>
-          </Dropdown>
+                )}
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
         </div>
 
         <Form>
@@ -854,8 +993,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
           )}
 
           {filterVisibility.amountRange && (
-            <Form.Group className="mb-2" controlId="amountFilter">
-              <Form.Label className="fw-semibold text-muted small">Amount Range</Form.Label>
+            <Form.Group className="mb-4" controlId="amountFilter">
               <AmountRangeFilter
                 minAmount={minAmount}
                 maxAmount={maxAmount}
@@ -867,6 +1005,112 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                 step={100000}
                 controlId="amountFilterInner"
               />
+            </Form.Group>
+          )}
+
+          {filterVisibility.transfers && (
+            <Form.Group className="mb-2" controlId="transferFilter">
+              <Form.Label className="fw-semibold text-muted small">Transfers</Form.Label>
+              <Dropdown>
+                <Dropdown.Toggle
+                  variant="outline-secondary"
+                  className="w-100 d-flex align-items-center justify-content-between"
+                  style={{ textAlign: 'left' }}
+                >
+                  <span className="d-flex align-items-center gap-2">
+                    {renderIcon(FaExchangeAlt, { size: 14 })}
+                    <span className="d-inline-flex align-items-center gap-1">
+                      {transferOption === 'include'
+                        ? 'Include transfers'
+                        : transferOption === 'only'
+                          ? 'Only transfers'
+                          : 'Exclude transfers'}
+                    </span>
+                  </span>
+                </Dropdown.Toggle>
+                <Dropdown.Menu className="w-100 p-1">
+                  {[
+                    { label: 'Include transfers', value: 'include' },
+                    { label: 'Only transfers', value: 'only' },
+                    { label: 'Exclude transfers', value: 'exclude' },
+                  ].map((option) => {
+                    const isSelected = transferOption === option.value;
+                    return (
+                      <Dropdown.Item
+                        key={option.value}
+                        as="button"
+                        type="button"
+                        className={`d-flex align-items-center gap-2 w-100 bg-white ${
+                          isSelected ? 'selected' : ''
+                        }`}
+                        style={isSelected ? { backgroundColor: '#e9ecef' } : {}}
+                        onClick={() => onTransferOptionChange(option.value as import('@/hooks/useFilterData').TransferOption)}
+                      >
+                        {isSelected && (
+                          <span className="d-inline-flex justify-content-center" style={{ width: '1.25rem' }}>
+                            {renderIcon(FaCheck, { className: 'text-success' })}
+                          </span>
+                        )}
+                        {!isSelected && <span style={{ width: '1.25rem' }}></span>}
+                        <span className="flex-grow-1 text-start">{option.label}</span>
+                      </Dropdown.Item>
+                    );
+                  })}
+                </Dropdown.Menu>
+              </Dropdown>
+            </Form.Group>
+          )}
+
+          {filterVisibility.debts && (
+            <Form.Group className="mb-2" controlId="debtFilter">
+              <Form.Label className="fw-semibold text-muted small">Debts</Form.Label>
+              <Dropdown>
+                <Dropdown.Toggle
+                  variant="outline-secondary"
+                  className="w-100 d-flex align-items-center justify-content-between"
+                  style={{ textAlign: 'left' }}
+                >
+                  <span className="d-flex align-items-center gap-2">
+                    {renderIcon(FaHandHoldingUsd, { size: 14 })}
+                    <span className="d-inline-flex align-items-center gap-1">
+                      {debtOption === 'include'
+                        ? 'Include debts'
+                        : debtOption === 'only'
+                          ? 'Only debts'
+                          : 'Exclude debts'}
+                    </span>
+                  </span>
+                </Dropdown.Toggle>
+                <Dropdown.Menu className="w-100 p-1">
+                  {[
+                    { label: 'Include debts', value: 'include' },
+                    { label: 'Only debts', value: 'only' },
+                    { label: 'Exclude debts', value: 'exclude' },
+                  ].map((option) => {
+                    const isSelected = debtOption === option.value;
+                    return (
+                      <Dropdown.Item
+                        key={option.value}
+                        as="button"
+                        type="button"
+                        className={`d-flex align-items-center gap-2 w-100 bg-white ${
+                          isSelected ? 'selected' : ''
+                        }`}
+                        style={isSelected ? { backgroundColor: '#e9ecef' } : {}}
+                        onClick={() => onDebtOptionChange(option.value as import('@/hooks/useFilterData').DebtOption)}
+                      >
+                        {isSelected && (
+                          <span className="d-inline-flex justify-content-center" style={{ width: '1.25rem' }}>
+                            {renderIcon(FaCheck, { className: 'text-success' })}
+                          </span>
+                        )}
+                        {!isSelected && <span style={{ width: '1.25rem' }}></span>}
+                        <span className="flex-grow-1 text-start">{option.label}</span>
+                      </Dropdown.Item>
+                    );
+                  })}
+                </Dropdown.Menu>
+              </Dropdown>
             </Form.Group>
           )}
         </Form>
@@ -893,6 +1137,176 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         onReorderFilter={onReorderFilter}
       />
     </Card>
+
+      {/* Save as new modal */}
+      <Modal
+        show={showSaveAsNewModal}
+        onHide={() => {
+          setShowSaveAsNewModal(false);
+          setSaveModalName('');
+          setSaveModalError(null);
+        }}
+        centered
+        size="sm"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title style={{ fontSize: '16px', fontWeight: 600 }}>Save as new</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group>
+            <Form.Label style={{ fontSize: '14px', fontWeight: 500 }}>Name</Form.Label>
+            <Form.Control
+              autoFocus
+              type="text"
+              placeholder="Filter name…"
+              value={saveModalName}
+              isInvalid={!!saveModalError}
+              onChange={(e) => {
+                setSaveModalName(e.target.value);
+                setSaveModalError(null);
+              }}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && saveModalName.trim()) {
+                  setSaveModalLoading(true);
+                  const result = await onSaveFilter(saveModalName.trim());
+                  setSaveModalLoading(false);
+                  if (result?.duplicateName) {
+                    setSaveModalError(`"${saveModalName.trim()}" already exists`);
+                  } else {
+                    setShowSaveAsNewModal(false);
+                    setSaveModalName('');
+                    setSaveModalError(null);
+                  }
+                }
+              }}
+            />
+            {saveModalError && (
+              <Form.Control.Feedback type="invalid">{saveModalError}</Form.Control.Feedback>
+            )}
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button
+            variant="success"
+            className="w-100"
+            disabled={!saveModalName.trim() || saveModalLoading}
+            style={{ fontWeight: 500 }}
+            onClick={async () => {
+              if (!saveModalName.trim()) return;
+              setSaveModalLoading(true);
+              const result = await onSaveFilter(saveModalName.trim());
+              setSaveModalLoading(false);
+              if (result?.duplicateName) {
+                setSaveModalError(`"${saveModalName.trim()}" already exists`);
+              } else {
+                setShowSaveAsNewModal(false);
+                setSaveModalName('');
+                setSaveModalError(null);
+              }
+            }}
+          >
+            {saveModalLoading ? 'Saving…' : 'Save'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Update existing filter modal */}
+      <Modal
+        show={showUpdateModal}
+        onHide={() => {
+          setShowUpdateModal(false);
+          setSaveModalName('');
+          setSaveModalError(null);
+        }}
+        centered
+        size="sm"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title style={{ fontSize: '16px', fontWeight: 600 }}>
+            Update {activeFilterName}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group>
+            <Form.Label style={{ fontSize: '14px', fontWeight: 500 }}>Name</Form.Label>
+            <Form.Control
+              autoFocus
+              type="text"
+              placeholder="Filter name…"
+              value={saveModalName}
+              isInvalid={!!saveModalError}
+              onChange={(e) => {
+                setSaveModalName(e.target.value);
+                setSaveModalError(null);
+              }}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && saveModalName.trim() && activeFilterId) {
+                  setSaveModalLoading(true);
+                  const result = onUpdateFilter
+                    ? await onUpdateFilter(activeFilterId, saveModalName.trim())
+                    : { success: false };
+                  setSaveModalLoading(false);
+                  if (result?.duplicateName) {
+                    setSaveModalError(`"${saveModalName.trim()}" already exists`);
+                  } else if (result?.success) {
+                    setShowUpdateModal(false);
+                    setSaveModalName('');
+                    setSaveModalError(null);
+                    setLoadedSnapshot({
+                      selectedCategories,
+                      selectedAccounts,
+                      selectedLabelIds,
+                      selectedCurrencies,
+                      sortOption,
+                      transferOption,
+                      debtOption,
+                    });
+                  }
+                }
+              }}
+            />
+            {saveModalError && (
+              <Form.Control.Feedback type="invalid">{saveModalError}</Form.Control.Feedback>
+            )}
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button
+            variant="success"
+            className="w-100"
+            disabled={!saveModalName.trim() || saveModalLoading}
+            style={{ fontWeight: 500 }}
+            onClick={async () => {
+              if (!saveModalName.trim() || !activeFilterId) return;
+              setSaveModalLoading(true);
+              const result = onUpdateFilter
+                ? await onUpdateFilter(activeFilterId, saveModalName.trim())
+                : { success: false };
+              setSaveModalLoading(false);
+              if (result?.duplicateName) {
+                setSaveModalError(`"${saveModalName.trim()}" already exists`);
+              } else if (result?.success) {
+                setShowUpdateModal(false);
+                setSaveModalName('');
+                setSaveModalError(null);
+                // Reset snapshot so save button disables after a successful update
+                setLoadedSnapshot({
+                  selectedCategories,
+                  selectedAccounts,
+                  selectedLabelIds,
+                  selectedCurrencies,
+                  sortOption,
+                  transferOption,
+                  debtOption,
+                });
+              }
+            }}
+          >
+            {saveModalLoading ? 'Saving…' : 'Save'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </>
   );
 };
 

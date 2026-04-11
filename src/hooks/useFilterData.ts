@@ -10,15 +10,19 @@ export type SortValue =
   | 'amountDesc'
   | 'absAmountAsc'
   | 'absAmountDesc';
+export type TransferOption = 'include' | 'only' | 'exclude';
+export type DebtOption = 'include' | 'only' | 'exclude';
 
 export interface FilterVisibility {
   search: boolean;
   sortBy: boolean;
   accounts: boolean;
   categories: boolean;
-  labels: boolean;
-  amountRange: boolean;
-  currencies: boolean;
+  labels?: boolean;
+  currencies?: boolean;
+  amountRange?: boolean;
+  transfers?: boolean;
+  debts?: boolean;
 }
 
 const DEFAULT_MIN_AMOUNT = 0;
@@ -32,6 +36,8 @@ export const useFilterData = () => {
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [sortOption, setSortOption] = useState<SortValue>('timeDesc');
+  const [transferOption, setTransferOption] = useState<TransferOption>('include');
+  const [debtOption, setDebtOption] = useState<DebtOption>('include');
   const [minAmount, setMinAmount] = useState<number>(DEFAULT_MIN_AMOUNT);
   const [maxAmount, setMaxAmount] = useState<number>(DEFAULT_MAX_AMOUNT);
   const [filterVisibility, setFilterVisibility] = useState<FilterVisibility>({
@@ -42,6 +48,8 @@ export const useFilterData = () => {
     labels: true,
     amountRange: true,
     currencies: true,
+    transfers: true,
+    debts: true,
   });
 
   // Data state
@@ -216,6 +224,10 @@ export const useFilterData = () => {
     setSelectedAccounts,
     sortOption,
     setSortOption,
+    transferOption,
+    setTransferOption,
+    debtOption,
+    setDebtOption,
     minAmount,
     setMinAmount,
     maxAmount,

@@ -61,6 +61,10 @@ function AnalyticsContent(): React.ReactElement {
     availableCurrencies,
     sortOption,
     setSortOption,
+    transferOption,
+    setTransferOption,
+    debtOption,
+    setDebtOption,
     minAmount,
     setMinAmount,
     maxAmount,
@@ -84,8 +88,8 @@ function AnalyticsContent(): React.ReactElement {
   const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
     categories,
     accounts: apiAccounts,
-    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption },
-    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption },
+    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption, transferOption, debtOption },
+    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption, setTransferOption, setDebtOption },
   });
 
   // Map selected names to IDs for API calls
@@ -184,6 +188,10 @@ function AnalyticsContent(): React.ReactElement {
             onSearchTermChange={setSearchTerm}
             sortOption={sortOption}
             onSortOptionChange={setSortOption}
+            transferOption={transferOption}
+            onTransferOptionChange={setTransferOption}
+            debtOption={debtOption}
+            onDebtOptionChange={setDebtOption}
             selectedCategories={selectedCategories}
             onSelectedCategoriesChange={setSelectedCategories}
             allCategories={allCategories}
@@ -235,6 +243,10 @@ function AnalyticsContent(): React.ReactElement {
                 onSearchTermChange={setSearchTerm}
                 sortOption={sortOption}
                 onSortOptionChange={setSortOption}
+                transferOption={transferOption}
+                onTransferOptionChange={setTransferOption}
+                debtOption={debtOption}
+                onDebtOptionChange={setDebtOption}
                 selectedCategories={selectedCategories}
                 onSelectedCategoriesChange={setSelectedCategories}
                 allCategories={allCategories}

@@ -10,6 +10,8 @@ export interface FilterSnapshot {
    selectedCurrencies: string[];
    selectedLabelIds: string[];
    sortOption: SortValue;
+   transferOption: string;
+   debtOption: string;
 }
 
 export interface LoadFilterCallback {
@@ -18,6 +20,8 @@ export interface LoadFilterCallback {
    setSelectedCurrencies: React.Dispatch<React.SetStateAction<string[]>>;
    setSelectedLabelIds: React.Dispatch<React.SetStateAction<string[]>>;
    setSortOption: React.Dispatch<React.SetStateAction<SortValue>>;
+   setTransferOption: React.Dispatch<React.SetStateAction<any>>;
+   setDebtOption: React.Dispatch<React.SetStateAction<any>>;
 }
 
 interface UseSavedFiltersOptions {
@@ -107,6 +111,8 @@ export function useSavedFilters({
             selectedCurrencies: current.selectedCurrencies,
             selectedLabelIds: current.selectedLabelIds,
             sortOption: current.sortOption,
+            transferOption: current.transferOption,
+            debtOption: current.debtOption,
          };
          try {
             const created = await savedFilterService.createSavedFilter({ name, filters: payload });
@@ -141,6 +147,12 @@ export function useSavedFilters({
          }
          if (filters.sortOption) {
             dispatchers.setSortOption(filters.sortOption as SortValue);
+         }
+         if (filters.transferOption) {
+            dispatchers.setTransferOption(filters.transferOption);
+         }
+         if (filters.debtOption) {
+            dispatchers.setDebtOption(filters.debtOption);
          }
          setActiveFilterId(filter.id);
       },
@@ -178,6 +190,33 @@ export function useSavedFilters({
       }
    }, []);
 
+   /** Update both name and filter values of a saved filter.
+    *  Returns { success: true } or { success: false, duplicateName: true } on name conflict. */
+   const updateCurrentFilter = useCallback(
+      async (id: string, name: string): Promise<{ success: boolean; duplicateName?: boolean }> => {
+         const payload: SavedFilterPayload = {
+            selectedCategoryIds: categoryNamesToIds(current.selectedCategories),
+            selectedAccountIds: accountNamesToIds(current.selectedAccounts),
+            selectedCurrencies: current.selectedCurrencies,
+            selectedLabelIds: current.selectedLabelIds,
+            sortOption: current.sortOption,
+            transferOption: current.transferOption,
+            debtOption: current.debtOption,
+         };
+         try {
+            const updated = await savedFilterService.updateSavedFilter(id, { name, filters: payload });
+            setSavedFilters((prev) => prev.map((f) => (f.id === id ? updated : f)));
+            return { success: true };
+         } catch (error: unknown) {
+            const status = (error as { response?: { status?: number } })?.response?.status;
+            if (status === 409) return { success: false, duplicateName: true };
+            console.error('Failed to update saved filter:', error);
+            return { success: false };
+         }
+      },
+      [current, categoryNamesToIds, accountNamesToIds]
+   );
+
    /** Reorder saved filters */
    const reorderFilter = useCallback(async (newOrderIds: string[]) => {
       setSavedFilters((prev) => {
@@ -203,6 +242,7 @@ export function useSavedFilters({
       loadFilter,
       deleteFilter,
       renameFilter,
+      updateCurrentFilter,
       clearActiveFilter,
       reorderFilter,
    };

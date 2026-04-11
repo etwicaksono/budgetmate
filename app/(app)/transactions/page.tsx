@@ -42,6 +42,10 @@ function TransactionsContent() {
     availableCurrencies,
     sortOption,
     setSortOption,
+    transferOption,
+    setTransferOption,
+    debtOption,
+    setDebtOption,
     minAmount,
     setMinAmount,
     maxAmount,
@@ -80,11 +84,11 @@ function TransactionsContent() {
   const [targetDebtTransaction, setTargetDebtTransaction] = useState<any>(null);
 
   // Saved filters
-  const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
+  const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, updateCurrentFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
     categories,
     accounts: apiAccounts,
-    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption },
-    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption },
+    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption, transferOption, debtOption },
+    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption, setTransferOption, setDebtOption },
   });
 
   // Ref for infinite scroll observer
@@ -189,6 +193,16 @@ function TransactionsContent() {
         filters['currencies'] = selectedCurrencies.join(',');
       }
 
+      // Add transfer option filter
+      if (transferOption) {
+        filters['transfer_option'] = transferOption;
+      }
+
+      // Add debt option filter
+      if (debtOption) {
+        filters['debt_option'] = debtOption;
+      }
+
       // Add sort option - convert frontend format to API format
       if (sortOption) {
         switch (sortOption) {
@@ -253,6 +267,8 @@ function TransactionsContent() {
     minAmount,
     maxAmount,
     sortOption,
+    transferOption,
+    debtOption,
     categories,
     apiAccounts
   ]);
@@ -625,7 +641,9 @@ function TransactionsContent() {
               ...(selectedLabelIds.length > 0 && { label_ids: selectedLabelIds.join(',') }),
               ...(minAmount > 0 && { min_amount: minAmount }),
               ...(maxAmount < Infinity && { max_amount: maxAmount }),
-              ...(selectedCurrencies.length > 0 && { currencies: selectedCurrencies.join(',') })
+              ...(selectedCurrencies.length > 0 && { currencies: selectedCurrencies.join(',') }),
+              ...(transferOption && { transfer_option: transferOption }),
+              ...(debtOption && { debt_option: debtOption })
             }
           };
         } else {
@@ -731,6 +749,10 @@ function TransactionsContent() {
             onSearchTermChange={setSearchTerm}
             sortOption={sortOption}
             onSortOptionChange={setSortOption}
+            transferOption={transferOption}
+            onTransferOptionChange={setTransferOption}
+            debtOption={debtOption}
+            onDebtOptionChange={setDebtOption}
             selectedCategories={selectedCategories}
             onSelectedCategoriesChange={setSelectedCategories}
             allCategories={allCategories}
@@ -756,6 +778,7 @@ function TransactionsContent() {
             activeFilterId={activeFilterId}
             savedFiltersLoading={savedFiltersLoading}
             onSaveFilter={saveCurrentFilter}
+            onUpdateFilter={updateCurrentFilter}
             onLoadFilter={loadFilter}
             onDeleteFilter={deleteFilter}
             onRenameFilter={renameFilter}
@@ -783,6 +806,10 @@ function TransactionsContent() {
               onSearchTermChange={setSearchTerm}
               sortOption={sortOption}
               onSortOptionChange={setSortOption}
+              transferOption={transferOption}
+              onTransferOptionChange={setTransferOption}
+              debtOption={debtOption}
+              onDebtOptionChange={setDebtOption}
               selectedCategories={selectedCategories}
               onSelectedCategoriesChange={setSelectedCategories}
               allCategories={allCategories}
@@ -808,6 +835,7 @@ function TransactionsContent() {
               activeFilterId={activeFilterId}
               savedFiltersLoading={savedFiltersLoading}
               onSaveFilter={saveCurrentFilter}
+              onUpdateFilter={updateCurrentFilter}
               onLoadFilter={loadFilter}
               onDeleteFilter={deleteFilter}
               onRenameFilter={renameFilter}

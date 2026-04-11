@@ -63,3 +63,59 @@
 .filter-list::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* Filter selector toggle hover */
+.filter-selector-toggle:hover,
+.filter-selector-toggle:focus {
+  color: #ffffff !important;
+  background-color: #6b7280 !important;
+  border-color: #6b7280 !important;
+}
+
+.filter-selector-toggle:hover svg,
+.filter-selector-toggle:focus svg {
+  color: #ffffff !important;
+}
+
+/* Remove caret from save button */
+#saved-filter-save-btn::after {
+  display: none !important;
+}
+
+/* Remove caret from filter selector toggle */
+.filter-selector-no-caret::after {
+  display: none !important;
+}
+
+/* Save action dropdown items */
+
+.save-action-item {
+  color: #374151;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.save-action-item:hover,
+.save-action-item:focus {
+  background-color: #198754 !important;
+  color: #ffffff !important;
+}
+
+.save-action-item:hover svg,
+.save-action-item:focus svg {
+  color: #ffffff !important;
+}
+
+.save-action-item--update {
+  color: #198754;
+}
+
+.save-action-item--update:hover,
+.save-action-item--update:focus {
+  background-color: #157347 !important;
+  color: #ffffff !important;
+}
+
+.save-action-item--update span {
+  color: inherit;
+}
+

@@ -63,6 +63,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (filters.type) {
       where.type = filters.type;
+    } else {
+      const includeTypes: string[] = [];
+      const excludeTypes: string[] = [];
+
+      if (filters.transfer_option === 'only') {
+        includeTypes.push('transfer', 'transfer_in', 'transfer_out');
+      } else if (filters.transfer_option === 'exclude') {
+        excludeTypes.push('transfer', 'transfer_in', 'transfer_out');
+      }
+
+      if (filters.debt_option === 'only') {
+        includeTypes.push('debt_in', 'debt_out');
+      } else if (filters.debt_option === 'exclude') {
+        excludeTypes.push('debt_in', 'debt_out');
+      }
+
+      if (includeTypes.length > 0) {
+        where.type = { in: includeTypes };
+      } else if (excludeTypes.length > 0) {
+        where.type = { notIn: excludeTypes };
+      }
     }
 
     // Date range
