@@ -1,34 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
+
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { balanceService } from '@/services/balanceService';
-import { getCurrencyCodes } from '@/config/currencies';
-
-// CUID validation regex (sortable IDs)
-const cuidRegex = /^[a-z][a-z0-9]{8,}$/;
-
-// Get valid currency codes from config
-const VALID_CURRENCIES = getCurrencyCodes();
-
-const CreateAccountSchema = z.object({
-  name: z.string().min(1).max(100),
-  account_type: z.enum(['checking', 'savings', 'credit_card', 'cash', 'investment', 'loan']),
-  icon: z.string(),
-  color: z.string().regex(/^#[0-9A-F]{6}$/i),
-  currency: z.string().default('USD').refine(
-    (code) => VALID_CURRENCIES.includes(code),
-    { message: 'Invalid currency code' }
-  ),
-  initial_balance: z.number().default(0),
-  credit_limit: z.number().optional(),
-  interest_rate: z.number().optional(),
-  group_id: z.string().regex(cuidRegex, 'Invalid group ID').optional(),
-  is_active: z.boolean().default(true),
-  is_included_in_total: z.boolean().default(true)
-});
+import { CreateAccountSchema } from '@/lib/openapi/schemas/accounts';
 
 // GET - Fetch all accounts
 export async function GET(request: NextRequest): Promise<NextResponse> {

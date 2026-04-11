@@ -2,12 +2,9 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
-import { z } from 'zod';
 
-const createLabelSchema = z.object({
-  name: z.string().min(1).max(50),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-});
+
+import { CreateLabelSchema as createLabelSchema } from '@/lib/openapi/schemas/labels';
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);

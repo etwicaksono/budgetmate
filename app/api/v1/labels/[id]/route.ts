@@ -3,12 +3,9 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { resolveRouteParam } from '@/lib/api/params';
-import { z } from 'zod';
 
-const updateLabelSchema = z.object({
-  name: z.string().min(1).max(50).optional(),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
-});
+
+import { UpdateLabelSchema as updateLabelSchema } from '@/lib/openapi/schemas/labels';
 
 interface RouteParams {
   params?: { id?: string };

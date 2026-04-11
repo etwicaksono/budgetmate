@@ -2,20 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
-import { z } from 'zod';
-
-const filtersSchema = z.object({
-   selectedCategoryIds: z.array(z.string()).optional(),
-   selectedAccountIds: z.array(z.string()).optional(),
-   selectedCurrencies: z.array(z.string()).optional(),
-   selectedLabelIds: z.array(z.string()).optional(),
-   sortOption: z.string().optional(),
-});
-
-const createSavedFilterSchema = z.object({
-   name: z.string().min(1).max(100),
-   filters: filtersSchema,
-});
+import { CreateSavedFilterSchema as createSavedFilterSchema } from '@/lib/openapi/schemas/savedFilters';
 
 export async function GET(request: NextRequest) {
    const authResult = await requireAuth(request);

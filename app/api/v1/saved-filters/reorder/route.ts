@@ -2,11 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
-import { z } from 'zod';
-
-const reorderSavedFiltersSchema = z.object({
-   filterIds: z.array(z.string()),
-});
+import { ReorderSavedFiltersSchema as reorderSavedFiltersSchema } from '@/lib/openapi/schemas/savedFilters';
 
 export async function PUT(request: NextRequest) {
    const authResult = await requireAuth(request);

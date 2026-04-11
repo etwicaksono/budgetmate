@@ -3,20 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { resolveRouteParam } from '@/lib/api/params';
-import { z } from 'zod';
-
-const filtersSchema = z.object({
-   selectedCategoryIds: z.array(z.string()).optional(),
-   selectedAccountIds: z.array(z.string()).optional(),
-   selectedCurrencies: z.array(z.string()).optional(),
-   selectedLabelIds: z.array(z.string()).optional(),
-   sortOption: z.string().optional(),
-});
-
-const updateSavedFilterSchema = z.object({
-   name: z.string().min(1).max(100).optional(),
-   filters: filtersSchema.optional(),
-});
+import { UpdateSavedFilterSchema as updateSavedFilterSchema } from '@/lib/openapi/schemas/savedFilters';
 
 interface RouteParams {
    params?: { id?: string };
