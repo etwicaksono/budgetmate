@@ -127,7 +127,7 @@ export const BalanceTrendChart: React.FC<BalanceTrendChartProps> = ({
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ value: number; payload: TrendChartData; name?: string; color?: string }> }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border rounded shadow-sm">
+        <div className="p-3 border rounded shadow-sm" style={{ backgroundColor: '#ffffff', opacity: 1, zIndex: 1000 }}>
           <p className="mb-2 fw-bold">{payload[0]?.payload.date}</p>
           {payload.map((entry, index) => (
             <div key={index} className="d-flex align-items-center gap-2 mb-1">
@@ -195,7 +195,7 @@ export const BalanceTrendChart: React.FC<BalanceTrendChartProps> = ({
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 1000 }} />
         {displayCurrencyKeys.map((currency) => {
           const lineName = isCombinedBalance ? 'Combined' : (currency === 'balance' ? 'Balance' : currency);
           const lineColor = currencyColors[currencyKeys.indexOf(currency) % currencyColors.length] || '#2563eb';

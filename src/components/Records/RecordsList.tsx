@@ -266,7 +266,9 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                                   textOverflow: 'ellipsis'
                                 }}
                               >
-                                {transaction.description}
+                                {transaction.description.length > 100 
+                                  ? `${transaction.description.substring(0, 100)}...` 
+                                  : transaction.description}
                               </div>
                             </div>
                           )}

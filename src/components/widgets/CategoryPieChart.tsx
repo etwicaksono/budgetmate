@@ -69,7 +69,7 @@ export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({
     if (active && payload && payload.length && payload[0]) {
       const pct = total > 0 ? ((payload[0].value / total) * 100).toFixed(1) : '0';
       return (
-        <div className="bg-white p-2 border rounded shadow-sm" style={{ fontSize: '13px' }}>
+        <div className="p-2 border rounded shadow-sm" style={{ backgroundColor: '#ffffff', opacity: 1, zIndex: 1000, fontSize: '13px' }}>
           <p className="mb-0 fw-semibold">{payload[0].name}</p>
           <p className="mb-0 text-primary">{formatValue(payload[0].value)}</p>
           <p className="mb-0 text-muted">{pct}%</p>
@@ -129,7 +129,7 @@ export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({
                 );
               })}
             </Pie>
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 1000 }} />
           </PieChart>
         </ResponsiveContainer>
 
@@ -142,6 +142,7 @@ export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({
           textAlign: 'center',
           pointerEvents: 'none',
           lineHeight: 1.3,
+          zIndex: 10,
         }}>
           {activeEntry ? (
             <>

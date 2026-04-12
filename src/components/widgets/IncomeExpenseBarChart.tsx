@@ -70,7 +70,7 @@ export const IncomeExpenseBarChart: React.FC<IncomeExpenseBarChartProps> = ({
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ value: number; name: string; color: string; payload: BarChartData }> }) => {
     if (active && payload && payload.length && payload[0]) {
       return (
-        <div className="bg-white p-3 border rounded shadow-sm">
+        <div className="p-3 border rounded shadow-sm" style={{ backgroundColor: '#ffffff', opacity: 1, zIndex: 1000 }}>
           <p className="mb-1 fw-bold">{payload[0].payload.name}</p>
           {payload.map((entry: { value: number; name: string; color: string; payload: BarChartData }, index: number) => (
             <p key={index} className="mb-0" style={{ color: entry.color }}>
@@ -93,7 +93,7 @@ export const IncomeExpenseBarChart: React.FC<IncomeExpenseBarChartProps> = ({
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
         <YAxis tickFormatter={formatNumberAbbreviation} tick={{ fontSize: 12 }} width={50} />
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 1000 }} />
         <Legend wrapperStyle={{ paddingTop: '10px' }} />
         <Bar dataKey="expense" name={expenseLabel} fill={expenseColor} />
         <Bar dataKey="income" name={incomeLabel} fill={incomeColor} />

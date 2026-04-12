@@ -3,26 +3,26 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import Swal from 'sweetalert2';
-import { useTransaction } from '@/context/TransactionContext';
+
 import { transactionService, type Transaction } from '@/services/transactionService';
 import { FaFilter } from 'react-icons/fa';
 import { useFilterData } from '@/hooks/useFilterData';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { RecordsHeader, RecordsList, RecordsSkeleton, type GroupedTransactions, type TransactionRecord } from '@/components/Records';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
-import { DebtIncreaseModal } from '@/components/debt/DebtIncreaseModal';
-import { RepaymentModal } from '@/components/debt/RepaymentModal';
-import { Debt, debtService } from '@/services/debtService';
+
+
 import PeriodNavigation, {
   PeriodNavigationProvider,
   usePeriodNavigation,
 } from '@/components/period/PeriodNavigation';
 import PeriodRangeSelector from '@/components/period/PeriodRangeSelector';
-import { isTransferTransaction, mapTransferAccounts, getModalTransactionType } from '@/utils/transferUtils';
+import { isTransferTransaction } from '@/utils/transferUtils';
+
 import { TransactionFilterSidebar } from './_components/TransactionFilterSidebar';
+import { useTransactionActions } from '@/hooks/useTransactionActions';
 
 function TransactionsContent() {
-  const { openEditModal } = useTransaction();
   const { formatCurrency } = useFormattedCurrency();
   const {
     state: { dateRange, periodLabel, activePeriod, customRangeDraft },
@@ -58,13 +58,6 @@ function TransactionsContent() {
   const [isGlobalSelectAll, setIsGlobalSelectAll] = useState(false);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-
-  // Debt Modals State
-  const [showDebtIncreaseModal, setShowDebtIncreaseModal] = useState(false);
-  const [showRepaymentModal, setShowRepaymentModal] = useState(false);
-  const [targetDebt, setTargetDebt] = useState<Debt | null>(null);
-  const [targetDebtTransaction, setTargetDebtTransaction] = useState<any>(null);
-
   // Saved filters
   const savedFiltersData = useSavedFilters({
     categories,
@@ -83,6 +76,11 @@ function TransactionsContent() {
 
   // Ref for infinite scroll observer
   const observerTarget = useRef<HTMLDivElement>(null);
+
+  const { handleEditRecord, handleDeleteRecord } = useTransactionActions({
+    transactions,
+    onTransactionMutated: () => fetchTransactions(1),
+  });
 
   // Callback ref for sticky RecordsHeader to attach ResizeObserver safely
   const observerRef = useRef<ResizeObserver | null>(null);
@@ -398,158 +396,6 @@ function TransactionsContent() {
     }
   }, [transactions, selectedTransactionIds.size]);
 
-  // Edit handler following Single Responsibility Principle
-  const handleEditRecord = useCallback(async (record: TransactionRecord) => {
-    const transaction = transactions.find((t) => t.id === record.id);
-    if (!transaction) return;
-
-    // Debt Modal Intercept Logic
-    if (transaction.type === 'debt_in' || transaction.type === 'debt_out') {
-      if (transaction.debt_id) {
-        try {
-          const debtDoc = await debtService.getDebtById(transaction.debt_id);
-          setTargetDebt(debtDoc);
-          setTargetDebtTransaction(transaction);
-
-          if (debtDoc.type === 'lend') {
-            if (transaction.type === 'debt_out') {
-              setShowDebtIncreaseModal(true);
-            } else {
-              setShowRepaymentModal(true);
-            }
-          } else if (debtDoc.type === 'borrow') {
-            if (transaction.type === 'debt_in') {
-              setShowDebtIncreaseModal(true);
-            } else {
-              setShowRepaymentModal(true);
-            }
-          }
-          return; // Skip opening the standard transaction modal
-        } catch (error) {
-          console.error("Failed to load debt for this transaction", error);
-          // Fallback to standard edit if debt load fails
-        }
-      }
-    }
-
-    // Debt Modal Intercept Logic
-    if (transaction.type === 'debt_in' || transaction.type === 'debt_out') {
-      if (transaction.debt_id) {
-        try {
-          const debtDoc = await debtService.getDebtById(transaction.debt_id);
-          setTargetDebt(debtDoc);
-          setTargetDebtTransaction(transaction);
-
-          if (debtDoc.type === 'lend') {
-            if (transaction.type === 'debt_out') {
-              setShowDebtIncreaseModal(true);
-            } else {
-              setShowRepaymentModal(true);
-            }
-          } else if (debtDoc.type === 'borrow') {
-            if (transaction.type === 'debt_in') {
-              setShowDebtIncreaseModal(true);
-            } else {
-              setShowRepaymentModal(true);
-            }
-          }
-          return; // Skip opening the standard transaction modal
-        } catch (error) {
-          console.error("Failed to load debt for this transaction", error);
-          // Fallback to standard edit if debt load fails
-        }
-      }
-    }
-
-    // Extract label IDs (simple data transformation)
-    const labelIds = transaction.labels?.map(label => label.id).filter((id): id is string => !!id) || [];
-
-    // Use utility functions for transfer logic (DRY + KISS)
-    const isTransfer = isTransferTransaction(transaction);
-    const modalType = getModalTransactionType(transaction);
-    const { fromAccountId, toAccountId } = mapTransferAccounts(transaction);
-
-    // For transfers, backend now returns correct to_amount for both transfer_in and transfer_out
-    // transfer_out: amount=-source, to_amount=destination
-    // transfer_in: amount=+destination, to_amount=source (fixed in backend)
-    const sourceAmount = Math.abs(transaction.amount);
-    const sourceCurrency = transaction.type === 'transfer_in'
-      ? transaction.transfer_currency || transaction.currency
-      : transaction.currency;
-    const destAmount = transaction.to_amount ? Math.abs(transaction.to_amount) : Math.abs(transaction.amount);
-    const destCurrency = transaction.to_currency || transaction.currency;
-
-    // Prepare modal data (single responsibility)
-    const modalData = {
-      id: transaction.id,
-      date: transaction.date,
-      account_id: fromAccountId,
-      category_id: transaction.category_id || '',
-      amount: transaction.type === 'transfer_in' ? destAmount : sourceAmount, // ✅ For transfer_in, use to_amount as source
-      type: modalType,
-      description: transaction.description || '',
-      payee: transaction.payee || '',
-      payment_method: transaction.payment_method || 'Cash',
-      label_ids: labelIds,
-      // Add transfer-specific fields if it's a transfer
-      ...(isTransfer && {
-        transfer_id: transaction.transfer_id, // ✅ Include transfer ID for editing
-        to_account_id: toAccountId,
-        to_amount: transaction.type === 'transfer_in' ? sourceAmount : destAmount, // ✅ For transfer_in, swap
-        to_currency: destCurrency, // ✅ Destination currency
-        currency: sourceCurrency, // ✅ Source currency
-      }),
-    };
-
-    openEditModal(modalData);
-  }, [transactions, openEditModal]);
-
-  // Delete handler
-  const handleDeleteRecord = useCallback(async (recordId: string) => {
-    const transaction = transactions.find((t) => t.id === recordId);
-    if (!transaction) return;
-
-    const result = await Swal.fire({
-      icon: 'warning',
-      title: 'Delete Transaction',
-      html: `
-        <p>Are you sure you want to delete this transaction?</p>
-        <div class="text-start mt-3">
-          <strong>${transaction.description}</strong><br>
-          <small class="text-muted">IDR ${Math.abs(transaction.amount).toLocaleString()}</small>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'Yes, delete it',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#dc3545',
-      cancelButtonColor: '#6c757d',
-      reverseButtons: true
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      await transactionService.deleteTransaction(recordId);
-      await Swal.fire({
-        icon: 'success',
-        title: 'Deleted',
-        text: 'Transaction deleted successfully',
-        timer: 2000,
-        showConfirmButton: false
-      });
-      fetchTransactions();
-    } catch (error) {
-      console.error('Failed to delete transaction:', error);
-      await Swal.fire({
-        icon: 'error',
-        title: 'Delete Failed',
-        text: 'Failed to delete transaction',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#dc3545'
-      });
-    }
-  }, [transactions, fetchTransactions]);
 
   // Bulk action handlers
   const handleBulkEdit = useCallback(() => {
@@ -810,40 +656,7 @@ function TransactionsContent() {
         </Col>
       </Row>
 
-      {/* Debt Specific Modals */}
-      <RepaymentModal
-        show={showRepaymentModal}
-        onHide={() => {
-          setShowRepaymentModal(false);
-          setTargetDebtTransaction(null);
-        }}
-        debt={targetDebt}
-        onSave={async () => { /* New repayments typically not made from transactions list, handled as edit */ }}
-        editTransaction={targetDebtTransaction}
-        onEdit={async (debtId, txId, payload) => {
-          await debtService.updateRepayment(debtId, txId, payload);
-          setShowRepaymentModal(false);
-          fetchTransactions(1);
-        }}
-        accounts={apiAccounts}
-      />
 
-      <DebtIncreaseModal
-        show={showDebtIncreaseModal}
-        onHide={() => {
-          setShowDebtIncreaseModal(false);
-          setTargetDebtTransaction(null);
-        }}
-        debt={targetDebt}
-        onSave={async () => { /* New increases typically not made from transactions list */ }}
-        editTransaction={targetDebtTransaction}
-        onEdit={async (debtId, txId, payload) => {
-          await debtService.updateIncrease(debtId, txId, payload);
-          setShowDebtIncreaseModal(false);
-          fetchTransactions(1);
-        }}
-        accounts={apiAccounts}
-      />
     </Container>
   );
 }

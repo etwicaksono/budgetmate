@@ -20,6 +20,7 @@ import { RecordsHeader, RecordsList, RecordsSkeleton, type GroupedTransactions, 
 import PeriodNavigation, { PeriodNavigationProvider, usePeriodNavigation } from '@/components/period/PeriodNavigation';
 import PeriodRangeSelector from '@/components/period/PeriodRangeSelector';
 import { isTransferTransaction } from '@/utils/transferUtils';
+import { useTransactionActions } from '@/hooks/useTransactionActions';
 
 import {
   FaWallet,
@@ -260,13 +261,10 @@ const RecordsTab = ({ accountId }: { accountId: string }) => {
     }
   }, [selectedTransactionIds.size, transactions]);
   
-  const handleEditRecord = () => {
-    Swal.fire({ icon: 'info', title: 'Edit', text: 'To edit transactions, use the main Transactions page.' });
-  };
-  
-  const handleDeleteRecord = () => {
-    Swal.fire({ icon: 'info', title: 'Delete', text: 'To delete transactions, use the main Transactions page.' });
-  };
+  const { handleEditRecord, handleDeleteRecord } = useTransactionActions({
+    transactions,
+    onTransactionMutated: () => fetchTransactions(1),
+  });
 
   const netTotalsByCurrency = useMemo(() => {
     const hasSelection = selectedTransactionIds.size > 0;

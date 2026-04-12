@@ -61,6 +61,7 @@ const getIconComponent = (iconName: string): React.ComponentType<{ size?: number
   }
 };
 
+import { useTransactionActions } from '@/hooks/useTransactionActions';
 import {
   BalanceTrendWidget,
   BudgetStatusWidget,
@@ -90,10 +91,20 @@ function DashboardContent(): React.ReactElement {
   const [incomeExpenseByCurrency, setIncomeExpenseByCurrency] = useState<Record<string, BarChartData[]>>({});
   const [incomeExpenseCurrencies, setIncomeExpenseCurrencies] = useState<string[]>([]);
 
+  // Infinite Scroll state for Recent Transactions
+  const [transactionsPage, setTransactionsPage] = useState(1);
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(false);
+  const [isLoadingMoreTx, setIsLoadingMoreTx] = useState(false);
+
+  const { handleEditRecord } = useTransactionActions({
+    transactions: transactions,
+    onTransactionMutated: () => fetchDashboardData(),
+  });
+
   const { formatCurrency } = useFormattedCurrency();
 
   const {
-    state: { periodLabel, activePeriod, customRangeDraft },
+    state: { periodLabel, activePeriod, customRangeDraft, dateRange },
   } = usePeriodNavigation();
 
   // Fetch accounts
@@ -122,65 +133,39 @@ function DashboardContent(): React.ReactElement {
       setError(null);
       // Don't reset selected currency - let useEffect handle it based on available data
 
-      // Determine date range based on active period
-      const now = new Date();
-      let startDate = '';
-      let endDate = now.toISOString().split('T')[0] ?? '';
+      // Determine date range directly from period navigation context
+      const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
+      const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
 
-      if (activePeriod.type === 'month') {
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        startDate = startOfMonth.toISOString().split('T')[0] ?? '';
-        // Show the entire month (not just up to today)
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        endDate = endOfMonth.toISOString().split('T')[0] ?? '';
-      } else if (activePeriod.type === 'year') {
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
-        startDate = startOfYear.toISOString().split('T')[0] ?? '';
-      } else if (activePeriod.type === 'custom' && customRangeDraft?.start && customRangeDraft?.end) {
-        startDate = customRangeDraft.start;
-        endDate = customRangeDraft.end;
-      } else {
-        // Default to this month
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        startDate = startOfMonth.toISOString().split('T')[0] ?? '';
-      }
+      console.log('[Dashboard] Date range (UTC):', { startDateTime, endDateTime });
 
-      // Convert date-only format to ISO datetime for API
-      // Use local midnight (start of day) to match how the transactions page filters.
-      // Parsing "YYYY-MM-DD" without a time component gives local midnight in the browser's timezone.
-      const startLocal = new Date(startDate);
-      startLocal.setHours(0, 0, 0, 0);
-      const endLocal = new Date(endDate);
-      endLocal.setHours(23, 59, 59, 999);
-      const startDateTime = startLocal.toISOString();
-      const endDateTime = endLocal.toISOString();
-
-      console.log('[Dashboard] Date range (UTC):', { startDate, endDate, startDateTime, endDateTime });
+      const dateFilters: { start_date?: string; end_date?: string } = {};
+      if (startDateTime) dateFilters.start_date = startDateTime;
+      if (endDateTime) dateFilters.end_date = endDateTime;
 
       // Build conditional promises based on widgetVisibility
       const expensesPromise = widgetVisibility.expensesByCategory
-        ? analyticsService.fetchExpensesByCategory({ start_date: startDateTime, end_date: endDateTime })
+        ? analyticsService.fetchExpensesByCategory({ ...dateFilters })
         : Promise.resolve({ expenses: [], currencies: [] });
 
       const transactionsPromise = widgetVisibility.recentTransactions
-        ? transactionService.fetchTransactions({ start_date: startDateTime, end_date: endDateTime, limit: 10 })
-        : Promise.resolve({ transactions: [], total: 0 });
+        ? transactionService.fetchTransactions({ ...dateFilters, limit: 10 })
+        : Promise.resolve({ transactions: [], meta: { page: 1, total: 0, total_pages: 0 } });
 
       const budgetsPromise = widgetVisibility.budgetStatus
-        ? budgetService.fetchBudgetStatus({ start_date: startDateTime, end_date: endDateTime })
+        ? budgetService.fetchBudgetStatus({ ...dateFilters })
         : Promise.resolve([]);
 
       const trendsPromise = widgetVisibility.balanceTrend
         ? analyticsService.fetchTrends({
           metric: 'balance',
           period: 'daily',
-          start_date: startDateTime,
-          end_date: endDateTime,
+          ...dateFilters,
         })
         : Promise.resolve({ labels: [], datasets: [] });
 
       const incomeExpensePromise = widgetVisibility.incomeVsExpenses
-        ? analyticsService.fetchIncomeVsExpenses({ start_date: startDateTime, end_date: endDateTime })
+        ? analyticsService.fetchIncomeVsExpenses({ ...dateFilters })
         : Promise.resolve({ data: {}, currencies: [] });
 
       // Fetch widget data conditionally in parallel
@@ -199,6 +184,10 @@ function DashboardContent(): React.ReactElement {
 
       if (widgetVisibility.recentTransactions) {
         setTransactions(transactionsResponse.transactions || []);
+        setTransactionsPage(1);
+        const metaData = transactionsResponse.meta as any;
+        const totalTxPages = metaData?.totalPages || metaData?.total_pages || 1;
+        setHasMoreTransactions((metaData?.page || 1) < totalTxPages);
       }
 
       if (widgetVisibility.budgetStatus) {
@@ -250,7 +239,33 @@ function DashboardContent(): React.ReactElement {
     } finally {
       setLoading(false);
     }
-  }, [activePeriod, customRangeDraft, widgetVisibility]);
+  }, [dateRange.start, dateRange.end, widgetVisibility]);
+
+  const loadMoreTransactions = useCallback(async () => {
+    if (isLoadingMoreTx || !hasMoreTransactions || !widgetVisibility.recentTransactions) return;
+    try {
+      setIsLoadingMoreTx(true);
+      const nextPage = transactionsPage + 1;
+      
+      const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
+      const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
+      
+      const dateFilters: { start_date?: string; end_date?: string } = {};
+      if (startDateTime) dateFilters.start_date = startDateTime;
+      if (endDateTime) dateFilters.end_date = endDateTime;
+
+      const response = await transactionService.fetchTransactions({ ...dateFilters, limit: 10, page: nextPage });
+      setTransactions(prev => [...prev, ...(response.transactions || [])]);
+      setTransactionsPage(nextPage);
+      
+      const totalPages = response.meta?.totalPages || response.meta?.total_pages || 1;
+      setHasMoreTransactions((response.meta?.page || 1) < totalPages);
+    } catch (e) {
+      console.error('Failed to load more transactions:', e);
+    } finally {
+      setIsLoadingMoreTx(false);
+    }
+  }, [isLoadingMoreTx, hasMoreTransactions, transactionsPage, dateRange, widgetVisibility.recentTransactions]);
 
   // Initial data fetch
   useEffect(() => {
@@ -387,15 +402,40 @@ function DashboardContent(): React.ReactElement {
   // - income: positive
   // - transfer_out: negative
   // - transfer_in: positive
-  const transactionsData: Transaction[] = transactions.map(t => ({
-    id: t.id,
-    description: t.description || 'No description',
-    amount: t.amount, // Use amount as-is from database (already has correct sign)
-    currency: t.currency,
-    date: t.date,
-    category: t.category?.name || 'Uncategorized',
-    type: t.type,
-  }));
+  const transactionsData: Transaction[] = transactions.map(t => {
+    let categoryName = t.category?.name || 'Uncategorized';
+    let categoryIcon = t.category?.icon;
+    let categoryIconColor = t.category?.color;
+
+    if (t.type.startsWith('transfer')) {
+      categoryName = 'Transfer';
+      categoryIcon = 'FaExchangeAlt';
+      categoryIconColor = '#17a2b8';
+    } else if (t.type === 'debt_in' || t.type === 'debt_out') {
+      categoryName = t.category?.name || 'Debt';
+      categoryIcon = 'FaHandshake';
+      categoryIconColor = t.type === 'debt_in' ? '#059669' : '#dc3545';
+    }
+
+    const result: Partial<Transaction> = {
+      id: t.id,
+      description: t.description || 'No description',
+      amount: t.amount,
+      currency: t.currency,
+      date: t.date,
+      category: categoryName,
+      type: t.type,
+    };
+
+    if (t.account?.name) {
+      result.account = t.account.name;
+    }
+    if (categoryIconColor) result.categoryIconColor = categoryIconColor;
+    if (categoryIcon) result.categoryIcon = categoryIcon;
+    if (t.labels) result.labels = t.labels;
+
+    return result as Transaction;
+  });
 
 
 
@@ -460,7 +500,11 @@ function DashboardContent(): React.ReactElement {
           selectedCurrency={selectedCurrency}
           setSelectedCurrency={setSelectedCurrency}
           allExpenseCategories={expenseCategories}
-          formatCurrencyValue={formatCurrencyValue}
+          formatCurrencyValue={(val: number, curr?: string) => {
+            const isInt = val % 1 === 0;
+            const formatted = formatCurrency(Math.abs(val), curr || 'USD', isInt ? { forceDecimals: 0 } : undefined);
+            return `${val < 0 ? '-' : ''}${formatted}`;
+          }}
         />
       ),
     },
@@ -488,6 +532,10 @@ function DashboardContent(): React.ReactElement {
         <TransactionsList
           transactions={transactionsData}
           maxHeight="350px"
+          hasMore={hasMoreTransactions}
+          isLoadingMore={isLoadingMoreTx}
+          onLoadMore={loadMoreTransactions}
+          onTransactionClick={(tx) => handleEditRecord(tx as any)}
         />
       ) : (
         <div className="text-center py-5 text-muted">No recent transactions</div>
