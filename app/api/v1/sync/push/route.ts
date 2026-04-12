@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
-import { pushToSheets } from '@/lib/services/syncPush';
+import { pushToSheets } from '@/lib/sync/syncPush';
 import { GoogleAuthError } from '@/lib/auth/google';
 
 export async function POST(req: NextRequest) {

@@ -6,7 +6,7 @@ import { FaHandshake, FaPlus } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { debtService, Debt } from '@/services/debtService';
 import { DEBT_STATUSES } from '@/utils/constants';
-import { useDebt } from '@/contexts/DebtContext';
+import { useDebt } from '@/context/DebtContext';
 import { DebtCard } from './DebtCard';
 import { DebtSkeleton } from './DebtSkeleton';
 import { DebtDetailModal } from './DebtDetailModal';

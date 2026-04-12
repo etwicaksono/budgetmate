@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Swal from 'sweetalert2';
-import { useDebt } from '@/contexts/DebtContext';
+import { useDebt } from '@/context/DebtContext';
 import { debtService, CreateDebtPayload, UpdateDebtPayload, CreateRepaymentPayload } from '@/services/debtService';
 import { DebtModal, RepaymentModal, DebtIncreaseModal } from '@/components/debt';
 import { useTransactionData } from '@/hooks/useTransactionData';

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
-import { pullFromSheets } from '@/lib/services/syncPull';
+import { pullFromSheets } from '@/lib/sync/syncPull';
 import { prisma } from '@/lib/db/prisma';
 import { GoogleAuthError } from '@/lib/auth/google';
 

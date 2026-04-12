@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Modal, Placeholder } from 'react-bootstrap';
 import { transactionService, type Transaction } from '@/services/transactionService';
-import { useTransaction } from '@/contexts/TransactionContext';
+import { useTransaction } from '@/context/TransactionContext';
 import { EditableRecordsList } from '@/components/Records/EditableRecordsList';
 import { type GroupedTransactions, type TransactionRecord } from '@/components/Records/RecordsList';
 

@@ -5,10 +5,10 @@
  * To switch to real API, change USE_MOCK_DATA to false.
  */
 
-import type { Account } from './accountService';
-import type { ExpenseByCategory, TrendData, CashFlow } from './analyticsService';
-import type { BudgetStatus } from './budgetService';
-import type { Transaction } from './transactionService';
+import type { Account } from '@/services/accountService';
+import type { ExpenseByCategory, TrendData, CashFlow } from '@/services/analyticsService';
+import type { BudgetStatus } from '@/services/budgetService';
+import type { Transaction } from '@/services/transactionService';
 
 // ============================================
 // MOCK DATA CONFIGURATION

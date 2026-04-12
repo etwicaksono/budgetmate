@@ -1,5 +1,5 @@
 import { api } from './api';
-import { USE_MOCK_DATA, mockDataService } from './mockData';
+import { USE_MOCK_DATA, mockDataService } from '@/mocks/mockData';
 
 export interface AnalyticsSummary {
   total_income: number;

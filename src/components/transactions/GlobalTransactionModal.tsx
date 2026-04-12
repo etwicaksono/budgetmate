@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react';
 import Swal from 'sweetalert2';
-import { useTransaction } from '@/contexts/TransactionContext';
+import { useTransaction } from '@/context/TransactionContext';
 import { transactionService, type Transaction, type CreateTransactionRequest } from '@/services/transactionService';
 import { transferService, type CreateTransferRequest } from '@/services/transferService';
 import { TransactionModal } from '@/components/transaction';

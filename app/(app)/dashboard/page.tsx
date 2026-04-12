@@ -47,7 +47,7 @@ import { accountService, type Account } from '@/services/accountService';
 import { analyticsService, type ExpenseByCategory } from '@/services/analyticsService';
 import { budgetService, type BudgetStatus } from '@/services/budgetService';
 import { transactionService, type Transaction as ApiTransaction } from '@/services/transactionService';
-import { localStorageService } from '@/services/localStorageService';
+import { localStorageService } from '@/mocks/localStorageService';
 import './Dashboard.css';
 
 // Widget order and visibility now managed by localStorageService

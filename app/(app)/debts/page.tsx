@@ -16,7 +16,7 @@ import './Debts.css';
 import { debtService } from '@/services/debtService';
 import { DEBT_STATUSES } from '@/utils/constants';
 import { DebtTabPane } from '@/components/debt';
-import { useDebt } from '@/contexts/DebtContext';
+import { useDebt } from '@/context/DebtContext';
 import { ClearButton } from '@/components/common/ClearButton';
 
 interface DebtSortDropdownProps {

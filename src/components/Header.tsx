@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { FaBars, FaBug, FaCog, FaPlus, FaQuestionCircle, FaSignOutAlt } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
-import { useTransaction } from '@/contexts/TransactionContext';
-import { useDebt } from '@/contexts/DebtContext';
+import { useTransaction } from '@/context/TransactionContext';
+import { useDebt } from '@/context/DebtContext';
 import './Header.css';
 import Image from 'next/image';
 

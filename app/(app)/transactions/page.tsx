@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Container, Row, Col, Card, Offcanvas, Button } from 'react-bootstrap';
 import Swal from 'sweetalert2';
-import { useTransaction } from '@/contexts/TransactionContext';
+import { useTransaction } from '@/context/TransactionContext';
 import { transactionService, type Transaction } from '@/services/transactionService';
 import { FaFilter } from 'react-icons/fa';
 import { labelService, type Label } from '@/services/labelService';

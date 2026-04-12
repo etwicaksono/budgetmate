@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react';
 import { RecordsList, type GroupedTransactions, type TransactionRecord } from './RecordsList';
-import { useTransaction, type TransactionFormData } from '@/contexts/TransactionContext';
+import { useTransaction, type TransactionFormData } from '@/context/TransactionContext';
 
 interface EditableRecordsListProps {
   groupedTransactions: GroupedTransactions;
