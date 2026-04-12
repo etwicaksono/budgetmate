@@ -1,4 +1,3 @@
-export { FilterSidebar } from './FilterSidebar';
-export { CategoryDropdown } from './CategoryDropdown';
-export { AccountDropdown } from './AccountDropdown';
-export type { SortValue } from './FilterSidebar';
+export * from './FilterSidebar.types';
+export * from './FilterSidebar';
+export * from './SortDropdown';

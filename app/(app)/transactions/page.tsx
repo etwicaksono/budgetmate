@@ -1,15 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Container, Row, Col, Card, Offcanvas, Button } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import { useTransaction } from '@/context/TransactionContext';
 import { transactionService, type Transaction } from '@/services/transactionService';
 import { FaFilter } from 'react-icons/fa';
-import { labelService, type Label } from '@/services/labelService';
 import { useFilterData } from '@/hooks/useFilterData';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
-import { FilterSidebar } from '@/components/FilterSidebar';
 import { RecordsHeader, RecordsList, RecordsSkeleton, type GroupedTransactions, type TransactionRecord } from '@/components/Records';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import { DebtIncreaseModal } from '@/components/debt/DebtIncreaseModal';
@@ -21,6 +19,7 @@ import PeriodNavigation, {
 } from '@/components/period/PeriodNavigation';
 import PeriodRangeSelector from '@/components/period/PeriodRangeSelector';
 import { isTransferTransaction, mapTransferAccounts, getModalTransactionType } from '@/utils/transferUtils';
+import { TransactionFilterSidebar } from './_components/TransactionFilterSidebar';
 
 function TransactionsContent() {
   const { openEditModal } = useTransaction();
@@ -30,38 +29,22 @@ function TransactionsContent() {
   } = usePeriodNavigation();
 
   // Filter state from hook
+  const filterData = useFilterData();
   const {
     searchTerm,
-    setSearchTerm,
     selectedCategories,
-    setSelectedCategories,
     selectedAccounts,
-    setSelectedAccounts,
     selectedCurrencies,
-    setSelectedCurrencies,
-    availableCurrencies,
     sortOption,
-    setSortOption,
     transferOption,
-    setTransferOption,
     debtOption,
-    setDebtOption,
     minAmount,
-    setMinAmount,
     maxAmount,
-    setMaxAmount,
-    filterVisibility,
-    setFilterVisibility,
-    allCategories,
-    selectableAccounts,
     parentCategoryColors,
     categoryTree,
-    categoryIcons,
-    accountColors,
-    accountIcons,
     categories, // Full category objects
     apiAccounts, // Full account objects
-  } = useFilterData();
+  } = filterData;
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +56,6 @@ function TransactionsContent() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
   const [isGlobalSelectAll, setIsGlobalSelectAll] = useState(false);
-  const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
@@ -84,11 +66,19 @@ function TransactionsContent() {
   const [targetDebtTransaction, setTargetDebtTransaction] = useState<any>(null);
 
   // Saved filters
-  const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, updateCurrentFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
+  const savedFiltersData = useSavedFilters({
     categories,
     accounts: apiAccounts,
     current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption, transferOption, debtOption },
-    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption, setTransferOption, setDebtOption },
+    dispatchers: { 
+      setSelectedCategories: filterData.setSelectedCategories, 
+      setSelectedAccounts: filterData.setSelectedAccounts, 
+      setSelectedCurrencies: filterData.setSelectedCurrencies, 
+      setSelectedLabelIds, 
+      setSortOption: filterData.setSortOption, 
+      setTransferOption: filterData.setTransferOption, 
+      setDebtOption: filterData.setDebtOption 
+    },
   });
 
   // Ref for infinite scroll observer
@@ -123,19 +113,6 @@ function TransactionsContent() {
       observerRef.current.observe(node);
     }
   }, []);
-  // Fetch labels
-  useEffect(() => {
-    const loadLabels = async () => {
-      try {
-        const response = await labelService.fetchLabels();
-        setLabels(response.data);
-      } catch (error) {
-        console.error('Failed to fetch labels:', error);
-      }
-    };
-    loadLabels();
-  }, []);
-
   // Fetch transactions
   const fetchTransactions = useCallback(async (pageNum: number = 1) => {
     try {
@@ -308,17 +285,11 @@ function TransactionsContent() {
     };
   }, [observerTarget, hasMore, loading, isLoadingMore, page, fetchTransactions]);
 
-  // Transactions are now filtered and sorted by API
-  // Just use them directly
-  const sortedTransactions = useMemo(() => {
-    return transactions;
-  }, [transactions]);
-
   // Group transactions by date
   const groupedTransactions = useMemo<GroupedTransactions>(() => {
     const grouped: GroupedTransactions = {};
 
-    sortedTransactions.forEach((transaction) => {
+    transactions.forEach((transaction) => {
       const date = new Date(transaction.date);
       const dateKey = date.toLocaleDateString('en-US', {
         year: 'numeric',
@@ -402,7 +373,7 @@ function TransactionsContent() {
     });
 
     return grouped;
-  }, [sortedTransactions, parentCategoryColors, categoryTree]);
+  }, [transactions, parentCategoryColors, categoryTree]);
 
   // Selection handlers
   const handleSelectRecord = useCallback((recordId: string) => {
@@ -419,13 +390,13 @@ function TransactionsContent() {
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    if (selectedTransactionIds.size === sortedTransactions.length) {
+    if (selectedTransactionIds.size === transactions.length) {
       setSelectedTransactionIds(new Set());
       setIsGlobalSelectAll(false);
     } else {
-      setSelectedTransactionIds(new Set(sortedTransactions.map((t) => t.id)));
+      setSelectedTransactionIds(new Set(transactions.map(t => t.id)));
     }
-  }, [selectedTransactionIds.size, sortedTransactions]);
+  }, [transactions, selectedTransactionIds.size]);
 
   // Edit handler following Single Responsibility Principle
   const handleEditRecord = useCallback(async (record: TransactionRecord) => {
@@ -706,7 +677,7 @@ function TransactionsContent() {
     }
     // Build income/expense/net from selected visible rows
     const totals: Record<string, { income: number; expense: number; net: number }> = {};
-    sortedTransactions
+    transactions
       .filter(t => selectedTransactionIds.has(t.id))
       .forEach((t) => {
         const currency = t.currency || 'USD';
@@ -720,7 +691,7 @@ function TransactionsContent() {
         totals[currency]!.net = totals[currency]!.income + totals[currency]!.expense;
       });
     return totals;
-  }, [sortedTransactions, selectedTransactionIds, summaryTotals, isGlobalSelectAll]);
+  }, [transactions, selectedTransactionIds, summaryTotals, isGlobalSelectAll]);
 
   // Format totals for display
   const formatNetTotals = useCallback((totalsByCurrency: Record<string, { income: number; expense: number; net: number }>) => {
@@ -734,116 +705,17 @@ function TransactionsContent() {
       .join(' | ');
   }, [formatCurrency]);
 
-  const allSelected = selectedTransactionIds.size > 0 && selectedTransactionIds.size === sortedTransactions.length;
+  const allSelected = selectedTransactionIds.size > 0 && selectedTransactionIds.size === transactions.length;
 
   return (
     <Container fluid>
       <Row>
-        {/* Desktop Filter Sidebar */}
-        <Col lg={3} className="d-none d-lg-block">
-          <FilterSidebar
-            title="Transactions"
-            filterVisibility={filterVisibility}
-            onFilterVisibilityChange={setFilterVisibility}
-            searchTerm={searchTerm}
-            onSearchTermChange={setSearchTerm}
-            sortOption={sortOption}
-            onSortOptionChange={setSortOption}
-            transferOption={transferOption}
-            onTransferOptionChange={setTransferOption}
-            debtOption={debtOption}
-            onDebtOptionChange={setDebtOption}
-            selectedCategories={selectedCategories}
-            onSelectedCategoriesChange={setSelectedCategories}
-            allCategories={allCategories}
-            categoryTree={categoryTree}
-            parentCategoryColors={parentCategoryColors}
-            categoryIcons={categoryIcons}
-            selectedAccounts={selectedAccounts}
-            onSelectedAccountsChange={setSelectedAccounts}
-            selectableAccounts={selectableAccounts}
-            accountColors={accountColors}
-            accountIcons={accountIcons}
-            selectedLabelIds={selectedLabelIds}
-            onSelectedLabelIdsChange={setSelectedLabelIds}
-            labels={labels}
-            selectedCurrencies={selectedCurrencies}
-            onSelectedCurrenciesChange={setSelectedCurrencies}
-            availableCurrencies={availableCurrencies}
-            minAmount={minAmount}
-            maxAmount={maxAmount}
-            onMinAmountChange={setMinAmount}
-            onMaxAmountChange={setMaxAmount}
-            savedFilters={savedFilters}
-            activeFilterId={activeFilterId}
-            savedFiltersLoading={savedFiltersLoading}
-            onSaveFilter={saveCurrentFilter}
-            onUpdateFilter={updateCurrentFilter}
-            onLoadFilter={loadFilter}
-            onDeleteFilter={deleteFilter}
-            onRenameFilter={renameFilter}
-            onClearActiveFilter={clearActiveFilter}
-            onReorderFilter={reorderFilter}
-          />
-        </Col>
-
-        {/* Mobile Filter Offcanvas */}
-        <Offcanvas
-          show={showMobileFilters}
-          onHide={() => setShowMobileFilters(false)}
-          placement="end"
-          className="d-lg-none"
-        >
-          <Offcanvas.Header closeButton className="border-bottom">
-            <Offcanvas.Title className="fw-bold">Filters</Offcanvas.Title>
-          </Offcanvas.Header>
-          <Offcanvas.Body className="p-0">
-            <FilterSidebar
-              title="Transactions"
-              filterVisibility={filterVisibility}
-              onFilterVisibilityChange={setFilterVisibility}
-              searchTerm={searchTerm}
-              onSearchTermChange={setSearchTerm}
-              sortOption={sortOption}
-              onSortOptionChange={setSortOption}
-              transferOption={transferOption}
-              onTransferOptionChange={setTransferOption}
-              debtOption={debtOption}
-              onDebtOptionChange={setDebtOption}
-              selectedCategories={selectedCategories}
-              onSelectedCategoriesChange={setSelectedCategories}
-              allCategories={allCategories}
-              categoryTree={categoryTree}
-              parentCategoryColors={parentCategoryColors}
-              categoryIcons={categoryIcons}
-              selectedAccounts={selectedAccounts}
-              onSelectedAccountsChange={setSelectedAccounts}
-              selectableAccounts={selectableAccounts}
-              accountColors={accountColors}
-              accountIcons={accountIcons}
-              selectedLabelIds={selectedLabelIds}
-              onSelectedLabelIdsChange={setSelectedLabelIds}
-              labels={labels}
-              selectedCurrencies={selectedCurrencies}
-              onSelectedCurrenciesChange={setSelectedCurrencies}
-              availableCurrencies={availableCurrencies}
-              minAmount={minAmount}
-              maxAmount={maxAmount}
-              onMinAmountChange={setMinAmount}
-              onMaxAmountChange={setMaxAmount}
-              savedFilters={savedFilters}
-              activeFilterId={activeFilterId}
-              savedFiltersLoading={savedFiltersLoading}
-              onSaveFilter={saveCurrentFilter}
-              onUpdateFilter={updateCurrentFilter}
-              onLoadFilter={loadFilter}
-              onDeleteFilter={deleteFilter}
-              onRenameFilter={renameFilter}
-              onClearActiveFilter={clearActiveFilter}
-              onReorderFilter={reorderFilter}
-            />
-          </Offcanvas.Body>
-        </Offcanvas>
+        <TransactionFilterSidebar
+          filterData={filterData}
+          savedFiltersData={savedFiltersData}
+          showMobile={showMobileFilters}
+          onHideMobile={() => setShowMobileFilters(false)}
+        />
 
         {/* Main Content */}
         <Col lg={9} className="p-0">

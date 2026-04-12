@@ -135,7 +135,7 @@ export async function getValidAccessToken(userId: string): Promise<string> {
       const tokens = await refreshAccessToken(user.google_refresh_token);
       await saveUserTokens(userId, tokens);
       return tokens.access_token;
-    } catch (error) {
+    } catch {
       throw new GoogleAuthError(
         'Failed to refresh Google token',
         'Your Google Sheets connection has expired. Please reconnect your Google account in Settings.'

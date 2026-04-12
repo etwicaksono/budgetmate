@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Table, Dropdown, Form, Placeholder } from 'react-bootstrap';
 import { FaListUl, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
 import { Icon } from '@/utils/iconResolver';
-import { analyticsService, type IncomeExpenseReport, type CategoryReport, type CurrencyReport } from '@/services/analyticsService';
+import { type CategoryReport, type CurrencyReport } from '@/services/analyticsService';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
-import { useAuth } from '@/context/AuthContext';
+import { useIncomeExpenseData } from '@/hooks/useIncomeExpenseData';
 import CategoryTransactionsModal from './CategoryTransactionsModal';
 
 type PeriodType = 'month' | 'week' | 'year' | 'custom';
@@ -41,11 +41,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   selectedAccounts,
   selectedCurrencies
 }) => {
-  const [data, setData] = useState<IncomeExpenseReport | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
   const [sortOption, setSortOption] = useState<SortOption>('default');
@@ -53,67 +49,17 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const [numberOfColumns, setNumberOfColumns] = useState(2);
   const { formatCurrency } = useFormattedCurrency();
-  const { user } = useAuth();
-  const defaultCurrency = user?.currency || 'USD';
 
-  // Sort currencies with default currency first
-  const sortedCurrencies = useMemo(() => {
-    if (!data) return [];
-    const currencies = [...data.currencies];
-    if (defaultCurrency && currencies.includes(defaultCurrency)) {
-      currencies.sort((a, b) => {
-        if (a === defaultCurrency) return -1;
-        if (b === defaultCurrency) return 1;
-        return 0;
-      });
-    }
-    return currencies;
-  }, [data, defaultCurrency]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const params: {
-          start_date?: string;
-          end_date?: string;
-          period_type?: PeriodType;
-          periods?: number;
-          category_ids?: string[];
-          account_ids?: string[];
-          currencies?: string[];
-        } = {
-          period_type: periodType,
-          periods: numberOfColumns,
-        };
-        if (startDate) params.start_date = startDate;
-        if (endDate) params.end_date = endDate;
-        if (selectedCategories?.length) params.category_ids = selectedCategories;
-        if (selectedAccounts?.length) params.account_ids = selectedAccounts;
-        if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
-
-        const reportData = await analyticsService.fetchIncomeExpenseReport(params);
-
-        setData(reportData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load report');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [startDate, endDate, numberOfColumns, periodType, selectedCategories, selectedAccounts, selectedCurrencies]);
-
-  // Set default currency when data loads
-  useEffect(() => {
-    if (sortedCurrencies.length > 0 && !selectedCurrency) {
-      setSelectedCurrency(sortedCurrencies[0]!);
-    } else if (sortedCurrencies.length > 0 && !sortedCurrencies.includes(selectedCurrency)) {
-      setSelectedCurrency(sortedCurrencies[0]!);
-    }
-  }, [sortedCurrencies, selectedCurrency]);
+  const { data, loading, error, sortedCurrencies, selectedCurrency, setSelectedCurrency, defaultCurrency } =
+    useIncomeExpenseData({
+      startDate,
+      endDate,
+      periodType,
+      selectedCategories,
+      selectedAccounts,
+      selectedCurrencies,
+      numberOfColumns,
+    });
 
   const toggleCategory = (categoryId: string) => {
     const newExpanded = new Set(expandedCategories);
