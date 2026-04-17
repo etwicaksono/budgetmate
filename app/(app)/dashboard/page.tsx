@@ -126,8 +126,8 @@ function DashboardContent(): React.ReactElement {
   const accountModal = useAccountModal(fetchAccounts);
 
   // Fetch dashboard data
-  const fetchDashboardData = useCallback(async () => {
-    console.log('[Dashboard] fetchDashboardData called');
+  const fetchDashboardData = useCallback(async (options?: { preserveTransactions?: boolean }) => {
+    console.log('[Dashboard] fetchDashboardData called with options:', options);
     try {
       setLoading(true);
       setError(null);
@@ -148,9 +148,9 @@ function DashboardContent(): React.ReactElement {
         ? analyticsService.fetchExpensesByCategory({ ...dateFilters })
         : Promise.resolve({ expenses: [], currencies: [] });
 
-      const transactionsPromise = widgetVisibility.recentTransactions
+      const transactionsPromise = (widgetVisibility.recentTransactions && !options?.preserveTransactions)
         ? transactionService.fetchTransactions({ ...dateFilters, limit: 10 })
-        : Promise.resolve({ transactions: [], meta: { page: 1, total: 0, total_pages: 0 } });
+        : Promise.resolve(null);
 
       const budgetsPromise = widgetVisibility.budgetStatus
         ? budgetService.fetchBudgetStatus({ ...dateFilters })
@@ -182,7 +182,7 @@ function DashboardContent(): React.ReactElement {
         setExpenseCurrencies(expensesData.currencies);
       }
 
-      if (widgetVisibility.recentTransactions) {
+      if (widgetVisibility.recentTransactions && !options?.preserveTransactions && transactionsResponse) {
         setTransactions(transactionsResponse.transactions || []);
         setTransactionsPage(1);
         const metaData = transactionsResponse.meta as any;
@@ -278,9 +278,29 @@ function DashboardContent(): React.ReactElement {
 
   // Auto-refresh dashboard when transactions or accounts are created/updated/deleted
   useEffect(() => {
-    const handleDataChange = (event: Event) => {
+    const handleDataChange = async (event: Event) => {
       console.log('[Dashboard] Data change event detected:', event.type);
-      // Refresh both accounts and dashboard data
+      const customEvent = event as CustomEvent;
+      const updatedId = customEvent.detail?.data?.id;
+
+      if (event.type === 'transaction-updated' && updatedId) {
+        // Targeted in-place update for transaction modifications to preserve infinite scroll state
+        try {
+          const updatedTxRaw = await transactionService.fetchTransactionById(updatedId);
+          if (updatedTxRaw) {
+            setTransactions(prev => prev.map(t => t.id === updatedId ? updatedTxRaw : t));
+            
+            // Still refresh all other dashboard metrics (charts, trends), but freeze the recent list!
+            fetchAccounts();
+            fetchDashboardData({ preserveTransactions: true });
+            return;
+          }
+        } catch (e) {
+          console.error('[Dashboard] Failed to fetch updated transaction for local patch, falling back to full reload', e);
+        }
+      }
+
+      // Default behavior: fully reload everything
       fetchAccounts();
       fetchDashboardData();
     };

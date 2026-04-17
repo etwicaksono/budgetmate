@@ -125,10 +125,16 @@ export const GlobalTransactionModal: React.FC = () => {
 
         // Emit custom event to notify other components
         const eventName = mode === 'edit' ? 'transaction-updated' : 'transaction-created';
+        
+        const eventData = { ...transactionData };
+        if (mode === 'edit' && initialData?.id) {
+          eventData.id = initialData.id;
+        }
+
         console.log('[GlobalTransactionModal] Dispatching event:', eventName);
         window.dispatchEvent(
           new CustomEvent(eventName, {
-            detail: { action: mode, data: transactionData },
+            detail: { action: mode, data: eventData },
           })
         );
       } catch (err: unknown) {

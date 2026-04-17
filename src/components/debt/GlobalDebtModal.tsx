@@ -54,9 +54,15 @@ export const GlobalDebtModal: React.FC = () => {
       if (editTransaction) {
         await debtService.updateRepayment(debtId, editTransaction.id, payload);
         Toast.fire({ icon: 'success', title: 'Repayment updated successfully' });
+        window.dispatchEvent(
+          new CustomEvent('transaction-updated', {
+            detail: { action: 'edit', data: { id: editTransaction.id } },
+          })
+        );
       } else {
         await debtService.recordRepayment(debtId, payload);
         Toast.fire({ icon: 'success', title: 'Repayment recorded successfully' });
+        window.dispatchEvent(new CustomEvent('transaction-created'));
       }
       dispatchMutated();
     } catch (error) {
@@ -70,9 +76,15 @@ export const GlobalDebtModal: React.FC = () => {
       if (editTransaction) {
         await debtService.updateIncrease(debtId, editTransaction.id, payload);
         Toast.fire({ icon: 'success', title: 'Increase updated successfully' });
+        window.dispatchEvent(
+          new CustomEvent('transaction-updated', {
+            detail: { action: 'edit', data: { id: editTransaction.id } },
+          })
+        );
       } else {
         await debtService.increaseDebt(debtId, payload);
         Toast.fire({ icon: 'success', title: 'Debt increased successfully' });
+        window.dispatchEvent(new CustomEvent('transaction-created'));
       }
       dispatchMutated();
     } catch (error) {

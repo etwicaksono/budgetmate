@@ -42,8 +42,7 @@ export interface TransferDestination {
  * Single source of truth for transfer detection
  */
 export function isTransferTransaction(transaction: TransferTransaction): boolean {
-  return !transaction.category || 
-         transaction.type === 'transfer' || 
+  return transaction.type === 'transfer' || 
          transaction.type === 'transfer_in' || 
          transaction.type === 'transfer_out';
 }
