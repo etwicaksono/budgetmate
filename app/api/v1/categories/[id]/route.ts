@@ -64,6 +64,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       id: category.id,
       name: category.name,
       type: category.type,
+      analytic_flag: category.analytic_flag,
       nature: category.nature,
       icon: category.icon,
       color: category.color,
@@ -155,11 +156,12 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
           return errorResponse('INVALID_PARENT', 'Parent category not found', 404);
         }
 
-        // Verify parent type matches
-        if (parent.type !== existingCategory.type) {
+        // Verify parent type matches (a parent of type 'both' accepts any child type)
+        const targetType = data.type !== undefined ? data.type : existingCategory.type;
+        if (parent.type !== 'both' && parent.type !== targetType) {
           return errorResponse(
             'TYPE_MISMATCH',
-            `Parent category type '${parent.type}' does not match category type '${existingCategory.type}'`,
+            `Parent category type '${parent.type}' does not match category type '${targetType}'`,
             400
           );
         }
@@ -183,11 +185,23 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     };
 
     if (data.name !== undefined) updateData['name'] = data.name;
+    if (data.type !== undefined) updateData['type'] = data.type;
     if (data.parent_id !== undefined) updateData['parent_id'] = data.parent_id;
     if (data.nature !== undefined) updateData['nature'] = data.nature;
     if (data.icon !== undefined) updateData['icon'] = data.icon;
     if (data.color !== undefined) updateData['color'] = data.color;
     if (data.is_active !== undefined) updateData['is_active'] = data.is_active;
+
+    let explicitType = data.type !== undefined ? data.type : existingCategory.type;
+    if (explicitType === 'income') {
+      updateData['analytic_flag'] = 'income';
+    } else if (explicitType === 'expense') {
+      updateData['analytic_flag'] = 'expense';
+    } else if (explicitType === 'both') {
+      if (data.analytic_flag !== undefined) {
+        updateData['analytic_flag'] = data.analytic_flag;
+      }
+    }
 
     const updated = await prisma.category.update({
       where: {
@@ -202,25 +216,35 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       }
     });
 
-    // If color was changed and category has children, update children's colors too
-    if (data.color !== undefined && existingCategory.parent_id === null) {
-      await prisma.category.updateMany({
-        where: {
-          parent_id: id,
-          user_id: user.user_id
-        },
-        data: {
-          color: data.color,
-          updated_at: new Date(),
-          updated_by: user.user_id
-        }
-      });
+    // If color, type, or analytic_flag were changed and category has children, update children too
+    if (existingCategory.parent_id === null) {
+      const childUpdateData: Record<string, any> = {};
+
+      if (data.color !== undefined) childUpdateData['color'] = data.color;
+      if (data.type !== undefined) childUpdateData['type'] = data.type;
+      if (updateData['analytic_flag'] !== undefined) {
+        childUpdateData['analytic_flag'] = updateData['analytic_flag'];
+      }
+
+      if (Object.keys(childUpdateData).length > 0) {
+        childUpdateData['updated_at'] = new Date();
+        childUpdateData['updated_by'] = user.user_id;
+
+        await prisma.category.updateMany({
+          where: {
+            parent_id: id,
+            user_id: user.user_id
+          },
+          data: childUpdateData
+        });
+      }
     }
 
     const response = {
       id: updated.id,
       name: updated.name,
       type: updated.type,
+      analytic_flag: updated.analytic_flag,
       nature: updated.nature,
       icon: updated.icon,
       color: updated.color,

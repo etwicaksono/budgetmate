@@ -15,27 +15,27 @@ import { useToast } from '@/context/ToastContext';
 import './Categories.css';
 
 export default function CategoriesPage(): React.ReactElement {
-  const { 
-    categories, 
-    loading, 
-    incomeCategories, 
+  const {
+    categories,
+    loading,
+    incomeCategories,
     expenseCategories,
     totalCategories,
     refreshCategories
   } = useCategories();
-  
+
   const { showToast } = useToast();
-  
+
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [showModal, setShowModal] = useState(false);
   const [editCategory, setEditCategory] = useState<Category | null>(null);
-  
+
   // Get filtered categories
-  const filteredCategories = 
+  const filteredCategories =
     filterType === 'all' ? categories :
-    filterType === 'income' ? incomeCategories :
-    expenseCategories;
-  
+      filterType === 'income' ? incomeCategories :
+        expenseCategories;
+
   // Handle add new category
   const handleAddCategory = () => {
     setEditCategory(null);
@@ -44,7 +44,6 @@ export default function CategoriesPage(): React.ReactElement {
 
   // Handle add child category
   const handleAddChild = (_parent: Category) => {
-    // TODO: Pre-populate parent in modal
     setEditCategory(null);
     setShowModal(true);
   };
@@ -108,7 +107,7 @@ export default function CategoriesPage(): React.ReactElement {
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <div className="d-flex align-items-center">
-                <div 
+                <div
                   className="rounded p-3 me-3"
                   style={{ backgroundColor: '#e3f2fd' }}
                 >
@@ -126,7 +125,7 @@ export default function CategoriesPage(): React.ReactElement {
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <div className="d-flex align-items-center">
-                <div 
+                <div
                   className="rounded p-3 me-3"
                   style={{ backgroundColor: '#f3e5f5' }}
                 >
@@ -144,7 +143,7 @@ export default function CategoriesPage(): React.ReactElement {
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <div className="d-flex align-items-center">
-                <div 
+                <div
                   className="rounded p-3 me-3"
                   style={{ backgroundColor: '#e8f5e9' }}
                 >
@@ -162,7 +161,7 @@ export default function CategoriesPage(): React.ReactElement {
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <div className="d-flex align-items-center">
-                <div 
+                <div
                   className="rounded p-3 me-3"
                   style={{ backgroundColor: '#ffebee' }}
                 >
@@ -183,8 +182,8 @@ export default function CategoriesPage(): React.ReactElement {
         <Card.Header className="bg-white border-0 pt-3">
           <Nav variant="tabs" activeKey={filterType}>
             <Nav.Item>
-              <Nav.Link 
-                eventKey="all" 
+              <Nav.Link
+                eventKey="all"
                 onClick={() => setFilterType('all')}
                 className="d-flex align-items-center gap-2"
               >
@@ -193,8 +192,8 @@ export default function CategoriesPage(): React.ReactElement {
               </Nav.Link>
             </Nav.Item>
             <Nav.Item>
-              <Nav.Link 
-                eventKey="income" 
+              <Nav.Link
+                eventKey="income"
                 onClick={() => setFilterType('income')}
                 className="d-flex align-items-center gap-2"
               >
@@ -203,8 +202,8 @@ export default function CategoriesPage(): React.ReactElement {
               </Nav.Link>
             </Nav.Item>
             <Nav.Item>
-              <Nav.Link 
-                eventKey="expense" 
+              <Nav.Link
+                eventKey="expense"
                 onClick={() => setFilterType('expense')}
                 className="d-flex align-items-center gap-2"
               >
@@ -228,7 +227,7 @@ export default function CategoriesPage(): React.ReactElement {
               <FaFolderOpen size={48} className="mb-3 text-muted" />
               <h5>No categories found</h5>
               <p className="mb-3">
-                {filterType === 'all' 
+                {filterType === 'all'
                   ? "You haven't created any categories yet."
                   : `No ${filterType} categories found.`}
               </p>

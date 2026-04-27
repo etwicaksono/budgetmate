@@ -79,6 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       id: category.id,
       name: category.name,
       type: category.type,
+      analytic_flag: category.analytic_flag,
       nature: category.nature,
       icon: category.icon,
       color: category.color,
@@ -143,7 +144,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
 
       // Verify parent type matches
-      if (parent.type !== data.type) {
+      if (parent.type !== 'both' && parent.type !== data.type) {
         return errorResponse(
           'TYPE_MISMATCH',
           `Parent category type '${parent.type}' does not match new category type '${data.type}'`,
@@ -157,12 +158,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    let analytic_flag = data.type === 'income' ? 'income' : 'expense';
+    if (data.type === 'both' && data.analytic_flag) {
+      analytic_flag = data.analytic_flag;
+    }
+
     // Create category
     const category = await prisma.category.create({
       data: {
         user_id: user.user_id,
         name: data.name,
         type: data.type,
+        analytic_flag,
         parent_id: data.parent_id ?? null,
         nature: data.nature,
         icon: data.icon,
@@ -182,6 +189,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       id: category.id,
       name: category.name,
       type: category.type,
+      analytic_flag: category.analytic_flag,
       nature: category.nature,
       icon: category.icon,
       color: category.color,

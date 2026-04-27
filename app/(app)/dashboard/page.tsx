@@ -127,7 +127,6 @@ function DashboardContent(): React.ReactElement {
 
   // Fetch dashboard data
   const fetchDashboardData = useCallback(async (options?: { preserveTransactions?: boolean }) => {
-    console.log('[Dashboard] fetchDashboardData called with options:', options);
     try {
       setLoading(true);
       setError(null);
@@ -137,7 +136,6 @@ function DashboardContent(): React.ReactElement {
       const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
       const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
 
-      console.log('[Dashboard] Date range (UTC):', { startDateTime, endDateTime });
 
       const dateFilters: { start_date?: string; end_date?: string } = {};
       if (startDateTime) dateFilters.start_date = startDateTime;
@@ -215,7 +213,6 @@ function DashboardContent(): React.ReactElement {
       if (widgetVisibility.balanceTrend) {
         // Convert trend data to chart format with multi-currency support
         if (trendData.labels && trendData.datasets && trendData.datasets.length > 0) {
-          console.log('[Dashboard] Raw trend data from API:', JSON.stringify(trendData, null, 2));
 
           const chartData: TrendChartData[] = trendData.labels.map((label: string, index: number) => {
             const dataPoint: TrendChartData = { date: label };
@@ -246,10 +243,10 @@ function DashboardContent(): React.ReactElement {
     try {
       setIsLoadingMoreTx(true);
       const nextPage = transactionsPage + 1;
-      
+
       const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
       const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
-      
+
       const dateFilters: { start_date?: string; end_date?: string } = {};
       if (startDateTime) dateFilters.start_date = startDateTime;
       if (endDateTime) dateFilters.end_date = endDateTime;
@@ -257,7 +254,7 @@ function DashboardContent(): React.ReactElement {
       const response = await transactionService.fetchTransactions({ ...dateFilters, limit: 10, page: nextPage });
       setTransactions(prev => [...prev, ...(response.transactions || [])]);
       setTransactionsPage(nextPage);
-      
+
       const totalPages = response.meta?.totalPages || response.meta?.total_pages || 1;
       setHasMoreTransactions((response.meta?.page || 1) < totalPages);
     } catch (e) {
@@ -279,7 +276,6 @@ function DashboardContent(): React.ReactElement {
   // Auto-refresh dashboard when transactions or accounts are created/updated/deleted
   useEffect(() => {
     const handleDataChange = async (event: Event) => {
-      console.log('[Dashboard] Data change event detected:', event.type);
       const customEvent = event as CustomEvent;
       const updatedId = customEvent.detail?.data?.id;
 
@@ -289,7 +285,7 @@ function DashboardContent(): React.ReactElement {
           const updatedTxRaw = await transactionService.fetchTransactionById(updatedId);
           if (updatedTxRaw) {
             setTransactions(prev => prev.map(t => t.id === updatedId ? updatedTxRaw : t));
-            
+
             // Still refresh all other dashboard metrics (charts, trends), but freeze the recent list!
             fetchAccounts();
             fetchDashboardData({ preserveTransactions: true });
@@ -315,7 +311,6 @@ function DashboardContent(): React.ReactElement {
     window.addEventListener('account-updated', handleDataChange);
     window.addEventListener('account-deleted', handleDataChange);
 
-    console.log('[Dashboard] Event listeners registered');
 
     return () => {
       window.removeEventListener('transaction-created', handleDataChange);
@@ -324,7 +319,6 @@ function DashboardContent(): React.ReactElement {
       window.removeEventListener('account-created', handleDataChange);
       window.removeEventListener('account-updated', handleDataChange);
       window.removeEventListener('account-deleted', handleDataChange);
-      console.log('[Dashboard] Event listeners removed');
     };
   }, [fetchAccounts, fetchDashboardData]);
 

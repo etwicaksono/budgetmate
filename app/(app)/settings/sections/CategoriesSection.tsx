@@ -1,19 +1,20 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Button, Form, ListGroup, Dropdown } from 'react-bootstrap';
+import { Button, Form, ListGroup } from 'react-bootstrap';
 import {
   FaPlus,
   FaEdit,
   FaTrash,
   FaChevronRight,
-  FaEllipsisV,
   FaSearch,
   FaGift,
 } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import Swal from 'sweetalert2';
+import '@/components/Records/Records.css';
+import '../../categories/Categories.css';
 import { categoryService, Category, CreateCategoryPayload, UpdateCategoryPayload } from '@/services/categoryService';
 import { CategoryModal } from '@/components/category';
 
@@ -22,23 +23,22 @@ export function CategoriesSection(): React.ReactElement {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  
+
   const [showModal, setShowModal] = useState<boolean>(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  
+
   const filteredCategories = useMemo(() => {
     const searchLower = searchTerm.toLowerCase();
     const parentCategories = categories.filter(cat => !cat.parent_id);
-    
+
     return parentCategories
       .map(parent => {
         const children: Category[] = categories.filter(
           cat => cat.parent_id === parent.id &&
-          (cat.name.toLowerCase().includes(searchLower) || parent.name.toLowerCase().includes(searchLower))
+            (cat.name.toLowerCase().includes(searchLower) || parent.name.toLowerCase().includes(searchLower))
         );
         return {
           ...parent,
@@ -48,7 +48,7 @@ export function CategoriesSection(): React.ReactElement {
       })
       .filter(parent => parent.matchesSearch);
   }, [categories, searchTerm]);
-  
+
   const loadCategories = useCallback(async () => {
     try {
       setLoading(true);
@@ -62,14 +62,15 @@ export function CategoriesSection(): React.ReactElement {
       setLoading(false);
     }
   }, []);
-  
+
   useEffect(() => {
     void loadCategories();
   }, [loadCategories]);
-  
+
   const handleSaveCategory = async (data: {
     name: string;
     type: 'income' | 'expense' | 'both';
+    analytic_flag?: 'income' | 'expense';
     nature: 'WANT' | 'NEED' | 'MUST';
     icon: string;
     color: string;
@@ -80,30 +81,33 @@ export function CategoriesSection(): React.ReactElement {
       if (modalMode === 'edit' && editingCategory) {
         const payload: UpdateCategoryPayload = {
           name: data.name.trim(),
+          type: data.type,
+          ...(data.analytic_flag ? { analytic_flag: data.analytic_flag } : {}),
           nature: data.nature,
           icon: data.icon,
           ...(data.parent_id ? {} : { color: data.color }),
           parent_id: data.parent_id,
           is_active: data.is_active,
         };
-        
+
         await categoryService.updateCategory(editingCategory.id, payload);
         setSuccessMessage('Category updated successfully');
       } else {
         const payload: CreateCategoryPayload = {
           name: data.name.trim(),
           type: data.type,
+          ...(data.analytic_flag ? { analytic_flag: data.analytic_flag } : {}),
           nature: data.nature,
           icon: data.icon,
           ...(data.parent_id ? {} : { color: data.color }),
           parent_id: data.parent_id,
           is_active: data.is_active,
         };
-        
+
         await categoryService.createCategory(payload);
         setSuccessMessage('Category created successfully');
       }
-      
+
       await loadCategories();
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error: unknown) {
@@ -111,17 +115,16 @@ export function CategoriesSection(): React.ReactElement {
       throw new Error(err.message || 'Failed to save category');
     }
   };
-  
+
   const handleDeleteCategory = async (categoryId: string) => {
     const category = categories.find(cat => cat.id === categoryId);
     if (!category) return;
-    
+
     const hasChildren = categories.some(cat => cat.parent_id === categoryId);
-    setOpenMenuId(null);
-    
+
     const { isConfirmed } = await Swal.fire({
       title: 'Delete category?',
-      text: hasChildren 
+      text: hasChildren
         ? `Deleting "${category.name}" will also remove all of its subcategories.`
         : `You are about to delete "${category.name}".`,
       icon: 'warning',
@@ -131,9 +134,9 @@ export function CategoriesSection(): React.ReactElement {
       confirmButtonColor: '#dc3545',
       focusCancel: true,
     });
-    
+
     if (!isConfirmed) return;
-    
+
     try {
       await Swal.fire({
         title: 'Deleting...',
@@ -142,10 +145,10 @@ export function CategoriesSection(): React.ReactElement {
         showConfirmButton: false,
         didOpen: () => Swal.showLoading(),
       });
-      
+
       await categoryService.deleteCategory(categoryId);
       await loadCategories();
-      
+
       Swal.close();
       setSuccessMessage('Category deleted successfully');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -159,27 +162,26 @@ export function CategoriesSection(): React.ReactElement {
       });
     }
   };
-  
+
   const handleOpenEdit = (categoryId: string) => {
     const category = categories.find(cat => cat.id === categoryId);
     if (!category) return;
-    
+
     setEditingCategory(category);
     setModalMode('edit');
     setShowModal(true);
-    setOpenMenuId(null);
   };
-  
+
   const handleAddNew = () => {
     setEditingCategory(null);
     setModalMode('add');
     setShowModal(true);
   };
-  
+
   const handleAddSubcategory = (parentId: string) => {
     const parent = categories.find(cat => cat.id === parentId);
     if (!parent) return;
-    
+
     setEditingCategory({
       parent_id: parentId,
       type: parent.type,
@@ -187,26 +189,25 @@ export function CategoriesSection(): React.ReactElement {
     } as Category);
     setModalMode('add');
     setShowModal(true);
-    setOpenMenuId(null);
   };
-  
+
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => ({
       ...prev,
       [categoryId]: !prev[categoryId],
     }));
   };
-  
+
   const getIconComponent = (iconKey: string): IconType => {
     const IconComponent = (FaIcons as Record<string, IconType>)[iconKey];
     return IconComponent || FaGift;
   };
-  
+
   const renderCategoryItem = (category: Category & { children: Category[] }) => {
     const IconComponent = getIconComponent(category.icon || 'FaGift');
     const hasChildren = category.children && category.children.length > 0;
     const categoryColor = category.color || '#dc3545';
-    
+
     return (
       <ListGroup.Item key={category.id} className="category-item">
         <div className="category-item__header">
@@ -227,36 +228,44 @@ export function CategoriesSection(): React.ReactElement {
               </div>
               <span className="category-item__name">{category.name}</span>
             </div>
-            <div className="category-item__actions" onClick={(e) => e.stopPropagation()}>
-              <Dropdown
-                show={openMenuId === `parent-${category.id}`}
-                onToggle={(isOpen) => setOpenMenuId(isOpen ? `parent-${category.id}` : null)}
+            <div
+              className="records-item-actions d-none d-md-flex align-items-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="records-action-btn text-secondary"
+                onClick={() => handleOpenEdit(category.id)}
+                title="Edit Category"
               >
-                <Dropdown.Toggle variant="link" className="p-1">
-                  <FaEllipsisV size={14} />
-                </Dropdown.Toggle>
-                <Dropdown.Menu align="end">
-                  <Dropdown.Item onClick={() => handleOpenEdit(category.id)}>
-                    <FaEdit size={14} className="me-2" /> Edit
-                  </Dropdown.Item>
-                  <Dropdown.Item onClick={() => handleAddSubcategory(category.id)}>
-                    <FaPlus size={14} className="me-2" /> Add Subcategory
-                  </Dropdown.Item>
-                  <Dropdown.Item className="text-danger" onClick={() => void handleDeleteCategory(category.id)}>
-                    <FaTrash size={14} className="me-2" /> Delete
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
+                <FaEdit size={14} />
+                <span>Edit</span>
+              </button>
+              <button
+                className="records-action-btn text-secondary"
+                onClick={() => handleAddSubcategory(category.id)}
+                title="Add Subcategory"
+              >
+                <FaPlus size={14} />
+                <span>Add</span>
+              </button>
+              <button
+                className="records-action-btn text-danger"
+                onClick={() => void handleDeleteCategory(category.id)}
+                title="Delete Category"
+              >
+                <FaTrash size={14} />
+                <span>Delete</span>
+              </button>
             </div>
           </div>
         </div>
-        
+
         {hasChildren && expandedCategories[category.id] && (
           <ListGroup className="category-children">
             {(category.children as Category[]).map((childData) => {
               const ChildIconComponent = getIconComponent(childData.icon || 'FaGift');
               const childColor = childData.color || categoryColor;
-              
+
               return (
                 <ListGroup.Item key={childData.id} className="category-item category-item--child">
                   <div className="category-item__content">
@@ -266,23 +275,26 @@ export function CategoriesSection(): React.ReactElement {
                       </div>
                       <span className="category-item__name">{childData.name}</span>
                     </div>
-                    <div className="category-item__actions" onClick={(e) => e.stopPropagation()}>
-                      <Dropdown
-                        show={openMenuId === `child-${childData.id}`}
-                        onToggle={(isOpen) => setOpenMenuId(isOpen ? `child-${childData.id}` : null)}
+                    <div
+                      className="records-item-actions d-none d-md-flex align-items-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        className="records-action-btn text-secondary"
+                        onClick={() => handleOpenEdit(childData.id)}
+                        title="Edit Category"
                       >
-                        <Dropdown.Toggle variant="link" className="p-1">
-                          <FaEllipsisV size={14} />
-                        </Dropdown.Toggle>
-                        <Dropdown.Menu align="end">
-                          <Dropdown.Item onClick={() => handleOpenEdit(childData.id)}>
-                            <FaEdit size={14} className="me-2" /> Edit
-                          </Dropdown.Item>
-                          <Dropdown.Item className="text-danger" onClick={() => void handleDeleteCategory(childData.id)}>
-                            <FaTrash size={14} className="me-2" /> Delete
-                          </Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown>
+                        <FaEdit size={14} />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        className="records-action-btn text-danger"
+                        onClick={() => void handleDeleteCategory(childData.id)}
+                        title="Delete Category"
+                      >
+                        <FaTrash size={14} />
+                        <span>Delete</span>
+                      </button>
                     </div>
                   </div>
                 </ListGroup.Item>
@@ -293,7 +305,7 @@ export function CategoriesSection(): React.ReactElement {
       </ListGroup.Item>
     );
   };
-  
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -303,21 +315,21 @@ export function CategoriesSection(): React.ReactElement {
           Add Category
         </Button>
       </div>
-      
+
       {successMessage && (
         <div className="alert alert-success alert-dismissible fade show" role="alert">
           {successMessage}
           <button type="button" className="btn-close" onClick={() => setSuccessMessage('')}></button>
         </div>
       )}
-      
+
       {errorMessage && (
         <div className="alert alert-danger alert-dismissible fade show" role="alert">
           {errorMessage}
           <button type="button" className="btn-close" onClick={() => setErrorMessage('')}></button>
         </div>
       )}
-      
+
       <div className="d-flex justify-content-start">
         <Form.Group className="mb-4 search-form">
           <div className="position-relative w-100">
@@ -334,7 +346,7 @@ export function CategoriesSection(): React.ReactElement {
           </div>
         </Form.Group>
       </div>
-      
+
       <CategoryModal
         show={showModal}
         onHide={() => setShowModal(false)}
@@ -343,6 +355,7 @@ export function CategoriesSection(): React.ReactElement {
           initialData: {
             name: editingCategory.name || '',
             type: editingCategory.type || 'expense',
+            analytic_flag: (editingCategory as any).analytic_flag || 'expense',
             nature: editingCategory.nature || 'WANT',
             icon: editingCategory.icon || 'FaGift',
             color: editingCategory.color || '#dc3545',
@@ -354,7 +367,7 @@ export function CategoriesSection(): React.ReactElement {
         categories={categories}
         {...(editingCategory?.id && { excludeId: editingCategory.id })}
       />
-      
+
       <div className="categories-list">
         {loading ? (
           <div className="py-5 text-center text-muted">Loading categories...</div>

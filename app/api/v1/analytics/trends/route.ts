@@ -20,7 +20,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const endDate = searchParams.get('end_date');
 
   try {
-    console.log('[Trends API] Request params:', { metric, period, startDate, endDate });
 
     // Validate parameters
     if (!['income', 'expense', 'net', 'balance'].includes(metric)) {
@@ -40,10 +39,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       dateFilter.lte = new Date(endDate);
     }
 
-    console.log('[Trends API] Date filter:', {
-      gte: dateFilter.gte?.toISOString(),
-      lte: dateFilter.lte?.toISOString()
-    });
 
     // For balance metric, fetch accounts to get initial balances per currency
     let initialBalances: Map<string, number> | null = null;
@@ -71,11 +66,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Fetch transactions based on metric (include currency for multi-currency support)
     let transactions;
     if (metric === 'income' || metric === 'expense' || metric === 'net') {
-      const typeFilter = metric === 'income' 
-        ? 'income' 
-        : metric === 'expense' 
-        ? 'expense' 
-        : undefined;
+      const typeFilter = metric === 'income'
+        ? 'income'
+        : metric === 'expense'
+          ? 'expense'
+          : undefined;
 
       transactions = await prisma.transaction.findMany({
         where: {
@@ -118,18 +113,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const groupedData = new Map<string, Map<string, number>>();
     const currencies = new Set<string>();
 
-    console.log('[Trends API] Total transactions fetched:', transactions.length);
-    console.log('[Trends API] Transactions:', JSON.stringify(transactions.map(t => ({
-      date: t.date,
-      currency: t.currency,
-      amount: t.amount,
-      type: t.type
-    })), null, 2));
 
     // Add currencies from initial balances (even if no transactions exist)
     if (initialBalances) {
       initialBalances.forEach((_, currency) => currencies.add(currency));
-      console.log('[Trends API] Initial balances:', Array.from(initialBalances.entries()));
     }
 
     for (const transaction of transactions) {
@@ -162,14 +149,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (!groupedData.has(key)) {
         groupedData.set(key, new Map());
       }
-      
+
       const periodData = groupedData.get(key)!;
       const current = periodData.get(currency) || 0;
-      
+
       // Note: Amounts are already signed in database (income: +, expense: -)
       // So we just add them directly without flipping
       const amount = Number(transaction.amount);
-      
+
       if (metric === 'balance' || metric === 'net') {
         // For balance and net, amounts are already signed correctly
         periodData.set(currency, current + amount);
@@ -186,7 +173,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // For balance metric, calculate cumulative sum per currency (starting from initial balance)
     if (metric === 'balance') {
       const cumulativeBalances = new Map<string, number>();
-      
+
       // Initialize with initial balances from accounts
       currencyList.forEach(currency => {
         const initialBalance = initialBalances?.get(currency) || 0;
@@ -197,12 +184,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (labels.length > 0) {
         for (const label of labels) {
           const periodData = groupedData.get(label)!;
-          
+
           currencyList.forEach(currency => {
             const currentCumulative = cumulativeBalances.get(currency) || 0;
             const periodChange = periodData.get(currency) || 0;
             const newCumulative = currentCumulative + periodChange;
-            
+
             cumulativeBalances.set(currency, newCumulative);
             periodData.set(currency, newCumulative);
           });
@@ -210,18 +197,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       } else {
         // No transactions in period, but still need to show initial balances
         // Create a single data point for the start date
-        const dateKey = startDate 
-          ? new Date(startDate).toISOString().split('T')[0]! 
+        const dateKey = startDate
+          ? new Date(startDate).toISOString().split('T')[0]!
           : new Date().toISOString().split('T')[0]!;
-        
+
         labels.push(dateKey);
         const periodData = new Map<string, number>();
-        
+
         currencyList.forEach(currency => {
           const balance = cumulativeBalances.get(currency) || 0;
           periodData.set(currency, balance);
         });
-        
+
         groupedData.set(dateKey, periodData);
       }
     }

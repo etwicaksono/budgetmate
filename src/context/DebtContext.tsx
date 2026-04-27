@@ -9,7 +9,6 @@ export interface DebtContextValue {
   modalType: DebtModalType;
   mode: DebtMode;
   initialData: Debt | null;
-  // TODO: type this properly
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   editTransaction: any | null;
   defaultDebtType: 'lend' | 'borrow';
@@ -17,10 +16,8 @@ export interface DebtContextValue {
   setActiveDebtTab: (tab: 'lend' | 'borrow') => void;
   openAddDebtModal: (defaultType?: 'lend' | 'borrow') => void;
   openEditDebtModal: (debt: Debt) => void;
-  // TODO: type transaction properly
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   openRepaymentModal: (debt: Debt, transaction?: any) => void;
-  // TODO: type transaction properly
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   openIncreaseModal: (debt: Debt, transaction?: any) => void;
   closeModal: () => void;
@@ -37,7 +34,6 @@ export const DebtProvider: React.FC<DebtProviderProps> = ({ children }) => {
   const [modalType, setModalType] = useState<DebtModalType>('debt');
   const [mode, setMode] = useState<DebtMode>('add');
   const [initialData, setInitialData] = useState<Debt | null>(null);
-  // TODO: type this properly
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editTransaction, setEditTransaction] = useState<any | null>(null);
   const [defaultDebtType, setDefaultDebtType] = useState<'lend' | 'borrow'>('lend');

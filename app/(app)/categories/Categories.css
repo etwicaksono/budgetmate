@@ -11,3 +11,22 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Support records-item-actions sliding hover in category list */
+.category-item__content:hover .records-item-actions {
+  opacity: 1;
+  pointer-events: auto;
+  max-width: 300px;
+  margin-left: 0.5rem;
+}
+
+.category-item__content:hover .records-action-btn {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (pointer: coarse) {
+  .category-item__content .records-item-actions {
+    opacity: 1;
+  }
+}

@@ -7,6 +7,7 @@ const cuidRegex = /^[a-z][a-z0-9]{8,}$/;
 export const CreateCategorySchema = z.object({
   name: z.string().min(1).max(100),
   type: z.enum(['income', 'expense', 'both']),
+  analytic_flag: z.enum(['income', 'expense']).optional(),
   parent_id: z.string().regex(cuidRegex, 'Invalid parent ID').nullable().optional(),
   nature: z.enum(['WANT', 'NEED', 'MUST']).default('WANT'),
   icon: z.string(),
@@ -19,6 +20,8 @@ export type CreateCategoryInput = z.infer<typeof CreateCategorySchema>;
 // Update category schema
 export const UpdateCategorySchema = z.object({
   name: z.string().min(1).max(100).optional(),
+  type: z.enum(['income', 'expense', 'both']).optional(),
+  analytic_flag: z.enum(['income', 'expense']).optional(),
   parent_id: z.string().regex(cuidRegex, 'Invalid parent ID').nullable().optional(),
   nature: z.enum(['WANT', 'NEED', 'MUST']).optional(),
   icon: z.string().optional(),

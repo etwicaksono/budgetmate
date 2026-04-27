@@ -70,7 +70,6 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
         });
 
         // Dispatch event for other components to listen
-        console.log('[useAccountModal] Dispatching event: account-created');
         window.dispatchEvent(new CustomEvent('account-created', {
           detail: { account: createdAccount }
         }));
@@ -87,7 +86,6 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
         });
 
         // Dispatch event for other components to listen
-        console.log('[useAccountModal] Dispatching event: account-updated');
         window.dispatchEvent(new CustomEvent('account-updated', {
           detail: { accountId: editingAccount.id, account: updatedAccount }
         }));

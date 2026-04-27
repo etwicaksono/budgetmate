@@ -342,13 +342,11 @@ function detectSheetFormat(
     const hasIDColumn = headers.some(h => h && h.trim() === 'ID');
 
     if (hasCodeColumn) {
-      console.log('[Format Detection] Detected v2.0: Found "Code" column in Accounts');
       return '2.0';
     }
 
     if (hasIDColumn && headers.length > 12) {
       // v1.0 has ID column and 14+ columns
-      console.log('[Format Detection] Detected v1.0: Found "ID" column with many columns');
       return '1.0';
     }
   }
@@ -364,22 +362,16 @@ function detectSheetFormat(
     const hasCategoryID = headers.some(h => h && h.trim() === 'Category ID');
 
     if (hasAccountID || hasCategoryID) {
-      console.log('[Format Detection] Detected v1.0: Found "Account ID" or "Category ID" column');
       return '1.0';
     }
 
     if (hasAccount && !hasAccountID && headers.length <= 10) {
       // v2.0 has "Account" but not "Account ID", and fewer columns (8)
-      console.log('[Format Detection] Detected v2.0: Found "Account" column (no ID suffix) with few columns');
       return '2.0';
     }
   }
 
   // Log headers for debugging
-  console.log('[Format Detection] Could not determine, defaulting to v2.0');
-  console.log('[Format Detection] Accounts headers:', accountsData?.[0]?.slice(0, 5));
-  console.log('[Format Detection] Transactions headers:', transactionsData?.[0]?.slice(0, 5));
-
   // Default to simplified format if we can't determine
   return '2.0';
 }

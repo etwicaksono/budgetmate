@@ -11,6 +11,7 @@ import { getIconComponent, getAllFaIconNames } from '@/utils/iconUtils';
 export interface CategoryFormData {
   name: string;
   type: 'income' | 'expense' | 'both';
+  analytic_flag?: 'income' | 'expense';
   nature: 'WANT' | 'NEED' | 'MUST';
   icon: string;
   color: string;
@@ -125,7 +126,7 @@ export function CategoryForm({
 
       <Row>
         {/* Category Type */}
-        <Col md={4}>
+        <Col md={6}>
           <Form.Group className="mb-3">
             <Form.Label>Type *</Form.Label>
             <Form.Select
@@ -144,7 +145,7 @@ export function CategoryForm({
         </Col>
 
         {/* Nature of Spending */}
-        <Col md={4}>
+        <Col md={6}>
           <Form.Group className="mb-3">
             <Form.Label>Nature</Form.Label>
             <Form.Select
@@ -158,9 +159,11 @@ export function CategoryForm({
             </Form.Select>
           </Form.Group>
         </Col>
+      </Row>
 
+      <Row>
         {/* Parent Category */}
-        <Col md={4}>
+        <Col md={6}>
           <Form.Group className="mb-3">
             <Form.Label>Parent</Form.Label>
             <CategorySelect
@@ -177,6 +180,24 @@ export function CategoryForm({
             {formData.parent_id && (
               <Form.Text className="text-muted d-block">Inherits parent's color</Form.Text>
             )}
+          </Form.Group>
+        </Col>
+
+        {/* Analytic Flag */}
+        <Col md={6}>
+          <Form.Group className="mb-3">
+            <Form.Label>Analytic Page</Form.Label>
+            <Form.Select
+              value={formData.type === 'both' ? (formData.analytic_flag || 'expense') : (formData.type === 'income' ? 'income' : 'expense')}
+              onChange={(e) => onChange('analytic_flag', e.target.value)}
+              disabled={loading || formData.type !== 'both'}
+            >
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </Form.Select>
+            <Form.Text className="text-muted d-block">
+              {formData.type === 'both' ? "Set custom analytic assignment" : "Determined by category type"}
+            </Form.Text>
           </Form.Group>
         </Col>
       </Row>

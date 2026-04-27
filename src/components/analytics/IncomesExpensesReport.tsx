@@ -182,7 +182,6 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   ) => {
     const hasChildren = category.hasSubItems && category.subItems && category.subItems.length > 0;
     const isExpanded = expandedCategories.has(category.id);
-    const prefix = type === 'expense' ? '-' : '';
     const iconSize = isChild ? 20 : 24;
 
     return (
@@ -224,7 +223,10 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                     onClick={(e) => handleShowTransactions(category, monthIndex, e)}
                   />
                 )}
-                {prefix}{formatCurrency(amount, currency)}
+                <span className={Object.is(amount, -0) || amount < 0 ? (type === 'income' ? 'text-danger' : 'text-success') : ''}>
+                  {type === 'expense' ? (amount >= 0 ? '-' : '+') : (amount < 0 ? '-' : '')}
+                  {formatCurrency(Math.abs(amount), currency)}
+                </span>
                 {monthIndex === 0 && (() => {
                   const pctDiff = calculatePercentageDiff(category.amounts[0] || 0, category.amounts[1] || 0);
                   if (pctDiff) {
@@ -279,7 +281,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <td><strong>Total Income</strong></td>
             {currencyData.totalIncomes.map((total, idx) => (
               <td key={idx} className="text-end total-income">
-                {formatCurrency(total, currency)}
+                {total < 0 ? '-' : ''}{formatCurrency(Math.abs(total), currency)}
               </td>
             ))}
           </tr>
@@ -297,7 +299,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <td><strong>Total Expense</strong></td>
             {currencyData.totalExpenses.map((total, idx) => (
               <td key={idx} className="text-end total-expense">
-                -{formatCurrency(total, currency)}
+                {total >= 0 ? '-' : '+'}{formatCurrency(Math.abs(total), currency)}
               </td>
             ))}
           </tr>
@@ -317,30 +319,30 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   ) => {
     const hasChildren = category.hasSubItems && category.subItems && category.subItems.length > 0;
     const isExpanded = expandedCategories.has(category.id);
-    const prefix = type === 'expense' ? '-' : '';
     const iconSize = '24px'; // Uniformly smaller container for both parent and child
 
     const currentAmount = category.amounts[0] || 0;
     const prevAmount = category.amounts[1] || 0;
-    
+    const prefix = type === 'expense' ? (currentAmount >= 0 ? '-' : '+') : (currentAmount < 0 ? '-' : '');
+
     // Always calculate trend for mobile
     const diffNode = (() => {
       if (prevAmount === 0 && currentAmount !== 0) {
-         return (
-           <span className="ms-1 text-success" style={{ fontSize: '11px', fontWeight: 600 }}>
-             +100% <span className="text-muted" style={{ fontWeight: 400 }}>vs prev</span>
-           </span>
-         );
+        return (
+          <span className="ms-1 text-success" style={{ fontSize: '11px', fontWeight: 600 }}>
+            +100% <span className="text-muted" style={{ fontWeight: 400 }}>vs prev</span>
+          </span>
+        );
       }
       if (prevAmount === 0) return null;
-      
+
       const diff = ((currentAmount - prevAmount) / Math.abs(prevAmount)) * 100;
       const pctStr = diff >= 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
-      
+
       // Incomes: + is good (success), - is bad (danger)
       // Expenses: + is usually bad (danger), but taking absolute math, so we'll match desktop behavior
       const isPositive = type === 'income' ? diff >= 0 : diff < 0; // if expense decreased, it's good (success)
-      
+
       return (
         <span className={`ms-1 ${isPositive ? 'text-success' : 'text-danger'}`} style={{ fontSize: '11px', fontWeight: 600 }}>
           {pctStr} <span className="text-muted" style={{ fontWeight: 400 }}>vs prev</span>
@@ -385,15 +387,15 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             </div>
           </div>
           <div className="d-flex flex-column align-items-end flex-shrink-0" style={{ whiteSpace: 'nowrap' }}>
-             <span 
-               style={{ fontSize: '13px', fontWeight: 600, color: '#374151', cursor: 'pointer', textDecoration: currentAmount !== 0 ? 'underline dotted' : 'none' }} 
-               onClick={(e) => {
-                 if (currentAmount !== 0) handleShowTransactions(category, 0, e);
-               }}
-             >
-               {prefix}{formatCurrency(currentAmount, currency)}
-             </span>
-             {diffNode}
+            <span
+              style={{ fontSize: '13px', fontWeight: 600, color: '#374151', cursor: 'pointer', textDecoration: currentAmount !== 0 ? 'underline dotted' : 'none' }}
+              onClick={(e) => {
+                if (currentAmount !== 0) handleShowTransactions(category, 0, e);
+              }}
+            >
+              {prefix}{formatCurrency(Math.abs(currentAmount), currency)}
+            </span>
+            {diffNode}
           </div>
         </div>
         {hasChildren && isExpanded && category.subItems?.map((subItem) =>
@@ -405,70 +407,76 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
 
   const renderMobileList = (currencyData: CurrencyReport, currency: string) => {
     return (
-       <div className="d-flex flex-column mb-4 rounded border overflow-hidden shadow-sm">
-         {/* Income Categories */}
-          <div className="px-3 py-2 bg-light border-bottom text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
-             Income Breakdown
+      <div className="d-flex flex-column mb-4 rounded border overflow-hidden shadow-sm">
+        {/* Income Categories */}
+        <div className="px-3 py-2 bg-light border-bottom text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
+          Income Breakdown
+        </div>
+        <div className="bg-white p-3 border-bottom">
+          {/* Income Summary */}
+          <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#ECFDF5', border: '1px solid #D1FAE5' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#065F46', marginBottom: '4px' }}>Total Income</span>
+            <span className="text-truncate" style={{ fontSize: '16px', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
+              {(() => {
+                const total = currencyData.totalIncomes[0] || 0;
+                return `${total < 0 ? '-' : ''}${formatCurrency(Math.abs(total), currency)}`;
+              })()}
+            </span>
+            {(() => {
+              const prev = currencyData.totalIncomes[1] || 0;
+              if (prev === 0) return null;
+              const diff = (((currencyData.totalIncomes[0] || 0) - prev) / prev) * 100;
+              const isPositive = diff >= 0;
+              return (
+                <div className="d-flex align-items-center flex-wrap gap-1 mt-1">
+                  <span style={{ fontSize: '12px', color: isPositive ? '#059669' : '#DC2626', fontWeight: 600 }}>
+                    {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#6B7280' }}>vs prev</span>
+                </div>
+              );
+            })()}
           </div>
-          <div className="bg-white p-3 border-bottom">
-             {/* Income Summary */}
-             <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#ECFDF5', border: '1px solid #D1FAE5' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#065F46', marginBottom: '4px' }}>Total Income</span>
-                <span className="text-truncate" style={{ fontSize: '16px', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
-                  {formatCurrency(currencyData.totalIncomes[0] || 0, currency)}
-                </span>
-                {(() => {
-                   const prev = currencyData.totalIncomes[1] || 0;
-                   if (prev === 0) return null;
-                   const diff = (((currencyData.totalIncomes[0] || 0) - prev) / prev) * 100;
-                   const isPositive = diff >= 0;
-                   return (
-                     <div className="d-flex align-items-center flex-wrap gap-1 mt-1">
-                       <span style={{ fontSize: '12px', color: isPositive ? '#059669' : '#DC2626', fontWeight: 600 }}>
-                         {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
-                       </span>
-                       <span style={{ fontSize: '11px', color: '#6B7280' }}>vs prev</span>
-                     </div>
-                   );
-                })()}
-             </div>
-          </div>
-          <div className="d-flex flex-column bg-white">
-             {sortCategories(currencyData.incomeCategories).map((category) => renderMobileCategoryRow(category, 'income', currency))}
-          </div>
+        </div>
+        <div className="d-flex flex-column bg-white">
+          {sortCategories(currencyData.incomeCategories).map((category) => renderMobileCategoryRow(category, 'income', currency))}
+        </div>
 
-          {/* Expense Categories */}
-          <div className="px-3 py-2 bg-light border-bottom border-top text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
-             Expense Breakdown
+        {/* Expense Categories */}
+        <div className="px-3 py-2 bg-light border-bottom border-top text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
+          Expense Breakdown
+        </div>
+        <div className="bg-white p-3 border-bottom">
+          {/* Expense Summary */}
+          <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FEE2E2' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#991B1B', marginBottom: '4px' }}>Total Expense</span>
+            <span className="text-truncate" style={{ fontSize: '16px', fontWeight: 700, color: '#DC2626', whiteSpace: 'nowrap' }}>
+              {(() => {
+                const total = currencyData.totalExpenses[0] || 0;
+                return `${total >= 0 ? '-' : '+'}${formatCurrency(Math.abs(total), currency)}`;
+              })()}
+            </span>
+            {(() => {
+              const prev = Math.abs(currencyData.totalExpenses[1] || 0);
+              if (prev === 0) return null;
+              const current = Math.abs(currencyData.totalExpenses[0] || 0);
+              const diff = ((current - prev) / prev) * 100;
+              const expenseDecreased = diff < 0;
+              return (
+                <div className="d-flex align-items-center gap-1 mt-1">
+                  <span style={{ fontSize: '12px', color: expenseDecreased ? '#059669' : '#DC2626', fontWeight: 600 }}>
+                    {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#6B7280' }}>vs prev</span>
+                </div>
+              );
+            })()}
           </div>
-          <div className="bg-white p-3 border-bottom">
-             {/* Expense Summary */}
-             <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FEE2E2' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#991B1B', marginBottom: '4px' }}>Total Expense</span>
-                <span className="text-truncate" style={{ fontSize: '16px', fontWeight: 700, color: '#DC2626', whiteSpace: 'nowrap' }}>
-                  -{formatCurrency(currencyData.totalExpenses[0] || 0, currency)}
-                </span>
-                {(() => {
-                   const prev = Math.abs(currencyData.totalExpenses[1] || 0);
-                   if (prev === 0) return null;
-                   const current = Math.abs(currencyData.totalExpenses[0] || 0);
-                   const diff = ((current - prev) / prev) * 100;
-                   const expenseDecreased = diff < 0;
-                   return (
-                     <div className="d-flex align-items-center gap-1 mt-1">
-                       <span style={{ fontSize: '12px', color: expenseDecreased ? '#059669' : '#DC2626', fontWeight: 600 }}>
-                         {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
-                       </span>
-                       <span style={{ fontSize: '11px', color: '#6B7280' }}>vs prev</span>
-                     </div>
-                   );
-                })()}
-             </div>
-          </div>
-          <div className="d-flex flex-column bg-white" style={{ borderBottom: 'none' }}>
-             {sortCategories(currencyData.expenseCategories).map((category) => renderMobileCategoryRow(category, 'expense', currency))}
-          </div>
-       </div>
+        </div>
+        <div className="d-flex flex-column bg-white" style={{ borderBottom: 'none' }}>
+          {sortCategories(currencyData.expenseCategories).map((category) => renderMobileCategoryRow(category, 'expense', currency))}
+        </div>
+      </div>
     );
   };
 
@@ -603,7 +611,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <div className="px-3 py-2 bg-light border-bottom text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
               <Placeholder animation="glow"><Placeholder xs={4} /></Placeholder>
             </div>
-            
+
             <div className="bg-white p-3 border-bottom">
               <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#ECFDF5', border: '1px solid #D1FAE5' }}>
                 <Placeholder animation="glow" className="mb-2"><Placeholder xs={3} size="sm" /></Placeholder>
@@ -615,17 +623,17 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <div className="d-flex flex-column bg-white">
               {skeletonRows.slice(0, 3).map((i) => (
                 <div key={`mob-inc-${i}`} className="d-flex align-items-center justify-content-between p-3 border-bottom flex-nowrap gap-2">
-                   <div className="d-flex align-items-center gap-2 flex-grow-1">
-                     <Placeholder animation="glow"><Placeholder className="rounded-circle" style={{ width: '24px', height: '24px' }} /></Placeholder>
-                     <div className="d-flex flex-column flex-grow-1">
-                       <Placeholder animation="glow"><Placeholder xs={8} /></Placeholder>
-                       <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
-                     </div>
-                   </div>
-                   <div className="d-flex flex-column align-items-end flex-shrink-0">
-                     <Placeholder animation="glow"><Placeholder xs={12} style={{ width: '60px' }} /></Placeholder>
-                     <Placeholder animation="glow"><Placeholder xs={12} size="sm" style={{ width: '40px' }} /></Placeholder>
-                   </div>
+                  <div className="d-flex align-items-center gap-2 flex-grow-1">
+                    <Placeholder animation="glow"><Placeholder className="rounded-circle" style={{ width: '24px', height: '24px' }} /></Placeholder>
+                    <div className="d-flex flex-column flex-grow-1">
+                      <Placeholder animation="glow"><Placeholder xs={8} /></Placeholder>
+                      <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
+                    </div>
+                  </div>
+                  <div className="d-flex flex-column align-items-end flex-shrink-0">
+                    <Placeholder animation="glow"><Placeholder xs={12} style={{ width: '60px' }} /></Placeholder>
+                    <Placeholder animation="glow"><Placeholder xs={12} size="sm" style={{ width: '40px' }} /></Placeholder>
+                  </div>
                 </div>
               ))}
             </div>
@@ -634,7 +642,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <div className="px-3 py-2 bg-light border-bottom border-top text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
               <Placeholder animation="glow"><Placeholder xs={4} /></Placeholder>
             </div>
-            
+
             <div className="bg-white p-3 border-bottom">
               <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FEE2E2' }}>
                 <Placeholder animation="glow" className="mb-2"><Placeholder xs={3} size="sm" /></Placeholder>
@@ -646,17 +654,17 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <div className="d-flex flex-column bg-white" style={{ borderBottom: 'none' }}>
               {skeletonRows.slice(0, 4).map((i) => (
                 <div key={`mob-exp-${i}`} className="d-flex align-items-center justify-content-between p-3 border-bottom flex-nowrap gap-2">
-                   <div className="d-flex align-items-center gap-2 flex-grow-1">
-                     <Placeholder animation="glow"><Placeholder className="rounded-circle" style={{ width: '24px', height: '24px' }} /></Placeholder>
-                     <div className="d-flex flex-column flex-grow-1">
-                       <Placeholder animation="glow"><Placeholder xs={8} /></Placeholder>
-                       <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
-                     </div>
-                   </div>
-                   <div className="d-flex flex-column align-items-end flex-shrink-0">
-                     <Placeholder animation="glow"><Placeholder xs={12} style={{ width: '60px' }} /></Placeholder>
-                     <Placeholder animation="glow"><Placeholder xs={12} size="sm" style={{ width: '40px' }} /></Placeholder>
-                   </div>
+                  <div className="d-flex align-items-center gap-2 flex-grow-1">
+                    <Placeholder animation="glow"><Placeholder className="rounded-circle" style={{ width: '24px', height: '24px' }} /></Placeholder>
+                    <div className="d-flex flex-column flex-grow-1">
+                      <Placeholder animation="glow"><Placeholder xs={8} /></Placeholder>
+                      <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
+                    </div>
+                  </div>
+                  <div className="d-flex flex-column align-items-end flex-shrink-0">
+                    <Placeholder animation="glow"><Placeholder xs={12} style={{ width: '60px' }} /></Placeholder>
+                    <Placeholder animation="glow"><Placeholder xs={12} size="sm" style={{ width: '40px' }} /></Placeholder>
+                  </div>
                 </div>
               ))}
             </div>

@@ -8,6 +8,7 @@ interface CategoryNode {
   id: string;
   name: string;
   type: string;
+  analytic_flag: string;
   nature: string;
   icon: string;
   color: string | null;
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         id: category.id,
         name: category.name,
         type: category.type,
+        analytic_flag: category.analytic_flag,
         nature: category.nature,
         icon: category.icon,
         color: category.color,

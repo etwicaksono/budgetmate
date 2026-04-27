@@ -202,6 +202,7 @@ export const useFilterData = () => {
       id: id || `cat-${Date.now()}`,
       name,
       type: 'expense',
+      analytic_flag: 'expense',
       nature: 'WANT' as const,
       parent_id: parentId,
       color,

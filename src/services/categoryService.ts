@@ -4,6 +4,7 @@ export interface Category {
   id: string;
   name: string;
   type: 'income' | 'expense' | 'both';
+  analytic_flag: 'income' | 'expense';
   nature: 'WANT' | 'NEED' | 'MUST';
   icon: string;
   color: string | null;
@@ -28,6 +29,7 @@ export interface CategoryFilters {
 export interface CreateCategoryPayload {
   name: string;
   type: 'income' | 'expense' | 'both';
+  analytic_flag?: 'income' | 'expense';
   nature?: 'WANT' | 'NEED' | 'MUST';
   icon?: string;
   color?: string;
@@ -37,6 +39,8 @@ export interface CreateCategoryPayload {
 
 export interface UpdateCategoryPayload {
   name?: string;
+  type?: 'income' | 'expense' | 'both';
+  analytic_flag?: 'income' | 'expense';
   nature?: 'WANT' | 'NEED' | 'MUST';
   icon?: string;
   color?: string;

@@ -28,6 +28,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
   const [formData, setFormData] = useState<CategoryFormData>({
     name: '',
     type: 'expense',
+    analytic_flag: 'expense',
     nature: 'WANT',
     icon: 'FaGift',
     color: '#dc3545',
@@ -87,7 +88,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
   const handleChange = (field: keyof CategoryFormData, value: string | boolean | null) => {
     setFormData((prev) => {
       const updated = { ...prev, [field]: value };
-      
+
       // If parent is selected, inherit its color and type
       if (field === 'parent_id' && value) {
         const parent = categories.find(cat => cat.id === value);
@@ -96,7 +97,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
           updated.type = parent.type;
         }
       }
-      
+
       // If type changes and parent is set, clear parent
       if (field === 'type' && prev.parent_id) {
         const parent = categories.find(cat => cat.id === prev.parent_id);
@@ -104,7 +105,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
           updated.parent_id = null;
         }
       }
-      
+
       return updated;
     });
   };
@@ -112,34 +113,34 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
 
 
   return (
-      <Modal show={show} onHide={onHide} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>{mode === 'add' ? 'Add New Category' : 'Edit Category'}</Modal.Title>
-        </Modal.Header>
+    <Modal show={show} onHide={onHide} size="lg" centered>
+      <Modal.Header closeButton>
+        <Modal.Title>{mode === 'add' ? 'Add New Category' : 'Edit Category'}</Modal.Title>
+      </Modal.Header>
 
-        <Form onSubmit={handleSubmit}>
-          <Modal.Body>
-            <CategoryForm
-              formData={formData}
-              onChange={handleChange}
-              categories={categories}
-              {...(excludeId ? { excludeId } : {})}
-              loading={loading}
-              error={error}
-              setError={setError}
-            />
-          </Modal.Body>
+      <Form onSubmit={handleSubmit}>
+        <Modal.Body>
+          <CategoryForm
+            formData={formData}
+            onChange={handleChange}
+            categories={categories}
+            {...(excludeId ? { excludeId } : {})}
+            loading={loading}
+            error={error}
+            setError={setError}
+          />
+        </Modal.Body>
 
-          <Modal.Footer>
-            <Button variant="secondary" onClick={onHide} disabled={loading}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit" disabled={loading}>
-              {loading ? <Spinner as="span" animation="border" size="sm" /> : mode === 'add' ? 'Add Category' : 'Save Changes'}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={onHide} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant="primary" type="submit" disabled={loading}>
+            {loading ? <Spinner as="span" animation="border" size="sm" /> : mode === 'add' ? 'Add Category' : 'Save Changes'}
+          </Button>
+        </Modal.Footer>
+      </Form>
+    </Modal>
   );
 };
 

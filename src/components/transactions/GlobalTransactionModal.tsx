@@ -19,7 +19,7 @@ export const GlobalTransactionModal: React.FC = () => {
           if (isTransfer) {
             // Get the transfer ID (must use transfer_id, not transaction id)
             const transferId = initialData.transfer_id || initialData.id;
-            
+
             // Update transfer
             const transferData: Record<string, string | number | undefined> = {
               date: transactionData.date || new Date().toISOString(),
@@ -27,7 +27,7 @@ export const GlobalTransactionModal: React.FC = () => {
               description: transactionData.description || '',
               currency: transactionData.currency || 'USD',
             };
-            
+
             // Only include accounts if they have valid values
             if (transactionData.account_id) {
               transferData['from_account_id'] = transactionData.account_id;
@@ -35,40 +35,40 @@ export const GlobalTransactionModal: React.FC = () => {
             if (transactionData.to_account_id) {
               transferData['to_account_id'] = transactionData.to_account_id;
             }
-            
+
             // Include destination currency if provided
             if (transactionData.to_currency) {
               transferData['to_currency'] = transactionData.to_currency;
             }
-            
+
             // Include to_amount if:
             // 1. It's a multi-currency transfer (has to_currency), OR
             // 2. to_amount is different from amount (same currency but different value)
             const isMultiCurrency = transactionData.to_currency && transactionData.to_currency !== transactionData.currency;
             const hasDifferentAmount = transactionData.to_amount && transactionData.to_amount !== transactionData.amount;
-            
+
             if (isMultiCurrency || hasDifferentAmount) {
-              const toAmountValue = transactionData.to_amount 
-                ? (typeof transactionData.to_amount === 'number' 
-                    ? transactionData.to_amount 
-                    : parseFloat(transactionData.to_amount as string))
+              const toAmountValue = transactionData.to_amount
+                ? (typeof transactionData.to_amount === 'number'
+                  ? transactionData.to_amount
+                  : parseFloat(transactionData.to_amount as string))
                 : transactionData.amount; // Default to source amount if not specified
-              
+
               // Include to_amount if it's a valid number (including 0)
               if (typeof toAmountValue === 'number' && !isNaN(toAmountValue)) {
                 transferData['to_amount'] = toAmountValue;
               }
             }
-            
+
             await transferService.updateTransfer(transferId, transferData);
           } else {
             // Update regular transaction
             await transactionService.updateTransaction(initialData.id, transactionData);
           }
-          
+
           // Close modal first
           closeModal();
-          
+
           // Then show success message
           await Swal.fire({
             icon: 'success',
@@ -109,10 +109,10 @@ export const GlobalTransactionModal: React.FC = () => {
 
             await transactionService.createTransaction(createData);
           }
-          
+
           // Close modal first
           closeModal();
-          
+
           // Then show success message
           await Swal.fire({
             icon: 'success',
@@ -125,13 +125,11 @@ export const GlobalTransactionModal: React.FC = () => {
 
         // Emit custom event to notify other components
         const eventName = mode === 'edit' ? 'transaction-updated' : 'transaction-created';
-        
+
         const eventData = { ...transactionData };
         if (mode === 'edit' && initialData?.id) {
           eventData.id = initialData.id;
         }
-
-        console.log('[GlobalTransactionModal] Dispatching event:', eventName);
         window.dispatchEvent(
           new CustomEvent(eventName, {
             detail: { action: mode, data: eventData },
@@ -150,11 +148,69 @@ export const GlobalTransactionModal: React.FC = () => {
     [mode, initialData, closeModal]
   );
 
+  const handleDelete = useCallback(async (transactionId: string) => {
+    try {
+      const isTransfer = initialData?.type === 'transfer';
+      const { isConfirmed } = await Swal.fire({
+        title: `Delete ${isTransfer ? 'Transfer' : 'Transaction'}?`,
+        text: 'This action cannot be undone.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#dc3545',
+        focusCancel: true,
+      });
+
+      if (!isConfirmed) return;
+
+      await Swal.fire({
+        title: 'Deleting...',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      if (isTransfer) {
+        const transferId = initialData?.transfer_id || initialData?.id || transactionId;
+        await transferService.deleteTransfer(transferId);
+      } else {
+        await transactionService.deleteTransaction(transactionId);
+      }
+
+      closeModal();
+      Swal.close();
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: `${isTransfer ? 'Transfer' : 'Transaction'} deleted successfully`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      window.dispatchEvent(
+        new CustomEvent('transaction-deleted', {
+          detail: { id: transactionId },
+        })
+      );
+    } catch (err: unknown) {
+      console.error('Failed to delete:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to delete',
+      });
+    }
+  }, [initialData, closeModal]);
+
   return (
     <TransactionModal
       show={isOpen}
       onHide={closeModal}
       onSave={handleSave}
+      onDelete={handleDelete}
       transaction={initialData as Transaction | null}
       title={mode === 'edit' ? 'Edit Transaction' : 'Add Transaction'}
     />

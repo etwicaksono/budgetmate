@@ -129,6 +129,7 @@ model Category {
   name       String   @db.VarChar(100)
   code       String?  @db.VarChar(150) // Format: "Name::ID" for user-friendly sync
   type       String   @db.VarChar(20) // income, expense
+  analytic_flag String @default("expense") @db.VarChar(20) // income, expense
   nature     String   @default("WANT") @db.VarChar(8) // WANT, NEED, MUST
   icon       String   @db.VarChar(50)
   color      String?  @db.VarChar(7)

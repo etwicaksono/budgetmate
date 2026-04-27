@@ -62,13 +62,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     for (let i = 0; i < numPeriods; i++) {
       const year = baseLocal.getUTCFullYear();
       const month = baseLocal.getUTCMonth() - i;
-      
+
       const periodStart = getUtcFromLocalWithOffset(year, month, 1, 0, 0, 0, 0);
       const periodEnd = getUtcFromLocalWithOffset(year, month + 1, 0, 23, 59, 59, 999);
 
       const localStart = new Date(periodStart.getTime() + offsetMinutes * 60000);
       const name = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(localStart);
-      
+
       periodRanges.push({ start: periodStart, end: periodEnd, name });
     }
   } else if (periodType === 'week') {
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     for (let i = 0; i < numPeriods; i++) {
       const startLocal = new Date(mondayLocal);
       startLocal.setUTCDate(mondayLocal.getUTCDate() - (i * 7));
-      
+
       const endLocal = new Date(startLocal);
       endLocal.setUTCDate(startLocal.getUTCDate() + 6);
       endLocal.setUTCHours(23, 59, 59, 999);
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const nameStart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(startLocal);
       const nameEnd = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(endLocal);
       const name = `${nameStart} - ${nameEnd}`;
-      
+
       periodRanges.push({ start: periodStart, end: periodEnd, name });
     }
   } else if (periodType === 'year') {
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     for (let i = 0; i < numPeriods; i++) {
       const startLocal = new Date(customStart.getTime() + offsetMinutes * 60000);
       startLocal.setUTCDate(startLocal.getUTCDate() - (i * daysPerPeriod));
-      
+
       const endLocal = new Date(startLocal);
       endLocal.setUTCDate(startLocal.getUTCDate() + daysPerPeriod - 1);
       endLocal.setUTCHours(23, 59, 59, 999);
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const nameStart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(startLocal);
       const nameEnd = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(endLocal);
       const name = `${nameStart} - ${nameEnd}`;
-      
+
       periodRanges.push({ start: periodStart, end: periodEnd, name });
     }
   }
@@ -168,7 +168,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       return prisma.transaction.groupBy({
-        by: ['category_id', 'type', 'currency'],
+        by: ['category_id', 'currency'],
         where: whereClause,
         _sum: { amount: true },
       });
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const currencies = Array.from(currencySet).sort();
 
     // Create lookup maps for amounts by period and currency
-    // Map<currency, Map<categoryId, number[]>> where number[] is amounts per period
+    // Map<currency, Map<categoryId, number[]>>
     const amountsByCurrency = new Map<string, Map<string, number[]>>();
 
     currencies.forEach((currency) => {
@@ -199,13 +199,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     allPeriodTransactions.forEach((periodTxns, periodIndex) => {
       periodTxns.forEach((t) => {
         if (t.category_id) {
-          const amount = Math.abs(Number(t._sum.amount) || 0);
-          const currencyMap = amountsByCurrency.get(t.currency)!;
+          const amount = Number(t._sum.amount) || 0;
+          const categoryMap = amountsByCurrency.get(t.currency)!;
 
-          if (!currencyMap.has(t.category_id)) {
-            currencyMap.set(t.category_id, new Array(numPeriods).fill(0));
+          if (!categoryMap.has(t.category_id)) {
+            categoryMap.set(t.category_id, new Array(numPeriods).fill(0));
           }
-          currencyMap.get(t.category_id)![periodIndex] = amount;
+          const targetArray = categoryMap.get(t.category_id)!;
+          targetArray[periodIndex] = amount;
         }
       });
     });
@@ -236,44 +237,46 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       parentCategories.forEach((parent) => {
         const children = childrenByParent.get(parent.id) || [];
 
-        // Initialize parent totals for each month
-        const parentTotals = new Array(numPeriods).fill(0);
-        const parentAmounts = categoryAmounts.get(parent.id) || new Array(numPeriods).fill(0);
-        parentAmounts.forEach((amt, idx) => { parentTotals[idx] += amt; });
+        const buildCategoryReport = (amountsMap: Map<string, number[]>, multiplier: number): CategoryReport => {
+          // Initialize parent totals for each month
+          const parentTotals = new Array(numPeriods).fill(0);
+          const parentAmounts = amountsMap.get(parent.id) || new Array(numPeriods).fill(0);
+          parentAmounts.forEach((amt, idx) => { parentTotals[idx] += amt * multiplier; });
 
-        const subItems: CategoryReport[] = children.map((child) => {
-          const childAmounts = categoryAmounts.get(child.id) || new Array(numPeriods).fill(0);
-          childAmounts.forEach((amt, idx) => { parentTotals[idx] += amt; });
+          const subItems: CategoryReport[] = children.map((child) => {
+            const childAmounts = amountsMap.get(child.id) || new Array(numPeriods).fill(0);
+            const scaledChildAmounts = new Array(numPeriods).fill(0);
+            childAmounts.forEach((amt, idx) => {
+              scaledChildAmounts[idx] = amt * multiplier;
+              parentTotals[idx] += amt * multiplier;
+            });
+
+            return {
+              id: child.id,
+              name: child.name,
+              icon: child.icon || 'FaTag',
+              color: child.color || parent.color || '#6c757d',
+              amounts: scaledChildAmounts,
+            };
+          });
 
           return {
-            id: child.id,
-            name: child.name,
-            icon: child.icon || 'FaTag',
-            color: child.color || parent.color || '#6c757d',
-            amounts: childAmounts,
+            id: parent.id,
+            name: parent.name,
+            icon: parent.icon || 'FaFolder',
+            color: parent.color || '#6c757d',
+            amounts: parentTotals,
+            ...(subItems.length > 0 && {
+              hasSubItems: true,
+              subItems,
+            }),
           };
-        });
-
-        const categoryReport: CategoryReport = {
-          id: parent.id,
-          name: parent.name,
-          icon: parent.icon || 'FaFolder',
-          color: parent.color || '#6c757d',
-          amounts: parentTotals,
-          ...(subItems.length > 0 && {
-            hasSubItems: true,
-            subItems,
-          }),
         };
 
-        if (parent.type === 'income') {
-          incomeCategories.push(categoryReport);
-        } else if (parent.type === 'expense') {
-          expenseCategories.push(categoryReport);
-        } else if (parent.type === 'both') {
-          // Add to both income and expense
-          incomeCategories.push({ ...categoryReport });
-          expenseCategories.push({ ...categoryReport });
+        if (parent.analytic_flag === 'income') {
+          incomeCategories.push(buildCategoryReport(categoryAmounts, 1));
+        } else if (parent.analytic_flag === 'expense') {
+          expenseCategories.push(buildCategoryReport(categoryAmounts, -1));
         }
       });
 

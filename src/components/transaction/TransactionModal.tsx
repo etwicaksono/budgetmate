@@ -13,6 +13,7 @@ export interface TransactionModalProps {
   onSave: (transaction: Partial<Transaction>) => Promise<void>;
   transaction?: Transaction | null;
   title?: string;
+  onDelete?: (transactionId: string) => Promise<void>;
 }
 
 export function TransactionModal({
@@ -21,6 +22,7 @@ export function TransactionModal({
   onSave,
   transaction = null,
   title,
+  onDelete,
 }: TransactionModalProps): React.JSX.Element {
   const { formData, errors, updateField, validateForm, resetForm, initializeFromTransaction } =
     useTransactionForm();
@@ -64,13 +66,13 @@ export function TransactionModal({
       // Convert datetime-local to ISO string with seconds
       const formatDateForAPI = (dateStr: string): string => {
         if (!dateStr) return new Date().toISOString();
-        
+
         // datetime-local format: "2025-11-20T18:59"
         // Add seconds if missing
         const dateWithSeconds = dateStr.includes(':') && dateStr.split(':').length === 2
           ? `${dateStr}:00`
           : dateStr;
-        
+
         // Convert to ISO string
         const date = new Date(dateWithSeconds);
         return date.toISOString();
@@ -80,55 +82,55 @@ export function TransactionModal({
       const fromAccount = accounts.find(a => a.id === formData.account_id);
       const toAccount = accounts.find(a => a.id === formData.to_account_id);
       const accountCurrency = fromAccount?.currency || 'USD';
-      
+
       // Build transaction data based on mode (create vs update)
       const transactionData: Partial<Transaction> = isEditMode
         ? {
-            // Update: Only send allowed fields
-            type: formData.type,
-            amount: parseFloat(formData.amount),
-            date: formatDateForAPI(formData.date),
-            account_id: formData.account_id,
-            ...(formData.type !== 'transfer' && formData.category_id && { category_id: formData.category_id }),
-            ...(formData.description !== undefined && { description: formData.description }),
-            ...(formData.payee !== undefined && { payee: formData.payee }),
-            ...(formData.payment_method !== undefined && { payment_method: formData.payment_method }),
-            ...(formData.payment_status !== undefined && { payment_status: formData.payment_status }),
-            label_ids: formData.label_ids,
-            // Include currency if account changed (so API can update it)
-            ...(formData.account_id && { currency: accountCurrency }),
-            // ✅ Include transfer-specific fields for updates
-            ...(formData.type === 'transfer' && formData.to_account_id && { 
-              to_account_id: formData.to_account_id,
-            }),
-            ...(formData.type === 'transfer' && formData.to_amount && { 
-              to_amount: parseFloat(formData.to_amount) 
-            }),
-            ...(formData.type === 'transfer' && toAccount?.currency && { 
-              to_currency: toAccount.currency 
-            }),
-          }
+          // Update: Only send allowed fields
+          type: formData.type,
+          amount: parseFloat(formData.amount),
+          date: formatDateForAPI(formData.date),
+          account_id: formData.account_id,
+          ...(formData.type !== 'transfer' && formData.category_id && { category_id: formData.category_id }),
+          ...(formData.description !== undefined && { description: formData.description }),
+          ...(formData.payee !== undefined && { payee: formData.payee }),
+          ...(formData.payment_method !== undefined && { payment_method: formData.payment_method }),
+          ...(formData.payment_status !== undefined && { payment_status: formData.payment_status }),
+          label_ids: formData.label_ids,
+          // Include currency if account changed (so API can update it)
+          ...(formData.account_id && { currency: accountCurrency }),
+          // ✅ Include transfer-specific fields for updates
+          ...(formData.type === 'transfer' && formData.to_account_id && {
+            to_account_id: formData.to_account_id,
+          }),
+          ...(formData.type === 'transfer' && formData.to_amount && {
+            to_amount: parseFloat(formData.to_amount)
+          }),
+          ...(formData.type === 'transfer' && toAccount?.currency && {
+            to_currency: toAccount.currency
+          }),
+        }
         : {
-            type: formData.type,
-            amount: parseFloat(formData.amount),
-            date: formatDateForAPI(formData.date),
-            account_id: formData.account_id,
-            ...(formData.type !== 'transfer' && formData.category_id && { category_id: formData.category_id }),
-            currency: accountCurrency, // ✅ Use account currency instead of hardcoded 'USD'
-            label_ids: formData.label_ids,
-            ...(formData.description && { description: formData.description }),
-            ...(formData.payee && { payee: formData.payee }),
-            ...(formData.payment_method && { payment_method: formData.payment_method }),
-            ...(formData.payment_status && { payment_status: formData.payment_status }),
-            // Transfer-specific fields with currency handling
-            ...(formData.type === 'transfer' && formData.to_account_id && { 
-              to_account_id: formData.to_account_id,
-              ...(toAccount?.currency && { to_currency: toAccount.currency }), // ✅ Only send if we have destination currency
-            }),
-            ...(formData.type === 'transfer' && formData.to_amount && { 
-              to_amount: parseFloat(formData.to_amount) 
-            }),
-          };
+          type: formData.type,
+          amount: parseFloat(formData.amount),
+          date: formatDateForAPI(formData.date),
+          account_id: formData.account_id,
+          ...(formData.type !== 'transfer' && formData.category_id && { category_id: formData.category_id }),
+          currency: accountCurrency, // ✅ Use account currency instead of hardcoded 'USD'
+          label_ids: formData.label_ids,
+          ...(formData.description && { description: formData.description }),
+          ...(formData.payee && { payee: formData.payee }),
+          ...(formData.payment_method && { payment_method: formData.payment_method }),
+          ...(formData.payment_status && { payment_status: formData.payment_status }),
+          // Transfer-specific fields with currency handling
+          ...(formData.type === 'transfer' && formData.to_account_id && {
+            to_account_id: formData.to_account_id,
+            ...(toAccount?.currency && { to_currency: toAccount.currency }), // ✅ Only send if we have destination currency
+          }),
+          ...(formData.type === 'transfer' && formData.to_amount && {
+            to_amount: parseFloat(formData.to_amount)
+          }),
+        };
 
       try {
         setIsSubmitting(true);
@@ -171,6 +173,16 @@ export function TransactionModal({
 
       <Modal.Footer>
         <div className="d-flex gap-2 w-100">
+          {isEditMode && onDelete && (
+            <Button
+              variant="outline-danger"
+              onClick={() => transaction?.id && onDelete(transaction.id)}
+              disabled={isSubmitting}
+            >
+              Delete
+            </Button>
+          )}
+
           <Button variant="success" onClick={() => handleSave(false)} disabled={isSubmitting} className="flex-grow-1">
             {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : (isEditMode ? 'Save Changes' : 'Add Transaction')}
           </Button>
@@ -182,7 +194,7 @@ export function TransactionModal({
               disabled={isSubmitting}
               className="flex-grow-1"
             >
-               {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Add & Create Another'}
+              {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Add & Create Another'}
             </Button>
           )}
 

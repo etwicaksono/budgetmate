@@ -102,7 +102,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (filters.min_amount !== undefined || filters.max_amount !== undefined) {
       const min = filters.min_amount !== undefined ? Number(filters.min_amount) : 0;
       const max = filters.max_amount !== undefined ? Number(filters.max_amount) : Number.MAX_SAFE_INTEGER;
-      
+
       // We need to match either positive range [min, max] or negative range [-max, -min]
       where.AND = where.AND || [];
       (where.AND as any[]).push({
@@ -241,8 +241,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       t.net = t.income + t.expense;
     }
 
-    console.log("=== API EXECUTING NEW LOGIC ===");
-    console.log("totals_by_currency computed:", totals_by_currency);
 
     // Transform response
     const transformedTransactions = transactions.map(tx => {
