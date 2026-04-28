@@ -16,7 +16,9 @@ export interface CategoryBudget {
     name: string;
     icon: string;
     color: string;
-  }
+  };
+  spent_monthly?: number;
+  spent_annual?: number;
 }
 
 export interface BudgetStatus {
@@ -40,15 +42,27 @@ export interface SetCategoryBudgetRequest {
   extend_annual_amount: number;
 }
 
+export interface BudgetFilterParams {
+  month?: number;
+  year?: number;
+}
+
 class BudgetService {
-  async fetchBudgets(): Promise<CategoryBudget[]> {
+  async fetchBudgets(params?: BudgetFilterParams): Promise<CategoryBudget[]> {
     if (USE_MOCK_DATA) {
       throw new Error('Not implemented in mock data');
     }
-    const response = await api.get<{ success: boolean; data: CategoryBudget[] }>('/budgets');
+    let url = '/budgets';
+    if (params) {
+      const q = new URLSearchParams();
+      if (params.month) q.append('month', params.month.toString());
+      if (params.year) q.append('year', params.year.toString());
+      if (q.toString()) url += `?${q.toString()}`;
+    }
+    const response = await api.get<{ success: boolean; data: CategoryBudget[] }>(url);
     return response.data;
   }
-  
+
   async fetchBudgetStatus(params?: {
     start_date?: string;
     end_date?: string;
@@ -64,7 +78,7 @@ class BudgetService {
     );
     return response.data;
   }
-  
+
   async setCategoryBudget(categoryId: string, data: SetCategoryBudgetRequest): Promise<CategoryBudget> {
     const response = await api.put<{ success: boolean; data: CategoryBudget }>(`/budgets/${categoryId}`, data);
     return response.data;

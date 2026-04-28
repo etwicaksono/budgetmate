@@ -34,7 +34,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const msDiff = dateFilter.lte!.getTime() - dateFilter.gte!.getTime();
       diffDays = msDiff / (1000 * 60 * 60 * 24);
     }
-    
+
     // Determine the period
     const appliedPeriod = diffDays > 60 ? 'annually' : 'monthly';
 
@@ -61,75 +61,77 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return successResponse([]);
     }
 
-    // Calculate spending for each budget
-    const budgetStatuses = await Promise.all(
-      categoryBudgets.map(async (budget) => {
-        const categoryId = budget.category_id;
+    // Calculate spending for each budget via single optimized grouped SQL query
+    const categoryIds = categoryBudgets.map(b => b.category_id);
+    const aggregations = await prisma.transaction.groupBy({
+      by: ['category_id'],
+      where: {
+        user_id: user.user_id,
+        deleted_at: null,
+        type: 'expense',
+        category_id: { in: categoryIds },
+        ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
+      },
+      _sum: {
+        amount: true,
+      },
+    });
 
-        // Calculate spent amount
-        const transactions = await prisma.transaction.findMany({
-          where: {
-            user_id: user.user_id,
-            deleted_at: null,
-            type: 'expense',
-            category_id: categoryId,
-            ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
-          },
-          select: {
-            amount: true,
-          },
-        });
+    const spentMap = new Map<string, number>();
+    for (const agg of aggregations) {
+      if (agg.category_id) {
+        spentMap.set(agg.category_id, Math.abs(Number(agg._sum.amount || 0)));
+      }
+    }
 
-        const spent = transactions.reduce(
-          (sum, t) => sum + Math.abs(Number(t.amount)), // Make sure to use positive representation
-          0
-        );
+    const budgetStatuses = categoryBudgets.map((budget) => {
+      const categoryId = budget.category_id;
+      const spent = spentMap.get(categoryId) || 0;
 
-        let basicBudget = 0;
-        let extendBudget = 0;
+      let basicBudget = 0;
+      let extendBudget = 0;
 
-        if (appliedPeriod === 'monthly') {
-          basicBudget = Number(budget.basic_monthly_amount);
-          extendBudget = Number(budget.extend_monthly_amount);
-        } else {
-          basicBudget = Number(budget.basic_annual_amount);
-          extendBudget = Number(budget.extend_annual_amount);
-        }
+      if (appliedPeriod === 'monthly') {
+        basicBudget = Number(budget.basic_monthly_amount);
+        extendBudget = Number(budget.extend_monthly_amount);
+      } else {
+        basicBudget = Number(budget.basic_annual_amount);
+        extendBudget = Number(budget.extend_annual_amount);
+      }
 
-        const totalBudget = basicBudget + extendBudget;
+      const totalBudget = basicBudget + extendBudget;
 
-        // If total is 0, skip showing this setup since nothing is budgeted
-        if (totalBudget === 0) {
-           return null;
-        }
+      // If total is 0, skip showing this setup since nothing is budgeted
+      if (totalBudget === 0) {
+        return null;
+      }
 
-        const percentage = totalBudget > 0 ? (spent / totalBudget) * 100 : 0;
+      const percentage = totalBudget > 0 ? (spent / totalBudget) * 100 : 0;
 
-        // Determine status
-        let status: 'success' | 'warning' | 'danger';
-        if (spent > totalBudget) {
-          status = 'danger'; // Exceeded total (basic + extend)
-        } else if (spent > basicBudget) {
-          status = 'warning'; // Exceeded basic, dipping into extend
-        } else {
-          status = 'success'; // Within basic
-        }
+      // Determine status
+      let status: 'success' | 'warning' | 'danger';
+      if (spent > totalBudget) {
+        status = 'danger'; // Exceeded total (basic + extend)
+      } else if (spent > basicBudget) {
+        status = 'warning'; // Exceeded basic, dipping into extend
+      } else {
+        status = 'success'; // Within basic
+      }
 
-        return {
-          id: budget.id,
-          category_id: categoryId,
-          category: budget.category.name,
-          applied_period: appliedPeriod,
-          spent,
-          basic_budget: basicBudget,
-          extend_budget: extendBudget,
-          total_budget: totalBudget,
-          percentage: Math.round(percentage * 10) / 10,
-          status,
-          currency: budget.currency || 'USD',
-        };
-      })
-    );
+      return {
+        id: budget.id,
+        category_id: categoryId,
+        category: budget.category.name,
+        applied_period: appliedPeriod,
+        spent,
+        basic_budget: basicBudget,
+        extend_budget: extendBudget,
+        total_budget: totalBudget,
+        percentage: Math.round(percentage * 10) / 10,
+        status,
+        currency: 'IDR',
+      };
+    });
 
     // Filter out null values and sort by severity
     const validStatuses = budgetStatuses

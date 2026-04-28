@@ -2,16 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { resolveRouteParam } from '@/lib/api/params';
+
+interface RouteParams {
+  params?: {
+    category_id?: string;
+  };
+}
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { category_id: string } }
+  context: RouteParams
 ): Promise<NextResponse> {
   const authResult = await requireAuth(request);
   if ('error' in authResult) return authResult.error;
 
   const { user } = authResult;
-  const categoryId = params.category_id;
+  const categoryId = resolveRouteParam(request, context.params, 'category_id');
+  if (!categoryId) {
+    return errorResponse('VALIDATION_ERROR', 'Category ID is required', 400);
+  }
 
   try {
     // Verify category belongs to user
@@ -73,13 +83,16 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { category_id: string } }
+  context: RouteParams
 ): Promise<NextResponse> {
   const authResult = await requireAuth(request);
   if ('error' in authResult) return authResult.error;
 
   const { user } = authResult;
-  const categoryId = params.category_id;
+  const categoryId = resolveRouteParam(request, context.params, 'category_id');
+  if (!categoryId) {
+    return errorResponse('VALIDATION_ERROR', 'Category ID is required', 400);
+  }
 
   try {
     const category = await prisma.category.findFirst({

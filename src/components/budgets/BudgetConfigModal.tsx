@@ -3,6 +3,7 @@ import { Modal, Form, Button, Spinner, Alert, Row, Col } from 'react-bootstrap';
 import { categoryService, Category } from '@/services/categoryService';
 import { budgetService, CategoryBudget } from '@/services/budgetService';
 import { FaSave, FaTimes } from 'react-icons/fa';
+import { AmountInput } from '@/components/transaction/AmountInput';
 
 interface BudgetConfigModalProps {
   show: boolean;
@@ -17,12 +18,12 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
   const [error, setError] = useState<string | null>(null);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
-  
+
   const [basicMonthly, setBasicMonthly] = useState<number>(0);
   const [extendMonthly, setExtendMonthly] = useState<number>(0);
   const [basicAnnual, setBasicAnnual] = useState<number>(0);
   const [extendAnnual, setExtendAnnual] = useState<number>(0);
-  
+
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
       ]);
       setCategories(catRes.data.filter(c => c.type === 'expense' || c.type === 'both'));
       setExistingBudgets(budRes);
-      
+
       if (initialCategoryId) {
         setSelectedCategoryId(initialCategoryId);
       } else {
@@ -79,7 +80,7 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCategoryId) return;
-    
+
     // Validation
     const totalMonthly = basicMonthly + extendMonthly;
     const totalAnnual = basicAnnual + extendAnnual;
@@ -116,11 +117,11 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
         ) : (
           <Form onSubmit={handleSave}>
             {error && <Alert variant="danger">{error}</Alert>}
-            
+
             <Form.Group className="mb-4">
               <Form.Label>Select Category</Form.Label>
-              <Form.Select 
-                value={selectedCategoryId} 
+              <Form.Select
+                value={selectedCategoryId}
                 onChange={(e) => setSelectedCategoryId(e.target.value)}
                 required
               >
@@ -138,24 +139,20 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Basic Amount</Form.Label>
-                      <Form.Control 
-                        type="number" 
-                        min="0" 
-                        step="0.01" 
-                        value={basicMonthly} 
-                        onChange={(e) => setBasicMonthly(Number(e.target.value))} 
+                      <AmountInput
+                        type="expense"
+                        value={basicMonthly ? String(basicMonthly) : ''}
+                        onChange={(val) => setBasicMonthly(val !== '' ? Number(val) : 0)}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Extend Amount</Form.Label>
-                      <Form.Control 
-                        type="number" 
-                        min="0" 
-                        step="0.01" 
-                        value={extendMonthly} 
-                        onChange={(e) => setExtendMonthly(Number(e.target.value))} 
+                      <AmountInput
+                        type="expense"
+                        value={extendMonthly ? String(extendMonthly) : ''}
+                        onChange={(val) => setExtendMonthly(val !== '' ? Number(val) : 0)}
                       />
                     </Form.Group>
                   </Col>
@@ -166,24 +163,20 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Basic Amount</Form.Label>
-                      <Form.Control 
-                        type="number" 
-                        min="0" 
-                        step="0.01" 
-                        value={basicAnnual} 
-                        onChange={(e) => setBasicAnnual(Number(e.target.value))} 
+                      <AmountInput
+                        type="expense"
+                        value={basicAnnual ? String(basicAnnual) : ''}
+                        onChange={(val) => setBasicAnnual(val !== '' ? Number(val) : 0)}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Extend Amount</Form.Label>
-                      <Form.Control 
-                        type="number" 
-                        min="0" 
-                        step="0.01" 
-                        value={extendAnnual} 
-                        onChange={(e) => setExtendAnnual(Number(e.target.value))} 
+                      <AmountInput
+                        type="expense"
+                        value={extendAnnual ? String(extendAnnual) : ''}
+                        onChange={(val) => setExtendAnnual(val !== '' ? Number(val) : 0)}
                       />
                     </Form.Group>
                   </Col>
