@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Form, Button, Spinner, Alert, Row, Col } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Modal, Form, Button, Spinner, Alert, Row, Col, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { categoryService, Category } from '@/services/categoryService';
 import { budgetService, CategoryBudget } from '@/services/budgetService';
-import { FaSave, FaTimes } from 'react-icons/fa';
+import { FaSave, FaTimes, FaInfoCircle, FaMagic } from 'react-icons/fa';
 import { AmountInput } from '@/components/transaction/AmountInput';
+import { TransactionCategorySelect } from '@/components/transaction/TransactionCategorySelect';
 
 interface BudgetConfigModalProps {
   show: boolean;
@@ -18,11 +19,14 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
   const [error, setError] = useState<string | null>(null);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
-
-  const [basicMonthly, setBasicMonthly] = useState<number>(0);
-  const [extendMonthly, setExtendMonthly] = useState<number>(0);
-  const [basicAnnual, setBasicAnnual] = useState<number>(0);
-  const [extendAnnual, setExtendAnnual] = useState<number>(0);
+  
+  // Grouped State with string type to handle empty inputs cleanly
+  const [formData, setFormData] = useState({
+    basicMonthly: '',
+    extendMonthly: '',
+    basicAnnual: '',
+    extendAnnual: ''
+  });
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -55,36 +59,50 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
     }
   };
 
+  // O(1) Lookup Map for existing budgets
+  const budgetMap = useMemo(() => {
+    return existingBudgets.reduce((acc, budget) => {
+      acc[budget.category_id] = budget;
+      return acc;
+    }, {} as Record<string, CategoryBudget>);
+  }, [existingBudgets]);
+
+  // Cleaner side-effect for selecting a category
   useEffect(() => {
-    if (selectedCategoryId) {
-      const existing = existingBudgets.find(b => b.category_id === selectedCategoryId);
-      if (existing) {
-        setBasicMonthly(Number(existing.basic_monthly_amount));
-        setExtendMonthly(Number(existing.extend_monthly_amount));
-        setBasicAnnual(Number(existing.basic_annual_amount));
-        setExtendAnnual(Number(existing.extend_annual_amount));
-      } else {
-        setBasicMonthly(0);
-        setExtendMonthly(0);
-        setBasicAnnual(0);
-        setExtendAnnual(0);
-      }
+    if (selectedCategoryId && budgetMap[selectedCategoryId]) {
+      const existing = budgetMap[selectedCategoryId];
+      setFormData({
+        basicMonthly: existing.basic_monthly_amount.toString(),
+        extendMonthly: existing.extend_monthly_amount.toString(),
+        basicAnnual: existing.basic_annual_amount.toString(),
+        extendAnnual: existing.extend_annual_amount.toString(),
+      });
     } else {
-      setBasicMonthly(0);
-      setExtendMonthly(0);
-      setBasicAnnual(0);
-      setExtendAnnual(0);
+      // Reset form cleanly
+      setFormData({ basicMonthly: '', extendMonthly: '', basicAnnual: '', extendAnnual: '' });
     }
-  }, [selectedCategoryId, existingBudgets]);
+  }, [selectedCategoryId, budgetMap]);
+
+  // Derived Values for UI and Validation
+  const totalMonthly = Number(formData.basicMonthly) + Number(formData.extendMonthly);
+  const totalAnnual = Number(formData.basicAnnual) + Number(formData.extendAnnual);
+  const isInvalidLimits = totalMonthly > totalAnnual && totalAnnual > 0;
+  
+  const selectedCategoryName = categories.find(c => c.id === selectedCategoryId)?.name;
+
+  const handleAutoFillAnnual = () => {
+    setFormData(prev => ({
+      ...prev,
+      basicAnnual: (Number(prev.basicMonthly) * 12).toString(),
+      extendAnnual: (Number(prev.extendMonthly) * 12).toString(),
+    }));
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCategoryId) return;
 
-    // Validation
-    const totalMonthly = basicMonthly + extendMonthly;
-    const totalAnnual = basicAnnual + extendAnnual;
-    if (totalMonthly > totalAnnual && totalAnnual > 0) {
+    if (isInvalidLimits) {
       setError("Total monthly budget cannot exceed total annual budget.");
       return;
     }
@@ -93,10 +111,10 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
     setError(null);
     try {
       await budgetService.setCategoryBudget(selectedCategoryId, {
-        basic_monthly_amount: basicMonthly,
-        extend_monthly_amount: extendMonthly,
-        basic_annual_amount: basicAnnual,
-        extend_annual_amount: extendAnnual
+        basic_monthly_amount: Number(formData.basicMonthly),
+        extend_monthly_amount: Number(formData.extendMonthly),
+        basic_annual_amount: Number(formData.basicAnnual),
+        extend_annual_amount: Number(formData.extendAnnual)
       });
       onHide();
     } catch (err: any) {
@@ -109,7 +127,9 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
   return (
     <Modal show={show} onHide={onHide} size="lg" centered className="glass-modal">
       <Modal.Header closeButton className="border-bottom border-secondary">
-        <Modal.Title>Manage Budgets</Modal.Title>
+        <Modal.Title>
+          {selectedCategoryName ? `Configure Budget: ${selectedCategoryName}` : 'Manage Budgets'}
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {isLoading ? (
@@ -118,76 +138,108 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
           <Form onSubmit={handleSave}>
             {error && <Alert variant="danger">{error}</Alert>}
 
-            <Form.Group className="mb-4">
-              <Form.Label>Select Category</Form.Label>
-              <Form.Select
-                value={selectedCategoryId}
-                onChange={(e) => setSelectedCategoryId(e.target.value)}
-                required
-              >
-                <option value="">-- Choose Category --</option>
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </Form.Select>
+            <Form.Group className="mb-4" style={{ position: 'relative', zIndex: 1050 }}>
+              <Form.Label className="fw-bold">Select Category</Form.Label>
+              <TransactionCategorySelect
+                selectedCategoryId={selectedCategoryId || null}
+                onSelect={(id) => setSelectedCategoryId(id || '')}
+                categories={categories}
+                placeholder="-- Choose Category --"
+              />
             </Form.Group>
 
             {selectedCategoryId && (
               <>
-                <h5 className="mb-3 mt-4 text-primary">Monthly Limits</h5>
+                <div className="d-flex justify-content-between align-items-center mb-3 mt-4 border-bottom pb-2">
+                  <h5 className="mb-0 fw-bold text-dark">Monthly Limits</h5>
+                  {totalMonthly > 0 && (
+                    <Badge bg="primary" pill className="fs-6 px-3 py-2">Total: {totalMonthly.toLocaleString()}</Badge>
+                  )}
+                </div>
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Basic Amount</Form.Label>
                       <AmountInput
                         type="expense"
-                        value={basicMonthly ? String(basicMonthly) : ''}
-                        onChange={(val) => setBasicMonthly(val !== '' ? Number(val) : 0)}
+                        value={formData.basicMonthly}
+                        onChange={(val) => setFormData(prev => ({ ...prev, basicMonthly: val }))}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Extend Amount</Form.Label>
+                      <Form.Label className="d-flex align-items-center">
+                        Extend Amount 
+                        <OverlayTrigger placement="top" overlay={<Tooltip id="tooltip-extend-monthly">An optional additional buffer allowed for this category.</Tooltip>}>
+                          <span className="ms-2 text-muted d-flex align-items-center" style={{ cursor: 'help' }}><FaInfoCircle size={14} /></span>
+                        </OverlayTrigger>
+                      </Form.Label>
                       <AmountInput
                         type="expense"
-                        value={extendMonthly ? String(extendMonthly) : ''}
-                        onChange={(val) => setExtendMonthly(val !== '' ? Number(val) : 0)}
+                        value={formData.extendMonthly}
+                        onChange={(val) => setFormData(prev => ({ ...prev, extendMonthly: val }))}
                       />
                     </Form.Group>
                   </Col>
                 </Row>
 
-                <h5 className="mb-3 mt-4 text-info">Annual Limits</h5>
+                <div className="d-flex justify-content-between align-items-center mb-3 mt-4 border-bottom pb-2">
+                  <h5 className="mb-0 fw-bold text-dark">Annual Limits</h5>
+                  <div className="d-flex align-items-center">
+                    <Button variant="outline-secondary" size="sm" className="me-3" onClick={handleAutoFillAnnual} title="Auto-fill Annual (12x Monthly)">
+                      <FaMagic className="me-1" /> Auto-fill (x12)
+                    </Button>
+                    {totalAnnual > 0 && (
+                      <Badge bg="info" pill className="fs-6 px-3 py-2 text-white">Total: {totalAnnual.toLocaleString()}</Badge>
+                    )}
+                  </div>
+                </div>
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Basic Amount</Form.Label>
                       <AmountInput
                         type="expense"
-                        value={basicAnnual ? String(basicAnnual) : ''}
-                        onChange={(val) => setBasicAnnual(val !== '' ? Number(val) : 0)}
+                        value={formData.basicAnnual}
+                        onChange={(val) => setFormData(prev => ({ ...prev, basicAnnual: val }))}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Extend Amount</Form.Label>
+                      <Form.Label className="d-flex align-items-center">
+                        Extend Amount
+                        <OverlayTrigger placement="top" overlay={<Tooltip id="tooltip-extend-annual">An optional additional buffer allowed for this category over the year.</Tooltip>}>
+                          <span className="ms-2 text-muted d-flex align-items-center" style={{ cursor: 'help' }}><FaInfoCircle size={14} /></span>
+                        </OverlayTrigger>
+                      </Form.Label>
                       <AmountInput
                         type="expense"
-                        value={extendAnnual ? String(extendAnnual) : ''}
-                        onChange={(val) => setExtendAnnual(val !== '' ? Number(val) : 0)}
+                        value={formData.extendAnnual}
+                        onChange={(val) => setFormData(prev => ({ ...prev, extendAnnual: val }))}
                       />
                     </Form.Group>
                   </Col>
                 </Row>
+
+                {isInvalidLimits && (
+                  <Alert variant="warning" className="mt-3">
+                    <FaInfoCircle className="me-2" />
+                    <strong>Warning:</strong> The total monthly budget exceeds the total annual budget. Please adjust your limits.
+                  </Alert>
+                )}
 
                 <div className="d-flex justify-content-end mt-4">
-                  <Button variant="secondary" className="me-2" onClick={onHide}>
+                  <Button variant="secondary" className="me-2 d-flex align-items-center justify-content-center" onClick={onHide}>
                     <FaTimes className="me-2" /> Cancel
                   </Button>
-                  <Button variant="primary" type="submit" disabled={isSaving}>
-                    {isSaving ? <Spinner size="sm" /> : <><FaSave className="me-2" /> Save Configuration</>}
+                  <Button variant="primary" type="submit" disabled={isSaving || isInvalidLimits} className="d-flex align-items-center justify-content-center">
+                    {isSaving ? (
+                      <><Spinner size="sm" className="me-2" /> Saving...</>
+                    ) : (
+                      <><FaSave className="me-2" /> Save Configuration</>
+                    )}
                   </Button>
                 </div>
               </>
@@ -197,4 +249,4 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
       </Modal.Body>
     </Modal>
   );
-};
+}
