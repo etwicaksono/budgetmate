@@ -219,10 +219,7 @@ export interface TransactionWithRelations extends Transaction {
   category?: CategoryWithCode | null;
 }
 
-export interface TransferWithRelations extends Transfer {
-  from_account_rel: AccountWithCode;
-  to_account_rel: AccountWithCode;
-}
+
 
 /**
  * Build simplified accounts tab (9 columns instead of 14)
@@ -337,7 +334,7 @@ export function buildTransactionsTabSimple(
  * Build simplified transfers tab (6 columns instead of 12)
  * Uses "Code" (Name::PersonalID) format for accounts
  */
-export function buildTransfersTabSimple(transfers: TransferWithRelations[]): unknown[][] {
+export function buildTransfersTabSimple(transfers: Transfer[], accounts: AccountWithCode[]): unknown[][] {
   const headers = [
     'Personal ID',
     'Date',
@@ -348,9 +345,11 @@ export function buildTransfersTabSimple(transfers: TransferWithRelations[]): unk
   ];
 
   const rows = transfers.map((transfer) => {
-    const fromAccountCode = transfer.from_account_rel.code || transfer.from_account_rel.name;
+    const fromAcc = accounts.find(a => a.id === transfer.from_account);
+    const toAcc = accounts.find(a => a.id === transfer.to_account);
 
-    const toAccountCode = transfer.to_account_rel.code || transfer.to_account_rel.name;
+    const fromAccountCode = fromAcc ? (fromAcc.code || fromAcc.name) : transfer.from_account;
+    const toAccountCode = toAcc ? (toAcc.code || toAcc.name) : transfer.to_account;
 
     return [
       '', // Retired personal_id

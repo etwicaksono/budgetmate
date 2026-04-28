@@ -34,43 +34,26 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
         id,
         user_id: user.user_id
       },
-      include: {
-        from_account_rel: {
-          select: {
-            id: true,
-            name: true,
-            icon: true,
-            color: true,
-            currency: true,
-            account_type: true
-          }
-        },
-        to_account_rel: {
-          select: {
-            id: true,
-            name: true,
-            icon: true,
-            color: true,
-            currency: true,
-            account_type: true
-          }
-        },
-        transactions: {
-          select: {
-            id: true,
-            type: true,
-            amount: true,
-            account_id: true,
-            created_at: true
-          },
-          orderBy: { type: 'desc' } // transfer_out first
-        }
-      }
     });
-
     if (!transfer) {
       return commonErrors.notFound('Transfer');
     }
+
+    const from_account_rel = await prisma.account.findUnique({
+      where: { id: transfer.from_account },
+      select: { id: true, name: true, icon: true, color: true, currency: true, account_type: true }
+    });
+
+    const to_account_rel = await prisma.account.findUnique({
+      where: { id: transfer.to_account },
+      select: { id: true, name: true, icon: true, color: true, currency: true, account_type: true }
+    });
+
+    const transactions_rel = await prisma.transaction.findMany({
+      where: { transfer_id: transfer.id },
+      select: { id: true, type: true, amount: true, account_id: true, created_at: true },
+      orderBy: { type: 'desc' }
+    });
 
     // Use helper to compute destination values
     const destination = getTransferDestination({
@@ -85,18 +68,18 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       id: transfer.id,
       date: transfer.date,
       from_account_id: transfer.from_account,
-      from_account: transfer.from_account_rel,
+      from_account: from_account_rel,
       to_account_id: transfer.to_account,
-      to_account: transfer.to_account_rel,
+      to_account: to_account_rel,
       amount: transfer.amount.toNumber(),
       to_amount: destination.amount,
       description: transfer.description,
       currency: transfer.currency,
       to_currency: destination.currency,
-      transactions: transfer.transactions.map(t => ({
+      transactions: transactions_rel.map((t: any) => ({
         id: t.id,
         type: t.type,
-        amount: t.amount.toNumber(),
+        amount: Number(t.amount),
         account_id: t.account_id,
         created_at: t.created_at
       })),
@@ -149,15 +132,14 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     }
 
     // Check if transfer exists and belongs to user
-    const existingTransfer = await prisma.transfer.findFirst({
+    const existingTransferRaw = await prisma.transfer.findFirst({
       where: {
         id,
         user_id: user.user_id
-      },
-      include: {
-        transactions: true
       }
     });
+    const transferTransactions = await prisma.transaction.findMany({ where: { transfer_id: id } });
+    const existingTransfer = existingTransferRaw ? { ...existingTransferRaw, transactions: transferTransactions } : null;
 
     if (!existingTransfer) {
       return commonErrors.notFound('Transfer');
@@ -277,27 +259,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
 
     // Fetch the updated transfer with relations
     const result = await prisma.transfer.findFirst({
-      where: { id },
-      include: {
-        from_account_rel: {
-          select: {
-            id: true,
-            name: true,
-            icon: true,
-            color: true,
-            currency: true
-          }
-        },
-        to_account_rel: {
-          select: {
-            id: true,
-            name: true,
-            icon: true,
-            color: true,
-            currency: true
-          }
-        }
-      }
+      where: { id }
     });
 
     if (!result) {
@@ -314,8 +276,8 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       description: result.description,
       currency: result.currency,
       to_currency: result.to_currency,
-      from_account_data: result.from_account_rel,
-      to_account_data: result.to_account_rel,
+      from_account_data: await prisma.account.findUnique({ where: { id: result.from_account }, select: { id: true, name: true, icon: true, color: true, currency: true } }),
+      to_account_data: await prisma.account.findUnique({ where: { id: result.to_account }, select: { id: true, name: true, icon: true, color: true, currency: true } }),
       created_at: result.created_at,
       updated_at: result.updated_at
     };
@@ -353,9 +315,6 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
       where: {
         id,
         user_id: user.user_id
-      },
-      include: {
-        transactions: true
       }
     });
 

@@ -250,7 +250,6 @@ export async function pullFromSheets(
                 reference_number: transaction.reference_number ?? null,
                 is_recurring: transaction.is_recurring,
                 transfer_id: transaction.transfer_id ?? null,
-                recurring_id: null,
               },
             });
             counts.transactions.added++;
@@ -264,21 +263,6 @@ export async function pullFromSheets(
           direction: 'pull',
           mode,
           status: 'success',
-          accounts_added: counts.accounts.added,
-          accounts_updated: counts.accounts.updated,
-          accounts_deleted: counts.accounts.deleted,
-          categories_added: counts.categories.added,
-          categories_updated: counts.categories.updated,
-          categories_deleted: counts.categories.deleted,
-          transactions_added: counts.transactions.added,
-          transactions_updated: counts.transactions.updated,
-          transactions_deleted: counts.transactions.deleted,
-          transfers_added: counts.transfers.added,
-          transfers_updated: counts.transfers.updated,
-          transfers_deleted: counts.transfers.deleted,
-          labels_added: counts.labels.added,
-          labels_updated: counts.labels.updated,
-          labels_deleted: counts.labels.deleted,
         },
       });
 
@@ -301,7 +285,6 @@ export async function pullFromSheets(
         direction: 'pull',
         mode,
         status: 'error',
-        error_message: errorMessage,
       },
     });
 
@@ -727,21 +710,6 @@ async function pullSimplifiedFormat(params: {
         direction: 'pull',
         mode,
         status: 'success',
-        accounts_added: counts.accounts.added,
-        accounts_updated: counts.accounts.updated,
-        accounts_deleted: counts.accounts.deleted,
-        categories_added: counts.categories.added,
-        categories_updated: counts.categories.updated,
-        categories_deleted: counts.categories.deleted,
-        transactions_added: counts.transactions.added,
-        transactions_updated: counts.transactions.updated,
-        transactions_deleted: counts.transactions.deleted,
-        transfers_added: counts.transfers.added,
-        transfers_updated: counts.transfers.updated,
-        transfers_deleted: counts.transfers.deleted,
-        labels_added: counts.labels.added,
-        labels_updated: counts.labels.updated,
-        labels_deleted: counts.labels.deleted,
       },
     });
 
@@ -763,7 +731,6 @@ async function pullSimplifiedFormat(params: {
         direction: 'pull',
         mode,
         status: 'error',
-        error_message: errorMessage,
       },
     });
 

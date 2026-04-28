@@ -27,7 +27,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
    const where: Prisma.DebtWhereInput = {
       user_id: user.user_id,
-      parent_debt_id: null, // Only fetch root debts (not repayments) on this endpoint
    };
 
    if (status) where.status = status;

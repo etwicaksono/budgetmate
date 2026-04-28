@@ -19,10 +19,7 @@ model User {
   username           String    @unique @db.VarChar(100)
   password_hash      String    @db.VarChar(255)
   full_name          String?   @db.VarChar(255)
-  avatar_url         String?   @db.VarChar(500)
   email_verified     Boolean   @default(false)
-  two_factor_enabled Boolean   @default(false)
-  two_factor_secret  String?   @db.VarChar(255)
   timezone           String    @default("UTC") @db.VarChar(50)
   currency           String    @default("USD") @db.VarChar(3)
   date_format        String    @default("YYYY-MM-DD") @db.VarChar(20)
@@ -51,11 +48,6 @@ model User {
   transfers     Transfer[]
   labels        Label[]
   groups        AccountGroup[]
-  goals         Goal[]
-  recurring     RecurringTransaction[]
-  audit_logs    AuditLog[]
-  sync_history  SyncHistory[]
-  saved_filters SavedFilter[]
 
   @@index([email])
   @@index([username])
@@ -109,11 +101,7 @@ model Account {
   user           User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   group          AccountGroup?          @relation(fields: [group_id], references: [id], onDelete: SetNull)
   transactions   Transaction[]
-  transfers_from Transfer[]             @relation("FromAccount")
-  transfers_to   Transfer[]             @relation("ToAccount")
   debts          Debt[]
-  goals          Goal[]
-  recurring      RecurringTransaction[]
 
   @@index([user_id])
   @@index([group_id])
@@ -146,7 +134,6 @@ model Category {
   children     Category[]             @relation("CategoryHierarchy")
   transactions Transaction[]
   budget       CategoryBudget?
-  recurring    RecurringTransaction[]
 
   @@index([user_id, type, created_at])
   @@index([parent_id])
@@ -169,7 +156,6 @@ model Transaction {
   payment_status   String?   @db.VarChar(32)
   reference_number String?   @db.VarChar(100)
   is_recurring     Boolean   @default(false)
-  recurring_id     String?
   transfer_id      String?
   debt_id          String?
   position         Json?
@@ -183,7 +169,6 @@ model Transaction {
   user        User                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
   account     Account               @relation(fields: [account_id], references: [id], onDelete: Cascade)
   category    Category?             @relation(fields: [category_id], references: [id], onDelete: SetNull)
-  recurring   RecurringTransaction? @relation(fields: [recurring_id], references: [id], onDelete: SetNull)
   transfer    Transfer?             @relation(fields: [transfer_id], references: [id], onDelete: SetNull)
   debt        Debt?                 @relation(fields: [debt_id], references: [id], onDelete: SetNull)
   labels      TransactionLabel[]
@@ -216,8 +201,6 @@ model Transfer {
 
   // Relations
   user             User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  from_account_rel Account       @relation("FromAccount", fields: [from_account], references: [id], onDelete: Cascade)
-  to_account_rel   Account       @relation("ToAccount", fields: [to_account], references: [id], onDelete: Cascade)
   transactions     Transaction[]
 
   @@index([user_id])
@@ -284,21 +267,13 @@ model RecurringTransaction {
   currency       String    @db.VarChar(3)
   description    String?   @db.Text
   payee          String?   @db.VarChar(255)
-  frequency      String    @db.VarChar(20) // daily, weekly, monthly, yearly
-  interval_value Int       @default(1)
   start_date     DateTime  @db.Timestamptz
   end_date       DateTime? @db.Timestamptz
-  last_processed DateTime? @db.Timestamptz
-  next_due_date  DateTime? @db.Timestamptz
   is_active      Boolean   @default(true)
   created_at     DateTime  @default(now()) @db.Timestamptz
   updated_at     DateTime  @updatedAt @db.Timestamptz
 
   // Relations
-  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  account      Account       @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  category     Category?     @relation(fields: [category_id], references: [id], onDelete: SetNull)
-  transactions Transaction[]
 
   @@index([user_id])
   @@index([account_id])
@@ -309,20 +284,14 @@ model Goal {
   id             String    @id @default(cuid())
   user_id        String
   name           String    @db.VarChar(100)
-  target_amount  Decimal   @db.Decimal(15, 2)
-  current_amount Decimal   @default(0) @db.Decimal(15, 2)
   currency       String    @default("USD") @db.VarChar(3)
-  target_date    DateTime? @db.Timestamptz
   account_id     String?
   icon           String?   @db.VarChar(50)
   color          String?   @db.VarChar(7)
-  is_completed   Boolean   @default(false)
   created_at     DateTime  @default(now()) @db.Timestamptz
   updated_at     DateTime  @updatedAt @db.Timestamptz
 
   // Relations
-  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  account Account? @relation(fields: [account_id], references: [id], onDelete: SetNull)
 
   @@index([user_id])
 }
@@ -332,19 +301,11 @@ model AuditLog {
   id          String   @id @default(cuid())
   user_id     String
   action      String   @db.VarChar(50)
-  entity_type String   @db.VarChar(50)
-  entity_id   String?
-  old_values  Json?
-  new_values  Json?
-  ip_address  String?  @db.Inet
-  user_agent  String?  @db.Text
   created_at  DateTime @default(now()) @db.Timestamptz
 
   // Relations
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
-  @@index([entity_type, entity_id])
 }
 
 // ==================== SYNC HISTORY MODEL ====================
@@ -356,26 +317,8 @@ model SyncHistory {
   mode      String   @db.VarChar(10)
   status    String   @db.VarChar(20)
 
-  accounts_added       Int @default(0)
-  accounts_updated     Int @default(0)
-  accounts_deleted     Int @default(0)
-  categories_added     Int @default(0)
-  categories_updated   Int @default(0)
-  categories_deleted   Int @default(0)
-  transactions_added   Int @default(0)
-  transactions_updated Int @default(0)
-  transactions_deleted Int @default(0)
-  transfers_added      Int @default(0)
-  transfers_updated    Int @default(0)
-  transfers_deleted    Int @default(0)
-  labels_added         Int @default(0)
-  labels_updated       Int @default(0)
-  labels_deleted       Int @default(0)
 
-  conflicts_count Int     @default(0)
-  error_message   String? @db.Text
 
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([synced_at])
@@ -392,7 +335,6 @@ model Debt {
   // NOTE: No amount field - amount is stored in the linked Transaction record
   description    String?  @db.Text
   status         String   @default("active") @db.VarChar(20) // "active", "settled", "cancelled"
-  parent_debt_id String? // For repayments: links to original debt
   position       Json?
   created_at     DateTime @default(now()) @db.Timestamptz
   updated_at     DateTime @updatedAt @db.Timestamptz
@@ -403,12 +345,9 @@ model Debt {
   user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
   account_rel  Account       @relation(fields: [account_id], references: [id], onDelete: Cascade)
   transactions Transaction[]
-  parent_debt  Debt?         @relation("DebtRepayments", fields: [parent_debt_id], references: [id], onDelete: SetNull)
-  repayments   Debt[]        @relation("DebtRepayments")
 
   @@index([user_id])
   @@index([account_id])
-  @@index([parent_debt_id])
   @@index([counterparty])
   @@index([status])
 }
@@ -424,7 +363,6 @@ model SavedFilter {
   updated_at DateTime @updatedAt @db.Timestamptz
 
   // Relations
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, name])
   @@index([user_id])

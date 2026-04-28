@@ -58,33 +58,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const [transfers, total] = await Promise.all([
       prisma.transfer.findMany({
         where,
-        include: {
-          from_account_rel: {
-            select: {
-              id: true,
-              name: true,
-              icon: true,
-              color: true,
-              currency: true
-            }
-          },
-          to_account_rel: {
-            select: {
-              id: true,
-              name: true,
-              icon: true,
-              color: true,
-              currency: true
-            }
-          },
-          transactions: {
-            select: {
-              id: true,
-              type: true,
-              account_id: true
-            }
-          }
-        },
+
         orderBy: { [sort_by]: sort_order },
         skip: (page - 1) * limit,
         take: limit
@@ -93,7 +67,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     ]);
 
     // Transform response using helper functions
-    const transformedTransfers = transfers.map(transfer => {
+    const transformedTransfers = await Promise.all(transfers.map(async transfer => {
       const destination = getTransferDestination({
         id: transfer.id,
         amount: transfer.amount.toNumber(),
@@ -102,23 +76,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         to_currency: transfer.to_currency ?? null
       });
 
+      const from_account_rel = await prisma.account.findUnique({ where: { id: transfer.from_account }, select: { id: true, name: true, icon: true, color: true, currency: true } });
+      const to_account_rel = await prisma.account.findUnique({ where: { id: transfer.to_account }, select: { id: true, name: true, icon: true, color: true, currency: true } });
+      const transactions_rel = await prisma.transaction.findMany({ where: { transfer_id: transfer.id }, select: { id: true, type: true, account_id: true } });
+
       return {
         id: transfer.id,
         date: transfer.date,
         from_account_id: transfer.from_account,
-        from_account: transfer.from_account_rel,
+        from_account: from_account_rel,
         to_account_id: transfer.to_account,
-        to_account: transfer.to_account_rel,
+        to_account: to_account_rel,
         amount: transfer.amount.toNumber(),
         to_amount: destination.amount,
         description: transfer.description,
         currency: transfer.currency,
         to_currency: destination.currency,
-        transactions: transfer.transactions,
+        transactions: transactions_rel,
         created_at: transfer.created_at,
         updated_at: transfer.updated_at
       };
-    });
+    }));
 
     return successResponse(
       transformedTransfers,
@@ -259,17 +237,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Fetch complete transfer with relations
     const createdTransfer = await prisma.transfer.findUnique({
       where: { id: result.id },
-      include: {
-        from_account_rel: {
-          select: { name: true, icon: true, color: true, currency: true }
-        },
-        to_account_rel: {
-          select: { name: true, icon: true, color: true, currency: true }
-        },
-        transactions: {
-          select: { id: true, type: true, amount: true, account_id: true }
-        }
-      }
+
     });
 
     if (!createdTransfer) {
@@ -285,21 +253,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       to_currency: createdTransfer.to_currency ?? null
     });
 
+    const from_account_rel = await prisma.account.findUnique({ where: { id: createdTransfer.from_account }, select: { name: true, icon: true, color: true, currency: true } });
+    const to_account_rel = await prisma.account.findUnique({ where: { id: createdTransfer.to_account }, select: { name: true, icon: true, color: true, currency: true } });
+    const transactions_rel = await prisma.transaction.findMany({ where: { transfer_id: createdTransfer.id }, select: { id: true, type: true, amount: true, account_id: true } });
+
     const response = {
       id: createdTransfer.id,
       date: createdTransfer.date,
       from_account_id: createdTransfer.from_account,
-      from_account: createdTransfer.from_account_rel,
+      from_account: from_account_rel,
       to_account_id: createdTransfer.to_account,
-      to_account: createdTransfer.to_account_rel,
+      to_account: to_account_rel,
       amount: createdTransfer.amount.toNumber(),
       to_amount: destination.amount,
       description: createdTransfer.description,
       currency: createdTransfer.currency,
       to_currency: destination.currency,
-      transactions: createdTransfer.transactions.map(t => ({
+      transactions: transactions_rel.map((t: any) => ({
         ...t,
-        amount: t.amount.toNumber()
+        amount: Number(t.amount)
       })),
       created_at: createdTransfer.created_at
     };

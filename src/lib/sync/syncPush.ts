@@ -104,8 +104,6 @@ export async function pushToSheets(
         prisma.transfer.findMany({
           where: { user_id: userId },
           include: {
-            from_account_rel: true, // Include from account
-            to_account_rel: true, // Include to account
           },
           orderBy: { created_at: 'asc' },
         }),
@@ -125,7 +123,7 @@ export async function pushToSheets(
       accountsData = buildAccountsTabSimple(accounts);
       categoriesData = buildCategoriesTabSimple(categories);
       transactionsData = buildTransactionsTabSimple(transactions);
-      transfersData = buildTransfersTabSimple(transfers);
+      transfersData = buildTransfersTabSimple(transfers, accounts as any);
       labelsData = buildLabelsTab(labels); // Labels unchanged
 
       await writeToSheets(
@@ -138,11 +136,7 @@ export async function pushToSheets(
         transactionsData,
         transfersData,
         labelsData,
-        accounts.length,
-        categories.length,
-        transactions.length,
-        transfers.length,
-        labels.length,
+
         userId
       );
 
@@ -213,11 +207,6 @@ export async function pushToSheets(
         transactionsData,
         transfersData,
         labelsData,
-        accounts.length,
-        categories.length,
-        transactions.length,
-        transfers.length,
-        labels.length,
         userId
       );
 
@@ -243,7 +232,6 @@ export async function pushToSheets(
         direction: 'push',
         mode,
         status: 'error',
-        error_message: errorMessage,
       },
     });
 
@@ -274,11 +262,7 @@ async function writeToSheets(
   transactionsData: unknown[][],
   transfersData: unknown[][],
   labelsData: unknown[][],
-  accountsCount: number,
-  categoriesCount: number,
-  transactionsCount: number,
-  transfersCount: number,
-  labelsCount: number,
+
   userId: string
 ) {
   if (mode === 'replace') {
@@ -307,11 +291,6 @@ async function writeToSheets(
       direction: 'push',
       mode,
       status: 'success',
-      accounts_added: mode === 'replace' ? accountsCount : 0,
-      categories_added: mode === 'replace' ? categoriesCount : 0,
-      transactions_added: mode === 'replace' ? transactionsCount : 0,
-      transfers_added: mode === 'replace' ? transfersCount : 0,
-      labels_added: mode === 'replace' ? labelsCount : 0,
     },
   });
 
