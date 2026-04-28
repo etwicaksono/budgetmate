@@ -14,65 +14,65 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
 
   // Parse query parameters
-  const startDate = searchParams.get('start_date');
-  const endDate = searchParams.get('end_date');
+  const startDateStr = searchParams.get('start_date');
+  const endDateStr = searchParams.get('end_date');
   const limit = parseInt(searchParams.get('limit') || '10', 10);
 
   try {
     // Build date filter
     const dateFilter: { gte?: Date; lte?: Date } = {};
-    if (startDate) {
-      dateFilter.gte = new Date(startDate);
+    let diffDays = 30; // default to monthly view if bounds are not passed
+
+    if (startDateStr) {
+      dateFilter.gte = new Date(startDateStr);
     }
-    if (endDate) {
-      dateFilter.lte = new Date(endDate);
+    if (endDateStr) {
+      dateFilter.lte = new Date(endDateStr);
     }
 
+    if (startDateStr && endDateStr) {
+      const msDiff = dateFilter.lte!.getTime() - dateFilter.gte!.getTime();
+      diffDays = msDiff / (1000 * 60 * 60 * 24);
+    }
+    
+    // Determine the period
+    const appliedPeriod = diffDays > 60 ? 'annually' : 'monthly';
+
     // Fetch active budgets for the user
-    const budgets = await prisma.budget.findMany({
+    const categoryBudgets = await prisma.categoryBudget.findMany({
       where: {
-        user_id: user.user_id,
-        is_active: true,
+        category: {
+          user_id: user.user_id,
+        },
       },
       include: {
-        categories: {
-          include: {
-            category: {
-              select: {
-                id: true,
-                name: true,
-                icon: true,
-                color: true,
-              },
-            },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            icon: true,
+            color: true,
           },
         },
       },
     });
 
-    // If no budgets, return empty array
-    if (budgets.length === 0) {
+    if (categoryBudgets.length === 0) {
       return successResponse([]);
     }
 
     // Calculate spending for each budget
     const budgetStatuses = await Promise.all(
-      budgets.map(async (budget) => {
-        // Get category IDs for this budget
-        const categoryIds = budget.categories.map((bc) => bc.category_id);
+      categoryBudgets.map(async (budget) => {
+        const categoryId = budget.category_id;
 
-        // If budget has no categories, skip it
-        if (categoryIds.length === 0) {
-          return null;
-        }
-
-        // Calculate spent amount for these categories
+        // Calculate spent amount
         const transactions = await prisma.transaction.findMany({
           where: {
             user_id: user.user_id,
             deleted_at: null,
             type: 'expense',
-            category_id: { in: categoryIds },
+            category_id: categoryId,
             ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
           },
           select: {
@@ -81,43 +81,57 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         });
 
         const spent = transactions.reduce(
-          (sum, t) => sum + Number(t.amount),
+          (sum, t) => sum + Math.abs(Number(t.amount)), // Make sure to use positive representation
           0
         );
 
-        const total = Number(budget.amount);
-        const percentage = total > 0 ? (spent / total) * 100 : 0;
+        let basicBudget = 0;
+        let extendBudget = 0;
 
-        // Determine status based on percentage
-        let status: 'success' | 'warning' | 'danger';
-        if (percentage >= 100) {
-          status = 'danger';
-        } else if (percentage >= 80) {
-          status = 'warning';
+        if (appliedPeriod === 'monthly') {
+          basicBudget = Number(budget.basic_monthly_amount);
+          extendBudget = Number(budget.extend_monthly_amount);
         } else {
-          status = 'success';
+          basicBudget = Number(budget.basic_annual_amount);
+          extendBudget = Number(budget.extend_annual_amount);
         }
 
-        // Get category name (use first category or budget name)
-        const categoryName =
-          budget.categories[0]?.category.name || budget.name;
+        const totalBudget = basicBudget + extendBudget;
 
-        // Get currency from budget (defaults to IDR if not set)
-        const currency = budget.currency || 'IDR';
+        // If total is 0, skip showing this setup since nothing is budgeted
+        if (totalBudget === 0) {
+           return null;
+        }
+
+        const percentage = totalBudget > 0 ? (spent / totalBudget) * 100 : 0;
+
+        // Determine status
+        let status: 'success' | 'warning' | 'danger';
+        if (spent > totalBudget) {
+          status = 'danger'; // Exceeded total (basic + extend)
+        } else if (spent > basicBudget) {
+          status = 'warning'; // Exceeded basic, dipping into extend
+        } else {
+          status = 'success'; // Within basic
+        }
 
         return {
           id: budget.id,
-          category: categoryName,
-          spent: spent,
-          total: total,
-          percentage: Math.round(percentage * 10) / 10, // Round to 1 decimal
-          status: status,
-          currency: currency,
+          category_id: categoryId,
+          category: budget.category.name,
+          applied_period: appliedPeriod,
+          spent,
+          basic_budget: basicBudget,
+          extend_budget: extendBudget,
+          total_budget: totalBudget,
+          percentage: Math.round(percentage * 10) / 10,
+          status,
+          currency: budget.currency || 'USD',
         };
       })
     );
 
-    // Filter out null values and limit results
+    // Filter out null values and sort by severity
     const validStatuses = budgetStatuses
       .filter((status): status is NonNullable<typeof status> => status !== null)
       .sort((a, b) => b.percentage - a.percentage)

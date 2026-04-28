@@ -44,18 +44,17 @@ model User {
   last_synced_at    DateTime? @db.Timestamptz
 
   // Relations
-  accounts     Account[]
-  categories   Category[]
-  transactions Transaction[]
-  debts        Debt[]
-  transfers    Transfer[]
-  labels       Label[]
-  groups       AccountGroup[]
-  budgets      Budget[]
-  goals        Goal[]
-  recurring    RecurringTransaction[]
-  audit_logs   AuditLog[]
-  sync_history SyncHistory[]
+  accounts      Account[]
+  categories    Category[]
+  transactions  Transaction[]
+  debts         Debt[]
+  transfers     Transfer[]
+  labels        Label[]
+  groups        AccountGroup[]
+  goals         Goal[]
+  recurring     RecurringTransaction[]
+  audit_logs    AuditLog[]
+  sync_history  SyncHistory[]
   saved_filters SavedFilter[]
 
   @@index([email])
@@ -142,12 +141,13 @@ model Category {
   updated_by String?  @db.VarChar(64)
 
   // Relations
-  user              User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  parent            Category?              @relation("CategoryHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
-  children          Category[]             @relation("CategoryHierarchy")
-  transactions      Transaction[]
-  budget_categories BudgetCategory[]
-  recurring         RecurringTransaction[]
+  user         User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  parent       Category?              @relation("CategoryHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
+  children     Category[]             @relation("CategoryHierarchy")
+  transactions Transaction[]
+  budget       CategoryBudget?
+  recurring    RecurringTransaction[]
+
   @@index([user_id, type, created_at])
   @@index([parent_id])
 }
@@ -275,44 +275,20 @@ model Attachment {
   @@index([transaction_id])
 }
 
-// ==================== BUDGET MODEL ====================
-model Budget {
-  id                String    @id @default(cuid())
-  user_id           String
-  name              String    @db.VarChar(100)
-  type              String    @db.VarChar(20) // category, total, envelope
-  period            String    @db.VarChar(20) // monthly, quarterly, yearly
-  amount            Decimal   @db.Decimal(15, 2)
-  currency          String    @default("USD") @db.VarChar(3)
-  start_date        DateTime  @db.Timestamptz
-  end_date          DateTime? @db.Timestamptz
-  is_active         Boolean   @default(true)
-  alert_threshold_1 Int       @default(50)
-  alert_threshold_2 Int       @default(80)
-  allow_rollover    Boolean   @default(false)
-  created_at        DateTime  @default(now()) @db.Timestamptz
-  updated_at        DateTime  @updatedAt @db.Timestamptz
+// ==================== CATEGORY BUDGET MODEL ====================
+model CategoryBudget {
+  id                    String   @id @default(cuid())
+  category_id           String   @unique
+  currency              String   @default("USD") @db.VarChar(3)
+  basic_monthly_amount  Decimal  @default(0) @db.Decimal(15, 2)
+  extend_monthly_amount Decimal  @default(0) @db.Decimal(15, 2)
+  basic_annual_amount   Decimal  @default(0) @db.Decimal(15, 2)
+  extend_annual_amount  Decimal  @default(0) @db.Decimal(15, 2)
+  created_at            DateTime @default(now()) @db.Timestamptz
+  updated_at            DateTime @updatedAt @db.Timestamptz
 
   // Relations
-  user       User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  categories BudgetCategory[]
-
-  @@index([user_id])
-}
-
-// ==================== BUDGET CATEGORY (JUNCTION) ====================
-model BudgetCategory {
-  budget_id        String
-  category_id      String
-  allocated_amount Decimal? @db.Decimal(15, 2)
-
-  // Relations
-  budget   Budget   @relation(fields: [budget_id], references: [id], onDelete: Cascade)
   category Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
-
-  @@id([budget_id, category_id])
-  @@index([budget_id])
-  @@index([category_id])
 }
 
 // ==================== RECURRING TRANSACTION MODEL ====================
@@ -425,28 +401,28 @@ model SyncHistory {
 
 // ==================== DEBT MODEL ====================
 model Debt {
-  id              String    @id @default(cuid())
-  user_id         String
-  date            DateTime  @db.Timestamptz
-  type            String    @db.VarChar(20)    // "lend" or "borrow"
-  account_id      String
-  counterparty    String    @db.VarChar(255)   // Person/entity name
+  id             String   @id @default(cuid())
+  user_id        String
+  date           DateTime @db.Timestamptz
+  type           String   @db.VarChar(20) // "lend" or "borrow"
+  account_id     String
+  counterparty   String   @db.VarChar(255) // Person/entity name
   // NOTE: No amount field - amount is stored in the linked Transaction record
-  description     String?   @db.Text
-  status          String    @default("active") @db.VarChar(20) // "active", "settled", "cancelled"
-  parent_debt_id  String?                       // For repayments: links to original debt
-  position        Json?
-  created_at      DateTime  @default(now()) @db.Timestamptz
-  updated_at      DateTime  @updatedAt @db.Timestamptz
-  created_by      String?   @db.VarChar(64)
-  updated_by      String?   @db.VarChar(64)
+  description    String?  @db.Text
+  status         String   @default("active") @db.VarChar(20) // "active", "settled", "cancelled"
+  parent_debt_id String? // For repayments: links to original debt
+  position       Json?
+  created_at     DateTime @default(now()) @db.Timestamptz
+  updated_at     DateTime @updatedAt @db.Timestamptz
+  created_by     String?  @db.VarChar(64)
+  updated_by     String?  @db.VarChar(64)
 
   // Relations
-  user          User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  account_rel   Account       @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  transactions  Transaction[]
-  parent_debt   Debt?         @relation("DebtRepayments", fields: [parent_debt_id], references: [id], onDelete: SetNull)
-  repayments    Debt[]        @relation("DebtRepayments")
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account_rel  Account       @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  parent_debt  Debt?         @relation("DebtRepayments", fields: [parent_debt_id], references: [id], onDelete: SetNull)
+  repayments   Debt[]        @relation("DebtRepayments")
 
   @@index([user_id])
   @@index([account_id])

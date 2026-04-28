@@ -3,22 +3,15 @@
 import React from 'react';
 import { ProgressBar } from 'react-bootstrap';
 
-/**
- * BudgetStatusList - Reusable Budget Status Component
- * 
- * Can be used in:
- * - Dashboard (budget overview)
- * - Budgets page (detailed budget tracking)
- * - Analytics page (spending analysis)
- * 
- * Follows Single Responsibility Principle: Only renders budget status list
- */
-
 export interface Budget {
   id: string;
   category: string;
   spent: number;
-  limit: number;
+  basic_limit: number;
+  extend_limit: number;
+  total_limit: number;
+  percentage: number;
+  status: 'success' | 'warning' | 'danger';
   color?: string;
 }
 
@@ -46,13 +39,6 @@ export const BudgetStatusList: React.FC<BudgetStatusListProps> = ({
   }
 
   const displayBudgets = limit ? budgets.slice(0, limit) : budgets;
-
-  const getVariant = (percentage: number): string => {
-    if (percentage >= 90) return 'danger';
-    if (percentage >= 50) return 'warning';
-    return 'success';
-  };
-
   const isExpanded = height === '100%';
 
   return (
@@ -64,7 +50,7 @@ export const BudgetStatusList: React.FC<BudgetStatusListProps> = ({
       }}
     >
       {displayBudgets.map((budget, index) => {
-        const percentage = budget.limit > 0 ? (budget.spent / budget.limit) * 100 : 0;
+        const basicTickPercentage = budget.total_limit > 0 ? (budget.basic_limit / budget.total_limit) * 100 : 0;
 
         return (
           <div 
@@ -75,20 +61,44 @@ export const BudgetStatusList: React.FC<BudgetStatusListProps> = ({
               paddingBottom: index < displayBudgets.length - 1 ? '1rem' : 0,
             }}
           >
-            <div className="d-flex justify-content-between align-items-center mb-2">
+            <div className="d-flex justify-content-between align-items-center mb-1">
               <span style={{ fontWeight: 500 }}>{budget.category}</span>
-              <span className="text-muted" style={{ fontSize: '0.9rem' }}>
-                {formatCurrency(budget.spent)} of {formatCurrency(budget.limit)}
+              <span className={`text-${budget.status === 'danger' ? 'danger' : 'muted'}`} style={{ fontSize: '0.85rem' }}>
+                {formatCurrency(budget.spent)} / {formatCurrency(budget.total_limit)}
               </span>
             </div>
-            <ProgressBar
-              now={Math.min(percentage, 100)}
-              variant={getVariant(percentage)}
-              style={{ height: '10px', borderRadius: '5px' }}
-            />
+            {budget.extend_limit > 0 ? (
+               <div style={{fontSize: '0.75rem', color: '#6c757d', marginBottom: '4px'}}>
+                 Basic Limit: {formatCurrency(budget.basic_limit)}
+               </div>
+            ) : null}
+            
+            <div style={{ position: 'relative', paddingTop: '4px', paddingBottom: '4px' }}>
+               <ProgressBar
+                 now={Math.min(budget.percentage, 100)}
+                 variant={budget.status}
+                 style={{ height: '8px', borderRadius: '4px' }}
+               />
+               {/* Marker for basic limit if extend limit exists */}
+               {budget.extend_limit > 0 && basicTickPercentage < 100 && (
+                 <div 
+                   style={{
+                     position: 'absolute',
+                     left: `${basicTickPercentage}%`,
+                     top: 0,
+                     bottom: 0,
+                     width: '2px',
+                     backgroundColor: '#adb5bd',
+                     zIndex: 1
+                   }}
+                   title="Basic Limit"
+                 />
+               )}
+            </div>
           </div>
         );
       })}
     </div>
   );
 };
+

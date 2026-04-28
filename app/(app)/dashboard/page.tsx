@@ -559,15 +559,13 @@ function DashboardContent(): React.ReactElement {
       title: 'Budget Status',
       component: loading ? (
         <WidgetSkeleton height={350} />
-      ) : budgets.length > 0 ? (
+      ) : (
         <BudgetStatusWidget
           budgets={budgets}
           formatCurrencyValue={formatCurrencyValue}
           selectedCurrency={selectedCurrency}
           setSelectedCurrency={setSelectedCurrency}
         />
-      ) : (
-        <div className="text-center py-5 text-muted">No budget data available</div>
       ),
     },
   };

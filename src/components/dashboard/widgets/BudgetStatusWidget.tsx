@@ -2,6 +2,9 @@ import React, { useMemo } from 'react';
 import { Nav } from 'react-bootstrap';
 import { BudgetStatusList } from '@/components/widgets';
 import type { BudgetStatus } from '@/services/budgetService';
+import { BudgetConfigModal } from '@/components/budgets/BudgetConfigModal';
+import { Button } from 'react-bootstrap';
+import { FaCog } from 'react-icons/fa';
 
 export interface BudgetStatusWithCurrency extends BudgetStatus {
   currency: string;
@@ -22,6 +25,8 @@ export const BudgetStatusWidget: React.FC<BudgetStatusWidgetProps> = ({
   setSelectedCurrency,
   height,
 }) => {
+  const [showConfig, setShowConfig] = React.useState(false);
+
   // Get unique currencies from budgets
   const budgetCurrencies = useMemo(() => {
     const currencies = [...new Set(budgets.map((b) => b.currency))];
@@ -36,7 +41,11 @@ export const BudgetStatusWidget: React.FC<BudgetStatusWidgetProps> = ({
         id: b.id,
         category: b.category,
         spent: b.spent,
-        limit: b.total,
+        basic_limit: b.basic_budget,
+        extend_limit: b.extend_budget,
+        total_limit: b.total_budget,
+        percentage: b.percentage,
+        status: b.status,
       }));
   }, [budgets, selectedCurrency]);
 
@@ -51,27 +60,34 @@ export const BudgetStatusWidget: React.FC<BudgetStatusWidgetProps> = ({
         flexDirection: 'column',
       }}
     >
-      {/* Currency Tabs */}
-      {hasTabs && (
-        <Nav variant="pills" className="justify-content-center py-2" style={{ gap: '8px', flexShrink: 0 }}>
-          {budgetCurrencies.map((currency) => (
-            <Nav.Item key={currency}>
-              <Nav.Link
-                className={selectedCurrency === currency ? 'active' : ''}
-                onClick={() => setSelectedCurrency(currency)}
-                style={{
-                  cursor: 'pointer',
-                  padding: '4px 12px',
-                  fontSize: '13px',
-                  borderRadius: '16px',
-                }}
-              >
-                {currency}
-              </Nav.Link>
-            </Nav.Item>
-          ))}
-        </Nav>
-      )}
+      {/* Header controls: Nav pills and manage button */}
+      <div className="d-flex justify-content-between align-items-center px-1 py-2" style={{ flexShrink: 0 }}>
+        <div>
+          {hasTabs && (
+            <Nav variant="pills" style={{ gap: '8px' }}>
+              {budgetCurrencies.map((currency) => (
+                <Nav.Item key={currency}>
+                  <Nav.Link
+                    className={selectedCurrency === currency ? 'active' : ''}
+                    onClick={() => setSelectedCurrency(currency)}
+                    style={{
+                      cursor: 'pointer',
+                      padding: '4px 12px',
+                      fontSize: '13px',
+                      borderRadius: '16px',
+                    }}
+                  >
+                    {currency}
+                  </Nav.Link>
+                </Nav.Item>
+              ))}
+            </Nav>
+          )}
+        </div>
+        <Button variant="link" size="sm" className="text-secondary p-0 m-0" onClick={() => setShowConfig(true)}>
+          <FaCog size={16} /> Manage
+        </Button>
+      </div>
       {/* Budget List */}
       <div
         style={{
@@ -92,6 +108,11 @@ export const BudgetStatusWidget: React.FC<BudgetStatusWidgetProps> = ({
           </div>
         )}
       </div>
+
+      <BudgetConfigModal 
+        show={showConfig} 
+        onHide={() => setShowConfig(false)}
+      />
     </div>
   );
 };

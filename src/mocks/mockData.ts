@@ -280,35 +280,55 @@ export const mockTransactions: Transaction[] = [
 export const mockBudgetStatus: BudgetStatus[] = [
   {
     id: 'budget-1',
+    category_id: 'cat-1',
     category: 'Food & Dining',
+    applied_period: 'monthly',
     spent: 1057350,
-    total: 2000000,
+    basic_budget: 1500000,
+    extend_budget: 500000,
+    total_budget: 2000000,
     percentage: 53,
-    status: 'warning',
+    status: 'success',
+    currency: 'IDR'
   },
   {
     id: 'budget-2',
+    category_id: 'cat-2',
     category: 'Shopping',
+    applied_period: 'monthly',
     spent: 2197050,
-    total: 3000000,
+    basic_budget: 2000000,
+    extend_budget: 1000000,
+    total_budget: 3000000,
     percentage: 73,
     status: 'warning',
+    currency: 'IDR'
   },
   {
     id: 'budget-3',
+    category_id: 'cat-3',
     category: 'Transportation',
+    applied_period: 'monthly',
     spent: 253000,
-    total: 1000000,
+    basic_budget: 1000000,
+    extend_budget: 0,
+    total_budget: 1000000,
     percentage: 25,
     status: 'success',
+    currency: 'IDR'
   },
   {
     id: 'budget-4',
+    category_id: 'cat-4',
     category: 'Entertainment',
+    applied_period: 'monthly',
     spent: 1424574,
-    total: 1500000,
+    basic_budget: 1000000,
+    extend_budget: 500000,
+    total_budget: 1500000,
     percentage: 95,
     status: 'danger',
+    currency: 'IDR'
   },
 ];
 

@@ -37,6 +37,7 @@ interface TransactionsListProps {
   transactions: Transaction[];
   emptyMessage?: string;
   maxHeight?: string;
+  height?: string | number;
   onTransactionClick?: (transaction: Transaction) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
@@ -47,6 +48,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   transactions,
   emptyMessage = 'No transactions',
   maxHeight = '400px',
+  height,
   onTransactionClick,
   hasMore = false,
   isLoadingMore = false,
@@ -94,8 +96,14 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
     );
   }
 
+  const isExpanded = height === '100%';
+
   return (
-    <div style={{ maxHeight, overflowY: 'auto' }}>
+    <div style={{ 
+      height: isExpanded ? '100%' : undefined,
+      maxHeight: isExpanded ? undefined : maxHeight, 
+      overflowY: 'auto' 
+    }}>
       <ListGroup variant="flush">
         {transactions.map((transaction) => {
           const CategoryIcon = resolveIconComponent(transaction.categoryIcon);

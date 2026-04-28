@@ -38,6 +38,7 @@ export default function Header(): React.ReactElement {
       { to: '/dashboard', label: 'Dashboard', exact: true },
       { to: '/accounts', label: 'Accounts' },
       { to: '/transactions', label: 'Transactions' },
+      { to: '/budgets', label: 'Budgets' },
       { to: '/debts', label: 'Debts' },
       { to: '/analytics', label: 'Analytics' },
     ],
