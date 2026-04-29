@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Button, Spinner, Alert, Row, Col, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
-import { categoryService, Category } from '@/services/categoryService';
+
 import { budgetService } from '@/services/budgetService';
 import { FaSave, FaTimes, FaInfoCircle, FaMagic } from 'react-icons/fa';
 import { AmountInput } from '@/components/transaction/AmountInput';
@@ -10,11 +10,9 @@ interface BudgetConfigModalProps {
   show: boolean;
   onHide: () => void;
   initialCategoryId?: string;
-  preloadedCategories?: Category[];
 }
 
-export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHide, initialCategoryId, preloadedCategories }) => {
-  const [categories, setCategories] = useState<Category[]>([]);
+export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHide, initialCategoryId }) => {
   const [isFetchingBudget, setIsFetchingBudget] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,18 +39,11 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
     setIsLoading(true);
     setError(null);
     try {
-      // Immediately set category ID to trigger the budget fetch effect concurrently
+
       if (initialCategoryId) {
         setSelectedCategoryId(initialCategoryId);
       } else {
         setSelectedCategoryId('');
-      }
-
-      if (preloadedCategories) {
-        setCategories(preloadedCategories.filter(c => c.type === 'expense' || c.type === 'both'));
-      } else {
-        const catRes = await categoryService.fetchCategories();
-        setCategories(catRes.data.filter(c => c.type === 'expense' || c.type === 'both'));
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load options');
@@ -98,7 +89,7 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
   const totalAnnual = Number(formData.basicAnnual) + Number(formData.extendAnnual);
   const isInvalidLimits = totalMonthly > totalAnnual && totalAnnual > 0;
   
-  const selectedCategoryName = categories.find(c => c.id === selectedCategoryId)?.name;
+
 
   const handleAutoFillAnnual = () => {
     setFormData(prev => ({
@@ -138,7 +129,7 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
     <Modal show={show} onHide={onHide} size="lg" centered className="glass-modal">
       <Modal.Header closeButton className="border-bottom border-secondary">
         <Modal.Title>
-          {selectedCategoryName ? `Configure Budget: ${selectedCategoryName}` : 'Manage Budgets'}
+          {selectedCategoryId ? 'Configure Budget' : 'Manage Budgets'}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
@@ -153,7 +144,6 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
               <TransactionCategorySelect
                 selectedCategoryId={selectedCategoryId || null}
                 onSelect={(id) => setSelectedCategoryId(id || '')}
-                categories={categories}
                 placeholder="-- Choose Category --"
               />
             </Form.Group>

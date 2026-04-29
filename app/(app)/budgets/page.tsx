@@ -63,6 +63,16 @@ function BudgetsPageContent(): React.ReactElement {
     }
   }, [selectedMonth, selectedYear]);
 
+  // Lightweight refresh: only reload budgets (categories don't change from the budget modal)
+  const refreshBudgets = useCallback(async () => {
+    try {
+      const budRes = await budgetService.fetchBudgets({ month: selectedMonth, year: selectedYear });
+      setBudgets(budRes);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [selectedMonth, selectedYear]);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -229,7 +239,7 @@ function BudgetsPageContent(): React.ReactElement {
 
   const handleModalHide = () => {
     setShowModal(false);
-    loadData(); // Reload data after modal closes to refresh changes
+    refreshBudgets(); // Only refresh budgets — categories are unchanged after modal
   };
 
   // No longer strictly necessary as progress bar consumes useFormattedCurrency exclusively natively
@@ -395,7 +405,6 @@ function BudgetsPageContent(): React.ReactElement {
         show={showModal}
         onHide={handleModalHide}
         {...(editingCategoryId ? { initialCategoryId: editingCategoryId } : {})}
-        preloadedCategories={categories}
       />
     </Container>
   );

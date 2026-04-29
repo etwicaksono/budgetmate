@@ -18,7 +18,6 @@ export interface TransactionFormProps {
   updateField: (field: any, value: any) => void;
   errors: Record<string, string>;
   accounts: Account[];
-  categories: any[];
   labels: any[];
   isLoading: boolean;
 }
@@ -28,7 +27,6 @@ export function TransactionForm({
   updateField,
   errors,
   accounts,
-  categories,
   labels,
   isLoading,
 }: TransactionFormProps): React.JSX.Element {
@@ -91,7 +89,7 @@ export function TransactionForm({
     [updateField, formData.account_id, formData.to_account_id, accounts]
   );
 
-  const filteredCategories = categories.filter((cat) => cat.type === formData.type || cat.type === 'both');
+
   const isTransfer = formData.type === 'transfer';
 
   // Get selected accounts for currency display
@@ -282,7 +280,6 @@ export function TransactionForm({
                 <TransactionCategorySelect
                   selectedCategoryId={formData.category_id}
                   onSelect={handleCategorySelect}
-                  categories={filteredCategories}
                   placeholder="Select category"
                   filterType={formData.type === 'income' ? 'income' : 'expense'}
                   disabled={isLoading}

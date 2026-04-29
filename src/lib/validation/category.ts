@@ -36,7 +36,8 @@ export const CategoryFilterSchema = z.object({
   type: z.enum(['income', 'expense', 'both']).optional(),
   parent_id: z.string().regex(cuidRegex, 'Invalid parent ID').nullable().optional(),
   is_system: z.coerce.boolean().optional(),
-  is_active: z.coerce.boolean().optional()
+  is_active: z.coerce.boolean().optional(),
+  search: z.string().optional()
 });
 
 export type CategoryFilterInput = z.infer<typeof CategoryFilterSchema>;

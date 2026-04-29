@@ -30,7 +30,6 @@ export function TransactionModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
-    categories,
     accounts,
     labels,
     isLoading,
@@ -165,7 +164,6 @@ export function TransactionModal({
           updateField={updateField}
           errors={errors}
           accounts={accounts}
-          categories={categories}
           labels={labels}
           isLoading={isLoading}
         />

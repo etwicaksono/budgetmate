@@ -51,6 +51,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where['is_active'] = filters.is_active;
     }
 
+    if (filters.search) {
+      where['name'] = {
+        contains: filters.search,
+        mode: 'insensitive'
+      };
+    }
+
     const categories = await prisma.category.findMany({
       where,
       include: {

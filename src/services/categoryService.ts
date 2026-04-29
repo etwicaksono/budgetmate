@@ -24,6 +24,7 @@ export interface CategoryFilters {
   parent_id?: string | null;
   is_system?: boolean;
   is_active?: boolean;
+  search?: string;
 }
 
 export interface CreateCategoryPayload {
@@ -68,6 +69,7 @@ class CategoryService {
     if (filters?.parent_id !== undefined) params['parent_id'] = filters.parent_id || '';
     if (filters?.is_system !== undefined) params['is_system'] = String(filters.is_system);
     if (filters?.is_active !== undefined) params['is_active'] = String(filters.is_active);
+    if (filters?.search) params['search'] = filters.search;
 
     return api.get<CategoryResponse>('/categories', { params });
   }

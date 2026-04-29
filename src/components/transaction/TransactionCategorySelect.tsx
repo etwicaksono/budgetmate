@@ -2,14 +2,13 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FaSearch } from 'react-icons/fa';
-import type { Category } from '@/services/categoryService';
+import { categoryService, Category } from '@/services/categoryService';
 import { getIconComponent } from '@/utils/iconUtils';
 import { ClearButton } from '@/components/common/ClearButton';
 
 interface TransactionCategorySelectProps {
   selectedCategoryId: string | null;
   onSelect: (categoryId: string | null) => void;
-  categories: Category[];
   placeholder?: string;
   searchPlaceholder?: string;
   disabled?: boolean;
@@ -19,7 +18,6 @@ interface TransactionCategorySelectProps {
 export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps> = ({
   selectedCategoryId,
   onSelect,
-  categories,
   placeholder = 'Select category',
   searchPlaceholder = 'Search category...',
   disabled = false,
@@ -27,27 +25,77 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Fetch categories from API when debounced search changes, but only when the dropdown is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+
+    const fetchCategories = async () => {
+      setIsLoading(true);
+      try {
+        const filters: Record<string, string> = {};
+        if (debouncedSearch) filters['search'] = debouncedSearch;
+        if (filterType && filterType !== 'both') filters['type'] = filterType;
+
+        const res = await categoryService.fetchCategories(filters);
+        if (isMounted) {
+          setCategories(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    fetchCategories();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedSearch, filterType, isOpen]);
+
+  // When a selectedCategoryId is provided but not in our loaded list,
+  // fetch it individually so we can display its name in the trigger button.
+  useEffect(() => {
+    if (!selectedCategoryId) return;
+    if (categories.some(c => c.id === selectedCategoryId)) return;
+
+    let isMounted = true;
+    categoryService.getCategoryById(selectedCategoryId)
+      .then(cat => {
+        if (isMounted) setCategories(prev => [...prev, cat]);
+      })
+      .catch(() => { /* silently ignore */ });
+
+    return () => { isMounted = false; };
+  }, [selectedCategoryId]);
 
   const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
 
   // Group categories by parent
   const groupedCategories = useMemo(() => {
-    const filtered = categories.filter(cat => {
-      if (filterType && cat.type !== filterType && cat.type !== 'both') return false;
-      if (search) {
-        return cat.name.toLowerCase().includes(search.toLowerCase());
-      }
-      return true;
-    });
-
     const groups: Record<string, { parent: Category; children: Category[] }> = {};
     const childCategories: Category[] = [];
     const parents = new Map<string, Category>();
 
-    // Separate parents and children
-    filtered.forEach(cat => {
+    categories.forEach(cat => {
       if (!cat.parent_id) {
         parents.set(cat.id, cat);
       } else {
@@ -55,7 +103,6 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
       }
     });
 
-    // Group children by parent
     childCategories.forEach(child => {
       if (child.parent_id) {
         const parent = parents.get(child.parent_id) || categories.find(c => c.id === child.parent_id);
@@ -63,83 +110,111 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
           if (!groups[parent.id]) {
             groups[parent.id] = { parent, children: [] };
           }
-          const group = groups[parent.id];
-          if (group) {
-            group.children.push(child);
-          }
+          groups[parent.id]!.children.push(child);
         }
       }
     });
 
     return Object.values(groups);
-  }, [categories, search, filterType]);
+  }, [categories]);
 
-  const hasResults = groupedCategories.some(group => group.children.length > 0);
+  // Standalone parents (no children in current result set)
+  const standaloneParents = useMemo(() => {
+    return categories.filter(
+      c => !c.parent_id && !groupedCategories.some(g => g.parent.id === c.id)
+    );
+  }, [categories, groupedCategories]);
 
-  // Toggle dropdown
   const toggleDropdown = () => {
-    if (!disabled) {
-      setIsOpen(prev => !prev);
-    }
+    if (!disabled) setIsOpen(prev => !prev);
   };
 
-  // Handle category selection
   const handleSelect = (categoryId: string | null) => {
     onSelect(categoryId);
     setIsOpen(false);
     setSearch('');
   };
 
-  // Handle clear button
   const handleClear = () => {
     onSelect(null);
   };
 
-  // Close dropdown when clicking outside
+  // Close dropdown on outside click
   useEffect(() => {
     if (!isOpen) return;
-
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setSearch('');
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Focus search input when dropdown opens
+  // Focus search when dropdown opens
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [isOpen]);
 
-  // Get category icon
   const getCategoryIcon = (category: Category) => {
     if (!category.icon) return null;
     const IconComponent = getIconComponent(category.icon);
     return IconComponent ? <IconComponent size={16} /> : null;
   };
 
+  const renderCategoryItem = (cat: Category) => (
+    <div
+      key={cat.id}
+      className={`px-3 py-2 d-flex align-items-center gap-2 ${
+        selectedCategoryId === cat.id ? 'bg-primary text-white' : ''
+      }`}
+      style={{ cursor: 'pointer' }}
+      onMouseEnter={e => {
+        if (selectedCategoryId !== cat.id)
+          (e.currentTarget as HTMLDivElement).style.backgroundColor = 'var(--bs-light)';
+      }}
+      onMouseLeave={e => {
+        if (selectedCategoryId !== cat.id)
+          (e.currentTarget as HTMLDivElement).style.backgroundColor = '';
+      }}
+      onClick={() => handleSelect(cat.id)}
+    >
+      <span
+        className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+        style={{
+          width: '24px',
+          height: '24px',
+          backgroundColor:
+            selectedCategoryId === cat.id ? 'rgba(255,255,255,0.2)' : cat.color || '#6c757d',
+          color: 'white',
+          fontSize: '12px',
+        }}
+      >
+        {getCategoryIcon(cat)}
+      </span>
+      <span>{cat.name}</span>
+    </div>
+  );
+
   return (
     <div ref={dropdownRef} className="position-relative">
-      {/* Selected Value Display */}
+      {/* Trigger */}
       <div
         className={`form-control d-flex align-items-center justify-content-between ${
-          disabled ? 'disabled' : 'cursor-pointer'
+          disabled ? 'disabled' : ''
         } ${isOpen ? 'border-primary' : ''}`}
         onClick={toggleDropdown}
         style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
       >
-        <div className="d-flex align-items-center gap-2 flex-grow-1">
+        <div className="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden">
           {selectedCategory ? (
             <>
               {selectedCategory.icon && (
                 <span
-                  className="rounded-circle d-flex align-items-center justify-content-center"
+                  className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
                   style={{
                     width: '24px',
                     height: '24px',
@@ -151,14 +226,10 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
                   {getCategoryIcon(selectedCategory)}
                 </span>
               )}
-              <span className="d-inline-flex align-items-center gap-1">
+              <span className="d-inline-flex align-items-center gap-1 text-truncate">
                 {selectedCategory.name}
                 {!disabled && (
-                  <ClearButton
-                    size={12}
-                    ariaLabel="Clear category"
-                    onClick={handleClear}
-                  />
+                  <ClearButton size={12} ariaLabel="Clear category" onClick={handleClear} />
                 )}
               </span>
             </>
@@ -166,97 +237,77 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
             <span className="text-muted">{placeholder}</span>
           )}
         </div>
-        <div className="d-flex align-items-center gap-2">
-          <span className="text-muted">▼</span>
+        <div className="d-flex align-items-center ms-2">
+          {isLoading && !isOpen && (
+            <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          )}
+          <span
+            className="text-muted"
+            style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: '0.75rem' }}
+          >
+            ▼
+          </span>
         </div>
       </div>
 
-      {/* Dropdown Menu */}
+      {/* Dropdown */}
       {isOpen && (
         <div
-          className="position-absolute w-100 bg-white border rounded shadow-sm mt-1"
-          style={{
-            maxHeight: '300px',
-            overflowY: 'auto',
-            zIndex: 1050,
-          }}
+          className="position-absolute w-100 mt-1 bg-white border rounded shadow-sm"
+          style={{ maxHeight: '300px', display: 'flex', flexDirection: 'column', zIndex: 1051 }}
         >
-          {/* Search Input */}
-          <div className="p-2 border-bottom sticky-top bg-white">
-            <div className="input-group input-group-sm">
-              <span className="input-group-text bg-white border-end-0">
-                <FaSearch size={12} className="text-muted" />
-              </span>
+          {/* Search Box */}
+          <div className="p-2 border-bottom bg-white">
+            <div className="position-relative">
+              <FaSearch
+                className="position-absolute text-muted"
+                style={{ top: '50%', left: '10px', transform: 'translateY(-50%)' }}
+                size={14}
+              />
               <input
                 ref={searchInputRef}
                 type="text"
-                className="form-control border-start-0"
+                className="form-control form-control-sm ps-4 pe-4"
                 placeholder={searchPlaceholder}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
+                onChange={e => setSearch(e.target.value)}
+                onClick={e => e.stopPropagation()}
               />
+              {isLoading && (
+                <div
+                  className="spinner-border spinner-border-sm text-primary position-absolute"
+                  style={{ top: '50%', right: '10px', transform: 'translateY(-50%)' }}
+                  role="status"
+                >
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Category List Grouped by Parent */}
-          <div className="list-group list-group-flush">
-            {hasResults ? (
-              groupedCategories.map((group) => (
-                <React.Fragment key={group.parent.id}>
-                  {/* Parent Header */}
-                  <div
-                    className="px-3 py-2 bg-light border-bottom"
-                    style={{
-                      fontSize: '0.875rem',
-                      fontWeight: '600',
-                      color: '#6c757d',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                    }}
-                  >
-                    {group.parent.name}
-                  </div>
-
-                  {/* Child Categories */}
-                  {group.children.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      className={`list-group-item list-group-item-action d-flex align-items-center gap-2 border-0 ${
-                        selectedCategoryId === category.id ? 'active' : ''
-                      }`}
-                      onClick={() => handleSelect(category.id)}
-                    >
-                      {category.icon && (
-                        <span
-                          className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                          style={{
-                            width: '24px',
-                            height: '24px',
-                            backgroundColor: category.color || group.parent.color || '#6c757d',
-                            color: 'white',
-                            fontSize: '12px',
-                          }}
-                        >
-                          {getCategoryIcon(category)}
-                        </span>
-                      )}
-                      <div className="flex-grow-1 text-start">
-                        <div style={{ fontWeight: '500' }}>{category.name}</div>
-                        <small className="text-muted">{group.parent.name}</small>
-                      </div>
-                      {selectedCategoryId === category.id && (
-                        <span className="text-primary">✓</span>
-                      )}
-                    </button>
-                  ))}
-                </React.Fragment>
-              ))
-            ) : (
-              <div className="p-3 text-center text-muted">
-                <small>No categories found</small>
+          {/* Results */}
+          <div className="overflow-auto py-1" style={{ flex: 1 }}>
+            {!isLoading && categories.length === 0 ? (
+              <div className="p-3 text-center text-muted" style={{ fontSize: '0.875rem' }}>
+                No categories found
               </div>
+            ) : (
+              <>
+                {groupedCategories.map(group => (
+                  <div key={group.parent.id} className="mb-1">
+                    <div
+                      className="px-3 py-1 text-muted fw-semibold"
+                      style={{ fontSize: '0.8rem', backgroundColor: '#f8f9fa' }}
+                    >
+                      {group.parent.name}
+                    </div>
+                    {group.children.map(child => renderCategoryItem(child))}
+                  </div>
+                ))}
+                {standaloneParents.map(cat => renderCategoryItem(cat))}
+              </>
             )}
           </div>
         </div>
