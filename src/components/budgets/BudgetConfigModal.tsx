@@ -10,9 +10,10 @@ interface BudgetConfigModalProps {
   show: boolean;
   onHide: () => void;
   initialCategoryId?: string;
+  preloadedCategories?: Category[];
 }
 
-export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHide, initialCategoryId }) => {
+export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHide, initialCategoryId, preloadedCategories }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isFetchingBudget, setIsFetchingBudget] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,13 +41,18 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
     setIsLoading(true);
     setError(null);
     try {
-      const catRes = await categoryService.fetchCategories();
-      setCategories(catRes.data.filter(c => c.type === 'expense' || c.type === 'both'));
-
+      // Immediately set category ID to trigger the budget fetch effect concurrently
       if (initialCategoryId) {
         setSelectedCategoryId(initialCategoryId);
       } else {
         setSelectedCategoryId('');
+      }
+
+      if (preloadedCategories) {
+        setCategories(preloadedCategories.filter(c => c.type === 'expense' || c.type === 'both'));
+      } else {
+        const catRes = await categoryService.fetchCategories();
+        setCategories(catRes.data.filter(c => c.type === 'expense' || c.type === 'both'));
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load options');

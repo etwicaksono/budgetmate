@@ -395,6 +395,7 @@ function BudgetsPageContent(): React.ReactElement {
         show={showModal}
         onHide={handleModalHide}
         {...(editingCategoryId ? { initialCategoryId: editingCategoryId } : {})}
+        preloadedCategories={categories}
       />
     </Container>
   );
