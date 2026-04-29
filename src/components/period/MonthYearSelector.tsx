@@ -62,11 +62,11 @@ export const MonthYearSelector: React.FC<MonthYearSelectorProps> = ({
 
     useEffect(() => {
         if (resolvedActivePeriod.type === 'month' && typeof resolvedActivePeriod.month === 'number') {
-            setVisibleYear(resolvedActivePeriod.year ?? visibleYear);
+            setVisibleYear(prev => resolvedActivePeriod.year ?? prev);
         } else if (resolvedActivePeriod.type === 'year' && resolvedActivePeriod.year) {
             setVisibleYear(resolvedActivePeriod.year);
         }
-    }, [resolvedActivePeriod, visibleYear]);
+    }, [resolvedActivePeriod]);
 
     const handleMonthClick = useCallback(
         (monthIndex: number) => {
@@ -93,7 +93,7 @@ export const MonthYearSelector: React.FC<MonthYearSelectorProps> = ({
 
     return (
         <Dropdown show={show} onToggle={handleToggle} className="period-range-dropdown d-flex flex-fill">
-            <Dropdown.Toggle variant="outline-secondary" className="d-flex align-items-center justify-content-between w-100 bg-white">
+            <Dropdown.Toggle variant="outline-secondary" className="d-flex align-items-center justify-content-between w-100">
                 <div className="d-flex align-items-center gap-2 m-auto">
                     {renderIcon(FaCalendarAlt)}
                     <span className="period-range-selector__year-label">{resolvedLabel}</span>
