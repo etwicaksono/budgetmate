@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Form, Button, Spinner, Alert, Row, Col, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { categoryService, Category } from '@/services/categoryService';
-import { budgetService, CategoryBudget } from '@/services/budgetService';
+import { budgetService } from '@/services/budgetService';
 import { FaSave, FaTimes, FaInfoCircle, FaMagic } from 'react-icons/fa';
 import { AmountInput } from '@/components/transaction/AmountInput';
 import { TransactionCategorySelect } from '@/components/transaction/TransactionCategorySelect';
@@ -14,7 +14,7 @@ interface BudgetConfigModalProps {
 
 export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHide, initialCategoryId }) => {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [existingBudgets, setExistingBudgets] = useState<CategoryBudget[]>([]);
+  const [isFetchingBudget, setIsFetchingBudget] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,12 +40,8 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
     setIsLoading(true);
     setError(null);
     try {
-      const [catRes, budRes] = await Promise.all([
-        categoryService.fetchCategories(),
-        budgetService.fetchBudgets()
-      ]);
+      const catRes = await categoryService.fetchCategories();
       setCategories(catRes.data.filter(c => c.type === 'expense' || c.type === 'both'));
-      setExistingBudgets(budRes);
 
       if (initialCategoryId) {
         setSelectedCategoryId(initialCategoryId);
@@ -59,29 +55,37 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
     }
   };
 
-  // O(1) Lookup Map for existing budgets
-  const budgetMap = useMemo(() => {
-    return existingBudgets.reduce((acc, budget) => {
-      acc[budget.category_id] = budget;
-      return acc;
-    }, {} as Record<string, CategoryBudget>);
-  }, [existingBudgets]);
-
   // Cleaner side-effect for selecting a category
   useEffect(() => {
-    if (selectedCategoryId && budgetMap[selectedCategoryId]) {
-      const existing = budgetMap[selectedCategoryId];
-      setFormData({
-        basicMonthly: existing.basic_monthly_amount.toString(),
-        extendMonthly: existing.extend_monthly_amount.toString(),
-        basicAnnual: existing.basic_annual_amount.toString(),
-        extendAnnual: existing.extend_annual_amount.toString(),
-      });
-    } else {
-      // Reset form cleanly
-      setFormData({ basicMonthly: '', extendMonthly: '', basicAnnual: '', extendAnnual: '' });
-    }
-  }, [selectedCategoryId, budgetMap]);
+    const fetchBudgetForCategory = async () => {
+      if (!selectedCategoryId) {
+        setFormData({ basicMonthly: '', extendMonthly: '', basicAnnual: '', extendAnnual: '' });
+        return;
+      }
+
+      setIsFetchingBudget(true);
+      try {
+        const existing = await budgetService.getCategoryBudget(selectedCategoryId);
+        if (existing) {
+          setFormData({
+            basicMonthly: existing.basic_monthly_amount.toString(),
+            extendMonthly: existing.extend_monthly_amount.toString(),
+            basicAnnual: existing.basic_annual_amount.toString(),
+            extendAnnual: existing.extend_annual_amount.toString(),
+          });
+        } else {
+          setFormData({ basicMonthly: '', extendMonthly: '', basicAnnual: '', extendAnnual: '' });
+        }
+      } catch (err) {
+        console.error("Failed to fetch budget for category:", err);
+        setFormData({ basicMonthly: '', extendMonthly: '', basicAnnual: '', extendAnnual: '' });
+      } finally {
+        setIsFetchingBudget(false);
+      }
+    };
+
+    fetchBudgetForCategory();
+  }, [selectedCategoryId]);
 
   // Derived Values for UI and Validation
   const totalMonthly = Number(formData.basicMonthly) + Number(formData.extendMonthly);
@@ -149,7 +153,12 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
             </Form.Group>
 
             {selectedCategoryId && (
-              <>
+              <div className="position-relative">
+                {isFetchingBudget && (
+                  <div className="position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex justify-content-center align-items-center" style={{ zIndex: 10 }}>
+                    <Spinner animation="border" variant="primary" />
+                  </div>
+                )}
                 <div className="d-flex justify-content-between align-items-center mb-3 mt-4 border-bottom pb-2">
                   <h5 className="mb-0 fw-bold text-dark">Monthly Limits</h5>
                   {totalMonthly > 0 && (
@@ -242,7 +251,7 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
                     )}
                   </Button>
                 </div>
-              </>
+              </div>
             )}
           </Form>
         )}

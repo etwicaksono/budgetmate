@@ -10,6 +10,46 @@ interface RouteParams {
   };
 }
 
+export async function GET(
+  request: NextRequest,
+  context: RouteParams
+): Promise<NextResponse> {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) return authResult.error;
+
+  const { user } = authResult;
+  const categoryId = resolveRouteParam(request, context.params, 'category_id');
+  if (!categoryId) {
+    return errorResponse('VALIDATION_ERROR', 'Category ID is required', 400);
+  }
+
+  try {
+    // Verify category belongs to user
+    const category = await prisma.category.findFirst({
+      where: {
+        id: categoryId,
+        user_id: user.user_id,
+      },
+    });
+
+    if (!category) {
+      return errorResponse('NOT_FOUND', 'Category not found', 404);
+    }
+
+    const budget = await prisma.categoryBudget.findUnique({
+      where: {
+        category_id: categoryId,
+      },
+    });
+
+    // We can just return the budget, even if it's null (meaning no budget is configured yet)
+    return successResponse(budget);
+  } catch (error) {
+    console.error('Fetch category budget error:', error);
+    return errorResponse('INTERNAL_ERROR', 'Failed to fetch budget', 500);
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   context: RouteParams

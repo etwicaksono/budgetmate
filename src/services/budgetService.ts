@@ -79,6 +79,14 @@ class BudgetService {
     return response.data;
   }
 
+  async getCategoryBudget(categoryId: string): Promise<CategoryBudget | null> {
+    if (USE_MOCK_DATA) {
+      throw new Error('Not implemented in mock data');
+    }
+    const response = await api.get<{ success: boolean; data: CategoryBudget | null }>(`/budgets/${categoryId}`);
+    return response.data;
+  }
+
   async setCategoryBudget(categoryId: string, data: SetCategoryBudgetRequest): Promise<CategoryBudget> {
     const response = await api.put<{ success: boolean; data: CategoryBudget }>(`/budgets/${categoryId}`, data);
     return response.data;
