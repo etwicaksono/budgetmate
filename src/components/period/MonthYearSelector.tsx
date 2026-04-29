@@ -120,7 +120,11 @@ export const MonthYearSelector: React.FC<MonthYearSelectorProps> = ({
                             <Button
                                 variant="link"
                                 className="text-secondary p-0"
-                                onClick={() => setVisibleYear((year) => year - 1)}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setVisibleYear((year) => year - 1);
+                                }}
                             >
                                 {renderIcon(FaChevronLeft)}
                             </Button>
@@ -128,7 +132,11 @@ export const MonthYearSelector: React.FC<MonthYearSelectorProps> = ({
                             <Button
                                 variant="link"
                                 className="text-secondary p-0"
-                                onClick={() => setVisibleYear((year) => year + 1)}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setVisibleYear((year) => year + 1);
+                                }}
                             >
                                 {renderIcon(FaChevronRight)}
                             </Button>

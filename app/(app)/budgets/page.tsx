@@ -13,7 +13,18 @@ import PeriodNavigation, { PeriodNavigationProvider, usePeriodNavigation } from 
 import MonthYearSelector from '@/components/period/MonthYearSelector';
 import { useAuth } from '@/context/AuthContext';
 import { ClearButton } from '@/components/common/ClearButton';
+import { FaSortAlphaDown, FaSortAlphaUpAlt, FaSortAmountDown, FaSortAmountUp } from 'react-icons/fa';
+import { SortDropdown, SortOption } from '@/components/common/SortDropdown';
+import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 
+const BUDGET_SORT_OPTIONS: SortOption<string>[] = [
+  { value: 'name_asc', icon: FaSortAlphaDown, title: 'Alphabetical ASC', ariaLabel: 'Alphabetical ascending' },
+  { value: 'name_desc', icon: FaSortAlphaUpAlt, title: 'Alphabetical DESC', ariaLabel: 'Alphabetical descending' },
+  { value: 'monthly_asc', icon: FaSortAmountUp, title: 'Monthly Pace ASC', ariaLabel: 'Monthly pace ascending' },
+  { value: 'monthly_desc', icon: FaSortAmountDown, title: 'Monthly Pace DESC', ariaLabel: 'Monthly pace descending' },
+  { value: 'annual_asc', icon: FaSortAmountUp, title: 'Annual Pace ASC', ariaLabel: 'Annual pace ascending' },
+  { value: 'annual_desc', icon: FaSortAmountDown, title: 'Annual Pace DESC', ariaLabel: 'Annual pace descending' },
+];
 function BudgetsPageContent(): React.ReactElement {
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
@@ -24,11 +35,12 @@ function BudgetsPageContent(): React.ReactElement {
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const { user } = useAuth();
+  const { formatCurrency } = useFormattedCurrency();
   const { state: { activePeriod, periodLabel } } = usePeriodNavigation();
   const selectedMonth = activePeriod.month !== undefined ? activePeriod.month + 1 : new Date().getMonth() + 1;
   const selectedYear = activePeriod.year !== undefined ? activePeriod.year : new Date().getFullYear();
 
-  const [sortBy, setSortBy] = useState<string>('name'); // 'name' | 'monthly_asc' | 'monthly_desc' | 'annual_asc' | 'annual_desc'
+  const [sortBy, setSortBy] = useState<string>('name_asc');
 
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -74,6 +86,61 @@ function BudgetsPageContent(): React.ReactElement {
     });
   }, [categories, budgets]);
 
+  const summaryTotals = useMemo(() => {
+    return combinedData.reduce(
+      (acc, item) => {
+        acc.monthlyBasic += item.basicMonthly;
+        acc.monthlyExtend += item.extendMonthly;
+        acc.annualBasic += item.basicAnnual;
+        acc.annualExtend += item.extendAnnual;
+        acc.monthlySpent += item.spentMonthly;
+        acc.annualSpent += item.spentAnnual;
+        return acc;
+      },
+      { monthlyBasic: 0, monthlyExtend: 0, annualBasic: 0, annualExtend: 0, monthlySpent: 0, annualSpent: 0 }
+    );
+  }, [combinedData]);
+
+  const renderSummaryBar = (label: string, spent: number, basicLimit: number, extendLimit: number) => {
+    const budget = basicLimit + extendLimit;
+    const percentage = budget > 0 ? Math.min((Math.abs(spent) / budget) * 100, 100) : (spent > 0 ? 100 : 0);
+    let variant = 'success';
+    if (percentage >= 100) variant = 'danger';
+    else if (percentage >= 80) variant = 'warning';
+
+    return (
+      <div className="p-3 bg-white rounded-3 shadow-sm border" style={{ borderColor: 'var(--bs-gray-200)' }}>
+        <div className="d-flex justify-content-between align-items-end mb-3">
+          <div>
+            <div className="text-muted fw-bold text-uppercase mb-1" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>{label}</div>
+            <div className="fs-5 fw-bold text-dark d-flex align-items-baseline gap-2">
+              <span className={spent < 0 ? 'text-danger' : ''}>{formatCurrency(spent, 'IDR')}</span>
+              <span className="text-muted fs-6 fw-normal">/</span>
+              <span className="fs-6 text-secondary">{formatCurrency(basicLimit, 'IDR')}</span>
+              {extendLimit > 0 && (
+                <span className="fs-6" style={{ color: '#d97706', fontWeight: 500 }}>
+                  + {formatCurrency(extendLimit, 'IDR')}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-end">
+            <span className={`badge bg-${variant} bg-opacity-10 text-${variant} fw-bold px-2 py-1 border border-${variant} border-opacity-25`}>
+              {percentage.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+        <div className="progress w-100" style={{ height: '8px', backgroundColor: 'var(--bs-gray-200)', borderRadius: '4px' }}>
+          <div
+            className={`progress-bar bg-${variant}`}
+            role="progressbar"
+            style={{ width: `${percentage}%`, transition: 'width 0.5s ease-in-out' }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   const parentItems = useMemo(() => {
     const searchLower = searchTerm.toLowerCase();
 
@@ -118,6 +185,7 @@ function BudgetsPageContent(): React.ReactElement {
         if (sortBy === 'monthly_desc') return Math.abs(b.spentMonthly) - Math.abs(a.spentMonthly);
         if (sortBy === 'annual_asc') return Math.abs(a.spentAnnual) - Math.abs(b.spentAnnual);
         if (sortBy === 'annual_desc') return Math.abs(b.spentAnnual) - Math.abs(a.spentAnnual);
+        if (sortBy === 'name_desc') return b.category.name.localeCompare(a.category.name);
         return a.category.name.localeCompare(b.category.name);
       });
 
@@ -134,6 +202,7 @@ function BudgetsPageContent(): React.ReactElement {
       if (sortBy === 'monthly_desc') return Math.abs(b.spentMonthly) - Math.abs(a.spentMonthly);
       if (sortBy === 'annual_asc') return Math.abs(a.spentAnnual) - Math.abs(b.spentAnnual);
       if (sortBy === 'annual_desc') return Math.abs(b.spentAnnual) - Math.abs(a.spentAnnual);
+      if (sortBy === 'name_desc') return b.category.name.localeCompare(a.category.name);
       return a.category.name.localeCompare(b.category.name);
     });
 
@@ -237,8 +306,17 @@ function BudgetsPageContent(): React.ReactElement {
           <h2 className="mb-0 fw-bold">Budgets</h2>
         </div>
 
+        <Row className="g-3 mb-4">
+          <Col md={6}>
+            {renderSummaryBar('Total Monthly Budget', summaryTotals.monthlySpent, summaryTotals.monthlyBasic, summaryTotals.monthlyExtend)}
+          </Col>
+          <Col md={6}>
+            {renderSummaryBar('Total Annual Budget', summaryTotals.annualSpent, summaryTotals.annualBasic, summaryTotals.annualExtend)}
+          </Col>
+        </Row>
+
         <Row className="mb-4 g-3 align-items-center">
-          <Col md={5}>
+          <Col md={4}>
             <Form.Group className="search-form">
               <div className="position-relative w-100">
                 <Form.Control
@@ -266,14 +344,15 @@ function BudgetsPageContent(): React.ReactElement {
               </PeriodNavigation>
             </div>
           </Col>
-          <Col md={3}>
-            <Form.Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-100">
-              <option value="name">Alphabetical</option>
-              <option value="monthly_asc">Monthly Pace Amount (Asc)</option>
-              <option value="monthly_desc">Monthly Pace Amount (Desc)</option>
-              <option value="annual_asc">Annual Pace Amount (Asc)</option>
-              <option value="annual_desc">Annual Pace Amount (Desc)</option>
-            </Form.Select>
+          <Col md={4} className="d-flex justify-content-end">
+            <div style={{ width: '100%', maxWidth: '280px' }}>
+              <SortDropdown
+                id="budgetSort"
+                value={sortBy}
+                options={BUDGET_SORT_OPTIONS}
+                onChange={setSortBy}
+              />
+            </div>
           </Col>
         </Row>
       </section>

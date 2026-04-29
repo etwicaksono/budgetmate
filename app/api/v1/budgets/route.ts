@@ -8,12 +8,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if ('error' in authResult) return authResult.error;
 
   const { user } = authResult;
+  const { searchParams } = new URL(request.url);
+
+  const monthParam = searchParams.get('month');
+  const yearParam = searchParams.get('year');
+
+  const now = new Date();
+  const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
+  const month = monthParam ? parseInt(monthParam, 10) : now.getMonth() + 1; // 1-based
 
   try {
-    // We only fetch the actual configured budgets here.
-    // Heavy aggregations for "spent" amounts have been removed as they are 
-    // unnecessary for configuration and caused massive latency. 
-    // They belong in the /status endpoint instead.
     const budgets = await prisma.categoryBudget.findMany({
       where: {
         category: {
@@ -32,7 +36,83 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    return NextResponse.json({ success: true, data: budgets });
+
+
+    // Monthly boundaries
+    const monthlyStart = new Date(year, month - 1, 1);
+    const monthlyEnd = new Date(year, month, 0, 23, 59, 59, 999);
+
+    // Annual boundaries
+    const annualStart = new Date(year, 0, 1);
+    const annualEnd = new Date(year, 11, 31, 23, 59, 59, 999);
+
+    // Run aggregations concurrently
+    const [monthlyAgg, annualAgg] = await Promise.all([
+      prisma.transaction.groupBy({
+        by: ['category_id'],
+        where: {
+          user_id: user.user_id,
+          deleted_at: null,
+          type: 'expense',
+          date: { gte: monthlyStart, lte: monthlyEnd },
+        },
+        _sum: { amount: true },
+      }),
+      prisma.transaction.groupBy({
+        by: ['category_id'],
+        where: {
+          user_id: user.user_id,
+          deleted_at: null,
+          type: 'expense',
+          date: { gte: annualStart, lte: annualEnd },
+        },
+        _sum: { amount: true },
+      })
+    ]);
+
+    const monthlySpentMap = new Map<string, number>();
+    for (const agg of monthlyAgg) {
+      if (agg.category_id) {
+        monthlySpentMap.set(agg.category_id, Math.abs(Number(agg._sum.amount || 0)));
+      }
+    }
+
+    const annualSpentMap = new Map<string, number>();
+    for (const agg of annualAgg) {
+      if (agg.category_id) {
+        annualSpentMap.set(agg.category_id, Math.abs(Number(agg._sum.amount || 0)));
+      }
+    }
+
+    const categoriesWithSpending = new Set([...monthlySpentMap.keys(), ...annualSpentMap.keys()]);
+
+    // Attach spent data to budgets
+    const enhancedBudgets = budgets.map(budget => ({
+      ...budget,
+      spent_monthly: monthlySpentMap.get(budget.category_id) || 0,
+      spent_annual: annualSpentMap.get(budget.category_id) || 0,
+    }));
+
+    // Inject dummy budgets for categories that have spending but no budget configured
+    for (const catId of categoriesWithSpending) {
+      if (!budgets.find(b => b.category_id === catId)) {
+        enhancedBudgets.push({
+          id: '',
+          category_id: catId,
+          currency: 'IDR',
+          basic_monthly_amount: 0,
+          extend_monthly_amount: 0,
+          basic_annual_amount: 0,
+          extend_annual_amount: 0,
+          created_at: new Date(),
+          updated_at: new Date(),
+          spent_monthly: monthlySpentMap.get(catId) || 0,
+          spent_annual: annualSpentMap.get(catId) || 0,
+        } as any);
+      }
+    }
+
+    return NextResponse.json({ success: true, data: enhancedBudgets });
   } catch (error) {
     console.error('Fetch budgets error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch budgets', 500);
