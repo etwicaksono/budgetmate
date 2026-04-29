@@ -12,6 +12,7 @@ import { BudgetProgressBar } from '@/components/budgets/BudgetProgressBar';
 import PeriodNavigation, { PeriodNavigationProvider, usePeriodNavigation } from '@/components/period/PeriodNavigation';
 import MonthYearSelector from '@/components/period/MonthYearSelector';
 import { useAuth } from '@/context/AuthContext';
+import { ClearButton } from '@/components/common/ClearButton';
 
 function BudgetsPageContent(): React.ReactElement {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -245,11 +246,16 @@ function BudgetsPageContent(): React.ReactElement {
                   placeholder="Search categories..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ paddingLeft: '2rem' }}
+                  style={{ paddingLeft: '2rem', paddingRight: '2rem' }}
                 />
                 <span className="position-absolute top-50 start-0 translate-middle-y ms-2 text-muted">
                   <FaSearch size={14} />
                 </span>
+                {searchTerm && (
+                  <span className="position-absolute top-50 end-0 translate-middle-y me-1">
+                    <ClearButton ariaLabel="Clear search" onClick={() => setSearchTerm('')} />
+                  </span>
+                )}
               </div>
             </Form.Group>
           </Col>
