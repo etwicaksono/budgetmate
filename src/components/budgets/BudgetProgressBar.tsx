@@ -74,7 +74,7 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                 ) : (
                     <div className="d-flex flex-wrap align-items-baseline gap-1 mb-1" style={{ fontSize: '11px' }}>
                         <span className={isOver ? 'text-danger fw-semibold' : 'fw-semibold'}>
-                            {formatShort(spent, currency)}
+                            {formatShort(absSpent, currency)}
                         </span>
                         {limit > 0 && (
                             <>
@@ -122,7 +122,7 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                 ) : (
                     <div className="d-flex flex-wrap align-items-baseline gap-1 mb-1" style={{ fontSize: '11px' }}>
                         <span className={isOver ? 'text-danger fw-semibold' : 'fw-semibold'}>
-                            {formatCurrency(spent, currency)}
+                            {formatCurrency(absSpent, currency)}
                         </span>
                         {limit > 0 && (
                             <>

@@ -52,6 +52,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             name: true,
             icon: true,
             color: true,
+            type: true,
           },
         },
       },
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where: {
         user_id: user.user_id,
         deleted_at: null,
-        type: 'expense',
+        type: { in: ['income', 'expense'] },
         category_id: { in: categoryIds },
         ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
       },
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const spentMap = new Map<string, number>();
     for (const agg of aggregations) {
       if (agg.category_id) {
-        spentMap.set(agg.category_id, Math.abs(Number(agg._sum.amount || 0)));
+        spentMap.set(agg.category_id, Number(agg._sum.amount || 0));
       }
     }
 

@@ -31,6 +31,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             name: true,
             icon: true,
             color: true,
+            type: true,
           },
         },
       },
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where: {
           user_id: user.user_id,
           deleted_at: null,
-          type: 'expense',
+          type: { in: ['income', 'expense'] },
           date: { gte: monthlyStart, lte: monthlyEnd },
         },
         _sum: { amount: true },
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where: {
           user_id: user.user_id,
           deleted_at: null,
-          type: 'expense',
+          type: { in: ['income', 'expense'] },
           date: { gte: annualStart, lte: annualEnd },
         },
         _sum: { amount: true },
@@ -73,14 +74,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const monthlySpentMap = new Map<string, number>();
     for (const agg of monthlyAgg) {
       if (agg.category_id) {
-        monthlySpentMap.set(agg.category_id, Math.abs(Number(agg._sum.amount || 0)));
+        monthlySpentMap.set(agg.category_id, Number(agg._sum.amount || 0));
       }
     }
 
     const annualSpentMap = new Map<string, number>();
     for (const agg of annualAgg) {
       if (agg.category_id) {
-        annualSpentMap.set(agg.category_id, Math.abs(Number(agg._sum.amount || 0)));
+        annualSpentMap.set(agg.category_id, Number(agg._sum.amount || 0));
       }
     }
 

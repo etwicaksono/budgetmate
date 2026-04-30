@@ -7,6 +7,7 @@ interface ClearButtonProps {
     className?: string;
     style?: React.CSSProperties;
     size?: number;
+    tabIndex?: number;
 }
 
 export const ClearButton: React.FC<ClearButtonProps> = ({ 
@@ -14,19 +15,24 @@ export const ClearButton: React.FC<ClearButtonProps> = ({
     ariaLabel = "Clear search",
     className = "",
     style = {},
-    size = 14
+    size = 14,
+    tabIndex
 }) => {
     return (
         <button
             type="button"
             className={`btn btn-sm text-muted ${className}`}
             style={{ border: 'none', background: 'transparent', padding: '0 0.5rem', ...style }}
+            onMouseDown={(event: ReactMouseEvent<HTMLButtonElement>) => {
+                event.preventDefault();
+            }}
             onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
                 event.preventDefault();
                 event.stopPropagation();
                 onClick();
             }}
             aria-label={ariaLabel}
+            {...(tabIndex !== undefined && { tabIndex })}
         >
             <FaTimesCircle size={size} />
         </button>

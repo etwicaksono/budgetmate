@@ -1,6 +1,6 @@
 'use client';
 
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useRef } from 'react';
 import { Form } from 'react-bootstrap';
 import { NumericFormat } from 'react-number-format';
 import type { FormControlProps } from 'react-bootstrap/FormControl';
@@ -31,10 +31,19 @@ export function AmountInput({
   prefix,
 }: AmountInputProps): React.JSX.Element {
   const color = type === 'expense' ? '#dc3545' : '#198754';
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleClear = () => {
+    onChange('');
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  };
 
   return (
     <div className="position-relative">
       <NumericFormat
+        getInputRef={inputRef}
         value={value}
         thousandSeparator=","
         decimalSeparator="."
@@ -60,7 +69,8 @@ export function AmountInput({
         <ClearButton
           className="position-absolute end-0 top-50 translate-middle-y me-1"
           style={{ zIndex: 5 }}
-          onClick={() => onChange('')}
+          onClick={handleClear}
+          tabIndex={-1}
         />
       )}
     </div>

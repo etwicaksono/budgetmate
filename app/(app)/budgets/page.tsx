@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Container, Row, Col, Form, ListGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
-import { FaSearch, FaGift, FaChevronRight, FaEdit, FaInfoCircle } from 'react-icons/fa';
+import { Container, Row, Col, Form, ListGroup, OverlayTrigger, Placeholder, Tooltip } from 'react-bootstrap';
+import { FaSearch, FaGift, FaChevronRight, FaEdit, FaInfoCircle, FaListUl } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import { categoryService, Category } from '@/services/categoryService';
 import { budgetService, CategoryBudget } from '@/services/budgetService';
 import { BudgetConfigModal } from '@/components/budgets/BudgetConfigModal';
 import { BudgetProgressBar } from '@/components/budgets/BudgetProgressBar';
+import CategoryTransactionsModal from '@/components/analytics/CategoryTransactionsModal';
 import PeriodNavigation, { PeriodNavigationProvider, usePeriodNavigation } from '@/components/period/PeriodNavigation';
 import MonthYearSelector from '@/components/period/MonthYearSelector';
 import { useAuth } from '@/context/AuthContext';
@@ -20,12 +21,25 @@ import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 const BUDGET_SORT_OPTIONS: SortOption<string>[] = [
   { value: 'name_asc', icon: FaSortAlphaDown, title: 'Alphabetical ASC', ariaLabel: 'Alphabetical ascending' },
   { value: 'name_desc', icon: FaSortAlphaUpAlt, title: 'Alphabetical DESC', ariaLabel: 'Alphabetical descending' },
-  { value: 'monthly_asc', icon: FaSortAmountUp, title: 'Monthly Pace ASC', ariaLabel: 'Monthly pace ascending' },
-  { value: 'monthly_desc', icon: FaSortAmountDown, title: 'Monthly Pace DESC', ariaLabel: 'Monthly pace descending' },
-  { value: 'annual_asc', icon: FaSortAmountUp, title: 'Annual Pace ASC', ariaLabel: 'Annual pace ascending' },
-  { value: 'annual_desc', icon: FaSortAmountDown, title: 'Annual Pace DESC', ariaLabel: 'Annual pace descending' },
+  { value: 'monthly_spending_asc', icon: FaSortAmountUp, title: 'Monthly Spending ASC', ariaLabel: 'Monthly spending ascending' },
+  { value: 'monthly_spending_desc', icon: FaSortAmountDown, title: 'Monthly Spending DESC', ariaLabel: 'Monthly spending descending' },
+  { value: 'annual_spending_asc', icon: FaSortAmountUp, title: 'Annual Spending ASC', ariaLabel: 'Annual spending ascending' },
+  { value: 'annual_spending_desc', icon: FaSortAmountDown, title: 'Annual Spending DESC', ariaLabel: 'Annual spending descending' },
+  { value: 'monthly_budget_asc', icon: FaSortAmountUp, title: 'Monthly Budget ASC', ariaLabel: 'Monthly budget ascending' },
+  { value: 'monthly_budget_desc', icon: FaSortAmountDown, title: 'Monthly Budget DESC', ariaLabel: 'Monthly budget descending' },
+  { value: 'annual_budget_asc', icon: FaSortAmountUp, title: 'Annual Budget ASC', ariaLabel: 'Annual budget ascending' },
+  { value: 'annual_budget_desc', icon: FaSortAmountDown, title: 'Annual Budget DESC', ariaLabel: 'Annual budget descending' },
 ];
 function BudgetsPageContent(): React.ReactElement {
+  interface SelectedBudgetCategory {
+    ids: string[];
+    name: string;
+    monthName: string;
+    startDate: string;
+    endDate: string;
+    currency: string;
+  }
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
 
@@ -46,6 +60,8 @@ function BudgetsPageContent(): React.ReactElement {
 
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | undefined>(undefined);
+  const [showTransactionsModal, setShowTransactionsModal] = useState<boolean>(false);
+  const [selectedBudgetCategory, setSelectedBudgetCategory] = useState<SelectedBudgetCategory | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -54,7 +70,11 @@ function BudgetsPageContent(): React.ReactElement {
         categoryService.fetchCategories({ is_active: true }),
         budgetService.fetchBudgets({ month: selectedMonth, year: selectedYear })
       ]);
-      setCategories(catRes.data.filter(c => c.type === 'expense' || c.type === 'both'));
+      setCategories(
+        catRes.data.filter(c =>
+          c.type === 'expense' || (c.type === 'both' && c.analytic_flag === 'expense')
+        )
+      );
       setBudgets(budRes);
     } catch (error) {
       console.error(error);
@@ -113,7 +133,8 @@ function BudgetsPageContent(): React.ReactElement {
 
   const renderSummaryBar = (label: string, spent: number, basicLimit: number, extendLimit: number) => {
     const budget = basicLimit + extendLimit;
-    const truePercentage = budget > 0 ? (Math.abs(spent) / budget) * 100 : (spent > 0 ? 100 : 0);
+    const absSpent = Math.abs(spent);
+    const truePercentage = budget > 0 ? (absSpent / budget) * 100 : (absSpent > 0 ? 100 : 0);
     const isOver    = truePercentage > 100;
     const isAtLimit = truePercentage === 100;
     const barWidth  = Math.min(truePercentage, 100);
@@ -196,8 +217,8 @@ function BudgetsPageContent(): React.ReactElement {
             <div className="text-muted fw-bold text-uppercase" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>{label}</div>
             {badge}
           </div>
-          <div className={`fw-bold mb-1 ${spent < 0 ? 'text-danger' : 'text-dark'}`} style={{ fontSize: '1.15rem' }}>
-            {formatShort(spent, 'IDR')}
+          <div className={`fw-bold mb-1 ${isOver ? 'text-danger' : 'text-dark'}`} style={{ fontSize: '1.15rem' }}>
+            {formatShort(absSpent, 'IDR')}
           </div>
           <div className="mb-2">{limitsCompact}</div>
           {progressBar}
@@ -209,7 +230,7 @@ function BudgetsPageContent(): React.ReactElement {
             <div>
               <div className="text-muted fw-bold text-uppercase mb-1" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>{label}</div>
               <div className="fs-5 fw-bold text-dark d-flex align-items-baseline gap-2">
-                <span className={spent < 0 ? 'text-danger' : ''}>{formatCurrency(spent, 'IDR')}</span>
+                <span className={isOver ? 'text-danger' : ''}>{formatCurrency(absSpent, 'IDR')}</span>
                 <span className="text-muted fs-6 fw-normal">/</span>
                 <span className="fs-6 text-secondary">{formatCurrency(basicLimit, 'IDR')}</span>
                 {extendLimit > 0 && (
@@ -225,74 +246,6 @@ function BudgetsPageContent(): React.ReactElement {
       </div>
     );
   };
-
-  const parentItems = useMemo(() => {
-    const searchLower = searchTerm.toLowerCase();
-
-    // Filter parents first
-    const parents = combinedData.filter(item => !item.category.parent_id);
-
-    return parents.map(parentItem => {
-      // Find children for this parent
-      let children = combinedData.filter(item => item.category.parent_id === parentItem.category.id);
-
-      // We no longer strip out zero-budget categories natively at user's request
-      let filteredChildren = children;
-
-      const hasBudgetIntrinsic = parentItem.hasMonthly || parentItem.hasAnnual;
-      const hasMatchingChildren = filteredChildren.length > 0;
-
-      // Auto-Rollup Logic: If the parent has NO budget itself, we sum it up from its children acting as a dashboard bucket
-      let rollItem = { ...parentItem };
-      if (!hasBudgetIntrinsic && hasMatchingChildren) {
-        rollItem.basicMonthly = filteredChildren.reduce((sum, c) => sum + c.basicMonthly, 0);
-        rollItem.extendMonthly = filteredChildren.reduce((sum, c) => sum + c.extendMonthly, 0);
-        rollItem.basicAnnual = filteredChildren.reduce((sum, c) => sum + c.basicAnnual, 0);
-        rollItem.extendAnnual = filteredChildren.reduce((sum, c) => sum + c.extendAnnual, 0);
-        rollItem.spentMonthly = filteredChildren.reduce((sum, c) => sum + c.spentMonthly, 0);
-        rollItem.spentAnnual = filteredChildren.reduce((sum, c) => sum + c.spentAnnual, 0);
-        rollItem.hasMonthly = filteredChildren.some(c => c.hasMonthly);
-        rollItem.hasAnnual = filteredChildren.some(c => c.hasAnnual);
-      }
-
-      // Search matching
-      const parentNameMatches = rollItem.category.name.toLowerCase().includes(searchLower);
-      const childMatches = filteredChildren.filter(c => c.category.name.toLowerCase().includes(searchLower));
-
-      let finalChildren = filteredChildren;
-      if (searchLower) {
-        finalChildren = childMatches;
-      }
-
-      // Apply inner sorting to children
-      finalChildren.sort((a, b) => {
-        if (sortBy === 'monthly_asc') return Math.abs(a.spentMonthly) - Math.abs(b.spentMonthly);
-        if (sortBy === 'monthly_desc') return Math.abs(b.spentMonthly) - Math.abs(a.spentMonthly);
-        if (sortBy === 'annual_asc') return Math.abs(a.spentAnnual) - Math.abs(b.spentAnnual);
-        if (sortBy === 'annual_desc') return Math.abs(b.spentAnnual) - Math.abs(a.spentAnnual);
-        if (sortBy === 'name_desc') return b.category.name.localeCompare(a.category.name);
-        return a.category.name.localeCompare(b.category.name);
-      });
-
-      const matchesSearch = !searchLower || parentNameMatches || finalChildren.length > 0;
-
-      return {
-        ...rollItem,
-        children: finalChildren,
-        shouldRender: matchesSearch
-      };
-    }).filter(parent => parent.shouldRender).sort((a, b) => {
-      // Apply outer sorting to parents seamlessly mirroring child parameters
-      if (sortBy === 'monthly_asc') return Math.abs(a.spentMonthly) - Math.abs(b.spentMonthly);
-      if (sortBy === 'monthly_desc') return Math.abs(b.spentMonthly) - Math.abs(a.spentMonthly);
-      if (sortBy === 'annual_asc') return Math.abs(a.spentAnnual) - Math.abs(b.spentAnnual);
-      if (sortBy === 'annual_desc') return Math.abs(b.spentAnnual) - Math.abs(a.spentAnnual);
-      if (sortBy === 'name_desc') return b.category.name.localeCompare(a.category.name);
-      return a.category.name.localeCompare(b.category.name);
-    });
-
-  }, [combinedData, searchTerm, sortBy]);
-
 
   const toggleCategory = (e: React.MouseEvent, categoryId: string) => {
     e.stopPropagation();
@@ -312,9 +265,160 @@ function BudgetsPageContent(): React.ReactElement {
     setShowModal(true);
   };
 
+  const renderSummaryBarSkeleton = (key: string) => (
+    <div key={key} className="p-3 bg-white rounded-3 shadow-sm border" style={{ borderColor: 'var(--bs-gray-200)' }}>
+      <Placeholder animation="glow">
+        <Placeholder xs={4} className="d-block mb-3" style={{ height: '12px' }} />
+        <Placeholder xs={6} className="d-block mb-2" style={{ height: '24px' }} />
+        <Placeholder xs={8} className="d-block mb-3" style={{ height: '12px' }} />
+        <Placeholder xs={12} className="d-block rounded" style={{ height: '8px' }} />
+      </Placeholder>
+    </div>
+  );
+
+  const renderBudgetListSkeleton = () => (
+    <ListGroup>
+      {Array.from({ length: 4 }).map((_, index) => (
+        <ListGroup.Item key={`budget-skeleton-${index}`} className="p-3 overflow-hidden">
+          <div className="d-flex align-items-center gap-3">
+            <Placeholder animation="glow">
+              <Placeholder className="rounded" style={{ width: '20px', height: '20px' }} />
+            </Placeholder>
+            <Placeholder animation="glow">
+              <Placeholder className="rounded" style={{ width: '32px', height: '32px' }} />
+            </Placeholder>
+            <div className="flex-grow-1">
+              <Placeholder animation="glow">
+                <Placeholder xs={4} className="d-block mb-2" style={{ height: '16px' }} />
+                <Placeholder xs={12} className="d-block mb-2 rounded" style={{ height: '10px' }} />
+                <Placeholder xs={9} className="d-block rounded" style={{ height: '10px' }} />
+              </Placeholder>
+            </div>
+          </div>
+        </ListGroup.Item>
+      ))}
+    </ListGroup>
+  );
+
+  const compareBudgetItems = useCallback((a: any, b: any) => {
+    const monthlySpendingA = Math.abs(Number(a.spentMonthly || 0));
+    const monthlySpendingB = Math.abs(Number(b.spentMonthly || 0));
+    const annualSpendingA = Math.abs(Number(a.spentAnnual || 0));
+    const annualSpendingB = Math.abs(Number(b.spentAnnual || 0));
+    const monthlyBudgetA = Number(a.basicMonthly || 0) + Number(a.extendMonthly || 0);
+    const monthlyBudgetB = Number(b.basicMonthly || 0) + Number(b.extendMonthly || 0);
+    const annualBudgetA = Number(a.basicAnnual || 0) + Number(a.extendAnnual || 0);
+    const annualBudgetB = Number(b.basicAnnual || 0) + Number(b.extendAnnual || 0);
+    const nameCompare = a.category.name.localeCompare(b.category.name);
+
+    const compareNumbers = (left: number, right: number, direction: 'asc' | 'desc') => {
+      if (left === right) return nameCompare;
+      return direction === 'asc' ? left - right : right - left;
+    };
+
+    if (sortBy === 'monthly_spending_asc') return compareNumbers(monthlySpendingA, monthlySpendingB, 'asc');
+    if (sortBy === 'monthly_spending_desc') return compareNumbers(monthlySpendingA, monthlySpendingB, 'desc');
+    if (sortBy === 'annual_spending_asc') return compareNumbers(annualSpendingA, annualSpendingB, 'asc');
+    if (sortBy === 'annual_spending_desc') return compareNumbers(annualSpendingA, annualSpendingB, 'desc');
+    if (sortBy === 'monthly_budget_asc') return compareNumbers(monthlyBudgetA, monthlyBudgetB, 'asc');
+    if (sortBy === 'monthly_budget_desc') return compareNumbers(monthlyBudgetA, monthlyBudgetB, 'desc');
+    if (sortBy === 'annual_budget_asc') return compareNumbers(annualBudgetA, annualBudgetB, 'asc');
+    if (sortBy === 'annual_budget_desc') return compareNumbers(annualBudgetA, annualBudgetB, 'desc');
+    if (sortBy === 'name_desc') return b.category.name.localeCompare(a.category.name);
+    return nameCompare;
+  }, [sortBy]);
+
+  const parentItems = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase();
+
+    // Filter parents first
+    const parents = combinedData.filter(item => !item.category.parent_id);
+
+    return parents.map(parentItem => {
+      // Find children for this parent
+      let children = combinedData.filter(item => item.category.parent_id === parentItem.category.id);
+
+      // We no longer strip out zero-budget categories natively at user's request
+      let filteredChildren = children;
+
+      const hasMatchingChildren = filteredChildren.length > 0;
+
+      // Always roll child spending into parent spending so the row matches the parent transaction modal.
+      // Budget limits still only roll up when the parent has no intrinsic budget configured.
+      let rollItem = { ...parentItem };
+      if (hasMatchingChildren) {
+        const childMonthlySpent = filteredChildren.reduce((sum, c) => sum + c.spentMonthly, 0);
+        const childAnnualSpent = filteredChildren.reduce((sum, c) => sum + c.spentAnnual, 0);
+        rollItem.spentMonthly += childMonthlySpent;
+        rollItem.spentAnnual += childAnnualSpent;
+      }
+
+      const hasBudgetIntrinsic = parentItem.hasMonthly || parentItem.hasAnnual;
+      if (!hasBudgetIntrinsic && hasMatchingChildren) {
+        rollItem.basicMonthly = filteredChildren.reduce((sum, c) => sum + c.basicMonthly, 0);
+        rollItem.extendMonthly = filteredChildren.reduce((sum, c) => sum + c.extendMonthly, 0);
+        rollItem.basicAnnual = filteredChildren.reduce((sum, c) => sum + c.basicAnnual, 0);
+        rollItem.extendAnnual = filteredChildren.reduce((sum, c) => sum + c.extendAnnual, 0);
+        rollItem.hasMonthly = filteredChildren.some(c => c.hasMonthly);
+        rollItem.hasAnnual = filteredChildren.some(c => c.hasAnnual);
+      }
+
+      // Search matching
+      const parentNameMatches = rollItem.category.name.toLowerCase().includes(searchLower);
+      const childMatches = filteredChildren.filter(c => c.category.name.toLowerCase().includes(searchLower));
+
+      let finalChildren = filteredChildren;
+      if (searchLower) {
+        finalChildren = childMatches;
+      }
+
+      // Apply inner sorting to children
+      finalChildren.sort(compareBudgetItems);
+
+      const matchesSearch = !searchLower || parentNameMatches || finalChildren.length > 0;
+
+      return {
+        ...rollItem,
+        children: finalChildren,
+        shouldRender: matchesSearch
+      };
+    }).filter(parent => parent.shouldRender).sort(compareBudgetItems);
+
+  }, [combinedData, compareBudgetItems, searchTerm]);
+
+  const collectCategoryIds = useCallback((categoryId: string): string[] => {
+    const ids = [categoryId];
+    const childIds = categories
+      .filter(category => category.parent_id === categoryId)
+      .flatMap(category => collectCategoryIds(category.id));
+
+    return [...ids, ...childIds];
+  }, [categories]);
+
+  const handleShowTransactions = useCallback((item: any) => {
+    const currency = user?.currency || 'IDR';
+    const monthStart = new Date(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0);
+    const monthEnd = new Date(selectedYear, selectedMonth, 0, 23, 59, 59, 999);
+
+    setSelectedBudgetCategory({
+      ids: collectCategoryIds(item.category.id),
+      name: item.category.name,
+      monthName: periodLabel,
+      startDate: monthStart.toISOString(),
+      endDate: monthEnd.toISOString(),
+      currency,
+    });
+    setShowTransactionsModal(true);
+  }, [collectCategoryIds, periodLabel, selectedMonth, selectedYear, user?.currency]);
+
   const handleModalHide = () => {
     setShowModal(false);
     refreshBudgets(); // Only refresh budgets — categories are unchanged after modal
+  };
+
+  const handleTransactionsModalHide = () => {
+    setShowTransactionsModal(false);
+    setSelectedBudgetCategory(null);
   };
 
   // No longer strictly necessary as progress bar consumes useFormattedCurrency exclusively natively
@@ -351,6 +455,18 @@ function BudgetsPageContent(): React.ReactElement {
       </div>
     );
 
+    const transactionsButton = (
+      <button
+        className="btn btn-sm btn-link text-muted p-1"
+        style={{ flexShrink: 0 }}
+        onClick={(e) => { e.stopPropagation(); handleShowTransactions(item); }}
+        aria-label={`View ${item.category.name} transactions`}
+        title="View transactions"
+      >
+        <FaListUl size={15} />
+      </button>
+    );
+
     return (
       <>
         {/* ── MOBILE LAYOUT (hidden on md+) ── */}
@@ -368,7 +484,7 @@ function BudgetsPageContent(): React.ReactElement {
             if (!isChild && hasChildren) {
               toggleCategory(e, item.category.id);
             } else {
-              handleEdit(item.category.id);
+              handleShowTransactions(item);
             }
           }}
         >
@@ -379,15 +495,17 @@ function BudgetsPageContent(): React.ReactElement {
             <span className="fw-semibold flex-grow-1" style={{ fontSize: '14px', lineHeight: 1.3 }}>
               {item.category.name}
             </span>
-            {/* Edit always visible on mobile */}
-            <button
-              className="btn btn-sm btn-link text-muted p-1"
-              style={{ flexShrink: 0 }}
-              onClick={(e) => { e.stopPropagation(); handleEdit(item.category.id); }}
-              aria-label={`Edit ${item.category.name} budget`}
-            >
-              <FaEdit size={15} />
-            </button>
+            {!isChild && hasChildren && transactionsButton}
+            {(!hasChildren || isChild) && (
+              <button
+                className="btn btn-sm btn-link text-muted p-1"
+                style={{ flexShrink: 0 }}
+                onClick={(e) => { e.stopPropagation(); handleEdit(item.category.id); }}
+                aria-label={`Edit ${item.category.name} budget`}
+              >
+                <FaEdit size={15} />
+              </button>
+            )}
           </div>
           {/* Progress bars stacked */}
           <div className={isChild ? 'ps-0' : 'ps-4'}>
@@ -410,7 +528,7 @@ function BudgetsPageContent(): React.ReactElement {
             if (!isChild && hasChildren) {
               toggleCategory(e, item.category.id);
             } else {
-              handleEdit(item.category.id);
+              handleShowTransactions(item);
             }
           }}
           onMouseEnter={() => setHoveredItemId(item.category.id)}
@@ -427,10 +545,27 @@ function BudgetsPageContent(): React.ReactElement {
             <BudgetProgressBar spent={item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} currency={currency} label="Annual Pace" isParent={!isChild} />
           </div>
 
-          <div className="d-flex justify-content-end align-items-center pe-3" style={{ width: '40px' }}>
-            <div className="text-muted" style={{ opacity: hoveredItemId === item.category.id ? 0.8 : 0, transition: 'opacity 0.2s', zIndex: 10 }}>
-              {!isChild && hasChildren ? null : <FaEdit size={16} />}
+          <div className="d-flex justify-content-end align-items-center gap-2 pe-3" style={{ width: '88px' }}>
+            <div
+              className="text-muted"
+              style={{ opacity: hoveredItemId === item.category.id ? 0.8 : 0, transition: 'opacity 0.2s', zIndex: 10, cursor: 'pointer' }}
+              onClick={(e) => { e.stopPropagation(); handleShowTransactions(item); }}
+              title="View transactions"
+              aria-label={`View ${item.category.name} transactions`}
+            >
+              {!isChild && hasChildren ? <FaListUl size={16} /> : null}
             </div>
+            {(!hasChildren || isChild) && (
+              <button
+                className="btn btn-sm btn-link text-muted p-0 border-0"
+                style={{ opacity: hoveredItemId === item.category.id ? 0.8 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
+                onClick={(e) => { e.stopPropagation(); handleEdit(item.category.id); }}
+                aria-label={`Edit ${item.category.name} budget`}
+                title="Edit budget"
+              >
+                <FaEdit size={16} />
+              </button>
+            )}
           </div>
         </div>
       </>
@@ -446,10 +581,14 @@ function BudgetsPageContent(): React.ReactElement {
 
         <Row className="g-3 mb-2">
           <Col md={6}>
-            {renderSummaryBar('Total Monthly Budget', summaryTotals.monthlySpent, summaryTotals.monthlyBasic, summaryTotals.monthlyExtend)}
+            {loading
+              ? renderSummaryBarSkeleton('monthly-summary-skeleton')
+              : renderSummaryBar('Total Monthly Budget', summaryTotals.monthlySpent, summaryTotals.monthlyBasic, summaryTotals.monthlyExtend)}
           </Col>
           <Col md={6}>
-            {renderSummaryBar('Total Annual Budget', summaryTotals.annualSpent, summaryTotals.annualBasic, summaryTotals.annualExtend)}
+            {loading
+              ? renderSummaryBarSkeleton('annual-summary-skeleton')
+              : renderSummaryBar('Total Annual Budget', summaryTotals.annualSpent, summaryTotals.annualBasic, summaryTotals.annualExtend)}
           </Col>
         </Row>
 
@@ -519,7 +658,7 @@ function BudgetsPageContent(): React.ReactElement {
       <section>
         <div className="categories-list">
           {loading ? (
-            <div className="py-5 text-center text-muted">Loading budgets...</div>
+            renderBudgetListSkeleton()
           ) : parentItems.length === 0 ? (
             <div className="py-5 d-flex flex-column align-items-center justify-content-center bg-white rounded shadow-sm border" style={{ minHeight: '300px' }}>
               <FaGift size={48} className="text-muted mb-3 opacity-25" />
@@ -554,6 +693,18 @@ function BudgetsPageContent(): React.ReactElement {
         show={showModal}
         onHide={handleModalHide}
         {...(editingCategoryId ? { initialCategoryId: editingCategoryId } : {})}
+      />
+
+      <CategoryTransactionsModal
+        show={showTransactionsModal}
+        onHide={handleTransactionsModalHide}
+        categoryIds={selectedBudgetCategory?.ids ?? null}
+        categoryName={selectedBudgetCategory?.name ?? ''}
+        monthType="current"
+        monthName={selectedBudgetCategory?.monthName ?? ''}
+        {...(selectedBudgetCategory?.startDate && { startDate: selectedBudgetCategory.startDate })}
+        {...(selectedBudgetCategory?.endDate && { endDate: selectedBudgetCategory.endDate })}
+        {...(selectedBudgetCategory?.currency && { currency: selectedBudgetCategory.currency })}
       />
     </Container>
   );

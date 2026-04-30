@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Button, Spinner, Alert, Row, Col, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { Modal, Form, Button, Spinner, Alert, Row, Col, Badge, OverlayTrigger, Placeholder, Tooltip } from 'react-bootstrap';
 
 import { budgetService } from '@/services/budgetService';
 import { FaSave, FaTimes, FaInfoCircle, FaMagic } from 'react-icons/fa';
@@ -28,6 +28,55 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
   });
 
   const [isSaving, setIsSaving] = useState(false);
+
+  const renderModalSkeleton = () => (
+    <div className="p-2">
+      <Placeholder animation="glow">
+        <Placeholder xs={3} className="d-block mb-2" style={{ height: '14px' }} />
+        <Placeholder xs={12} className="d-block mb-4 rounded" style={{ height: '38px' }} />
+      </Placeholder>
+
+      <div className="mt-4">
+        <Placeholder animation="glow">
+          <Placeholder xs={4} className="d-block mb-3" style={{ height: '18px' }} />
+        </Placeholder>
+        <Row>
+          <Col md={6}>
+            <Placeholder animation="glow">
+              <Placeholder xs={5} className="d-block mb-2" style={{ height: '14px' }} />
+              <Placeholder xs={12} className="d-block mb-3 rounded" style={{ height: '38px' }} />
+            </Placeholder>
+          </Col>
+          <Col md={6}>
+            <Placeholder animation="glow">
+              <Placeholder xs={5} className="d-block mb-2" style={{ height: '14px' }} />
+              <Placeholder xs={12} className="d-block mb-3 rounded" style={{ height: '38px' }} />
+            </Placeholder>
+          </Col>
+        </Row>
+      </div>
+
+      <div className="mt-4">
+        <Placeholder animation="glow">
+          <Placeholder xs={4} className="d-block mb-3" style={{ height: '18px' }} />
+        </Placeholder>
+        <Row>
+          <Col md={6}>
+            <Placeholder animation="glow">
+              <Placeholder xs={5} className="d-block mb-2" style={{ height: '14px' }} />
+              <Placeholder xs={12} className="d-block mb-3 rounded" style={{ height: '38px' }} />
+            </Placeholder>
+          </Col>
+          <Col md={6}>
+            <Placeholder animation="glow">
+              <Placeholder xs={5} className="d-block mb-2" style={{ height: '14px' }} />
+              <Placeholder xs={12} className="d-block mb-3 rounded" style={{ height: '38px' }} />
+            </Placeholder>
+          </Col>
+        </Row>
+      </div>
+    </div>
+  );
 
   useEffect(() => {
     if (show) {
@@ -138,7 +187,7 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
       </Modal.Header>
       <Modal.Body>
         {isLoading ? (
-          <div className="text-center p-4"><Spinner animation="border" /></div>
+          renderModalSkeleton()
         ) : (
           <Form onSubmit={handleSave}>
             {error && <Alert variant="danger">{error}</Alert>}
@@ -155,8 +204,8 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
             {selectedCategoryId && (
               <div className="position-relative">
                 {isFetchingBudget && (
-                  <div className="position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex justify-content-center align-items-center" style={{ zIndex: 10 }}>
-                    <Spinner animation="border" variant="primary" />
+                  <div className="position-absolute top-0 start-0 w-100 h-100 bg-white p-2" style={{ zIndex: 10 }}>
+                    {renderModalSkeleton()}
                   </div>
                 )}
                 <div className="d-flex justify-content-between align-items-center mb-3 mt-4 border-bottom pb-2">
