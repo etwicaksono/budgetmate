@@ -40,9 +40,17 @@ export function useFormattedCurrency() {
     []
   );
 
+  const formatShort = useCallback(
+    (amount: number, currencyCode: string) => {
+      return currencyFormatService.formatShort(amount, currencyCode);
+    },
+    []
+  );
+
   return {
     formatCurrency,
     formatCompact,
+    formatShort,
     formatWithSign,
     locale,
     // Expose other service methods

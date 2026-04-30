@@ -60,15 +60,19 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
         return;
       }
 
+      // Clear previous values immediately so they aren't visible under the loading overlay
+      setFormData({ basicMonthly: '', extendMonthly: '', basicAnnual: '', extendAnnual: '' });
       setIsFetchingBudget(true);
       try {
         const existing = await budgetService.getCategoryBudget(selectedCategoryId);
         if (existing) {
+          // Normalize: treat 0 as empty so the input shows the placeholder
+          const nonZero = (n: string | number) => (Number(n) === 0 ? '' : Number(n).toString());
           setFormData({
-            basicMonthly: existing.basic_monthly_amount.toString(),
-            extendMonthly: existing.extend_monthly_amount.toString(),
-            basicAnnual: existing.basic_annual_amount.toString(),
-            extendAnnual: existing.extend_annual_amount.toString(),
+            basicMonthly: nonZero(existing.basic_monthly_amount),
+            extendMonthly: nonZero(existing.extend_monthly_amount),
+            basicAnnual: nonZero(existing.basic_annual_amount),
+            extendAnnual: nonZero(existing.extend_annual_amount),
           });
         } else {
           setFormData({ basicMonthly: '', extendMonthly: '', basicAnnual: '', extendAnnual: '' });

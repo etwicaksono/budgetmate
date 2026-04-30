@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Container, Row, Col, Form, ListGroup } from 'react-bootstrap';
-import { FaSearch, FaGift, FaChevronRight, FaEdit } from 'react-icons/fa';
+import { Container, Row, Col, Form, ListGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { FaSearch, FaGift, FaChevronRight, FaEdit, FaInfoCircle } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import { categoryService, Category } from '@/services/categoryService';
@@ -35,7 +35,7 @@ function BudgetsPageContent(): React.ReactElement {
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const { user } = useAuth();
-  const { formatCurrency } = useFormattedCurrency();
+  const { formatCurrency, formatShort } = useFormattedCurrency();
   const { state: { activePeriod, periodLabel } } = usePeriodNavigation();
   const selectedMonth = activePeriod.month !== undefined ? activePeriod.month + 1 : new Date().getMonth() + 1;
   const selectedYear = activePeriod.year !== undefined ? activePeriod.year : new Date().getFullYear();
@@ -51,7 +51,7 @@ function BudgetsPageContent(): React.ReactElement {
     try {
       setLoading(true);
       const [catRes, budRes] = await Promise.all([
-        categoryService.fetchCategories(),
+        categoryService.fetchCategories({ is_active: true }),
         budgetService.fetchBudgets({ month: selectedMonth, year: selectedYear })
       ]);
       setCategories(catRes.data.filter(c => c.type === 'expense' || c.type === 'both'));
@@ -113,39 +113,114 @@ function BudgetsPageContent(): React.ReactElement {
 
   const renderSummaryBar = (label: string, spent: number, basicLimit: number, extendLimit: number) => {
     const budget = basicLimit + extendLimit;
-    const percentage = budget > 0 ? Math.min((Math.abs(spent) / budget) * 100, 100) : (spent > 0 ? 100 : 0);
+    const truePercentage = budget > 0 ? (Math.abs(spent) / budget) * 100 : (spent > 0 ? 100 : 0);
+    const isOver    = truePercentage > 100;
+    const isAtLimit = truePercentage === 100;
+    const barWidth  = Math.min(truePercentage, 100);
+    const overageStr = isOver ? `+${(truePercentage - 100).toFixed(1)}%` : null;
+
+    const ORANGE = '#f97316';
     let variant = 'success';
-    if (percentage >= 100) variant = 'danger';
-    else if (percentage >= 80) variant = 'warning';
+    if (isOver) variant = 'danger';
+    else if (truePercentage >= 80) variant = 'warning';
+
+    const badge = (
+      <div className="d-flex align-items-center gap-1">
+        {overageStr && (
+          <span className="badge bg-danger text-white" style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px' }}>
+            {overageStr}
+          </span>
+        )}
+        <span 
+          className={`badge bg-${variant} bg-opacity-10 text-${variant} fw-bold px-2 py-1 border border-${variant} border-opacity-25`}
+          style={isAtLimit ? { backgroundColor: `${ORANGE}1a`, color: ORANGE, borderColor: `${ORANGE}40` } : {}}
+        >
+          {Math.min(truePercentage, 100).toFixed(1)}%
+        </span>
+      </div>
+    );
+
+    const progressBar = (
+      <div className="progress w-100" style={{ height: '8px', backgroundColor: 'var(--bs-gray-200)', borderRadius: '4px' }}>
+        <div
+          className={`progress-bar${isOver ? ' bg-danger progress-bar-striped progress-bar-animated' : isAtLimit ? '' : ` bg-${variant}`}`}
+          role="progressbar"
+          style={{ 
+            width: `${barWidth}%`, 
+            transition: 'width 0.5s ease-in-out',
+            ...(isAtLimit ? { backgroundColor: ORANGE } : {})
+          }}
+        />
+      </div>
+    );
+
+    const summaryTooltipId = `summary-tooltip-${label.replace(/\s+/g, '-').toLowerCase()}`;
+
+    const infoIcon = extendLimit > 0 ? (
+      <OverlayTrigger
+        placement="top"
+        overlay={
+          <Tooltip id={summaryTooltipId}>
+            <div className="text-start" style={{ fontSize: '12px', lineHeight: 1.6 }}>
+              <div>Basic: <strong>{formatCurrency(basicLimit, 'IDR')}</strong></div>
+              <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit, 'IDR')}</strong></div>
+              <hr className="my-1 border-secondary opacity-50" />
+              <div>Total: <strong>{formatCurrency(budget, 'IDR')}</strong></div>
+            </div>
+          </Tooltip>
+        }
+      >
+        <span className="text-muted d-inline-flex align-items-center ms-1" style={{ cursor: 'help', opacity: 0.55 }}>
+          <FaInfoCircle size={12} />
+        </span>
+      </OverlayTrigger>
+    ) : null;
+
+    // Mobile limits: compact format; tooltip shows full
+    const limitsCompact = (
+      <div className="d-flex flex-wrap align-items-baseline gap-1" style={{ fontSize: '12px' }}>
+        <span className="text-muted opacity-75">/</span>
+        <span className="text-secondary">{formatShort(basicLimit, 'IDR')}</span>
+        {extendLimit > 0 && (
+          <span style={{ color: '#d97706', fontWeight: 500 }}>+ {formatShort(extendLimit, 'IDR')}</span>
+        )}
+        {infoIcon}
+      </div>
+    );
 
     return (
       <div className="p-3 bg-white rounded-3 shadow-sm border" style={{ borderColor: 'var(--bs-gray-200)' }}>
-        <div className="d-flex justify-content-between align-items-end mb-3">
-          <div>
-            <div className="text-muted fw-bold text-uppercase mb-1" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>{label}</div>
-            <div className="fs-5 fw-bold text-dark d-flex align-items-baseline gap-2">
-              <span className={spent < 0 ? 'text-danger' : ''}>{formatCurrency(spent, 'IDR')}</span>
-              <span className="text-muted fs-6 fw-normal">/</span>
-              <span className="fs-6 text-secondary">{formatCurrency(basicLimit, 'IDR')}</span>
-              {extendLimit > 0 && (
-                <span className="fs-6" style={{ color: '#d97706', fontWeight: 500 }}>
-                  + {formatCurrency(extendLimit, 'IDR')}
-                </span>
-              )}
-            </div>
+        {/* ── MOBILE layout ── */}
+        <div className="d-md-none">
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <div className="text-muted fw-bold text-uppercase" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>{label}</div>
+            {badge}
           </div>
-          <div className="text-end">
-            <span className={`badge bg-${variant} bg-opacity-10 text-${variant} fw-bold px-2 py-1 border border-${variant} border-opacity-25`}>
-              {percentage.toFixed(1)}%
-            </span>
+          <div className={`fw-bold mb-1 ${spent < 0 ? 'text-danger' : 'text-dark'}`} style={{ fontSize: '1.15rem' }}>
+            {formatShort(spent, 'IDR')}
           </div>
+          <div className="mb-2">{limitsCompact}</div>
+          {progressBar}
         </div>
-        <div className="progress w-100" style={{ height: '8px', backgroundColor: 'var(--bs-gray-200)', borderRadius: '4px' }}>
-          <div
-            className={`progress-bar bg-${variant}`}
-            role="progressbar"
-            style={{ width: `${percentage}%`, transition: 'width 0.5s ease-in-out' }}
-          />
+
+        {/* ── DESKTOP layout (original compact horizontal) ── */}
+        <div className="d-none d-md-block">
+          <div className="d-flex justify-content-between align-items-end mb-3">
+            <div>
+              <div className="text-muted fw-bold text-uppercase mb-1" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>{label}</div>
+              <div className="fs-5 fw-bold text-dark d-flex align-items-baseline gap-2">
+                <span className={spent < 0 ? 'text-danger' : ''}>{formatCurrency(spent, 'IDR')}</span>
+                <span className="text-muted fs-6 fw-normal">/</span>
+                <span className="fs-6 text-secondary">{formatCurrency(basicLimit, 'IDR')}</span>
+                {extendLimit > 0 && (
+                  <span className="fs-6" style={{ color: '#d97706', fontWeight: 500 }}>+ {formatCurrency(extendLimit, 'IDR')}</span>
+                )}
+                {infoIcon}
+              </div>
+            </div>
+            <div className="text-end">{badge}</div>
+          </div>
+          {progressBar}
         </div>
       </div>
     );
@@ -251,61 +326,114 @@ function BudgetsPageContent(): React.ReactElement {
     const currency = user?.currency || 'IDR';
     const hasChildren = !isChild && item.children && item.children.length > 0;
 
-    return (
+    const chevron = (
       <div
-        className={`d-flex justify-content-between align-items-center w-100 px-3 py-3 ${isChild ? 'bg-light border-top' : ''}`}
-        style={{ cursor: 'pointer', transition: 'background-color 0.2s', borderBottom: isChild ? 'none' : '1px solid var(--bs-gray-200)' }}
-        onClick={(e) => {
-          if (!isChild && hasChildren) {
-            toggleCategory(e, item.category.id);
-          } else {
-            handleEdit(item.category.id);
-          }
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = 'var(--bs-light)';
-          setHoveredItemId(item.category.id);
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = isChild ? 'var(--bs-light)' : 'transparent';
-          setHoveredItemId(null);
-        }}
+        style={{ width: '20px', cursor: 'pointer', visibility: hasChildren ? 'visible' : 'hidden', flexShrink: 0 }}
+        onClick={(e) => { e.stopPropagation(); toggleCategory(e, item.category.id); }}
       >
-        <div className="d-flex align-items-center" style={{ width: '25%', minWidth: '200px' }}>
-          {!isChild && (
-            <div
-              style={{ width: '20px', cursor: 'pointer', visibility: hasChildren ? 'visible' : 'hidden' }}
-              onClick={(e) => toggleCategory(e, item.category.id)}
-            >
-              <FaChevronRight
-                size={12}
-                style={{
-                  transform: expandedCategories[item.category.id] ? 'rotate(90deg)' : 'none',
-                  transition: 'transform 0.2s',
-                  color: 'var(--bs-secondary)'
-                }}
-              />
-            </div>
-          )}
-          {isChild && <div style={{ width: '20px' }}></div>}
-
-          <div className="category-item__icon mx-2" style={{ backgroundColor: categoryColor, width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <IconComponent size={14} color="#fff" />
-          </div>
-          <span className="fw-semibold text-truncate" style={{ fontSize: '15px' }}>{item.category.name}</span>
-        </div>
-
-        <div className="flex-grow-1 px-4 d-flex gap-4 align-items-center">
-          <BudgetProgressBar spent={item.spentMonthly} basicLimit={item.basicMonthly} extendLimit={item.extendMonthly} currency={currency} label="Monthly Pace" isParent={!isChild} />
-          <BudgetProgressBar spent={item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} currency={currency} label="Annual Pace" isParent={!isChild} />
-        </div>
-
-        <div className="d-flex justify-content-end align-items-center pe-3" style={{ width: '40px' }}>
-          <div className="text-muted" style={{ opacity: hoveredItemId === item.category.id ? 0.8 : 0, transition: 'opacity 0.2s', zIndex: 10 }}>
-            {!isChild && hasChildren ? null : <FaEdit size={16} />}
-          </div>
-        </div>
+        <FaChevronRight
+          size={12}
+          style={{
+            transform: expandedCategories[item.category.id] ? 'rotate(90deg)' : 'none',
+            transition: 'transform 0.2s',
+            color: 'var(--bs-secondary)'
+          }}
+        />
       </div>
+    );
+
+    const iconEl = (
+      <div
+        className="flex-shrink-0"
+        style={{ backgroundColor: categoryColor, width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <IconComponent size={14} color="#fff" />
+      </div>
+    );
+
+    return (
+      <>
+        {/* ── MOBILE LAYOUT (hidden on md+) ── */}
+        <div
+          className={`d-md-none px-3 py-3 ${isChild ? 'bg-light border-top' : ''}`}
+          style={{
+            borderBottom: isChild ? 'none' : '1px solid var(--bs-gray-200)',
+            borderLeft: hoveredItemId === item.category.id ? '4px solid var(--bs-primary)' : '4px solid transparent',
+            backgroundColor: hoveredItemId === item.category.id ? 'var(--bs-light)' : (isChild ? 'var(--bs-light)' : 'transparent'),
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onTouchStart={() => setHoveredItemId(item.category.id)}
+          onClick={(e) => {
+            if (!isChild && hasChildren) {
+              toggleCategory(e, item.category.id);
+            } else {
+              handleEdit(item.category.id);
+            }
+          }}
+        >
+          {/* Header row: chevron + icon + name + edit */}
+          <div className="d-flex align-items-center gap-2 mb-2">
+            {!isChild ? chevron : <div style={{ width: '20px', flexShrink: 0 }} />}
+            {iconEl}
+            <span className="fw-semibold flex-grow-1" style={{ fontSize: '14px', lineHeight: 1.3 }}>
+              {item.category.name}
+            </span>
+            {/* Edit always visible on mobile */}
+            <button
+              className="btn btn-sm btn-link text-muted p-1"
+              style={{ flexShrink: 0 }}
+              onClick={(e) => { e.stopPropagation(); handleEdit(item.category.id); }}
+              aria-label={`Edit ${item.category.name} budget`}
+            >
+              <FaEdit size={15} />
+            </button>
+          </div>
+          {/* Progress bars stacked */}
+          <div className={isChild ? 'ps-0' : 'ps-4'}>
+            <BudgetProgressBar spent={item.spentMonthly} basicLimit={item.basicMonthly} extendLimit={item.extendMonthly} currency={currency} label="Monthly Pace" isParent={!isChild} />
+            <BudgetProgressBar spent={item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} currency={currency} label="Annual Pace" isParent={!isChild} />
+          </div>
+        </div>
+
+        {/* ── DESKTOP LAYOUT (hidden on mobile) ── */}
+        <div
+          className={`d-none d-md-flex justify-content-between align-items-center w-100 px-3 py-3 ${isChild ? 'border-top' : ''}`}
+          style={{
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            borderBottom: isChild ? 'none' : '1px solid var(--bs-gray-200)',
+            borderLeft: hoveredItemId === item.category.id ? '4px solid var(--bs-primary)' : '4px solid transparent',
+            backgroundColor: hoveredItemId === item.category.id ? 'var(--bs-light)' : (isChild ? 'var(--bs-light)' : 'transparent')
+          }}
+          onClick={(e) => {
+            if (!isChild && hasChildren) {
+              toggleCategory(e, item.category.id);
+            } else {
+              handleEdit(item.category.id);
+            }
+          }}
+          onMouseEnter={() => setHoveredItemId(item.category.id)}
+          onMouseLeave={() => setHoveredItemId(null)}
+        >
+          <div className="d-flex align-items-center" style={{ width: '25%', minWidth: '200px' }}>
+            {!isChild ? chevron : <div style={{ width: '20px' }} />}
+            <div className="mx-2">{iconEl}</div>
+            <span className="fw-semibold text-truncate" style={{ fontSize: '15px' }}>{item.category.name}</span>
+          </div>
+
+          <div className="flex-grow-1 px-4 d-flex gap-4 align-items-center">
+            <BudgetProgressBar spent={item.spentMonthly} basicLimit={item.basicMonthly} extendLimit={item.extendMonthly} currency={currency} label="Monthly Pace" isParent={!isChild} />
+            <BudgetProgressBar spent={item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} currency={currency} label="Annual Pace" isParent={!isChild} />
+          </div>
+
+          <div className="d-flex justify-content-end align-items-center pe-3" style={{ width: '40px' }}>
+            <div className="text-muted" style={{ opacity: hoveredItemId === item.category.id ? 0.8 : 0, transition: 'opacity 0.2s', zIndex: 10 }}>
+              {!isChild && hasChildren ? null : <FaEdit size={16} />}
+            </div>
+          </div>
+        </div>
+      </>
     );
   };
 
@@ -316,7 +444,7 @@ function BudgetsPageContent(): React.ReactElement {
           <h2 className="mb-0 fw-bold">Budgets</h2>
         </div>
 
-        <Row className="g-3 mb-4">
+        <Row className="g-3 mb-2">
           <Col md={6}>
             {renderSummaryBar('Total Monthly Budget', summaryTotals.monthlySpent, summaryTotals.monthlyBasic, summaryTotals.monthlyExtend)}
           </Col>
@@ -325,9 +453,14 @@ function BudgetsPageContent(): React.ReactElement {
           </Col>
         </Row>
 
-        <Row className="mb-4 g-3 align-items-center">
-          <Col md={4}>
-            <Form.Group className="search-form">
+        {/* Toolbar
+              Desktop: [Search md=4] [Period md=4 centered] [Sort md=4 right] — all on one row
+              Mobile:  [Search xs=12] then [Period xs=12] then [Sort auto-width]  — stacked
+        */}
+        <Row className="g-2 mb-4 align-items-center">
+          {/* Search */}
+          <Col xs={12} md={4}>
+            <Form.Group>
               <div className="position-relative w-100">
                 <Form.Control
                   type="text"
@@ -347,20 +480,36 @@ function BudgetsPageContent(): React.ReactElement {
               </div>
             </Form.Group>
           </Col>
-          <Col md={4} className="d-flex justify-content-center border-0 bg-transparent shadow-none" style={{ background: 'none' }}>
-            <div style={{ width: '100%', maxWidth: '320px' }}>
+
+          {/* Period navigator — centered on desktop, full-width on mobile */}
+          <Col xs={12} md={4} className="d-flex justify-content-center border-0 bg-transparent shadow-none" style={{ background: 'none' }}>
+            <div className="w-100" style={{ maxWidth: '320px' }}>
               <PeriodNavigation>
                 <MonthYearSelector label={periodLabel} activePeriod={activePeriod} />
               </PeriodNavigation>
             </div>
           </Col>
-          <Col md={4} className="d-flex justify-content-end">
-            <div style={{ width: '100%', maxWidth: '280px' }}>
+
+          {/* Sort dropdown — right-aligned on desktop, auto-width on mobile */}
+          <Col xs={12} md={4} className="d-flex justify-content-md-end">
+            {/* Mobile: full-width to match search and period navigator */}
+            <div className="d-md-none w-100">
               <SortDropdown
-                id="budgetSort"
+                id="budgetSortMobile"
                 value={sortBy}
                 options={BUDGET_SORT_OPTIONS}
                 onChange={setSortBy}
+                className="w-100"
+              />
+            </div>
+            {/* Desktop: full-width within column, capped */}
+            <div className="d-none d-md-block w-100" style={{ maxWidth: '280px' }}>
+              <SortDropdown
+                id="budgetSortDesktop"
+                value={sortBy}
+                options={BUDGET_SORT_OPTIONS}
+                onChange={setSortBy}
+                className="w-100"
               />
             </div>
           </Col>

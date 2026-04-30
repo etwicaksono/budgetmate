@@ -182,6 +182,26 @@ class CurrencyFormatService {
   formatCompact(amount: number, currencyCode: string): string {
     return this.formatCurrency(amount, currencyCode, { compact: true });
   }
+
+  /**
+   * Compact format with exactly 3 decimal places for mobile space-constrained displays.
+   * ≥ 1,000,000 → "IDR 1.822M"
+   * ≥ 1,000     → "IDR 430.718K"
+   * < 1,000     → full format
+   */
+  formatShort(amount: number, currencyCode: string): string {
+    const abs = Math.abs(amount);
+    const sign = amount < 0 ? '-' : '';
+    if (abs >= 1_000_000) {
+      const val = parseFloat((abs / 1_000_000).toFixed(3));
+      return `${sign}${currencyCode} ${val}M`;
+    }
+    if (abs >= 1_000) {
+      const val = parseFloat((abs / 1_000).toFixed(3));
+      return `${sign}${currencyCode} ${val}K`;
+    }
+    return this.formatCurrency(amount, currencyCode);
+  }
   
   /**
    * Get decimal digits for a currency
