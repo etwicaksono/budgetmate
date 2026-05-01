@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Button, Form, ListGroup } from 'react-bootstrap';
+import { Button, Form, ListGroup, Badge } from 'react-bootstrap';
 import {
   FaPlus,
   FaEdit,
@@ -14,7 +14,7 @@ import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import Swal from 'sweetalert2';
 import '@/components/Records/Records.css';
-import '../../categories/Categories.css';
+import './Categories.css';
 import { categoryService, Category, CreateCategoryPayload, UpdateCategoryPayload } from '@/services/categoryService';
 import { CategoryModal } from '@/components/category';
 
@@ -223,10 +223,15 @@ export function CategoriesSection(): React.ReactElement {
                   size={14}
                 />
               )}
-              <div className="category-item__icon" style={{ backgroundColor: categoryColor }}>
+              <div className={`category-item__icon ${category.is_active === false ? 'opacity-50' : ''}`} style={{ backgroundColor: categoryColor }}>
                 <IconComponent size={16} color="#fff" />
               </div>
-              <span className="category-item__name">{category.name}</span>
+              <span className={`category-item__name ${category.is_active === false ? 'text-muted text-decoration-line-through' : ''}`}>
+                {category.name}
+                {category.is_active === false && (
+                  <Badge bg="secondary" className="ms-2 text-decoration-none" style={{ fontSize: '0.65em', verticalAlign: 'middle' }}>Inactive</Badge>
+                )}
+              </span>
             </div>
             <div
               className="records-item-actions d-none d-md-flex align-items-center"
@@ -269,11 +274,23 @@ export function CategoriesSection(): React.ReactElement {
               return (
                 <ListGroup.Item key={childData.id} className="category-item category-item--child">
                   <div className="category-item__content">
-                    <div className="category-item__info">
-                      <div className="category-item__icon" style={{ backgroundColor: childColor }}>
+                    <div
+                      className="category-item__info"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEdit(childData.id);
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className={`category-item__icon ${childData.is_active === false ? 'opacity-50' : ''}`} style={{ backgroundColor: childColor }}>
                         <ChildIconComponent size={16} color="#fff" />
                       </div>
-                      <span className="category-item__name">{childData.name}</span>
+                      <span className={`category-item__name ${childData.is_active === false ? 'text-muted text-decoration-line-through' : ''}`}>
+                        {childData.name}
+                        {childData.is_active === false && (
+                          <Badge bg="secondary" className="ms-2 text-decoration-none" style={{ fontSize: '0.65em', verticalAlign: 'middle' }}>Inactive</Badge>
+                        )}
+                      </span>
                     </div>
                     <div
                       className="records-item-actions d-none d-md-flex align-items-center"

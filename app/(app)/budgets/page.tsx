@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Container, Row, Col, Form, ListGroup, OverlayTrigger, Placeholder, Tooltip } from 'react-bootstrap';
+import { Container, Row, Col, Form, ListGroup, OverlayTrigger, Placeholder, Tooltip, Button } from 'react-bootstrap';
 import { FaSearch, FaGift, FaChevronRight, FaEdit, FaInfoCircle, FaListUl } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
@@ -253,6 +253,20 @@ function BudgetsPageContent(): React.ReactElement {
       ...prev,
       [categoryId]: !prev[categoryId],
     }));
+  };
+
+  const expandAll = () => {
+    const allParentIds = parentItems.reduce((acc, item) => {
+      if (item.children.length > 0) {
+        acc[item.category.id] = true;
+      }
+      return acc;
+    }, {} as Record<string, boolean>);
+    setExpandedCategories(allParentIds);
+  };
+
+  const collapseAll = () => {
+    setExpandedCategories({});
   };
 
   const getIconComponent = (iconKey: string): IconType => {
@@ -577,6 +591,14 @@ function BudgetsPageContent(): React.ReactElement {
       <section className="mb-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h2 className="mb-0 fw-bold">Budgets</h2>
+          <div className="d-flex gap-2">
+            <Button variant="outline-secondary" size="sm" onClick={expandAll} className="d-flex align-items-center gap-1 shadow-sm">
+              <FaChevronRight size={10} style={{ transform: 'rotate(90deg)' }} /> Expand All
+            </Button>
+            <Button variant="outline-secondary" size="sm" onClick={collapseAll} className="d-flex align-items-center gap-1 shadow-sm">
+              <FaChevronRight size={10} /> Collapse All
+            </Button>
+          </div>
         </div>
 
         <Row className="g-3 mb-2">
