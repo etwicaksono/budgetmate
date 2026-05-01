@@ -45,6 +45,8 @@ export interface SetCategoryBudgetRequest {
 export interface BudgetFilterParams {
   month?: number;
   year?: number;
+  start_date?: string;
+  end_date?: string;
 }
 
 class BudgetService {
@@ -57,6 +59,8 @@ class BudgetService {
       const q = new URLSearchParams();
       if (params.month) q.append('month', params.month.toString());
       if (params.year) q.append('year', params.year.toString());
+      if (params.start_date) q.append('start_date', params.start_date);
+      if (params.end_date) q.append('end_date', params.end_date);
       if (q.toString()) url += `?${q.toString()}`;
     }
     const response = await api.get<{ success: boolean; data: CategoryBudget[] }>(url);

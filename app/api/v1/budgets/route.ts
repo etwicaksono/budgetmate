@@ -4,6 +4,8 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { errorResponse } from '@/lib/api/response';
 
+export const dynamic = 'force-dynamic';
+
 type EnhancedBudget = Prisma.CategoryBudgetGetPayload<Record<string, never>> & {
   spent_monthly: number;
   spent_annual: number;
@@ -18,10 +20,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const monthParam = searchParams.get('month');
   const yearParam = searchParams.get('year');
+  const startDateParam = searchParams.get('start_date');
+  const endDateParam = searchParams.get('end_date');
 
   const now = new Date();
   const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
   const month = monthParam ? parseInt(monthParam, 10) : now.getMonth() + 1; // 1-based
+
+  console.log('API /budgets params:', { yearParam, monthParam, year, month });
 
   try {
     const budgets = await prisma.categoryBudget.findMany({
@@ -46,8 +52,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 
     // Monthly boundaries
-    const monthlyStart = new Date(year, month - 1, 1);
-    const monthlyEnd = new Date(year, month, 0, 23, 59, 59, 999);
+    const monthlyStart = startDateParam ? new Date(startDateParam) : new Date(year, month - 1, 1);
+    const monthlyEnd = endDateParam ? new Date(endDateParam) : new Date(year, month, 0, 23, 59, 59, 999);
 
     // Annual boundaries
     const annualStart = new Date(year, 0, 1);
@@ -118,7 +124,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    return NextResponse.json({ success: true, data: enhancedBudgets });
+    return NextResponse.json({ success: true, data: enhancedBudgets, debug: { yearParam, monthParam, year, month, monthlyStart, monthlyEnd, monthlyAgg } });
   } catch (error) {
     console.error('Fetch budgets error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch budgets', 500);

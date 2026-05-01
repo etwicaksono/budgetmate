@@ -79,9 +79,18 @@ function BudgetsPageContent(): React.ReactElement {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      
+      const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
+      const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
+
       const [catRes, budRes] = await Promise.all([
         categoryService.fetchCategories({ is_active: true }),
-        budgetService.fetchBudgets({ month: selectedMonth, year: selectedYear })
+        budgetService.fetchBudgets({ 
+          month: selectedMonth, 
+          year: selectedYear,
+          ...(startDateTime ? { start_date: startDateTime } : {}),
+          ...(endDateTime ? { end_date: endDateTime } : {})
+        })
       ]);
       setCategories(
         catRes.data.filter(c =>
@@ -99,7 +108,15 @@ function BudgetsPageContent(): React.ReactElement {
   // Lightweight refresh: only reload budgets (categories don't change from the budget modal)
   const refreshBudgets = useCallback(async () => {
     try {
-      const budRes = await budgetService.fetchBudgets({ month: selectedMonth, year: selectedYear });
+      const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
+      const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
+
+      const budRes = await budgetService.fetchBudgets({ 
+        month: selectedMonth, 
+        year: selectedYear,
+        ...(startDateTime ? { start_date: startDateTime } : {}),
+        ...(endDateTime ? { end_date: endDateTime } : {})
+      });
       setBudgets(budRes);
     } catch (error) {
       console.error(error);
