@@ -28,7 +28,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Sync status data',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -43,7 +43,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Sync history data',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -63,7 +63,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Push successful',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -83,7 +83,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Pull successful',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -98,7 +98,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Connection URL returned',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -113,7 +113,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Disconnected successfully',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });

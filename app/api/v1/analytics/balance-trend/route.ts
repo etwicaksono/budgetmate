@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { start, end, previousEnd, offsetMinutes } = generateAnalyticsPeriods(startDate, endDate);
 
-    const accountWhereClause: any = {
+    const accountWhereClause: Prisma.AccountWhereInput = {
       user_id: user.user_id,
       deleted_at: null,
       is_active: true,
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const primaryCurrency = currencies[0] || 'USD';
     const totalBalance = currencyTotalsBasic.find(ct => ct.currency === primaryCurrency)?.balance || 0;
 
-    const transactionWhereClause: any = {
+    const transactionWhereClause: Prisma.TransactionWhereInput = {
       user_id: user.user_id,
       deleted_at: null,
       date: {

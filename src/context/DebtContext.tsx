@@ -9,17 +9,14 @@ export interface DebtContextValue {
   modalType: DebtModalType;
   mode: DebtMode;
   initialData: Debt | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  editTransaction: any | null;
+  editTransaction: import('@/services/transactionService').Transaction | null;
   defaultDebtType: 'lend' | 'borrow';
   activeDebtTab: 'lend' | 'borrow';
   setActiveDebtTab: (tab: 'lend' | 'borrow') => void;
   openAddDebtModal: (defaultType?: 'lend' | 'borrow') => void;
   openEditDebtModal: (debt: Debt) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  openRepaymentModal: (debt: Debt, transaction?: any) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  openIncreaseModal: (debt: Debt, transaction?: any) => void;
+  openRepaymentModal: (debt: Debt, transaction?: import('@/services/transactionService').Transaction) => void;
+  openIncreaseModal: (debt: Debt, transaction?: import('@/services/transactionService').Transaction) => void;
   closeModal: () => void;
 }
 
@@ -34,8 +31,7 @@ export const DebtProvider: React.FC<DebtProviderProps> = ({ children }) => {
   const [modalType, setModalType] = useState<DebtModalType>('debt');
   const [mode, setMode] = useState<DebtMode>('add');
   const [initialData, setInitialData] = useState<Debt | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [editTransaction, setEditTransaction] = useState<any | null>(null);
+  const [editTransaction, setEditTransaction] = useState<import('@/services/transactionService').Transaction | null>(null);
   const [defaultDebtType, setDefaultDebtType] = useState<'lend' | 'borrow'>('lend');
   const [activeDebtTab, setActiveDebtTab] = useState<'lend' | 'borrow'>('lend');
 
@@ -56,9 +52,7 @@ export const DebtProvider: React.FC<DebtProviderProps> = ({ children }) => {
     setIsOpen(true);
   }, []);
 
-  // TODO: type transaction properly
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const openRepaymentModal = useCallback((debt: Debt, transaction: any = null) => {
+  const openRepaymentModal = useCallback((debt: Debt, transaction: import('@/services/transactionService').Transaction | null = null) => {
     setModalType('repayment');
     setMode(transaction ? 'edit' : 'add');
     setInitialData(debt);
@@ -66,9 +60,7 @@ export const DebtProvider: React.FC<DebtProviderProps> = ({ children }) => {
     setIsOpen(true);
   }, []);
 
-  // TODO: type transaction properly
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const openIncreaseModal = useCallback((debt: Debt, transaction: any = null) => {
+  const openIncreaseModal = useCallback((debt: Debt, transaction: import('@/services/transactionService').Transaction | null = null) => {
     setModalType('increase');
     setMode(transaction ? 'edit' : 'add');
     setInitialData(debt);

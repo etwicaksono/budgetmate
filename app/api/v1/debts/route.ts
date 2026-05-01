@@ -55,7 +55,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             account: { select: { name: true, icon: true, color: true, currency: true } }
          }
       }
-   };
+   } satisfies Prisma.DebtInclude;
 
    const sortBy = searchParams.get('sort_by') || 'date';
    const sortOrder = searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc';
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
    const validSortFields = ['date', 'counterparty', 'status', 'amount'];
    const orderByField = validSortFields.includes(sortBy) && sortBy !== 'amount' ? sortBy : 'date';
 
-   const debtsQuery: any = {
+   const debtsQuery: Prisma.DebtFindManyArgs = {
       where,
       orderBy: { [orderByField]: sortOrder },
       include: nestedInclude
@@ -79,24 +79,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const rawDebts = await prisma.debt.findMany(debtsQuery);
 
       // Compute derived properties: amount and remaining_amount
-      let transformedDebts = rawDebts.map((debt: any) => {
+      type DebtWithRelations = Prisma.DebtGetPayload<{ include: typeof nestedInclude }>;
+      let transformedDebts = (rawDebts as DebtWithRelations[]).map((debt) => {
          const allTxs = debt.transactions || [];
 
          // 1. Identify all initial debt transactions based on type (for increases)
          const initialTxType = debt.type === 'lend' ? 'debt_out' : 'debt_in';
-         const initialTxs = allTxs.filter((tx: any) => tx.type === initialTxType);
+         const initialTxs = allTxs.filter((tx: typeof allTxs[0]) => tx.type === initialTxType);
          let initialAmount = 0;
          if (initialTxs.length > 0) {
-            initialAmount = initialTxs.reduce((acc: number, tx: any) => acc + Math.abs(Number(tx.amount)), 0);
+            initialAmount = initialTxs.reduce((acc: number, tx: typeof allTxs[0]) => acc + Math.abs(Number(tx.amount)), 0);
          }
 
          // 2. Identify all repayment transactions (the opposite direction)
          const repaymentTxType = debt.type === 'lend' ? 'debt_in' : 'debt_out';
-         const repaymentTxs = allTxs.filter((tx: any) => tx.type === repaymentTxType);
+         const repaymentTxs = allTxs.filter((tx: typeof allTxs[0]) => tx.type === repaymentTxType);
 
          let totalRepaid = 0;
          if (repaymentTxs.length > 0) {
-            totalRepaid = repaymentTxs.reduce((acc: number, tx: any) => acc + Math.abs(Number(tx.amount)), 0);
+            totalRepaid = repaymentTxs.reduce((acc: number, tx: typeof allTxs[0]) => acc + Math.abs(Number(tx.amount)), 0);
          }
 
          const remainingAmount = Math.max(0, initialAmount - totalRepaid);
@@ -112,14 +113,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             remaining_amount: remainingAmount,
             account: debt.account_rel,
             account_id: debt.account_id,
-            repayments: repaymentTxs.map((tx: any) => ({
+            repayments: repaymentTxs.map((tx: typeof allTxs[0]) => ({
                id: tx.id,
                date: tx.date.toISOString(),
                description: tx.description,
                amount: Math.abs(Number(tx.amount)),
                account: tx.account
             })),
-            transactions: allTxs.map((tx: any) => ({
+            transactions: allTxs.map((tx: typeof allTxs[0]) => ({
                id: tx.id,
                type: tx.type,
                date: tx.date.toISOString(),

@@ -42,7 +42,7 @@ export const TransactionSchema = registry.register(
 export const BulkDeleteTransactionSchema = z.object({
   allMatching: z.boolean().optional().openapi({ example: false }),
   ids: z.array(z.string()).optional().openapi({ example: ['clq1234560000000000000000'] }),
-  filters: z.record(z.any()).optional().openapi({ example: { type: 'expense' } })
+  filters: z.record(z.unknown()).optional().openapi({ example: { type: 'expense' } })
 });
 
 const CreateTransactionRequest = registry.register('CreateTransactionRequest', CreateTransactionSchema);

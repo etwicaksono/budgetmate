@@ -70,7 +70,7 @@ class BudgetService {
   }): Promise<BudgetStatus[]> {
     if (USE_MOCK_DATA) {
       // Might want to update mock data eventually, but let it fail or use existing fallback
-      return mockDataService.fetchBudgetStatus() as any;
+      return mockDataService.fetchBudgetStatus() as unknown as BudgetStatus[];
     }
     const response = await api.get<{ success: boolean; data: BudgetStatus[] }>(
       '/budgets/status',

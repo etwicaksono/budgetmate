@@ -269,7 +269,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       description: createdTransfer.description,
       currency: createdTransfer.currency,
       to_currency: destination.currency,
-      transactions: transactions_rel.map((t: any) => ({
+      transactions: transactions_rel.map((t) => ({
         ...t,
         amount: Number(t.amount)
       })),

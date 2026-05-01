@@ -155,7 +155,7 @@ export default function DebtsPage() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const allActive = await debtService.fetchDebts({ limit: -1, status: 'active' } as any);
+      const allActive = await debtService.fetchDebts({ limit: -1, status: 'active' });
       let lentOut = 0;
       let borrowIn = 0;
       allActive.data.forEach((d) => {

@@ -131,7 +131,7 @@ apiClient.interceptors.response.use(
 );
 
 // Map to track in-flight GET requests for deduplication
-const pendingGetRequests = new Map<string, Promise<any>>();
+const pendingGetRequests = new Map<string, Promise<unknown>>();
 
 // Base API methods
 export const api = {

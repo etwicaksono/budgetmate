@@ -24,7 +24,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Cashflow Data',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -40,7 +40,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Category expenses data',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -56,7 +56,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Income vs expenses data',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -72,7 +72,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Detailed report data',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -88,7 +88,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Balance trend data',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -104,7 +104,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Trends data',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -120,7 +120,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Advanced chart data',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });

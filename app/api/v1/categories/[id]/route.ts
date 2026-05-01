@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
@@ -218,17 +219,17 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
 
     // If color, type, or analytic_flag were changed and category has children, update children too
     if (existingCategory.parent_id === null) {
-      const childUpdateData: Record<string, any> = {};
+      const childUpdateData: Prisma.CategoryUpdateManyMutationInput = {};
 
-      if (data.color !== undefined) childUpdateData['color'] = data.color;
-      if (data.type !== undefined) childUpdateData['type'] = data.type;
+      if (data.color !== undefined) childUpdateData.color = data.color;
+      if (data.type !== undefined) childUpdateData.type = data.type;
       if (updateData['analytic_flag'] !== undefined) {
-        childUpdateData['analytic_flag'] = updateData['analytic_flag'];
+        childUpdateData.analytic_flag = updateData['analytic_flag'] as string;
       }
 
       if (Object.keys(childUpdateData).length > 0) {
-        childUpdateData['updated_at'] = new Date();
-        childUpdateData['updated_by'] = user.user_id;
+        childUpdateData.updated_at = new Date();
+        childUpdateData.updated_by = user.user_id;
 
         await prisma.category.updateMany({
           where: {

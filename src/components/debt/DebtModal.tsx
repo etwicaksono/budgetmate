@@ -126,8 +126,10 @@ export const DebtModal: React.FC<DebtModalProps> = ({
            onHide();
         }
       }
-    } catch (err: any) {
-       const apiError = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+    } catch (err: unknown) {
+       type ApiErr = { response?: { data?: { error?: { message?: string }, message?: string } } };
+       const axiosErr = err as ApiErr;
+       const apiError = err instanceof Error ? axiosErr.response?.data?.error?.message || axiosErr.response?.data?.message || err.message : String(err);
        setError(apiError || 'Failed to save debt');
     } finally {
       setIsSubmitting(false);
@@ -185,7 +187,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
               <Form.Label>Amount <span className="text-danger">*</span></Form.Label>
               <div className="position-relative d-flex align-items-center">
                 <NumericFormat
-                   customInput={Form.Control as any}
+                   customInput={Form.Control as React.ComponentType<unknown>}
                    thousandSeparator={true}
                    prefix={currencyPrefix}
                    decimalScale={decimalScale}
@@ -227,7 +229,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                   <Form.Label>Status</Form.Label>
                   <Form.Select 
                      value={status} 
-                     onChange={(e) => setStatus(e.target.value as any)}
+                     onChange={(e) => setStatus(e.target.value as 'active' | 'settled')}
                      disabled={isSubmitting}
                   >
                      <option value={DEBT_STATUSES.ACTIVE}>Active</option>

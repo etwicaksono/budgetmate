@@ -40,6 +40,19 @@ function BudgetsPageContent(): React.ReactElement {
     currency: string;
   }
 
+  interface CombinedBudgetItem {
+    category: Category;
+    spentMonthly: number;
+    spentAnnual: number;
+    basicMonthly: number;
+    extendMonthly: number;
+    basicAnnual: number;
+    extendAnnual: number;
+    hasMonthly: boolean;
+    hasAnnual: boolean;
+    children?: CombinedBudgetItem[];
+  }
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
 
@@ -50,7 +63,7 @@ function BudgetsPageContent(): React.ReactElement {
 
   const { user } = useAuth();
   const { formatCurrency, formatShort } = useFormattedCurrency();
-  const { state: { activePeriod, periodLabel } } = usePeriodNavigation();
+  const { state: { activePeriod, periodLabel, dateRange } } = usePeriodNavigation();
   const selectedMonth = activePeriod.month !== undefined ? activePeriod.month + 1 : new Date().getMonth() + 1;
   const selectedYear = activePeriod.year !== undefined ? activePeriod.year : new Date().getFullYear();
 
@@ -314,7 +327,7 @@ function BudgetsPageContent(): React.ReactElement {
     </ListGroup>
   );
 
-  const compareBudgetItems = useCallback((a: any, b: any) => {
+  const compareBudgetItems = useCallback((a: CombinedBudgetItem, b: CombinedBudgetItem) => {
     const monthlySpendingA = Math.abs(Number(a.spentMonthly || 0));
     const monthlySpendingB = Math.abs(Number(b.spentMonthly || 0));
     const annualSpendingA = Math.abs(Number(a.spentAnnual || 0));
@@ -409,21 +422,27 @@ function BudgetsPageContent(): React.ReactElement {
     return [...ids, ...childIds];
   }, [categories]);
 
-  const handleShowTransactions = useCallback((item: any) => {
+  const handleShowTransactions = useCallback((item: CombinedBudgetItem) => {
     const currency = user?.currency || 'IDR';
-    const monthStart = new Date(selectedYear, selectedMonth - 1, 1, 0, 0, 0, 0);
-    const monthEnd = new Date(selectedYear, selectedMonth, 0, 23, 59, 59, 999);
+    // dateRange values from the period context are ISO date strings (YYYY-MM-DD).
+    // The transactions API expects full ISO datetimes, so append start/end-of-day times.
+    const startDate = dateRange.start
+      ? new Date(`${dateRange.start}T00:00:00.000`).toISOString()
+      : new Date(selectedYear, 0, 1).toISOString();
+    const endDate = dateRange.end
+      ? new Date(`${dateRange.end}T23:59:59.999`).toISOString()
+      : new Date(selectedYear, 11, 31, 23, 59, 59, 999).toISOString();
 
     setSelectedBudgetCategory({
       ids: collectCategoryIds(item.category.id),
       name: item.category.name,
       monthName: periodLabel,
-      startDate: monthStart.toISOString(),
-      endDate: monthEnd.toISOString(),
+      startDate,
+      endDate,
       currency,
     });
     setShowTransactionsModal(true);
-  }, [collectCategoryIds, periodLabel, selectedMonth, selectedYear, user?.currency]);
+  }, [collectCategoryIds, periodLabel, dateRange, selectedYear, user?.currency]);
 
   const handleModalHide = () => {
     setShowModal(false);
@@ -438,7 +457,7 @@ function BudgetsPageContent(): React.ReactElement {
   // No longer strictly necessary as progress bar consumes useFormattedCurrency exclusively natively
   // Removed static `formatCurrencyOnly` override to keep code lean
 
-  const renderBudgetItem = (item: any, isChild = false) => {
+  const renderBudgetItem = (item: CombinedBudgetItem, isChild = false) => {
     const IconComponent = getIconComponent(item.category.icon || 'FaGift');
     const categoryColor = item.category.color || '#6c757d';
     const currency = user?.currency || 'IDR';
@@ -697,7 +716,7 @@ function BudgetsPageContent(): React.ReactElement {
 
                   {parentItem.children.length > 0 && expandedCategories[parentItem.category.id] && (
                     <div className="category-children">
-                      {parentItem.children.map((childItem: any) => (
+                      {parentItem.children.map((childItem: CombinedBudgetItem) => (
                         <div key={childItem.category.id}>
                           {renderBudgetItem(childItem, true)}
                         </div>

@@ -77,11 +77,11 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
         page: targetPage,
         limit: 20,
         type: debtType,
-        status: statusFilter && statusFilter !== 'all' ? statusFilter : undefined,
-        counterparty: counterpartyFilter || undefined,
+        ...(statusFilter && statusFilter !== 'all' ? { status: statusFilter } : {}),
+        ...(counterpartyFilter ? { counterparty: counterpartyFilter } : {}),
         sort_by: sortBy,
         sort_order: sortOrder,
-      } as any);
+      });
 
       if (isLoadMore) {
         setDebts(prev => [...prev, ...response.data]);
@@ -91,8 +91,8 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
 
       setPage(response.meta.page);
       setHasMore(response.meta.page < response.meta.total_pages);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load debts');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load debts');
     } finally {
       setIsLoading(false);
     }
@@ -162,7 +162,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
     openIncreaseModal(debt);
   };
 
-  const handleEditTransactionClick = (debt: Debt, transaction: any, isIncrease: boolean) => {
+  const handleEditTransactionClick = (debt: Debt, transaction: import('@/services/transactionService').Transaction, isIncrease: boolean) => {
     if (isIncrease) {
       openIncreaseModal(debt, transaction);
     } else {
@@ -196,8 +196,8 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
         fetchDebts(false, true);
         onMutated();
         if (detailDebt && detailDebt.id === debt.id) setShowDetailModal(false);
-      } catch (err: any) {
-        Toast.fire({ icon: 'error', title: err.message || 'Failed to delete debt' });
+      } catch (err: unknown) {
+        Toast.fire({ icon: 'error', title: err instanceof Error ? err.message : 'Failed to delete debt' });
       } finally {
         setIsLoading(false);
       }

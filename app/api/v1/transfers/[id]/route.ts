@@ -76,7 +76,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       description: transfer.description,
       currency: transfer.currency,
       to_currency: destination.currency,
-      transactions: transactions_rel.map((t: any) => ({
+      transactions: transactions_rel.map((t) => ({
         id: t.id,
         type: t.type,
         amount: Number(t.amount),

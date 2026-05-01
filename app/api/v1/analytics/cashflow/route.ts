@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       offsetMinutes 
     } = generateAnalyticsPeriods(startDate, endDate);
 
-    const baseWhereClause: any = {
+    const baseWhereClause: Prisma.TransactionWhereInput = {
       user_id: user.user_id,
       deleted_at: null,
       type: { in: ['income', 'expense'] },
@@ -113,7 +114,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Convert the boolean `is_included_in_total` check into an AND array if we need
     // to filter on specific accounts and specific currencies concurrently.
     if (accountIds.length > 0 || currencyParams.length > 0) {
-      const accountFilters: any = { is_included_in_total: true };
+      const accountFilters: Prisma.AccountWhereInput = { is_included_in_total: true };
       if (accountIds.length > 0) accountFilters.id = { in: accountIds };
       if (currencyParams.length > 0) accountFilters.currency = { in: currencyParams };
 

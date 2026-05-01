@@ -61,7 +61,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   ): React.ComponentType<{ size?: number }> | undefined => {
     if (!iconName) return undefined;
     if (!Object.hasOwn(FaIcons, iconName)) return undefined;
-    const maybeIcon = (FaIcons as any)[iconName];
+    const maybeIcon = (FaIcons as Record<string, React.ComponentType<{ size?: number }>>)[iconName];
     return typeof maybeIcon === 'function' ? maybeIcon : undefined;
   };
 

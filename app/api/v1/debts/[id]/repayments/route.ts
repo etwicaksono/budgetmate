@@ -63,11 +63,11 @@ export async function POST(
       const allTxs = parentDebt.transactions || [];
       const initialTxType = parentDebt.type === 'lend' ? 'debt_out' : 'debt_in';
 
-      const initialTxs = allTxs.filter((tx: any) => tx.type === initialTxType);
-      const repaymentTxs = allTxs.filter((tx: any) => tx.type !== initialTxType);
+      const initialTxs = allTxs.filter((tx) => tx.type === initialTxType);
+      const repaymentTxs = allTxs.filter((tx) => tx.type !== initialTxType);
 
-      const initialAmount = initialTxs.reduce((acc: number, tx: any) => acc + Math.abs(Number(tx.amount)), 0);
-      const totalRepaid = repaymentTxs.reduce((acc: number, tx: any) => acc + Math.abs(Number(tx.amount)), 0);
+      const initialAmount = initialTxs.reduce((acc: number, tx) => acc + Math.abs(Number(tx.amount)), 0);
+      const totalRepaid = repaymentTxs.reduce((acc: number, tx) => acc + Math.abs(Number(tx.amount)), 0);
 
       const remainingAmount = Math.max(0, initialAmount - totalRepaid);
 

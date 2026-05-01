@@ -28,7 +28,7 @@ export const SavedFilterSchema = registry.register(
   z.object({
     id: z.string().openapi({ example: 'clq1234560000000000000000' }),
     name: z.string().openapi({ example: 'My Active Debts' }),
-    filters: z.record(z.any()).openapi({ example: { sortOption: 'custom' } }),
+    filters: z.record(z.unknown()).openapi({ example: { sortOption: 'custom' } }),
     sort_order: z.number().openapi({ example: 0 }),
     created_at: z.date().openapi({ example: '2023-12-01T00:00:00Z' }),
     updated_at: z.date().openapi({ example: '2023-12-01T00:00:00Z' }),

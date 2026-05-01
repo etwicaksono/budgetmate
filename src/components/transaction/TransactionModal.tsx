@@ -140,8 +140,10 @@ export function TransactionModal({
         } else {
           onHide();
         }
-      } catch (err: any) {
-        const apiError = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+      } catch (err: unknown) {
+        type ApiErr = { response?: { data?: { error?: { message?: string }, message?: string } } };
+        const axiosErr = err as ApiErr;
+        const apiError = err instanceof Error ? axiosErr.response?.data?.error?.message || axiosErr.response?.data?.message || err.message : String(err);
         setSubmitError(apiError || 'Failed to save transaction');
       } finally {
         setIsSubmitting(false);

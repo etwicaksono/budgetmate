@@ -105,7 +105,7 @@ const BalanceTab = ({ accountId }: { accountId: string }) => {
         </div>
       </div>
       <BalanceTrendChart 
-        data={data.chartData as any} 
+        data={data.chartData as import('@/components/widgets/BalanceTrendChart').TrendChartData[]} 
         totalBalance={data.totalBalance}
         percentChange={data.percentChange}
         currencyBalances={data.currencyTotals}
@@ -142,7 +142,7 @@ const RecordsTab = ({ accountId }: { accountId: string }) => {
       const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
       const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
 
-      const filters: any = { account_id: accountId, page: pageNum };
+      const filters: import('@/services/transactionService').TransactionFilters = { account_id: accountId, page: pageNum };
       if (startDateTime) filters.start_date = startDateTime;
       if (endDateTime) filters.end_date = endDateTime;
 

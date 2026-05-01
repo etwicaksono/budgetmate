@@ -14,7 +14,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Backup JSON generated successfully',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });
@@ -34,7 +34,7 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Data imported successfully',
-      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) } }
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) } }
     }
   }
 });

@@ -372,7 +372,7 @@ export function CategoriesSection(): React.ReactElement {
           initialData: {
             name: editingCategory.name || '',
             type: editingCategory.type || 'expense',
-            analytic_flag: (editingCategory as any).analytic_flag || 'expense',
+            analytic_flag: editingCategory?.analytic_flag || 'expense',
             nature: editingCategory.nature || 'WANT',
             icon: editingCategory.icon || 'FaGift',
             color: editingCategory.color || '#dc3545',

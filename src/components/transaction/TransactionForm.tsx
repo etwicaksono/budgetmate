@@ -14,11 +14,11 @@ const PAYMENT_METHODS = ['Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', '
 const PAYMENT_STATUSES = ['Cleared', 'Pending', 'Scheduled'];
 
 export interface TransactionFormProps {
-  formData: any;
-  updateField: (field: any, value: any) => void;
+  formData: import('@/hooks/useTransactionForm').TransactionFormData;
+  updateField: <K extends keyof import('@/hooks/useTransactionForm').TransactionFormData>(field: K, value: import('@/hooks/useTransactionForm').TransactionFormData[K]) => void;
   errors: Record<string, string>;
   accounts: Account[];
-  labels: any[];
+  labels: import('@/services/labelService').Label[];
   isLoading: boolean;
 }
 

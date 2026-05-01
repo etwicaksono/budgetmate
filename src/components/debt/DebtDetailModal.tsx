@@ -23,7 +23,7 @@ interface DebtDetailModalProps {
   onIncreaseClick: (debt: Debt) => void;
   onRepayClick: (debt: Debt) => void;
   onDecreaseClick?: (debt: Debt) => void;
-  onEditTransactionClick?: (debt: Debt, transaction: any, isIncrease: boolean) => void;
+  onEditTransactionClick?: (debt: Debt, transaction: import('@/services/transactionService').Transaction, isIncrease: boolean) => void;
 }
 
 export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
@@ -127,7 +127,7 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
            </div>
         ) : (
            <div className="mt-3">
-              {[...debt.transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((tx: any) => {
+              {[...debt.transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((tx) => {
                  // Determine if this transaction is an increase or a repayment based on debt type
                  const isIncrease = (isLend && tx.type === 'debt_out') || (!isLend && tx.type === 'debt_in');
                  const txLabel = isIncrease ? 'Increase/Initial' : 'Repayment';

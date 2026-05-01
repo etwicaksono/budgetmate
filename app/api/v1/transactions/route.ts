@@ -105,7 +105,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       // We need to match either positive range [min, max] or negative range [-max, -min]
       where.AND = where.AND || [];
-      (where.AND as any[]).push({
+      (where.AND as Prisma.TransactionWhereInput[]).push({
         OR: [
           { amount: { gte: min, lte: max } },
           { amount: { gte: -max, lte: -min } }
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const searchTerm = filters.keyword || filters.search;
     if (searchTerm) {
       where.AND = where.AND || [];
-      (where.AND as any[]).push({
+      (where.AND as Prisma.TransactionWhereInput[]).push({
         OR: [
           { description: { contains: searchTerm, mode: 'insensitive' } },
           { payee: { contains: searchTerm, mode: 'insensitive' } }

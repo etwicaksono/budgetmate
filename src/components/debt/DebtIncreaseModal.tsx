@@ -18,7 +18,7 @@ interface DebtIncreaseModalProps {
   onHide: () => void;
   debt: Debt | null;
   onSave: (debtId: string, payload: CreateRepaymentPayload) => Promise<void>;
-  editTransaction?: any;
+  editTransaction?: import('@/services/transactionService').Transaction | null;
   onEdit?: (debtId: string, txId: string, payload: CreateRepaymentPayload) => Promise<void>;
   accounts: Account[];
 }
@@ -98,8 +98,10 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
         await onSave(debt.id, payload);
       }
       onHide();
-    } catch (err: any) {
-       const apiError = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+    } catch (err: unknown) {
+       type ApiErr = { response?: { data?: { error?: { message?: string }, message?: string } } };
+       const axiosErr = err as ApiErr;
+       const apiError = err instanceof Error ? axiosErr.response?.data?.error?.message || axiosErr.response?.data?.message || err.message : String(err);
        setError(apiError || 'Failed to increase debt');
     } finally {
        setIsSubmitting(false);
@@ -145,7 +147,7 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
               <Form.Label>Amount to Add <span className="text-danger">*</span></Form.Label>
               <div className="position-relative d-flex align-items-center">
                 <NumericFormat
-                   customInput={Form.Control as any}
+                   customInput={Form.Control as React.ComponentType<unknown>}
                    thousandSeparator={true}
                    prefix={currencyPrefix}
                    decimalScale={2}

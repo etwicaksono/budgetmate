@@ -437,7 +437,7 @@ function TransactionsContent() {
 
     if (result.isConfirmed) {
       try {
-        let payload: any = {};
+        let payload: import('@/services/transactionService').BulkDeleteTransactionsRequest = {};
 
         if (isGlobalSelectAll) {
           const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;

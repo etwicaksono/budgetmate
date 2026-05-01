@@ -44,8 +44,8 @@ registry.registerPath({
             success: z.boolean(),
             data: z.object({
               transfer: TransferSchema,
-              transaction_out: z.any().openapi({ description: 'The expense transaction ID' }),
-              transaction_in: z.any().openapi({ description: 'The income transaction ID' })
+              transaction_out: z.unknown().openapi({ description: 'The expense transaction ID' }),
+              transaction_in: z.unknown().openapi({ description: 'The income transaction ID' })
             }),
             meta: z.object({ message: z.string() })
           })

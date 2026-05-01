@@ -73,7 +73,13 @@ export interface TransactionFilters {
   min_amount?: number;
   max_amount?: number;
   keyword?: string;
-  label_ids?: string[];
+  search?: string;
+  label_ids?: string[] | string;
+  account_ids?: string;
+  category_ids?: string;
+  currencies?: string;
+  transfer_option?: string;
+  debt_option?: string;
   sort_by?: 'date' | 'amount';
   sort_order?: 'asc' | 'desc';
 }

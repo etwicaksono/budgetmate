@@ -183,7 +183,7 @@ function DashboardContent(): React.ReactElement {
       if (widgetVisibility.recentTransactions && !options?.preserveTransactions && transactionsResponse) {
         setTransactions(transactionsResponse.transactions || []);
         setTransactionsPage(1);
-        const metaData = transactionsResponse.meta as any;
+        const metaData = transactionsResponse.meta;
         const totalTxPages = metaData?.totalPages || metaData?.total_pages || 1;
         setHasMoreTransactions((metaData?.page || 1) < totalTxPages);
       }
@@ -549,7 +549,7 @@ function DashboardContent(): React.ReactElement {
           hasMore={hasMoreTransactions}
           isLoadingMore={isLoadingMoreTx}
           onLoadMore={loadMoreTransactions}
-          onTransactionClick={(tx) => handleEditRecord(tx as any)}
+          onTransactionClick={(tx) => handleEditRecord(tx as unknown as import('@/components/Records').TransactionRecord)}
         />
       ) : (
         <div className="text-center py-5 text-muted">No recent transactions</div>

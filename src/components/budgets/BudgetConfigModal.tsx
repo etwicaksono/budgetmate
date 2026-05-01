@@ -94,8 +94,8 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
       } else {
         setSelectedCategoryId('');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load options');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load options');
     } finally {
       setIsLoading(false);
     }
@@ -171,8 +171,9 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
         extend_annual_amount: Number(formData.extendAnnual)
       });
       onHide();
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to save budget configuration');
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to save budget configuration';
+      setError(errorMsg);
     } finally {
       setIsSaving(false);
     }

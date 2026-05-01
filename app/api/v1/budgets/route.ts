@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { errorResponse } from '@/lib/api/response';
+
+type EnhancedBudget = Prisma.CategoryBudgetGetPayload<Record<string, never>> & {
+  spent_monthly: number;
+  spent_annual: number;
+};
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const authResult = await requireAuth(request);
@@ -88,7 +94,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const categoriesWithSpending = new Set([...monthlySpentMap.keys(), ...annualSpentMap.keys()]);
 
     // Attach spent data to budgets
-    const enhancedBudgets = budgets.map(budget => ({
+    const enhancedBudgets: EnhancedBudget[] = budgets.map(budget => ({
       ...budget,
       spent_monthly: monthlySpentMap.get(budget.category_id) || 0,
       spent_annual: annualSpentMap.get(budget.category_id) || 0,
@@ -100,16 +106,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         enhancedBudgets.push({
           id: '',
           category_id: catId,
-          currency: 'IDR',
-          basic_monthly_amount: 0,
-          extend_monthly_amount: 0,
-          basic_annual_amount: 0,
-          extend_annual_amount: 0,
+          basic_monthly_amount: new Prisma.Decimal(0),
+          extend_monthly_amount: new Prisma.Decimal(0),
+          basic_annual_amount: new Prisma.Decimal(0),
+          extend_annual_amount: new Prisma.Decimal(0),
           created_at: new Date(),
           updated_at: new Date(),
           spent_monthly: monthlySpentMap.get(catId) || 0,
           spent_annual: annualSpentMap.get(catId) || 0,
-        } as any);
+        });
       }
     }
 

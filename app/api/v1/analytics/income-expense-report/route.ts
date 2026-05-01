@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
@@ -147,7 +148,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Fetch transactions for all periods in parallel
     const transactionPromises = periodRanges.map(({ start, end }) => {
-      const whereClause: any = {
+      const whereClause: Prisma.TransactionWhereInput = {
         user_id: user.user_id,
         deleted_at: null,
         date: {

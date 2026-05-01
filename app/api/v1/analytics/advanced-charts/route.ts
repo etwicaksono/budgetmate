@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
@@ -106,7 +107,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { start, end, startLocal, endLocal, offsetMinutes } = generateAnalyticsPeriods(startDate, endDate);
 
-    const accountWhereClause: any = {
+    const accountWhereClause: Prisma.AccountWhereInput = {
       user_id: user.user_id,
       deleted_at: null,
       is_included_in_total: true,
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    const transactionWhereClause: any = {
+    const transactionWhereClause: Prisma.TransactionWhereInput = {
       user_id: user.user_id,
       deleted_at: null,
       date: { gte: start, lte: end },

@@ -92,7 +92,7 @@ registry.registerPath({
           schema: z.object({
             success: z.boolean(),
             data: DebtSchema.extend({
-              transactions: z.array(z.any())
+              transactions: z.array(z.unknown())
             })
           })
         }
@@ -165,7 +165,7 @@ registry.registerPath({
     201: {
       description: 'Debt increased successfully',
       content: {
-        'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) }
+        'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) }
       }
     }
   }
@@ -190,7 +190,7 @@ registry.registerPath({
     201: {
       description: 'Repayment recorded successfully',
       content: {
-        'application/json': { schema: z.object({ success: z.boolean(), data: z.any() }) }
+        'application/json': { schema: z.object({ success: z.boolean(), data: z.unknown() }) }
       }
     }
   }

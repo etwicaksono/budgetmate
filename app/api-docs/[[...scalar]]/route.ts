@@ -20,4 +20,4 @@ export const GET = ApiReference({
       --scalar-color-accent: #4F46E5; 
     }
   `,
-} as any);
+} as Parameters<typeof ApiReference>[0]);

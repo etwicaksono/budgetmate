@@ -42,7 +42,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
           if (categoryWithChildren) {
             const categoryIds = [
               categoryWithChildren.id,
-              ...categoryWithChildren.children.map((c: any) => c.id)
+              ...categoryWithChildren.children.map((c: { id: string }) => c.id)
             ];
             whereClause.category_id = { in: categoryIds };
           } else {
@@ -82,7 +82,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
           };
           const mappedType = typeMapping[filters.type];
           if (mappedType) {
-            whereClause.type = mappedType as any;
+            whereClause.type = mappedType;
           }
         } else {
           const includeTypes: string[] = [];
@@ -101,9 +101,9 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
           }
 
           if (includeTypes.length > 0) {
-            whereClause.type = { in: includeTypes as any[] };
+            whereClause.type = { in: includeTypes };
           } else if (excludeTypes.length > 0) {
-            whereClause.type = { notIn: excludeTypes as any[] };
+            whereClause.type = { notIn: excludeTypes };
           }
         }
 

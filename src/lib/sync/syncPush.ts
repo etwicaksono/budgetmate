@@ -123,7 +123,7 @@ export async function pushToSheets(
       accountsData = buildAccountsTabSimple(accounts);
       categoriesData = buildCategoriesTabSimple(categories);
       transactionsData = buildTransactionsTabSimple(transactions);
-      transfersData = buildTransfersTabSimple(transfers, accounts as any);
+      transfersData = buildTransfersTabSimple(transfers, accounts as import('./sheetTransform').AccountWithCode[]);
       labelsData = buildLabelsTab(labels); // Labels unchanged
 
       await writeToSheets(

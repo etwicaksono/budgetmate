@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { savedFilterService, type SavedFilter, type SavedFilterPayload } from '@/services/savedFilterService';
-import type { SortValue } from '@/hooks/useFilterData';
+import type { SortValue, TransferOption, DebtOption } from '@/hooks/useFilterData';
 import type { Category } from '@/services/categoryService';
 import type { Account } from '@/services/accountService';
 
@@ -20,8 +20,8 @@ export interface LoadFilterCallback {
    setSelectedCurrencies: React.Dispatch<React.SetStateAction<string[]>>;
    setSelectedLabelIds: React.Dispatch<React.SetStateAction<string[]>>;
    setSortOption: React.Dispatch<React.SetStateAction<SortValue>>;
-   setTransferOption: React.Dispatch<React.SetStateAction<any>>;
-   setDebtOption: React.Dispatch<React.SetStateAction<any>>;
+   setTransferOption: React.Dispatch<React.SetStateAction<TransferOption>>;
+   setDebtOption: React.Dispatch<React.SetStateAction<DebtOption>>;
 }
 
 interface UseSavedFiltersOptions {
@@ -149,10 +149,10 @@ export function useSavedFilters({
             dispatchers.setSortOption(filters.sortOption as SortValue);
          }
          if (filters.transferOption) {
-            dispatchers.setTransferOption(filters.transferOption);
+            dispatchers.setTransferOption(filters.transferOption as TransferOption);
          }
          if (filters.debtOption) {
-            dispatchers.setDebtOption(filters.debtOption);
+            dispatchers.setDebtOption(filters.debtOption as DebtOption);
          }
          setActiveFilterId(filter.id);
       },
