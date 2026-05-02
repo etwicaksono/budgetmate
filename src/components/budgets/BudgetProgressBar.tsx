@@ -82,35 +82,39 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                                 <span className="text-muted">{formatShort(basicLimit, currency)}</span>
                             </>
                         )}
-                        {extendLimit > 0 ? (
-                            <>
-                                <span style={{ color: '#d97706' }}>
-                                    <span className="opacity-50 fw-normal">+</span> {formatShort(extendLimit, currency)}
-                                </span>
-                                {/* Info icon — tooltip shows full format */}
-                                <OverlayTrigger
-                                    placement="top"
-                                    overlay={
-                                        <Tooltip id={`${tooltipId}-mobile`}>
-                                            <div className="text-start" style={{ fontSize: '12px', lineHeight: 1.6 }}>
-                                                <div>Basic: <strong>{formatCurrency(basicLimit, currency)}</strong></div>
+                        {extendLimit > 0 && (
+                            <span style={{ color: '#d97706' }}>
+                                <span className="opacity-50 fw-normal">+</span> {formatShort(extendLimit, currency)}
+                            </span>
+                        )}
+                        {limit > 0 && (
+                            <OverlayTrigger
+                                placement="top"
+                                overlay={
+                                    <Tooltip id={`${tooltipId}-mobile`}>
+                                        <div className="text-start" style={{ fontSize: '12px', lineHeight: 1.6 }}>
+                                            <div>Basic: <strong>{formatCurrency(basicLimit, currency)}</strong></div>
+                                            {extendLimit > 0 && (
                                                 <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit, currency)}</strong></div>
-                                                <hr className="my-1 border-secondary opacity-50" />
-                                                <div>Total: <strong>{formatCurrency(limit, currency)}</strong></div>
+                                            )}
+                                            <hr className="my-1 border-secondary opacity-50" />
+                                            <div>Total budget: <strong>{formatCurrency(limit, currency)}</strong></div>
+                                            <div style={limit - absSpent < 0 ? { color: '#f87171' } : {}}>
+                                                Remaining: <strong>{formatCurrency(limit - absSpent, currency)}</strong>
                                             </div>
-                                        </Tooltip>
-                                    }
+                                        </div>
+                                    </Tooltip>
+                                }
+                            >
+                                <span
+                                    className="text-muted d-inline-flex align-items-center"
+                                    style={{ cursor: 'help', opacity: 0.6 }}
+                                    onClick={(e) => e.stopPropagation()}
                                 >
-                                    <span
-                                        className="text-muted d-inline-flex align-items-center"
-                                        style={{ cursor: 'help', opacity: 0.6 }}
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <FaInfoCircle size={11} />
-                                    </span>
-                                </OverlayTrigger>
-                            </>
-                        ) : null}
+                                    <FaInfoCircle size={11} />
+                                </span>
+                            </OverlayTrigger>
+                        )}
                     </div>
                 )}
             </div>
@@ -130,35 +134,39 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                                 <span className="text-muted">{formatCurrency(basicLimit, currency)}</span>
                             </>
                         )}
-                        {extendLimit > 0 ? (
-                            <>
-                                <span style={{ color: '#d97706' }}>
-                                    <span className="opacity-50 fw-normal">+</span> {formatCurrency(extendLimit, currency)}
-                                </span>
-                                {/* Info icon — tooltip shows full format */}
-                                <OverlayTrigger
-                                    placement="top"
-                                    overlay={
-                                        <Tooltip id={`${tooltipId}-desktop`}>
-                                            <div className="text-start" style={{ fontSize: '12px', lineHeight: 1.6 }}>
-                                                <div>Basic: <strong>{formatCurrency(basicLimit, currency)}</strong></div>
+                        {extendLimit > 0 && (
+                            <span style={{ color: '#d97706' }}>
+                                <span className="opacity-50 fw-normal">+</span> {formatCurrency(extendLimit, currency)}
+                            </span>
+                        )}
+                        {limit > 0 && (
+                            <OverlayTrigger
+                                placement="top"
+                                overlay={
+                                    <Tooltip id={`${tooltipId}-desktop`}>
+                                        <div className="text-start" style={{ fontSize: '12px', lineHeight: 1.6 }}>
+                                            <div>Basic: <strong>{formatCurrency(basicLimit, currency)}</strong></div>
+                                            {extendLimit > 0 && (
                                                 <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit, currency)}</strong></div>
-                                                <hr className="my-1 border-secondary opacity-50" />
-                                                <div>Total: <strong>{formatCurrency(limit, currency)}</strong></div>
+                                            )}
+                                            <hr className="my-1 border-secondary opacity-50" />
+                                            <div>Total budget: <strong>{formatCurrency(limit, currency)}</strong></div>
+                                            <div style={limit - absSpent < 0 ? { color: '#f87171' } : {}}>
+                                                Remaining: <strong>{formatCurrency(limit - absSpent, currency)}</strong>
                                             </div>
-                                        </Tooltip>
-                                    }
+                                        </div>
+                                    </Tooltip>
+                                }
+                            >
+                                <span
+                                    className="text-muted d-inline-flex align-items-center"
+                                    style={{ cursor: 'help', opacity: 0.6 }}
+                                    onClick={(e) => e.stopPropagation()}
                                 >
-                                    <span
-                                        className="text-muted d-inline-flex align-items-center"
-                                        style={{ cursor: 'help', opacity: 0.6 }}
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <FaInfoCircle size={11} />
-                                    </span>
-                                </OverlayTrigger>
-                            </>
-                        ) : null}
+                                    <FaInfoCircle size={11} />
+                                </span>
+                            </OverlayTrigger>
+                        )}
                     </div>
                 )}
             </div>

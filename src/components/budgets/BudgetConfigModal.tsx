@@ -209,91 +209,128 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
                     {renderModalSkeleton()}
                   </div>
                 )}
-                <div className="d-flex justify-content-between align-items-center mb-3 mt-4 border-bottom pb-2">
-                  <h5 className="mb-0 fw-bold text-dark">Monthly Limits</h5>
-                  {totalMonthly > 0 && (
-                    <Badge bg="primary" pill className="fs-6 px-3 py-2">Total: {totalMonthly.toLocaleString()}</Badge>
-                  )}
-                </div>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Basic Amount</Form.Label>
-                      <AmountInput
-                        type="expense"
-                        value={formData.basicMonthly}
-                        onChange={(val) => setFormData(prev => ({ ...prev, basicMonthly: val }))}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label className="d-flex align-items-center">
-                        Extend Amount 
-                        <OverlayTrigger placement="top" overlay={<Tooltip id="tooltip-extend-monthly">An optional additional buffer allowed for this category.</Tooltip>}>
-                          <span className="ms-2 text-muted d-flex align-items-center" style={{ cursor: 'help' }}><FaInfoCircle size={14} /></span>
-                        </OverlayTrigger>
-                      </Form.Label>
-                      <AmountInput
-                        type="expense"
-                        value={formData.extendMonthly}
-                        onChange={(val) => setFormData(prev => ({ ...prev, extendMonthly: val }))}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
 
-                <div className="d-flex justify-content-between align-items-center mb-3 mt-4 border-bottom pb-2">
-                  <h5 className="mb-0 fw-bold text-dark">Annual Limits</h5>
-                  <div className="d-flex align-items-center">
-                    <Button variant="outline-secondary" size="sm" className="me-3" onClick={handleAutoFillAnnual} title="Auto-fill Annual (12x Monthly)">
-                      <FaMagic className="me-1" /> Auto-fill (x12)
-                    </Button>
-                    {totalAnnual > 0 && (
-                      <Badge bg="info" pill className="fs-6 px-3 py-2 text-white">Total: {totalAnnual.toLocaleString()}</Badge>
+                {/* ── Monthly Limits card ── */}
+                <div
+                  className="mb-3 p-3 rounded"
+                  style={{ border: '1px solid #e2e8f0', borderLeft: '4px solid #0d6efd', background: '#f8faff' }}
+                >
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <h6 className="mb-0 fw-bold text-dark" style={{ fontSize: '14px' }}>
+                      📅 Monthly Limits
+                    </h6>
+                    {totalMonthly > 0 && (
+                      <Badge bg="primary" pill className="px-2 py-1" style={{ fontSize: '11px' }}>
+                        Total: {totalMonthly.toLocaleString()}
+                      </Badge>
                     )}
                   </div>
+                  <p className="text-muted mb-3" style={{ fontSize: '11px' }}>
+                    Set the monthly spending cap for this category.
+                  </p>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label className="fw-semibold" style={{ fontSize: '12px' }}>Basic Amount</Form.Label>
+                    <AmountInput
+                      type="expense"
+                      value={formData.basicMonthly}
+                      onChange={(val) => setFormData(prev => ({ ...prev, basicMonthly: val }))}
+                    />
+                  </Form.Group>
+
+                  <Form.Group className="mb-0">
+                    <Form.Label className="fw-semibold d-flex align-items-center" style={{ fontSize: '12px' }}>
+                      Extend Amount
+                      <OverlayTrigger placement="top" overlay={<Tooltip id="tooltip-extend-monthly">An optional additional buffer allowed for this category.</Tooltip>}>
+                        <span className="ms-1 text-muted d-flex align-items-center" style={{ cursor: 'help' }}><FaInfoCircle size={12} /></span>
+                      </OverlayTrigger>
+                    </Form.Label>
+                    <AmountInput
+                      type="expense"
+                      value={formData.extendMonthly}
+                      onChange={(val) => setFormData(prev => ({ ...prev, extendMonthly: val }))}
+                    />
+                  </Form.Group>
                 </div>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Basic Amount</Form.Label>
-                      <AmountInput
-                        type="expense"
-                        value={formData.basicAnnual}
-                        onChange={(val) => setFormData(prev => ({ ...prev, basicAnnual: val }))}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label className="d-flex align-items-center">
-                        Extend Amount
-                        <OverlayTrigger placement="top" overlay={<Tooltip id="tooltip-extend-annual">An optional additional buffer allowed for this category over the year.</Tooltip>}>
-                          <span className="ms-2 text-muted d-flex align-items-center" style={{ cursor: 'help' }}><FaInfoCircle size={14} /></span>
-                        </OverlayTrigger>
-                      </Form.Label>
-                      <AmountInput
-                        type="expense"
-                        value={formData.extendAnnual}
-                        onChange={(val) => setFormData(prev => ({ ...prev, extendAnnual: val }))}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
+
+                {/* ── Annual Limits card ── */}
+                <div
+                  className="mb-3 p-3 rounded"
+                  style={{ border: '1px solid #e2e8f0', borderLeft: '4px solid #0dcaf0', background: '#f6feff' }}
+                >
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <h6 className="mb-0 fw-bold text-dark" style={{ fontSize: '14px' }}>
+                      📆 Annual Limits
+                    </h6>
+                    {totalAnnual > 0 && (
+                      <Badge bg="info" pill className="px-2 py-1 text-white" style={{ fontSize: '11px' }}>
+                        Total: {totalAnnual.toLocaleString()}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-muted mb-2" style={{ fontSize: '11px' }}>
+                    Set the yearly spending cap. Must be ≥ monthly total.
+                  </p>
+
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    className="w-100 mb-3 d-flex align-items-center justify-content-center"
+                    style={{ fontSize: '12px', borderStyle: 'dashed' }}
+                    onClick={handleAutoFillAnnual}
+                    title="Auto-fill Annual (12x Monthly)"
+                  >
+                    <FaMagic className="me-1" size={11} /> Auto-fill from monthly × 12
+                  </Button>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label className="fw-semibold" style={{ fontSize: '12px' }}>Basic Amount</Form.Label>
+                    <AmountInput
+                      type="expense"
+                      value={formData.basicAnnual}
+                      onChange={(val) => setFormData(prev => ({ ...prev, basicAnnual: val }))}
+                    />
+                  </Form.Group>
+
+                  <Form.Group className="mb-0">
+                    <Form.Label className="fw-semibold d-flex align-items-center" style={{ fontSize: '12px' }}>
+                      Extend Amount
+                      <OverlayTrigger placement="top" overlay={<Tooltip id="tooltip-extend-annual">An optional additional buffer allowed for this category over the year.</Tooltip>}>
+                        <span className="ms-1 text-muted d-flex align-items-center" style={{ cursor: 'help' }}><FaInfoCircle size={12} /></span>
+                      </OverlayTrigger>
+                    </Form.Label>
+                    <AmountInput
+                      type="expense"
+                      value={formData.extendAnnual}
+                      onChange={(val) => setFormData(prev => ({ ...prev, extendAnnual: val }))}
+                    />
+                  </Form.Group>
+                </div>
 
                 {isInvalidLimits && (
-                  <Alert variant="warning" className="mt-3">
+                  <Alert variant="warning" className="mt-2 mb-3 py-2" style={{ fontSize: '12px' }}>
                     <FaInfoCircle className="me-2" />
-                    <strong>Warning:</strong> The total monthly budget exceeds the total annual budget. Please adjust your limits.
+                    <strong>Warning:</strong> Monthly total exceeds annual total. Please adjust.
                   </Alert>
                 )}
 
-                <div className="d-flex justify-content-end mt-4">
-                  <Button variant="secondary" className="me-2 d-flex align-items-center justify-content-center" onClick={onHide}>
+                {/* Footer — full-width on mobile, side-by-side on md+ */}
+                <div className="d-flex flex-column flex-md-row gap-2 mt-3">
+                  <Button
+                    variant="secondary"
+                    className="d-flex align-items-center justify-content-center order-md-0 order-1"
+                    onClick={onHide}
+                    style={{ flex: '1 1 0' }}
+                  >
                     <FaTimes className="me-2" /> Cancel
                   </Button>
-                  <Button variant="primary" type="submit" disabled={isSaving || isInvalidLimits} className="d-flex align-items-center justify-content-center">
+                  <Button
+                    variant="primary"
+                    type="submit"
+                    disabled={isSaving || isInvalidLimits}
+                    className="d-flex align-items-center justify-content-center order-md-1 order-0"
+                    style={{ flex: '2 1 0' }}
+                  >
                     {isSaving ? (
                       <><Spinner size="sm" className="me-2" /> Saving...</>
                     ) : (

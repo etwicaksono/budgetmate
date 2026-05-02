@@ -281,13 +281,16 @@ export function CategoryForm({
 
       {/* Options */}
       <Form.Group className="mb-3">
-        <Form.Check
-          type="checkbox"
-          label="Hide this category"
-          checked={!formData.is_active}
-          onChange={(e) => onChange('is_active', !e.target.checked)}
-          disabled={loading}
-        />
+        <Form.Check id="category-hide-checkbox" type="checkbox">
+          <Form.Check.Input
+            checked={!formData.is_active}
+            onChange={(e) => onChange('is_active', !e.target.checked)}
+            disabled={loading}
+          />
+          <Form.Check.Label style={{ cursor: loading ? 'not-allowed' : 'pointer' }}>
+            Hide this category
+          </Form.Check.Label>
+        </Form.Check>
         <Form.Text className="text-muted d-block">
           Hidden categories won't appear in transaction forms
         </Form.Text>
