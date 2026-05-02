@@ -9,9 +9,10 @@ interface BudgetProgressBarProps {
     currency: string;
     label: string;
     isParent?: boolean;
+    isProjection?: boolean;
 }
 
-export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, label, isParent = false }: BudgetProgressBarProps) {
+export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, label, isParent = false, isProjection = false }: BudgetProgressBarProps) {
     const { formatCurrency, formatShort } = useFormattedCurrency();
 
     const absSpent = Math.abs(spent);
@@ -35,6 +36,7 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
     let variant = 'success';
     if (isOver) variant = 'danger';
     else if (truePercentage >= 80) variant = 'warning';  // yellow for 80-99%
+    else if (isProjection) variant = 'info'; // Use info color for safe projections
     // isAtLimit uses inline orange style, variant stays 'success' placeholder
 
 
@@ -102,6 +104,11 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                                             <div style={limit - absSpent < 0 ? { color: '#f87171' } : {}}>
                                                 Remaining: <strong>{formatCurrency(limit - absSpent, currency)}</strong>
                                             </div>
+                                            {isProjection && (
+                                                <div className="mt-1 pt-1 border-top border-secondary border-opacity-50 text-info fst-italic" style={{ fontSize: '10px' }}>
+                                                    *Annualized projection based on current monthly average
+                                                </div>
+                                            )}
                                         </div>
                                     </Tooltip>
                                 }
@@ -154,6 +161,11 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                                             <div style={limit - absSpent < 0 ? { color: '#f87171' } : {}}>
                                                 Remaining: <strong>{formatCurrency(limit - absSpent, currency)}</strong>
                                             </div>
+                                            {isProjection && (
+                                                <div className="mt-1 pt-1 border-top border-secondary border-opacity-50 text-info fst-italic" style={{ fontSize: '10px' }}>
+                                                    *Annualized projection based on current monthly average
+                                                </div>
+                                            )}
                                         </div>
                                     </Tooltip>
                                 }
@@ -183,7 +195,7 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                 }}
             >
                 <div
-                    className={`progress-bar${isOver ? ' bg-danger progress-bar-striped progress-bar-animated' : isAtLimit ? '' : ` bg-${variant}`}`}
+                    className={`progress-bar${isOver ? ' bg-danger progress-bar-striped progress-bar-animated' : isAtLimit ? '' : ` bg-${variant}`}${isProjection && !isOver ? ' progress-bar-striped opacity-75' : ''}`}
                     role="progressbar"
                     style={{
                         width: `${noLimitWithSpend ? 100 : barWidth}%`,

@@ -50,6 +50,7 @@ function BudgetsPageContent(): React.ReactElement {
     extendAnnual: number;
     hasMonthly: boolean;
     hasAnnual: boolean;
+    projectedAnnual: number;
     children?: CombinedBudgetItem[];
   }
 
@@ -60,6 +61,7 @@ function BudgetsPageContent(): React.ReactElement {
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [showProjections, setShowProjections] = useState<boolean>(false);
 
   const { user } = useAuth();
   const { formatCurrency, formatShort } = useFormattedCurrency();
@@ -142,9 +144,10 @@ function BudgetsPageContent(): React.ReactElement {
         spentAnnual: Number(budget?.spent_annual || 0),
         hasMonthly: Number(budget?.basic_monthly_amount || 0) > 0 || Number(budget?.extend_monthly_amount || 0) > 0,
         hasAnnual: Number(budget?.basic_annual_amount || 0) > 0 || Number(budget?.extend_annual_amount || 0) > 0,
+        projectedAnnual: (Number(budget?.spent_annual || 0) / selectedMonth) * 12,
       };
     });
-  }, [categories, budgets]);
+  }, [categories, budgets, selectedMonth]);
 
   const summaryTotals = useMemo(() => {
     return combinedData.reduce(
@@ -155,13 +158,14 @@ function BudgetsPageContent(): React.ReactElement {
         acc.annualExtend += item.extendAnnual;
         acc.monthlySpent += item.spentMonthly;
         acc.annualSpent += item.spentAnnual;
+        acc.projectedAnnual += item.projectedAnnual;
         return acc;
       },
-      { monthlyBasic: 0, monthlyExtend: 0, annualBasic: 0, annualExtend: 0, monthlySpent: 0, annualSpent: 0 }
+      { monthlyBasic: 0, monthlyExtend: 0, annualBasic: 0, annualExtend: 0, monthlySpent: 0, annualSpent: 0, projectedAnnual: 0 }
     );
   }, [combinedData]);
 
-  const renderSummaryBar = (label: string, spent: number, basicLimit: number, extendLimit: number) => {
+  const renderSummaryBar = (label: string, spent: number, basicLimit: number, extendLimit: number, isProjection: boolean = false) => {
     const budget = basicLimit + extendLimit;
     const absSpent = Math.abs(spent);
     const truePercentage = budget > 0 ? (absSpent / budget) * 100 : (absSpent > 0 ? 100 : 0);
@@ -174,6 +178,7 @@ function BudgetsPageContent(): React.ReactElement {
     let variant = 'success';
     if (isOver) variant = 'danger';
     else if (truePercentage >= 80) variant = 'warning';
+    else if (isProjection) variant = 'info';
 
     const badge = (
       <div className="d-flex align-items-center gap-1">
@@ -194,7 +199,7 @@ function BudgetsPageContent(): React.ReactElement {
     const progressBar = (
       <div className="progress w-100" style={{ height: '8px', backgroundColor: 'var(--bs-gray-200)', borderRadius: '4px' }}>
         <div
-          className={`progress-bar${isOver ? ' bg-danger progress-bar-striped progress-bar-animated' : isAtLimit ? '' : ` bg-${variant}`}`}
+          className={`progress-bar${isOver ? ' bg-danger progress-bar-striped progress-bar-animated' : isAtLimit ? '' : ` bg-${variant}`}${isProjection && !isOver ? ' progress-bar-striped opacity-75' : ''}`}
           role="progressbar"
           style={{ 
             width: `${barWidth}%`, 
@@ -217,6 +222,11 @@ function BudgetsPageContent(): React.ReactElement {
               <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit, 'IDR')}</strong></div>
               <hr className="my-1 border-secondary opacity-50" />
               <div>Total: <strong>{formatCurrency(budget, 'IDR')}</strong></div>
+              {isProjection && (
+                <div className="mt-1 pt-1 border-top border-secondary border-opacity-50 text-info fst-italic" style={{ fontSize: '10px' }}>
+                  *Annualized projection
+                </div>
+              )}
             </div>
           </Tooltip>
         }
@@ -395,6 +405,7 @@ function BudgetsPageContent(): React.ReactElement {
         const childAnnualSpent = filteredChildren.reduce((sum, c) => sum + c.spentAnnual, 0);
         rollItem.spentMonthly += childMonthlySpent;
         rollItem.spentAnnual += childAnnualSpent;
+        rollItem.projectedAnnual += filteredChildren.reduce((sum, c) => sum + c.projectedAnnual, 0);
       }
 
       const hasBudgetIntrinsic = parentItem.hasMonthly || parentItem.hasAnnual;
@@ -560,7 +571,7 @@ function BudgetsPageContent(): React.ReactElement {
           {/* Progress bars stacked */}
           <div className={isChild ? 'ps-0' : 'ps-4'}>
             <BudgetProgressBar spent={item.spentMonthly} basicLimit={item.basicMonthly} extendLimit={item.extendMonthly} currency={currency} label="Monthly Pace" isParent={!isChild} />
-            <BudgetProgressBar spent={item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} currency={currency} label="Annual Pace" isParent={!isChild} />
+            <BudgetProgressBar spent={showProjections ? item.projectedAnnual : item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} currency={currency} label={showProjections ? "Projected Annual Pace" : "Annual Pace"} isParent={!isChild} isProjection={showProjections} />
           </div>
         </div>
 
@@ -592,7 +603,7 @@ function BudgetsPageContent(): React.ReactElement {
 
           <div className="flex-grow-1 px-4 d-flex gap-4 align-items-center">
             <BudgetProgressBar spent={item.spentMonthly} basicLimit={item.basicMonthly} extendLimit={item.extendMonthly} currency={currency} label="Monthly Pace" isParent={!isChild} />
-            <BudgetProgressBar spent={item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} currency={currency} label="Annual Pace" isParent={!isChild} />
+            <BudgetProgressBar spent={showProjections ? item.projectedAnnual : item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} currency={currency} label={showProjections ? "Projected Annual Pace" : "Annual Pace"} isParent={!isChild} isProjection={showProjections} />
           </div>
 
           <div className="d-flex justify-content-end align-items-center gap-2 pe-3" style={{ width: '88px' }}>
@@ -627,13 +638,24 @@ function BudgetsPageContent(): React.ReactElement {
       <section className="mb-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h2 className="mb-0 fw-bold">Budgets</h2>
-          <div className="d-flex gap-2">
-            <Button variant="outline-secondary" size="sm" onClick={expandAll} className="d-flex align-items-center gap-1 shadow-sm">
-              <FaChevronRight size={10} style={{ transform: 'rotate(90deg)' }} /> Expand All
-            </Button>
-            <Button variant="outline-secondary" size="sm" onClick={collapseAll} className="d-flex align-items-center gap-1 shadow-sm">
-              <FaChevronRight size={10} /> Collapse All
-            </Button>
+          <div className="d-flex flex-wrap align-items-center gap-3">
+            <Form.Check 
+              type="switch"
+              id="show-projections-switch"
+              label="Show Projections"
+              checked={showProjections}
+              onChange={(e) => setShowProjections(e.target.checked)}
+              className="mb-0 text-muted fw-semibold"
+              style={{ fontSize: '14px' }}
+            />
+            <div className="d-flex gap-2">
+              <Button variant="outline-secondary" size="sm" onClick={expandAll} className="d-flex align-items-center gap-1 shadow-sm">
+                <FaChevronRight size={10} style={{ transform: 'rotate(90deg)' }} /> Expand All
+              </Button>
+              <Button variant="outline-secondary" size="sm" onClick={collapseAll} className="d-flex align-items-center gap-1 shadow-sm">
+                <FaChevronRight size={10} /> Collapse All
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -646,7 +668,7 @@ function BudgetsPageContent(): React.ReactElement {
           <Col md={6}>
             {loading
               ? renderSummaryBarSkeleton('annual-summary-skeleton')
-              : renderSummaryBar('Total Annual Budget', summaryTotals.annualSpent, summaryTotals.annualBasic, summaryTotals.annualExtend)}
+              : renderSummaryBar(showProjections ? 'Projected Annual Budget' : 'Total Annual Budget', showProjections ? summaryTotals.projectedAnnual : summaryTotals.annualSpent, summaryTotals.annualBasic, summaryTotals.annualExtend, showProjections)}
           </Col>
         </Row>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Form, Button, Spinner, Alert, Row, Col, Badge, OverlayTrigger, Placeholder, Tooltip } from 'react-bootstrap';
 
 import { budgetService } from '@/services/budgetService';
+import { transactionService } from '@/services/transactionService';
 import { FaSave, FaTimes, FaInfoCircle, FaMagic } from 'react-icons/fa';
 import { AmountInput } from '@/components/transaction/AmountInput';
 import { TransactionCategorySelect } from '@/components/transaction/TransactionCategorySelect';
@@ -28,6 +29,10 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
   });
 
   const [isSaving, setIsSaving] = useState(false);
+
+  const [historicalRange, setHistoricalRange] = useState<number>(3);
+  const [historicalAverage, setHistoricalAverage] = useState<number | null>(null);
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
 
   const renderModalSkeleton = () => (
     <div className="p-2">
@@ -137,6 +142,41 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
     fetchBudgetForCategory();
   }, [selectedCategoryId]);
 
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (!selectedCategoryId) {
+        setHistoricalAverage(null);
+        return;
+      }
+      setIsFetchingHistory(true);
+      try {
+        const end = new Date();
+        const start = new Date();
+        start.setMonth(start.getMonth() - historicalRange);
+        
+        const res = await transactionService.fetchTransactions({
+          category_id: selectedCategoryId,
+          start_date: start.toISOString(),
+          end_date: end.toISOString(),
+          limit: 5000 // Get enough transactions to calculate average reliably
+        });
+        
+        let sum = 0;
+        res.transactions.forEach((t) => {
+            sum += Math.abs(t.amount);
+        });
+        setHistoricalAverage(sum / historicalRange);
+      } catch (err) {
+        console.error("Failed to fetch historical average", err);
+        setHistoricalAverage(null);
+      } finally {
+        setIsFetchingHistory(false);
+      }
+    };
+
+    fetchHistory();
+  }, [selectedCategoryId, historicalRange]);
+
   // Derived Values for UI and Validation
   const totalMonthly = Number(formData.basicMonthly) + Number(formData.extendMonthly);
   const totalAnnual = Number(formData.basicAnnual) + Number(formData.extendAnnual);
@@ -209,6 +249,59 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
                     {renderModalSkeleton()}
                   </div>
                 )}
+
+                {/* ── Historical Suggestion card ── */}
+                <div
+                  className="mb-3 p-3 rounded"
+                  style={{ border: '1px solid #e2e8f0', borderLeft: '4px solid #6f42c1', background: '#fcfaff' }}
+                >
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <h6 className="mb-0 fw-bold text-dark" style={{ fontSize: '14px' }}>
+                      💡 Budget Suggestions
+                    </h6>
+                  </div>
+                  <p className="text-muted mb-3" style={{ fontSize: '11px' }}>
+                    See your historical monthly average to help you allocate appropriately.
+                  </p>
+                  
+                  <div className="d-flex align-items-center gap-2 mb-3">
+                    <Form.Select 
+                      size="sm" 
+                      value={historicalRange} 
+                      onChange={(e) => setHistoricalRange(Number(e.target.value))}
+                      style={{ width: 'auto', fontSize: '12px' }}
+                    >
+                      <option value={3}>Last 3 months</option>
+                      <option value={6}>Last 6 months</option>
+                      <option value={12}>Last 12 months</option>
+                    </Form.Select>
+                    <div className="flex-grow-1 text-end">
+                      {isFetchingHistory ? (
+                        <Spinner animation="border" size="sm" variant="secondary" />
+                      ) : (
+                        <span className="fw-bold text-primary" style={{ fontSize: '14px' }}>
+                          Avg: {historicalAverage !== null ? Math.round(historicalAverage).toLocaleString() : '-'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    className="w-100 d-flex align-items-center justify-content-center"
+                    style={{ fontSize: '12px', borderStyle: 'dashed' }}
+                    onClick={() => {
+                        if (historicalAverage !== null && historicalAverage > 0) {
+                            setFormData(prev => ({ ...prev, basicMonthly: Math.round(historicalAverage).toString() }));
+                        }
+                    }}
+                    disabled={historicalAverage === null || historicalAverage === 0 || isFetchingHistory}
+                    title="Apply to Monthly Basic Amount"
+                  >
+                    <FaMagic className="me-1" size={11} /> Apply to Monthly Basic
+                  </Button>
+                </div>
 
                 {/* ── Monthly Limits card ── */}
                 <div
