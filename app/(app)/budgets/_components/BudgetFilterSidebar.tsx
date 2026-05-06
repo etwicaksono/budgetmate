@@ -108,6 +108,8 @@ function BudgetFilterPanel({
     onRenameFilter: renameFilter,
     onClearActiveFilter: clearActiveFilter,
     onReorderFilter: reorderFilter,
+    selectedAccounts,
+    sortOption: sortBy as any,
   };
 
   return (
@@ -180,7 +182,6 @@ function BudgetFilterPanel({
               selectedAccounts={selectedAccounts}
               setSelectedAccounts={(names) => {
                 onSelectedAccountsChange(names as string[]);
-                clearActiveFilter();
               }}
               accountColors={accountColors}
               accountIcons={accountIcons}
