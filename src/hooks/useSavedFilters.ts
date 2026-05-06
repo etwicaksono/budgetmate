@@ -33,6 +33,8 @@ interface UseSavedFiltersOptions {
    current: FilterSnapshot;
    /** Dispatchers to apply a loaded filter */
    dispatchers: LoadFilterCallback;
+   /** Optional context tag to scope presets (default: 'transaction') */
+   context?: 'transaction' | 'budget';
 }
 
 export function useSavedFilters({
@@ -40,6 +42,7 @@ export function useSavedFilters({
    accounts,
    current,
    dispatchers,
+   context = 'transaction',
 }: UseSavedFiltersOptions) {
    const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
    const [loading, setLoading] = useState(false);
@@ -50,7 +53,7 @@ export function useSavedFilters({
       const load = async () => {
          setLoading(true);
          try {
-            const data = await savedFilterService.fetchSavedFilters();
+            const data = await savedFilterService.fetchSavedFilters(context);
             setSavedFilters(data);
          } catch (error) {
             console.error('Failed to fetch saved filters:', error);
@@ -105,7 +108,7 @@ export function useSavedFilters({
     *  Returns { success: true, filter } on success, or { success: false, duplicateName: true } on name conflict. */
    const saveCurrentFilter = useCallback(
       async (name: string): Promise<{ success: true; filter: SavedFilter } | { success: false; duplicateName: boolean }> => {
-         const payload: SavedFilterPayload = {
+         const filters: SavedFilterPayload = {
             selectedCategoryIds: categoryNamesToIds(current.selectedCategories),
             selectedAccountIds: accountNamesToIds(current.selectedAccounts),
             selectedCurrencies: current.selectedCurrencies,
@@ -115,7 +118,7 @@ export function useSavedFilters({
             debtOption: current.debtOption,
          };
          try {
-            const created = await savedFilterService.createSavedFilter({ name, filters: payload });
+            const created = await savedFilterService.createSavedFilter({ name, context, filters });
             setSavedFilters((prev) => [...prev, created]);
             setActiveFilterId(created.id);
             return { success: true, filter: created };
@@ -126,7 +129,7 @@ export function useSavedFilters({
             return { success: false, duplicateName: false };
          }
       },
-      [current, categoryNamesToIds, accountNamesToIds]
+      [current, context, categoryNamesToIds, accountNamesToIds]
    );
 
    /** Apply a saved filter to the current page's filter state */
@@ -194,7 +197,7 @@ export function useSavedFilters({
     *  Returns { success: true } or { success: false, duplicateName: true } on name conflict. */
    const updateCurrentFilter = useCallback(
       async (id: string, name: string): Promise<{ success: boolean; duplicateName?: boolean }> => {
-         const payload: SavedFilterPayload = {
+         const filters: SavedFilterPayload = {
             selectedCategoryIds: categoryNamesToIds(current.selectedCategories),
             selectedAccountIds: accountNamesToIds(current.selectedAccounts),
             selectedCurrencies: current.selectedCurrencies,
@@ -204,7 +207,7 @@ export function useSavedFilters({
             debtOption: current.debtOption,
          };
          try {
-            const updated = await savedFilterService.updateSavedFilter(id, { name, filters: payload });
+            const updated = await savedFilterService.updateSavedFilter(id, { name, context, filters });
             setSavedFilters((prev) => prev.map((f) => (f.id === id ? updated : f)));
             return { success: true };
          } catch (error: unknown) {
@@ -214,7 +217,7 @@ export function useSavedFilters({
             return { success: false };
          }
       },
-      [current, categoryNamesToIds, accountNamesToIds]
+      [current, context, categoryNamesToIds, accountNamesToIds]
    );
 
    /** Reorder saved filters */

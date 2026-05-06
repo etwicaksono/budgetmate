@@ -22,6 +22,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const yearParam = searchParams.get('year');
   const startDateParam = searchParams.get('start_date');
   const endDateParam = searchParams.get('end_date');
+  const accountIdsParam = searchParams.get('account_ids')?.split(',').filter(Boolean) ?? [];
 
   const now = new Date();
   const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
@@ -60,6 +61,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const annualEnd = new Date(year, 11, 31, 23, 59, 59, 999);
 
     // Run aggregations concurrently
+    const accountFilter = accountIdsParam.length > 0 ? { account_id: { in: accountIdsParam } } : {};
+
     const [monthlyAgg, annualAgg] = await Promise.all([
       prisma.transaction.groupBy({
         by: ['category_id'],
@@ -68,6 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           deleted_at: null,
           type: { in: ['income', 'expense'] },
           date: { gte: monthlyStart, lte: monthlyEnd },
+          ...accountFilter,
         },
         _sum: { amount: true },
       }),
@@ -78,6 +82,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           deleted_at: null,
           type: { in: ['income', 'expense'] },
           date: { gte: annualStart, lte: annualEnd },
+          ...accountFilter,
         },
         _sum: { amount: true },
       })

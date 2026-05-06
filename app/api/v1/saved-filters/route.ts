@@ -9,10 +9,15 @@ export async function GET(request: NextRequest) {
    if ('error' in authResult) return authResult.error;
 
    const { user } = authResult;
+   const { searchParams } = new URL(request.url);
+   const context = searchParams.get('context') ?? undefined;
 
    try {
       const savedFilters = await prisma.savedFilter.findMany({
-         where: { user_id: user.user_id },
+         where: {
+            user_id: user.user_id,
+            ...(context ? { context } : {}),
+         },
          orderBy: [
             { sort_order: 'asc' },
             { created_at: 'asc' }
@@ -40,12 +45,13 @@ export async function POST(request: NextRequest) {
          return errorResponse('VALIDATION_ERROR', 'Invalid input', 400, validation.error.errors);
       }
 
-      const { name, filters } = validation.data;
+      const { name, context, filters } = validation.data;
 
       const savedFilter = await prisma.savedFilter.create({
          data: {
             user_id: user.user_id,
             name: name.trim(),
+            context,
             filters,
          },
       });

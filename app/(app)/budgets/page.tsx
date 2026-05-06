@@ -1,22 +1,25 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Container, Row, Col, Form, ListGroup, OverlayTrigger, Placeholder, Tooltip, Button } from 'react-bootstrap';
-import { FaSearch, FaGift, FaChevronRight, FaEdit, FaInfoCircle, FaListUl } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Container, Row, Col, ListGroup, OverlayTrigger, Placeholder, Tooltip, Button } from 'react-bootstrap';
+import { FaGift, FaChevronRight, FaEdit, FaInfoCircle, FaListUl, FaFilter } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import { categoryService, Category } from '@/services/categoryService';
 import { budgetService, CategoryBudget } from '@/services/budgetService';
+import { accountService } from '@/services/accountService';
+import type { Account } from '@/services/accountService';
 import { BudgetConfigModal } from '@/components/budgets/BudgetConfigModal';
 import { BudgetProgressBar } from '@/components/budgets/BudgetProgressBar';
 import CategoryTransactionsModal from '@/components/analytics/CategoryTransactionsModal';
 import PeriodNavigation, { PeriodNavigationProvider, usePeriodNavigation } from '@/components/period/PeriodNavigation';
 import MonthYearSelector from '@/components/period/MonthYearSelector';
 import { useAuth } from '@/context/AuthContext';
-import { ClearButton } from '@/components/common/ClearButton';
 import { FaSortAlphaDown, FaSortAlphaUpAlt, FaSortAmountDown, FaSortAmountUp } from 'react-icons/fa';
-import { SortDropdown, SortOption } from '@/components/common/SortDropdown';
+import type { SortOption } from '@/components/common/SortDropdown';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
+import { useSavedFilters } from '@/hooks/useSavedFilters';
+import { BudgetFilterSidebar } from './_components/BudgetFilterSidebar';
 
 const BUDGET_SORT_OPTIONS: SortOption<string>[] = [
   { value: 'name_asc', icon: FaSortAlphaDown, title: 'Alphabetical ASC', ariaLabel: 'Alphabetical ascending' },
@@ -56,6 +59,10 @@ function BudgetsPageContent(): React.ReactElement {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  // Ref keeps latest accounts accessible inside callbacks without being a dep
+  const accountsRef = useRef<Account[]>([]);
 
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
@@ -77,6 +84,7 @@ function BudgetsPageContent(): React.ReactElement {
   const [editingCategoryId, setEditingCategoryId] = useState<string | undefined>(undefined);
   const [showTransactionsModal, setShowTransactionsModal] = useState<boolean>(false);
   const [selectedBudgetCategory, setSelectedBudgetCategory] = useState<SelectedBudgetCategory | null>(null);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -85,13 +93,18 @@ function BudgetsPageContent(): React.ReactElement {
       const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
       const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
 
+      const accountIds = selectedAccounts.length > 0
+        ? accountsRef.current.filter(a => selectedAccounts.includes(a.name)).map(a => a.id).join(',')
+        : undefined;
+
       const [catRes, budRes] = await Promise.all([
         categoryService.fetchCategories({ is_active: true }),
         budgetService.fetchBudgets({ 
           month: selectedMonth, 
           year: selectedYear,
           ...(startDateTime ? { start_date: startDateTime } : {}),
-          ...(endDateTime ? { end_date: endDateTime } : {})
+          ...(endDateTime ? { end_date: endDateTime } : {}),
+          ...(accountIds ? { account_ids: accountIds } : {}),
         })
       ]);
       setCategories(
@@ -105,7 +118,18 @@ function BudgetsPageContent(): React.ReactElement {
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, selectedAccounts]);
+
+  // Load accounts once on mount — separate from the main data loop
+  useEffect(() => {
+    accountService.fetchAccounts({ is_active: true })
+      .then(accRes => {
+        accountsRef.current = accRes;
+        setAccounts(accRes);
+      })
+      .catch(console.error);
+  }, []);
+
 
   // Lightweight refresh: only reload budgets (categories don't change from the budget modal)
   const refreshBudgets = useCallback(async () => {
@@ -113,21 +137,51 @@ function BudgetsPageContent(): React.ReactElement {
       const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
       const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
 
+      const accountIds = selectedAccounts.length > 0
+        ? accountsRef.current.filter(a => selectedAccounts.includes(a.name)).map(a => a.id).join(',')
+        : undefined;
+
       const budRes = await budgetService.fetchBudgets({ 
         month: selectedMonth, 
         year: selectedYear,
         ...(startDateTime ? { start_date: startDateTime } : {}),
-        ...(endDateTime ? { end_date: endDateTime } : {})
+        ...(endDateTime ? { end_date: endDateTime } : {}),
+        ...(accountIds ? { account_ids: accountIds } : {}),
       });
       setBudgets(budRes);
     } catch (error) {
       console.error(error);
     }
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, selectedAccounts]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // ── useSavedFilters wired for budget context ──────────────────────────────
+  const savedFiltersData = useSavedFilters({
+    categories: [],
+    accounts,
+    current: {
+      selectedCategories: [],
+      selectedAccounts,
+      selectedCurrencies: [],
+      selectedLabelIds: [],
+      sortOption: 'timeDesc',
+      transferOption: 'include',
+      debtOption: 'include',
+    },
+    dispatchers: {
+      setSelectedCategories: () => {},
+      setSelectedAccounts,
+      setSelectedCurrencies: () => {},
+      setSelectedLabelIds: () => {},
+      setSortOption: () => {},
+      setTransferOption: () => {},
+      setDebtOption: () => {},
+    },
+    context: 'budget',
+  });
 
   const combinedData = useMemo(() => {
     // Combine categories and budgets
@@ -635,139 +689,101 @@ function BudgetsPageContent(): React.ReactElement {
 
   return (
     <Container fluid>
-      <section className="mb-4">
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h2 className="mb-0 fw-bold">Budgets</h2>
-          <div className="d-flex flex-wrap align-items-center gap-3">
-            <Form.Check 
-              type="switch"
-              id="show-projections-switch"
-              label="Show Projections"
-              checked={showProjections}
-              onChange={(e) => setShowProjections(e.target.checked)}
-              className="mb-0 text-muted fw-semibold"
-              style={{ fontSize: '14px' }}
-            />
-            <div className="d-flex gap-2">
-              <Button variant="outline-secondary" size="sm" onClick={expandAll} className="d-flex align-items-center gap-1 shadow-sm">
-                <FaChevronRight size={10} style={{ transform: 'rotate(90deg)' }} /> Expand All
-              </Button>
-              <Button variant="outline-secondary" size="sm" onClick={collapseAll} className="d-flex align-items-center gap-1 shadow-sm">
-                <FaChevronRight size={10} /> Collapse All
-              </Button>
-            </div>
+      <Row>
+        {/* ── Sidebar (desktop sticky col + mobile offcanvas) ── */}
+        <BudgetFilterSidebar
+          searchTerm={searchTerm}
+          onSearchTermChange={setSearchTerm}
+          accounts={accounts}
+          selectedAccounts={selectedAccounts}
+          onSelectedAccountsChange={setSelectedAccounts}
+          sortBy={sortBy}
+          onSortByChange={setSortBy}
+          sortOptions={BUDGET_SORT_OPTIONS}
+          showProjections={showProjections}
+          onShowProjectionsChange={setShowProjections}
+          onExpandAll={expandAll}
+          onCollapseAll={collapseAll}
+          savedFiltersData={savedFiltersData}
+          showMobile={showMobileFilters}
+          onHideMobile={() => setShowMobileFilters(false)}
+        />
+
+        {/* ── Main content ── */}
+        <Col lg={9} className="p-0">
+          {/* Mobile header: title + filter toggle */}
+          <div className="d-flex justify-content-between align-items-center mb-2 d-lg-none">
+            <h2 className="page-mobile-title">Budgets</h2>
+            <Button
+              variant="outline-secondary"
+              className="d-flex align-items-center justify-content-center p-2"
+              onClick={() => setShowMobileFilters(true)}
+              style={{ width: '36px', height: '36px' }}
+              aria-label="Toggle Filters"
+            >
+              <FaFilter size={14} />
+            </Button>
           </div>
-        </div>
 
-        <Row className="g-3 mb-2">
-          <Col md={6}>
-            {loading
-              ? renderSummaryBarSkeleton('monthly-summary-skeleton')
-              : renderSummaryBar('Total Monthly Budget', summaryTotals.monthlySpent, summaryTotals.monthlyBasic, summaryTotals.monthlyExtend)}
-          </Col>
-          <Col md={6}>
-            {loading
-              ? renderSummaryBarSkeleton('annual-summary-skeleton')
-              : renderSummaryBar(showProjections ? 'Projected Annual Budget' : 'Total Annual Budget', showProjections ? summaryTotals.projectedAnnual : summaryTotals.annualSpent, summaryTotals.annualBasic, summaryTotals.annualExtend, showProjections)}
-          </Col>
-        </Row>
+          {/* Summary bars */}
+          <section className="mb-3">
+            <Row className="g-3 mb-3">
+              <Col md={6}>
+                {loading
+                  ? renderSummaryBarSkeleton('monthly-summary-skeleton')
+                  : renderSummaryBar('Total Monthly Budget', summaryTotals.monthlySpent, summaryTotals.monthlyBasic, summaryTotals.monthlyExtend)}
+              </Col>
+              <Col md={6}>
+                {loading
+                  ? renderSummaryBarSkeleton('annual-summary-skeleton')
+                  : renderSummaryBar(showProjections ? 'Projected Annual Budget' : 'Total Annual Budget', showProjections ? summaryTotals.projectedAnnual : summaryTotals.annualSpent, summaryTotals.annualBasic, summaryTotals.annualExtend, showProjections)}
+              </Col>
+            </Row>
 
-        {/* Toolbar
-              Desktop: [Search md=4] [Period md=4 centered] [Sort md=4 right] — all on one row
-              Mobile:  [Search xs=12] then [Period xs=12] then [Sort auto-width]  — stacked
-        */}
-        <Row className="g-2 mb-4 align-items-center">
-          {/* Search */}
-          <Col xs={12} md={4}>
-            <Form.Group>
-              <div className="position-relative w-100">
-                <Form.Control
-                  type="text"
-                  placeholder="Search categories..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ paddingLeft: '2rem', paddingRight: '2rem' }}
-                />
-                <span className="position-absolute top-50 start-0 translate-middle-y ms-2 text-muted">
-                  <FaSearch size={14} />
-                </span>
-                {searchTerm && (
-                  <span className="position-absolute top-50 end-0 translate-middle-y me-1">
-                    <ClearButton ariaLabel="Clear search" onClick={() => setSearchTerm('')} />
-                  </span>
-                )}
-              </div>
-            </Form.Group>
-          </Col>
-
-          {/* Period navigator — centered on desktop, full-width on mobile */}
-          <Col xs={12} md={4} className="d-flex justify-content-center border-0 bg-transparent shadow-none" style={{ background: 'none' }}>
-            <div className="w-100" style={{ maxWidth: '320px' }}>
+            {/* Period navigator */}
+            <div className="d-flex justify-content-center align-items-center mb-3">
               <PeriodNavigation>
                 <MonthYearSelector label={periodLabel} activePeriod={activePeriod} />
               </PeriodNavigation>
             </div>
-          </Col>
+          </section>
 
-          {/* Sort dropdown — right-aligned on desktop, auto-width on mobile */}
-          <Col xs={12} md={4} className="d-flex justify-content-md-end">
-            {/* Mobile: full-width to match search and period navigator */}
-            <div className="d-md-none w-100">
-              <SortDropdown
-                id="budgetSortMobile"
-                value={sortBy}
-                options={BUDGET_SORT_OPTIONS}
-                onChange={setSortBy}
-                className="w-100"
-              />
-            </div>
-            {/* Desktop: full-width within column, capped */}
-            <div className="d-none d-md-block w-100" style={{ maxWidth: '280px' }}>
-              <SortDropdown
-                id="budgetSortDesktop"
-                value={sortBy}
-                options={BUDGET_SORT_OPTIONS}
-                onChange={setSortBy}
-                className="w-100"
-              />
-            </div>
-          </Col>
-        </Row>
-      </section>
+          {/* Budget list */}
+          <section>
+            <div className="categories-list">
+              {loading ? (
+                renderBudgetListSkeleton()
+              ) : parentItems.length === 0 ? (
+                <div className="py-5 d-flex flex-column align-items-center justify-content-center bg-white rounded shadow-sm border" style={{ minHeight: '300px' }}>
+                  <FaGift size={48} className="text-muted mb-3 opacity-25" />
+                  <h4 className="fw-bold mb-2">No Categories Found</h4>
+                  <p className="text-muted text-center mb-4 px-4" style={{ maxWidth: '400px' }}>
+                    You haven&apos;t created any tracking categories yet. Navigate to your configuration panel to architect your tracking layout.
+                  </p>
+                </div>
+              ) : (
+                <ListGroup>
+                  {parentItems.map(parentItem => (
+                    <ListGroup.Item key={parentItem.category.id} className="p-0 overflow-hidden">
+                      {renderBudgetItem(parentItem, false)}
 
-      <section>
-        <div className="categories-list">
-          {loading ? (
-            renderBudgetListSkeleton()
-          ) : parentItems.length === 0 ? (
-            <div className="py-5 d-flex flex-column align-items-center justify-content-center bg-white rounded shadow-sm border" style={{ minHeight: '300px' }}>
-              <FaGift size={48} className="text-muted mb-3 opacity-25" />
-              <h4 className="fw-bold mb-2">No Categories Found</h4>
-              <p className="text-muted text-center mb-4 px-4" style={{ maxWidth: '400px' }}>
-                You haven't created any tracking categories yet. Navigate to your configuration panel to architect your tracking layout.
-              </p>
-            </div>
-          ) : (
-            <ListGroup>
-              {parentItems.map(parentItem => (
-                <ListGroup.Item key={parentItem.category.id} className="p-0 overflow-hidden">
-                  {renderBudgetItem(parentItem, false)}
-
-                  {parentItem.children.length > 0 && expandedCategories[parentItem.category.id] && (
-                    <div className="category-children">
-                      {parentItem.children.map((childItem: CombinedBudgetItem) => (
-                        <div key={childItem.category.id}>
-                          {renderBudgetItem(childItem, true)}
+                      {parentItem.children.length > 0 && expandedCategories[parentItem.category.id] && (
+                        <div className="category-children">
+                          {parentItem.children.map((childItem: CombinedBudgetItem) => (
+                            <div key={childItem.category.id}>
+                              {renderBudgetItem(childItem, true)}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
-          )}
-        </div>
-      </section>
+                      )}
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              )}
+            </div>
+          </section>
+        </Col>
+      </Row>
 
       <BudgetConfigModal
         show={showModal}

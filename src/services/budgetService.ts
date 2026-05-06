@@ -47,6 +47,7 @@ export interface BudgetFilterParams {
   year?: number;
   start_date?: string;
   end_date?: string;
+  account_ids?: string;
 }
 
 class BudgetService {
@@ -61,6 +62,7 @@ class BudgetService {
       if (params.year) q.append('year', params.year.toString());
       if (params.start_date) q.append('start_date', params.start_date);
       if (params.end_date) q.append('end_date', params.end_date);
+      if (params.account_ids) q.append('account_ids', params.account_ids);
       if (q.toString()) url += `?${q.toString()}`;
     }
     const response = await api.get<{ success: boolean; data: CategoryBudget[] }>(url);

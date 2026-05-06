@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { registry } from '../registry';
 
+export const FilterContextSchema = z.enum(['transaction', 'budget']);
+export type FilterContext = z.infer<typeof FilterContextSchema>;
+
 export const FiltersSchema = z.object({
   selectedCategoryIds: z.array(z.string()).optional(),
   selectedAccountIds: z.array(z.string()).optional(),
@@ -11,11 +14,13 @@ export const FiltersSchema = z.object({
 
 export const CreateSavedFilterSchema = z.object({
   name: z.string().min(1).max(100).openapi({ example: 'My Active Debts' }),
+  context: FilterContextSchema.default('transaction').openapi({ example: 'transaction' }),
   filters: FiltersSchema,
 });
 
 export const UpdateSavedFilterSchema = z.object({
   name: z.string().min(1).max(100).optional().openapi({ example: 'My Updated Debts' }),
+  context: FilterContextSchema.optional().openapi({ example: 'transaction' }),
   filters: FiltersSchema.optional(),
 });
 
@@ -28,6 +33,7 @@ export const SavedFilterSchema = registry.register(
   z.object({
     id: z.string().openapi({ example: 'clq1234560000000000000000' }),
     name: z.string().openapi({ example: 'My Active Debts' }),
+    context: z.string().openapi({ example: 'transaction' }),
     filters: z.record(z.unknown()).openapi({ example: { sortOption: 'custom' } }),
     sort_order: z.number().openapi({ example: 0 }),
     created_at: z.date().openapi({ example: '2023-12-01T00:00:00Z' }),

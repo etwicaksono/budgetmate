@@ -13,18 +13,22 @@ export interface SavedFilterPayload {
 export interface SavedFilter {
    id: string;
    name: string;
+   context: string;
    filters: SavedFilterPayload;
+   sort_order: number;
    created_at: string;
    updated_at: string;
 }
 
 export interface CreateSavedFilterPayload {
    name: string;
+   context: 'transaction' | 'budget';
    filters: SavedFilterPayload;
 }
 
 export interface UpdateSavedFilterPayload {
    name?: string;
+   context?: 'transaction' | 'budget';
    filters?: SavedFilterPayload;
 }
 
@@ -39,8 +43,9 @@ interface SavedFilterResponse {
 class SavedFilterService {
    private readonly basePath = '/saved-filters';
 
-   async fetchSavedFilters(): Promise<SavedFilter[]> {
-      const response = await apiClient.get<SavedFiltersResponse>(this.basePath);
+   async fetchSavedFilters(context?: 'transaction' | 'budget'): Promise<SavedFilter[]> {
+      const url = context ? `${this.basePath}?context=${context}` : this.basePath;
+      const response = await apiClient.get<SavedFiltersResponse>(url);
       return response.data.data;
    }
 

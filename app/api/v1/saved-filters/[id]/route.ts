@@ -36,12 +36,13 @@ export async function PUT(request: NextRequest, context: RouteParams) {
          return errorResponse('NOT_FOUND', 'Saved filter not found', 404);
       }
 
-      const { name, filters } = validation.data;
+      const { name, context, filters } = validation.data;
 
       const updated = await prisma.savedFilter.update({
          where: { id: filterId },
          data: {
             ...(name !== undefined && { name: name.trim() }),
+            ...(context !== undefined && { context }),
             ...(filters !== undefined && { filters }),
          },
       });

@@ -67,7 +67,7 @@ export function SortDropdown<T extends string>({
         </span>
       </Dropdown.Toggle>
       
-      <Dropdown.Menu className="w-100 p-1 shadow-sm border-0" style={{ minWidth: '240px' }}>
+      <Dropdown.Menu className="w-100 p-1 shadow-sm border-0">
         {options.map((option) => {
           const isSelected = option.value === value;
           const itemClasses = [
