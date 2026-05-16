@@ -17,6 +17,7 @@ interface CategoryTransactionsModalProps {
   startDate?: string;
   endDate?: string;
   currency?: string;
+  accountIds?: string[]; // forward account filter from parent report
 }
 
 const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
@@ -28,6 +29,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
   startDate,
   endDate,
   currency,
+  accountIds,
 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,15 +42,16 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
     try {
       setLoading(true);
       setError(null);
-      
+
       const filters: Record<string, string | number> = {
         category_ids: categoryIds.join(','),
       };
-      
+
       if (startDate) filters['start_date'] = startDate;
       if (endDate) filters['end_date'] = endDate;
       if (currency) filters['currencies'] = currency;
-      
+      if (accountIds && accountIds.length > 0) filters['account_ids'] = accountIds.join(',');
+
       const result = await transactionService.fetchTransactions(filters);
       setTransactions(result.transactions);
     } catch (err) {
@@ -56,7 +59,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [categoryIds, startDate, endDate, currency]);
+  }, [categoryIds, startDate, endDate, currency, accountIds]);
 
   useEffect(() => {
     if (show && categoryIds && categoryIds.length > 0) {
@@ -77,7 +80,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
 
   const groupedTransactions = useMemo((): GroupedTransactions => {
     const grouped: GroupedTransactions = {};
-    
+
     transactions.forEach((txn) => {
       const dateObj = new Date(txn.date);
       const dateKey = dateObj.toLocaleDateString('en-US', {
@@ -86,7 +89,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
         month: 'short',
         day: 'numeric',
       });
-      
+
       const record: TransactionRecord = {
         id: txn.id,
         date: dateKey,
@@ -100,6 +103,9 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
         amount: txn.amount,
         currency: txn.currency,
         type: txn.type.toUpperCase() as 'INCOME' | 'EXPENSE' | 'TRANSFER',
+        // Forward IDs so the edit modal can pre-fill account and category selects
+        ...(txn.account_id && { account_id: txn.account_id }),
+        ...(txn.category_id && { category_id: txn.category_id }),
         ...(txn.category?.icon && { categoryIcon: txn.category.icon }),
         ...(txn.category?.color && { categoryIconColor: txn.category.color }),
         ...(txn.payee && { payer: txn.payee }),
@@ -111,11 +117,11 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
           })),
         }),
       };
-      
+
       if (!grouped[dateKey]) grouped[dateKey] = [];
       grouped[dateKey].push(record);
     });
-    
+
     return grouped;
   }, [transactions]);
 
@@ -138,7 +144,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
                     <Placeholder xs={4} className="rounded" style={{ height: 20 }} />
                   </Placeholder>
                 </div>
-                
+
                 {/* Transaction rows skeleton */}
                 {[0, 1, 2].map((rowIndex) => (
                   <div
@@ -152,7 +158,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
                         style={{ width: 40, height: 40 }}
                       />
                     </Placeholder>
-                    
+
                     {/* Category and description */}
                     <div className="flex-grow-1">
                       <Placeholder animation="glow">
@@ -162,7 +168,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
                         <Placeholder xs={rowIndex % 2 === 0 ? 3 : 6} size="sm" className="text-muted" />
                       </Placeholder>
                     </div>
-                    
+
                     {/* Amount placeholder */}
                     <div className="text-end">
                       <Placeholder animation="glow">

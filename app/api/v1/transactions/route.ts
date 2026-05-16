@@ -9,6 +9,14 @@ import {
   TransactionFilterSchema
 } from '@/lib/validation/transaction';
 
+/** Custom error thrown when submitted label IDs don't all belong to the authenticated user. */
+class LabelNotFoundError extends Error {
+  constructor() {
+    super('One or more labels not found');
+    this.name = 'LabelNotFoundError';
+  }
+}
+
 // GET - Fetch transactions with filtering and pagination
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const authResult = await requireAuth(request);
@@ -35,27 +43,28 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const filters = filterValidation.data;
 
   try {
-    // Build where clause
+    // Build where clause — AND is initialized upfront to avoid repeated guards
     const where: Prisma.TransactionWhereInput = {
       user_id: user.user_id,
-      deleted_at: null
+      deleted_at: null,
+      AND: [] as Prisma.TransactionWhereInput[]
     };
 
-    // Account filter - support single ID or comma-separated IDs
+    // Account filter - support single ID or comma-separated IDs (max 50)
     if (filters.account_id) {
       where.account_id = filters.account_id;
     } else if (filters.account_ids) {
-      const accountIds = filters.account_ids.split(',').filter(id => id);
+      const accountIds = filters.account_ids.split(',').filter(Boolean).slice(0, 50);
       if (accountIds.length > 0) {
         where.account_id = { in: accountIds };
       }
     }
 
-    // Category filter - support single ID or comma-separated IDs
+    // Category filter - support single ID or comma-separated IDs (max 50)
     if (filters.category_id) {
       where.category_id = filters.category_id;
     } else if (filters.category_ids) {
-      const categoryIds = filters.category_ids.split(',').filter(id => id);
+      const categoryIds = filters.category_ids.split(',').filter(Boolean).slice(0, 50);
       if (categoryIds.length > 0) {
         where.category_id = { in: categoryIds };
       }
@@ -74,12 +83,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       if (filters.debt_option === 'only') {
+        // Two 'only' options are mutually exclusive — we can't include two disjoint sets simultaneously
+        if (filters.transfer_option === 'only') {
+          return errorResponse(
+            'INVALID_FILTER',
+            "Cannot combine transfer_option='only' and debt_option='only' simultaneously",
+            400
+          );
+        }
         includeTypes.push('debt_in', 'debt_out');
       } else if (filters.debt_option === 'exclude') {
         excludeTypes.push('debt_in', 'debt_out');
       }
 
-      if (includeTypes.length > 0) {
+      if (includeTypes.length > 0 && excludeTypes.length > 0) {
+        // e.g. transfer_option=only + debt_option=exclude: keep only transfers, then remove debt types
+        // (debt types wouldn't be in includeTypes anyway, but this handles future combinations cleanly)
+        const filtered = includeTypes.filter(t => !excludeTypes.includes(t));
+        if (filtered.length > 0) where.type = { in: filtered };
+      } else if (includeTypes.length > 0) {
         where.type = { in: includeTypes };
       } else if (excludeTypes.length > 0) {
         where.type = { notIn: excludeTypes };
@@ -93,31 +115,33 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where.date.gte = new Date(filters.start_date);
       }
       if (filters.end_date) {
-        where.date.lte = new Date(filters.end_date);
+        // Advance to end-of-day (23:59:59.999 UTC) so the full calendar day is included
+        const endOfDay = new Date(filters.end_date);
+        endOfDay.setUTCHours(23, 59, 59, 999);
+        where.date.lte = endOfDay;
       }
     }
 
-    // Amount range
     // Amount range (filtering by absolute value)
     if (filters.min_amount !== undefined || filters.max_amount !== undefined) {
-      const min = filters.min_amount !== undefined ? Number(filters.min_amount) : 0;
-      const max = filters.max_amount !== undefined ? Number(filters.max_amount) : Number.MAX_SAFE_INTEGER;
+      const min = filters.min_amount ?? 0;
+      const max = filters.max_amount ?? Number.MAX_SAFE_INTEGER;
 
-      // We need to match either positive range [min, max] or negative range [-max, -min]
-      where.AND = where.AND || [];
+      // Match positive range [min, max] OR strictly-negative range [-max, -min).
+      // Using `lt: -min` (strict upper bound) on the negative branch ensures zero-amount
+      // transactions only appear in the positive branch, preventing double-inclusion when min=0.
       (where.AND as Prisma.TransactionWhereInput[]).push({
         OR: [
           { amount: { gte: min, lte: max } },
-          { amount: { gte: -max, lte: -min } }
+          { amount: { gte: -max, lt: min > 0 ? -min : 0 } }
         ]
       });
     }
 
-    // Keyword search in description and payee
-    // Support both 'keyword' and 'search' parameters
-    const searchTerm = filters.keyword || filters.search;
+    // Keyword search in description and payee (both 'keyword' and 'search' are accepted).
+    // Minimum 2 chars enforced by schema; trim() here is a belt-and-suspenders guard.
+    const searchTerm = (filters.keyword || filters.search)?.trim();
     if (searchTerm) {
-      where.AND = where.AND || [];
       (where.AND as Prisma.TransactionWhereInput[]).push({
         OR: [
           { description: { contains: searchTerm, mode: 'insensitive' } },
@@ -126,9 +150,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // Label filter
+    // Label filter (max 50 IDs)
     if (filters.label_ids) {
-      const labelIds = filters.label_ids.split(',').filter(id => id);
+      const labelIds = filters.label_ids.split(',').filter(Boolean).slice(0, 50);
       if (labelIds.length > 0) {
         where.labels = {
           some: {
@@ -138,16 +162,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Currency filter
+    // Currency filter (max 20 currency codes)
     if (filters.currencies) {
-      const currencies = filters.currencies.split(',').filter(c => c);
+      const currencies = filters.currencies.split(',').filter(Boolean).slice(0, 20);
       if (currencies.length > 0) {
         where.currency = { in: currencies };
       }
     }
 
-    // Execute queries
-    const [transactions, total, currencyTotals] = await Promise.all([
+    // Execute all queries in parallel — single groupBy on [currency, type] covers all aggregation needs.
+    // Previously there were two separate groupBy calls (by currency, then by currency+type);
+    // the first was redundant and wasted a full DB round-trip.
+    const [transactions, total, typeGrouped] = await Promise.all([
       prisma.transaction.findMany({
         where,
         include: {
@@ -199,28 +225,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
       prisma.transaction.count({ where }),
       prisma.transaction.groupBy({
-        by: ['currency'],
+        by: ['currency', 'type'],
         where,
         _sum: { amount: true }
       })
     ]);
 
-    // Build totals_by_currency: separate income and expense sums, excluding transfers/debts
-    // Raw sum is misleading when transfers are included (transfer_out + transfer_in don't fully cancel
-    // when filtered by amount or type, causing large negative swings)
+    // Aggregate income/expense per currency.
+    // Transfers and debts are excluded from net intentionally — they net to zero across accounts.
     const totals_by_currency: Record<string, { income: number; expense: number; net: number }> = {};
-    for (const row of currencyTotals) {
-      const currency = row.currency;
-      totals_by_currency[currency] = { income: 0, expense: 0, net: 0 };
-    }
-
-    // Re-aggregate by type for correct net
-    const typeGrouped = await prisma.transaction.groupBy({
-      by: ['currency', 'type'],
-      where,
-      _sum: { amount: true }
-    });
-
     for (const row of typeGrouped) {
       const currency = row.currency;
       const amount = row._sum.amount?.toNumber() ?? 0;
@@ -232,7 +245,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       } else if (row.type === 'expense') {
         totals_by_currency[currency]!.expense += amount; // already negative
       }
-      // transfers/debts excluded from net intentionally — they net to zero across accounts
     }
 
     // Compute net = income + expense (expense is already negative)
@@ -271,7 +283,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         // For transfer_out: transaction shows SOURCE, so to_amount should show DESTINATION
         const isTransferIn = tx.type === 'transfer_in';
         const sourceAmount = tx.transfer.amount.toNumber();
-        const destAmount = tx.transfer.to_amount?.toNumber() || tx.transfer.amount.toNumber();
+        const destAmount = tx.transfer.to_amount?.toNumber() ?? tx.transfer.amount.toNumber();
 
         return {
           ...baseTransaction,
@@ -282,7 +294,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           from_account_id: tx.transfer.from_account,
           transfer_description: tx.transfer.description,
           transfer_currency: tx.transfer.currency,
-          to_currency: tx.transfer.to_currency || tx.transfer.currency
+          to_currency: tx.transfer.to_currency ?? tx.transfer.currency
         };
       }
 
@@ -347,7 +359,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return errorResponse('INVALID_ACCOUNT', 'Account not found or inactive', 404);
     }
 
-    // Verify category belongs to user
+    // Verify category belongs to user and is active.
+    // Category uses is_active as its soft-delete flag (no deleted_at column).
     const category = await prisma.category.findFirst({
       where: {
         id: data.category_id,
@@ -399,20 +412,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Create label associations if provided
       if (data.label_ids && data.label_ids.length > 0) {
-        // Verify labels belong to user
+        // Deduplicate to prevent false ownership mismatch and unique constraint violations
+        const uniqueLabelIds = [...new Set(data.label_ids)];
+
+        // Verify all labels belong to user
         const labels = await tx.label.findMany({
           where: {
-            id: { in: data.label_ids },
+            id: { in: uniqueLabelIds },
             user_id: user.user_id
           }
         });
 
-        if (labels.length !== data.label_ids.length) {
-          throw new Error('One or more labels not found');
+        if (labels.length !== uniqueLabelIds.length) {
+          throw new LabelNotFoundError();
         }
 
         await tx.transactionLabel.createMany({
-          data: data.label_ids.map(label_id => ({
+          data: uniqueLabelIds.map(label_id => ({
             transaction_id: created.id,
             label_id
           }))
@@ -429,9 +445,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       id: transaction.id,
       date: transaction.date,
       account_id: transaction.account_id,
-      account: 'account' in transaction ? transaction.account : undefined,
+      account: transaction.account,
       category_id: transaction.category_id,
-      category: 'category' in transaction ? transaction.category : undefined,
+      category: transaction.category,
       amount: transaction.amount.toNumber(),
       type: transaction.type,
       description: transaction.description,
@@ -448,7 +464,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error('Transaction creation error:', error);
 
-    if (error instanceof Error && error.message === 'One or more labels not found') {
+    if (error instanceof LabelNotFoundError) {
       return errorResponse('INVALID_LABEL', error.message, 404);
     }
 

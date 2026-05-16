@@ -19,6 +19,9 @@ export interface TransactionRecord {
   currency: string;
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_IN' | 'DEBT_OUT';
   debt_id?: string;
+  // IDs forwarded from the source Transaction so the edit modal can pre-fill selects
+  account_id?: string;
+  category_id?: string;
   labels?: Array<{
     id?: string;
     name: string;

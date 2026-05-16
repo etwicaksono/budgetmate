@@ -179,6 +179,10 @@ model Transaction {
   @@index([category_id])
   @@index([transfer_id])
   @@index([debt_id])
+  // GIN trigram indexes for keyword search (managed via raw migration — Prisma cannot declare these natively):
+  //   CREATE INDEX "Transaction_description_trgm_idx" ON "Transaction" USING gin (description gin_trgm_ops);
+  //   CREATE INDEX "Transaction_payee_trgm_idx"       ON "Transaction" USING gin (payee gin_trgm_ops);
+  // These allow ILIKE '%term%' to use an index instead of a sequential scan.
 }
 
 // ==================== TRANSFER MODEL ====================

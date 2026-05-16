@@ -11,7 +11,7 @@ export const CreateTransactionSchema = z.object({
   amount: z.number().positive(),
   type: z.enum(['income', 'expense']),
   description: z.string().optional(),
-  currency: z.string().default('USD'),
+  // currency is intentionally excluded: it is always derived from the account on the server
   payee: z.string().optional(),
   payment_method: z.string().optional(),
   payment_status: z.string().optional(),
@@ -51,11 +51,10 @@ export const TransactionFilterSchema = z.object({
   end_date: z.string().datetime().optional(),
   min_amount: z.coerce.number().optional(),
   max_amount: z.coerce.number().optional(),
-  keyword: z.string().optional(),
-  search: z.string().optional(), // alias for keyword
+  keyword: z.string().trim().min(2, 'Search term must be at least 2 characters').optional(),
+  search: z.string().trim().min(2, 'Search term must be at least 2 characters').optional(), // alias for keyword
   label_ids: z.string().optional(), // comma-separated
   currencies: z.string().optional(), // comma-separated currency codes (e.g., 'USD,IDR')
-  sort: z.string().optional(), // for frontend sort options like 'timeDesc', 'amountAsc'
   sort_by: z.enum(['date', 'amount', 'created_at']).default('date'),
   sort_order: z.enum(['asc', 'desc']).default('desc'),
   transfer_option: z.enum(['include', 'only', 'exclude']).optional(),

@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { Badge, ProgressBar, Row, Col, Dropdown } from 'react-bootstrap';
-import { 
-  FaArrowCircleUp, 
-  FaArrowCircleDown, 
-  FaMoneyBillWave, 
+import {
+  FaArrowCircleUp,
+  FaArrowCircleDown,
+  FaMoneyBillWave,
   FaPlusCircle,
-  FaPencilAlt, 
+  FaPencilAlt,
   FaTrash,
   FaWallet,
   FaEllipsisV
@@ -44,25 +44,25 @@ export const DebtCard: React.FC<DebtCardProps> = ({
   const totalAmount = debt.amount || 0;
   const remainingAmount = debt.remaining_amount || 0;
   const repaidAmount = Math.max(0, totalAmount - remainingAmount);
-  
-  const progressPercent = totalAmount > 0 
+
+  const progressPercent = totalAmount > 0
     ? Math.min(100, Math.round((repaidAmount / totalAmount) * 100))
     : 0;
 
   return (
-    <div 
+    <div
       className={`debt-item ${!isActive ? 'debt-item-inactive' : ''}`}
       onClick={() => onDetailClick(debt)}
       style={{ cursor: 'pointer' }}
     >
       <Row className="align-items-center mb-2">
         <Col xs={12} md={6} className="d-flex align-items-center gap-2 mb-2 mb-md-0">
-          <Badge 
-            bg={isLend ? 'danger' : 'success'} 
-            pill 
+          <Badge
+            bg={isLend ? 'danger' : 'success'}
+            pill
             className="d-inline-flex align-items-center justify-content-center gap-1"
           >
-            {isLend ? <FaArrowCircleDown size={10} /> : <FaArrowCircleUp size={10} />}
+            {isLend ? <FaArrowCircleUp size={10} /> : <FaArrowCircleDown size={10} />}
             {isLend ? 'LEND' : 'BORROW'}
           </Badge>
           <span className="fw-semibold fs-6 text-truncate">
@@ -106,7 +106,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
             </Dropdown>
           </div>
         </Col>
-        
+
         <Col xs={12} md={6} className="text-md-end text-start">
           <div className={`fw-bold ${isLend ? 'text-danger' : 'text-success'}`}>
             <NumericFormat
@@ -119,7 +119,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
           </div>
           {isActive && (
             <div className="small text-muted">
-               {progressPercent}% of <NumericFormat
+              {progressPercent}% of <NumericFormat
                 value={totalAmount}
                 displayType={'text'}
                 thousandSeparator={true}
@@ -132,46 +132,46 @@ export const DebtCard: React.FC<DebtCardProps> = ({
       </Row>
 
       <Row className="mb-2">
-         <Col xs={12} md={6}>
-            <div className="small text-muted d-flex align-items-center gap-1">
-               {debt.account?.icon ? (
-                 <span>
-                    {(() => {
-                       const IconComponent = getIconComponent(debt.account.icon);
-                       return <IconComponent />;
-                    })()}
-                 </span>
-               ) : (
-                 <FaWallet />
-               )}
-               <span className="text-truncate" style={{ maxWidth: '100px' }}>
-                 {debt.account?.name || 'Unknown Account'}
-               </span>
-               <span className="mx-1">•</span>
-               <span>{format(new Date(debt.date), 'MMM dd, yyyy')}</span>
-            </div>
-            {debt.description && (
-               <div className="small text-muted text-truncate mt-1" style={{ maxWidth: '300px' }}>
-                 {debt.description}
-               </div>
-            )}
-         </Col>
-         
-         <Col xs={12} md={6} className="mt-2 mt-md-0 d-flex flex-column justify-content-center">
-            {isActive ? (
-               <ProgressBar 
-                 variant={isLend ? "danger" : "success"} 
-                 now={progressPercent} 
-                 className="debt-progress w-100"
-               />
+        <Col xs={12} md={6}>
+          <div className="small text-muted d-flex align-items-center gap-1">
+            {debt.account?.icon ? (
+              <span>
+                {(() => {
+                  const IconComponent = getIconComponent(debt.account.icon);
+                  return <IconComponent />;
+                })()}
+              </span>
             ) : (
-               <div className="text-md-end">
-                  <Badge bg={isSettled ? "secondary" : "dark"}>
-                     {isSettled ? "SETTLED" : "CANCELLED"}
-                  </Badge>
-               </div>
+              <FaWallet />
             )}
-         </Col>
+            <span className="text-truncate" style={{ maxWidth: '100px' }}>
+              {debt.account?.name || 'Unknown Account'}
+            </span>
+            <span className="mx-1">•</span>
+            <span>{format(new Date(debt.date), 'MMM dd, yyyy')}</span>
+          </div>
+          {debt.description && (
+            <div className="small text-muted text-truncate mt-1" style={{ maxWidth: '300px' }}>
+              {debt.description}
+            </div>
+          )}
+        </Col>
+
+        <Col xs={12} md={6} className="mt-2 mt-md-0 d-flex flex-column justify-content-center">
+          {isActive ? (
+            <ProgressBar
+              variant={isLend ? "danger" : "success"}
+              now={progressPercent}
+              className="debt-progress w-100"
+            />
+          ) : (
+            <div className="text-md-end">
+              <Badge bg={isSettled ? "secondary" : "dark"}>
+                {isSettled ? "SETTLED" : "CANCELLED"}
+              </Badge>
+            </div>
+          )}
+        </Col>
       </Row>
 
       {/* Desktop action buttons — vertical staggered overlay on hover */}

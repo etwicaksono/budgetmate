@@ -266,19 +266,24 @@ function BudgetsPageContent(): React.ReactElement {
 
     const summaryTooltipId = `summary-tooltip-${label.replace(/\s+/g, '-').toLowerCase()}`;
 
-    const infoIcon = extendLimit > 0 ? (
+    const infoIcon = budget > 0 ? (
       <OverlayTrigger
         placement="top"
         overlay={
           <Tooltip id={summaryTooltipId}>
             <div className="text-start" style={{ fontSize: '12px', lineHeight: 1.6 }}>
               <div>Basic: <strong>{formatCurrency(basicLimit, 'IDR')}</strong></div>
-              <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit, 'IDR')}</strong></div>
+              {extendLimit > 0 && (
+                <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit, 'IDR')}</strong></div>
+              )}
               <hr className="my-1 border-secondary opacity-50" />
-              <div>Total: <strong>{formatCurrency(budget, 'IDR')}</strong></div>
+              <div>Total budget: <strong>{formatCurrency(budget, 'IDR')}</strong></div>
+              <div style={budget - absSpent < 0 ? { color: '#f87171' } : {}}>
+                Remaining: <strong>{formatCurrency(budget - absSpent, 'IDR')}</strong>
+              </div>
               {isProjection && (
                 <div className="mt-1 pt-1 border-top border-secondary border-opacity-50 text-info fst-italic" style={{ fontSize: '10px' }}>
-                  *Annualized projection
+                  *Annualized projection based on current monthly average
                 </div>
               )}
             </div>

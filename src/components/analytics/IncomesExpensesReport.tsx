@@ -29,6 +29,7 @@ interface SelectedCategory {
   monthName: string;
   monthStartDate: string;
   monthEndDate: string;
+  accountIds?: string[]; // forwarded from the report's account filter
 }
 
 type SortOption = 'default' | 'amount_asc' | 'amount_desc';
@@ -142,6 +143,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       monthName: periodName,
       monthStartDate: periodStart.toISOString(),
       monthEndDate: periodEnd.toISOString(),
+      ...(selectedAccounts && selectedAccounts.length > 0 && { accountIds: selectedAccounts }),
     });
     setShowModal(true);
   };
@@ -905,7 +907,8 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
         monthName={selectedCategory?.monthName ?? ''}
         {...(selectedCategory?.monthStartDate && { startDate: selectedCategory.monthStartDate })}
         {...(selectedCategory?.monthEndDate && { endDate: selectedCategory.monthEndDate })}
-        {...(displayCurrency && { currency: displayCurrency })}
+        {...(selectedCurrency && { currency: selectedCurrency })}
+        {...(selectedCategory?.accountIds && { accountIds: selectedCategory.accountIds })}
       />
     </div>
   );

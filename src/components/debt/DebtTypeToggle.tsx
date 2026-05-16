@@ -21,7 +21,7 @@ export const DebtTypeToggle: React.FC<DebtTypeToggleProps> = ({ value, onChange,
         disabled={disabled}
         className="d-flex align-items-center justify-content-center gap-2 py-2"
       >
-        <FaArrowCircleDown /> Lend
+        <FaArrowCircleUp /> Lend
       </Button>
       <Button
         variant={value === DEBT_TYPES.BORROW ? 'success' : 'outline-secondary'}
@@ -29,7 +29,7 @@ export const DebtTypeToggle: React.FC<DebtTypeToggleProps> = ({ value, onChange,
         disabled={disabled}
         className="d-flex align-items-center justify-content-center gap-2 py-2"
       >
-        <FaArrowCircleUp /> Borrow
+        <FaArrowCircleDown /> Borrow
       </Button>
     </ButtonGroup>
   );
