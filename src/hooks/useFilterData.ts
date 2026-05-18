@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { accountService, type Account } from '@/services/accountService';
 import { categoryService, type Category } from '@/services/categoryService';
 import { labelService, type Label } from '@/services/labelService';
@@ -31,6 +31,19 @@ const DEFAULT_MAX_AMOUNT = 20000000;
 export const useFilterData = () => {
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce: only propagate to debouncedSearchTerm 350ms after user stops typing
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 350);
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [searchTerm]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
@@ -219,6 +232,7 @@ export const useFilterData = () => {
     // Filter state
     searchTerm,
     setSearchTerm,
+    debouncedSearchTerm,
     selectedCategories,
     setSelectedCategories,
     selectedAccounts,

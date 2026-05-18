@@ -32,6 +32,7 @@ function TransactionsContent() {
   const filterData = useFilterData();
   const {
     searchTerm,
+    debouncedSearchTerm,
     selectedCategories,
     selectedAccounts,
     selectedCurrencies,
@@ -76,6 +77,9 @@ function TransactionsContent() {
 
   // Ref for infinite scroll observer
   const observerTarget = useRef<HTMLDivElement>(null);
+  // Generation counter: each new fetchTransactions(1) call increments this.
+  // Responses belonging to a superseded generation are silently discarded.
+  const fetchGenerationRef = useRef(0);
 
   const { handleEditRecord, handleDeleteRecord } = useTransactionActions({
     transactions,
@@ -113,6 +117,17 @@ function TransactionsContent() {
   }, []);
   // Fetch transactions
   const fetchTransactions = useCallback(async (pageNum: number = 1) => {
+    // Fix 3: reset hasMore immediately on a fresh query so the IntersectionObserver
+    // cannot race and trigger a page+1 append before the new page-1 response arrives.
+    if (pageNum === 1) {
+      setHasMore(false);
+      setPage(1);
+    }
+
+    // Fix 2: stamp this invocation; bail out if a newer fetch has started by the
+    // time the response comes back (guards against out-of-order API responses).
+    const generation = ++fetchGenerationRef.current;
+
     try {
       if (pageNum === 1) setLoading(true);
       else setIsLoadingMore(true);
@@ -125,9 +140,9 @@ function TransactionsContent() {
       if (startDateTime) filters['start_date'] = startDateTime;
       if (endDateTime) filters['end_date'] = endDateTime;
 
-      // Add search term filter
-      if (searchTerm) {
-        filters['search'] = searchTerm;
+      // Fix 1: use debouncedSearchTerm so we only query once typing has settled
+      if (debouncedSearchTerm) {
+        filters['search'] = debouncedSearchTerm;
       }
 
       // Add category filter (use category IDs from selected category names)
@@ -213,6 +228,9 @@ function TransactionsContent() {
 
       const result = await transactionService.fetchTransactions(filters);
 
+      // Discard stale responses from superseded fetches
+      if (generation !== fetchGenerationRef.current) return;
+
       if (pageNum === 1) {
         setTransactions(result.transactions);
         // Capture totals from ALL filtered data (not just this page)
@@ -226,15 +244,17 @@ function TransactionsContent() {
       setHasMore(result.meta.page < totalPages);
       setPage(pageNum);
     } catch (error) {
+      if (generation !== fetchGenerationRef.current) return;
       console.error('Failed to fetch transactions:', error);
     } finally {
+      if (generation !== fetchGenerationRef.current) return;
       if (pageNum === 1) setLoading(false);
       else setIsLoadingMore(false);
     }
   }, [
     dateRange.start,
     dateRange.end,
-    searchTerm,
+    debouncedSearchTerm,
     selectedCategories,
     selectedAccounts,
     selectedLabelIds,

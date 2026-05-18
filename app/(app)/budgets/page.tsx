@@ -41,6 +41,7 @@ function BudgetsPageContent(): React.ReactElement {
     startDate: string;
     endDate: string;
     currency: string;
+    accountIds?: string[];
   }
 
   interface CombinedBudgetItem {
@@ -520,6 +521,13 @@ function BudgetsPageContent(): React.ReactElement {
       ? new Date(`${dateRange.end}T23:59:59.999`).toISOString()
       : new Date(selectedYear, 11, 31, 23, 59, 59, 999).toISOString();
 
+    // Resolve selected account names → IDs using the same logic as loadData/refreshBudgets
+    const resolvedAccountIds = selectedAccounts.length > 0
+      ? accountsRef.current
+          .filter(a => selectedAccounts.includes(a.name))
+          .map(a => a.id)
+      : undefined;
+
     setSelectedBudgetCategory({
       ids: collectCategoryIds(item.category.id),
       name: item.category.name,
@@ -527,9 +535,10 @@ function BudgetsPageContent(): React.ReactElement {
       startDate,
       endDate,
       currency,
+      ...(resolvedAccountIds && { accountIds: resolvedAccountIds }),
     });
     setShowTransactionsModal(true);
-  }, [collectCategoryIds, periodLabel, dateRange, selectedYear, user?.currency]);
+  }, [collectCategoryIds, periodLabel, dateRange, selectedYear, selectedAccounts, user?.currency]);
 
   const handleModalHide = () => {
     setShowModal(false);
@@ -806,6 +815,7 @@ function BudgetsPageContent(): React.ReactElement {
         {...(selectedBudgetCategory?.startDate && { startDate: selectedBudgetCategory.startDate })}
         {...(selectedBudgetCategory?.endDate && { endDate: selectedBudgetCategory.endDate })}
         {...(selectedBudgetCategory?.currency && { currency: selectedBudgetCategory.currency })}
+        {...(selectedBudgetCategory?.accountIds?.length && { accountIds: selectedBudgetCategory.accountIds })}
       />
     </Container>
   );
