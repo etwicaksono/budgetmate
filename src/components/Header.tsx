@@ -81,7 +81,7 @@ export default function Header(): React.ReactElement {
     setShowSidebar(false);
   }, [openAddModal, openAddDebtModal, isDebtPage, activeDebtTab]);
 
-  const buttonVariant = isDebtPage ? (activeDebtTab === 'lend' ? 'danger' : 'success') : 'success';
+  const buttonVariant = isDebtPage ? (activeDebtTab === 'lend' ? 'danger' : 'primary') : 'primary';
   const buttonText = isDebtPage ? (activeDebtTab === 'lend' ? 'Credit' : 'Debit') : 'Transaction';
 
   const handleLogout = useCallback(async (): Promise<void> => {
@@ -101,13 +101,13 @@ export default function Header(): React.ReactElement {
             <span className="app-header__brand-icon">
               <Image
                 src="/images/logo-image-only.svg"
-                alt="Wallet logo"
+                alt="BudgetMate logo"
                 width={40}
                 height={40}
                 className="app-header__brand-logo"
               />
             </span>
-            <span className="app-header__brand-text d-none d-md-inline">Finance App</span>
+            <span className="app-header__brand-text d-none d-md-inline">BudgetMate</span>
           </Link>
 
           <nav className="app-header__nav d-none d-lg-flex">
@@ -191,7 +191,7 @@ export default function Header(): React.ReactElement {
         className="sidebar-offcanvas"
       >
         <Offcanvas.Header closeButton>
-          <Offcanvas.Title>Finance App</Offcanvas.Title>
+          <Offcanvas.Title>BudgetMate</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
           <div className="app-header__mobile-profile">

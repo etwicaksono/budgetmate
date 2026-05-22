@@ -183,7 +183,7 @@ export function TransactionModal({
             </Button>
           )}
 
-          <Button variant="success" onClick={() => handleSave(false)} disabled={isSubmitting} className="flex-grow-1">
+          <Button variant="primary" onClick={() => handleSave(false)} disabled={isSubmitting} className="flex-grow-1">
             {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : (isEditMode ? 'Save Changes' : 'Add Transaction')}
           </Button>
 

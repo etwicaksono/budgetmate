@@ -354,7 +354,7 @@ const AccountsPage: React.FC = () => {
                   </p>
 
                   <Button
-                    variant="success"
+                    variant="primary"
                     className="accounts-sidebar__add-btn"
                     onClick={accountModal.openAddModal}
                   >

@@ -2,51 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Root variables for theming */
+/* Root variables for theming — BudgetMate Navy */
 :root {
   --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
+  --foreground: 222 47% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
+  --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 221.2 83.2% 53.3%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 213 53% 24%;
   --primary-foreground: 210 40% 98%;
+  --primary-light: 213 53% 36%;
+  --primary-50: 213 60% 96%;
   --secondary: 210 40% 96.1%;
   --secondary-foreground: 222.2 47.4% 11.2%;
   --muted: 210 40% 96.1%;
   --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
+  --accent: 199 89% 60%;
   --accent-foreground: 222.2 47.4% 11.2%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  --ring: 221.2 83.2% 53.3%;
+  --ring: 213 53% 24%;
   --radius: 0.5rem;
+  
+  /* Bootstrap overrides */
+  --bs-primary: #1E3A5F;
+  --bs-primary-rgb: 30, 58, 95;
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: #152b46;
+  --bs-btn-hover-border-color: #152b46;
 }
 
-/* Dark theme variables */
+/* Override Bootstrap btn-primary */
+.btn-primary {
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: #152b46;
+  --bs-btn-hover-border-color: #152b46;
+  --bs-btn-active-bg: #0f1f33;
+  --bs-btn-active-border-color: #0f1f33;
+  --bs-btn-disabled-bg: #1e3a5f80;
+  --bs-btn-disabled-border-color: #1e3a5f80;
+}
+
+/* Dark theme variables — BudgetMate Navy */
 .dark {
-  --background: 222.2 84% 4.9%;
+  --background: 222 47% 5%;
   --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
+  --card: 222 47% 5%;
   --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
+  --popover: 222 47% 5%;
   --popover-foreground: 210 40% 98%;
-  --primary: 217.2 91.2% 59.8%;
-  --primary-foreground: 222.2 47.4% 11.2%;
+  --primary: 213 63% 57%;
+  --primary-foreground: 222 47% 11%;
+  --primary-light: 213 63% 65%;
+  --primary-50: 213 40% 12%;
   --secondary: 217.2 32.6% 17.5%;
   --secondary-foreground: 210 40% 98%;
   --muted: 217.2 32.6% 17.5%;
   --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
+  --accent: 199 89% 60%;
   --accent-foreground: 210 40% 98%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
   --border: 217.2 32.6% 17.5%;
   --input: 217.2 32.6% 17.5%;
-  --ring: 224.3 76.3% 48%;
+  --ring: 213 63% 57%;
 }
 
 /* Base styles */
@@ -135,14 +159,14 @@ body {
 }
 
 .analytics-tabs .nav-link:hover {
-  color: #198754;
-  background-color: #f8f9fa;
+  color: #1E3A5F;
+  background-color: #EEF4FB;
 }
 
 .analytics-tabs .nav-link.active {
   color: #fff;
-  background-color: #198754;
-  border-color: #198754;
+  background-color: #1E3A5F;
+  border-color: #1E3A5F;
 }
 
 .analytics-content {

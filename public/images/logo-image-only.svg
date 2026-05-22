@@ -1,16 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" viewBox="0 0 46 46">
-    <defs>
-        <linearGradient id="a" x1="54.804%" x2="54.804%" y1="100%" y2="5.31%">
-            <stop offset="0%" stop-color="#F4F1FA"/>
-            <stop offset="100%" stop-color="#FFFEFF"/>
-        </linearGradient>
-    </defs>
-    <g fill="none" fill-rule="nonzero">
-        <path fill="#21CB87" d="M9.813-.032h26.374C41.607-.032 46 4.362 46 9.781v26.374c0 5.42-4.394 9.813-9.813 9.813H9.813C4.393 45.968 0 41.574 0 36.155V9.78C0 4.361 4.394-.032 9.813-.032z"/>
-        <path fill="#FFF" d="M6.571 13.799c0-2.195 1.79-3.974 3.997-3.974h24.864c2.207 0 3.997 1.779 3.997 3.974v19.16c0 2.194-1.79 3.973-3.997 3.973H10.568c-2.207 0-3.997-1.778-3.997-3.973v-19.16z"/>
-        <path fill="url(#a)" d="M10.516 11.5a2.294 2.294 0 0 0-2.302 2.285v19.251a2.294 2.294 0 0 0 2.302 2.285h24.968a2.294 2.294 0 0 0 2.302-2.285v-19.25a2.294 2.294 0 0 0-2.302-2.286H10.516z" transform="translate(0 -.032)"/>
-        <path fill="#E3750C" d="M37.786 18.04h1.232c.68 0 1.232.457 1.232 1.02v7.817c0 .563-.551 1.02-1.232 1.02h-1.232V18.04z"/>
-        <path fill="#FD9F45" d="M25.464 22.968c0-2.722 2.175-4.928 4.857-4.928h8.067c.574 0 1.04.472 1.04 1.056v7.745c0 .583-.466 1.056-1.04 1.056H30.32c-2.682 0-4.857-2.206-4.857-4.929z"/>
-        <path fill="#FFF" d="M30.393 25.432a2.464 2.464 0 1 0 0-4.928 2.464 2.464 0 0 0 0 4.928z"/>
-    </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="budgetmate-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E3A5F"/>
+      <stop offset="100%" style="stop-color:#2B5A8E"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="120" height="120" rx="28" fill="url(#budgetmate-grad)"/>
+  
+  <!-- Stylized "B" monogram -->
+  <path d="M42 32 L68 32 C78 32 84 37 84 46 C84 52 80 57 73 59 C82 61 88 67 88 76 C88 86 80 92 68 92 L42 92 Z M54 44 L54 56 L66 56 C70 56 72 54 72 50 C72 46 70 44 66 44 Z M54 68 L54 80 L68 80 C73 80 76 77 76 74 C76 71 73 68 68 68 Z" fill="white"/>
+  
+  <!-- Accent dots (sky blue) representing budget/analytics -->
+  <circle cx="82" cy="46" r="4" fill="#38BDF8"/>
+  <circle cx="86" cy="76" r="4" fill="#38BDF8"/>
 </svg>

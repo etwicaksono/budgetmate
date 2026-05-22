@@ -173,13 +173,13 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
               style={{
                 textAlign: 'left',
                 fontSize: '14px',
-                borderColor: activeFilterId ? '#198754' : undefined,
-                color: activeFilterId ? '#198754' : undefined,
+                borderColor: activeFilterId ? 'var(--bs-primary)' : undefined,
+                color: activeFilterId ? 'var(--bs-primary)' : undefined,
                 paddingRight: activeFilterId ? '2rem' : undefined,
               }}
             >
               <span className="d-flex align-items-center gap-2 text-truncate">
-                {renderIcon(FaFilter, { size: 14, color: activeFilterId ? '#198754' : '#6b7280' })}
+                {renderIcon(FaFilter, { size: 14, color: activeFilterId ? 'var(--bs-primary)' : '#6b7280' })}
                 <span className="text-truncate">
                   {activeFilterId
                     ? savedFilters.find((f) => f.id === activeFilterId)?.name ?? 'Select filter'
@@ -215,7 +215,7 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                     <div
                       key={filter.id}
                       className={`d-flex align-items-center gap-1 px-2 py-1 rounded mb-1 ${
-                        isActive ? 'bg-success bg-opacity-10' : ''
+                        isActive ? 'bg-primary bg-opacity-10' : ''
                       }`}
                       style={{ cursor: 'pointer' }}
                       onClick={() => {
@@ -230,7 +230,7 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                       }}
                     >
                       {/* Active check */}
-                      <span style={{ width: '16px', flexShrink: 0, color: '#198754', fontSize: '12px' }}>
+                      <span style={{ width: '16px', flexShrink: 0, color: 'var(--bs-primary)', fontSize: '12px' }}>
                         {isActive ? '✓' : ''}
                       </span>
                       {/* Filter name */}
@@ -284,8 +284,8 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                 height: '38px',
                 flexShrink: 0,
                 borderRadius: '8px',
-                border: `1px solid ${saveButtonEnabled ? '#198754' : '#dee2e6'}`,
-                backgroundColor: saveButtonEnabled ? '#198754' : '#f8f9fa',
+                border: `1px solid ${saveButtonEnabled ? 'var(--bs-primary)' : '#dee2e6'}`,
+                backgroundColor: saveButtonEnabled ? 'var(--bs-primary)' : '#f8f9fa',
                 color: saveButtonEnabled ? '#fff' : '#adb5bd',
                 cursor: saveButtonEnabled ? 'pointer' : 'not-allowed',
                 display: 'flex',
@@ -404,7 +404,7 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
         </Modal.Body>
         <Modal.Footer className="border-0 pt-0">
           <Button
-            variant="success"
+            variant="primary"
             className="w-100"
             disabled={!saveModalName.trim() || saveModalLoading}
             style={{ fontWeight: 500 }}
@@ -489,7 +489,7 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
         </Modal.Body>
         <Modal.Footer className="border-0 pt-0">
           <Button
-            variant="success"
+            variant="primary"
             className="w-100"
             disabled={!saveModalName.trim() || saveModalLoading}
             style={{ fontWeight: 500 }}
@@ -702,7 +702,7 @@ const SortableFilterItem: React.FC<SortableFilterItemProps> = ({
         {renameState?.id === filter.id ? (
           <Button
             variant="link"
-            className="p-0 text-success text-decoration-none"
+            className="p-0 text-primary text-decoration-none"
             aria-label={`Save rename for ${filter.name}`}
             title="Save"
             onClick={async (e) => {

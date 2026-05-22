@@ -96,7 +96,7 @@
 
 .save-action-item:hover,
 .save-action-item:focus {
-  background-color: #198754 !important;
+  background-color: #1E3A5F !important;
   color: #ffffff !important;
 }
 
@@ -106,12 +106,12 @@
 }
 
 .save-action-item--update {
-  color: #198754;
+  color: #1E3A5F;
 }
 
 .save-action-item--update:hover,
 .save-action-item--update:focus {
-  background-color: #157347 !important;
+  background-color: #162D4A !important;
   color: #ffffff !important;
 }
 

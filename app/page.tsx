@@ -27,23 +27,30 @@ export default function Home(): React.ReactElement {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gradient-to-b from-blue-50 to-white">
+    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gradient-to-b from-slate-50 to-white">
       <div className="text-center">
-        <h1 className="text-6xl font-bold text-gray-900 mb-4">Finance Manager</h1>
-        <p className="text-xl text-gray-600 mb-8">
-          Take control of your personal finances
+        <h1 className="text-6xl font-bold text-gray-900 mb-4">BudgetMate</h1>
+        <p className="text-xl text-gray-600 mb-2">
+          Smart Finance, Simplified
+        </p>
+        <p className="text-base text-gray-500 mb-8">
+          Take control of your personal finances with smart budgeting, expense tracking, and analytics.
         </p>
         
         <div className="flex gap-4 justify-center">
           <Link
             href="/login"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-colors"
+            className="text-white px-8 py-3 rounded-lg text-lg font-semibold transition-colors"
+            style={{ backgroundColor: '#1E3A5F' }}
+            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#2B5A8E')}
+            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#1E3A5F')}
           >
             Sign In
           </Link>
           <Link
             href="/register"
-            className="bg-white hover:bg-gray-50 text-blue-600 border-2 border-blue-600 px-8 py-3 rounded-lg text-lg font-semibold transition-colors"
+            className="bg-white hover:bg-gray-50 px-8 py-3 rounded-lg text-lg font-semibold transition-colors border-2"
+            style={{ color: '#1E3A5F', borderColor: '#1E3A5F' }}
           >
             Create Account
           </Link>

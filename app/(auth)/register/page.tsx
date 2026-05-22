@@ -227,7 +227,7 @@ function RegisterPageContent(): React.ReactElement {
           {/* Learn More */}
           <p className="learn-more">
             <button className="link-button" type="button">
-              Learn more about how Wallet works
+              Learn more about how BudgetMate works
             </button>
           </p>
 

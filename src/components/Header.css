@@ -35,7 +35,7 @@
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #2dd4bf, #10b981);
+  background: linear-gradient(135deg, #1E3A5F, #2B5A8E);
   color: #ffffff;
   font-size: 1.25rem;
 }
@@ -67,9 +67,9 @@
 }
 
 .app-header__link--active {
-  background-color: #d1fae5;
-  color: #047857;
-  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2);
+  background-color: #EEF4FB;
+  color: #1E3A5F;
+  box-shadow: inset 0 0 0 1px rgba(30, 58, 95, 0.2);
 }
 
 .app-header__right {
@@ -183,8 +183,8 @@
 }
 
 .app-header__mobile-link--active {
-  background-color: #ecfdf5;
-  color: #047857;
+  background-color: #EEF4FB;
+  color: #1E3A5F;
 }
 
 /* Force offcanvas above all sticky page elements */

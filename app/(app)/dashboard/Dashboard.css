@@ -93,9 +93,9 @@
 }
 
 .add-account-card:hover {
-  border-color: #10b981;
-  color: #10b981;
-  background-color: rgba(16, 185, 129, 0.08);
+  border-color: #1E3A5F;
+  color: #1E3A5F;
+  background-color: rgba(30, 58, 95, 0.08);
   cursor: pointer;
   transform: translateY(-2px);
 }

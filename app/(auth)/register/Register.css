@@ -1,4 +1,4 @@
-/* Register Page Styles - Matching finance-app-old styling */
+/* Register Page Styles — BudgetMate */
 
 .register-page {
   min-height: 100vh;
@@ -23,7 +23,7 @@
 .app-info {
   flex: 1;
   padding: 3rem;
-  background-color: #00a86b;
+  background-color: #1E3A5F;
   color: white;
   display: flex;
   flex-direction: column;
@@ -140,7 +140,7 @@
 .register-button {
   width: 100%;
   padding: 0.75rem;
-  background-color: #00a86b !important;
+  background-color: #1E3A5F !important;
   border: none !important;
   font-weight: 500;
   margin-top: 1rem;
@@ -148,7 +148,7 @@
 }
 
 .register-button:hover:not(:disabled) {
-  background-color: #009660 !important;
+  background-color: #2B5A8E !important;
 }
 
 .register-button:disabled {
@@ -217,7 +217,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: #00a86b;
+  color: #1E3A5F;
   text-decoration: none;
   cursor: pointer;
   font: inherit;
@@ -225,7 +225,7 @@
 
 .link-button:hover {
   text-decoration: underline;
-  color: #009660;
+  color: #2B5A8E;
 }
 
 .learn-more {

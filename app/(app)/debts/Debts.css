@@ -46,7 +46,7 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 2px solid #198754;
+  border: 2px solid #1E3A5F;
   background-color: white;
 }
 
@@ -77,8 +77,8 @@
 }
 
 .accordion-button:focus {
-  border-color: #059669;
-  box-shadow: 0 0 0 0.25rem rgba(5, 150, 105, 0.25);
+  border-color: #1E3A5F;
+  box-shadow: 0 0 0 0.25rem rgba(30, 58, 95, 0.25);
 }
 
 /* Refined shadow for summary cards */
@@ -108,7 +108,7 @@
 }
 
 .debt-type-tabs .nav-link.active {
-  color: #059669;
+  color: #1E3A5F;
   border-color: #dee2e6 #dee2e6 #fff;
   font-weight: 600;
 }

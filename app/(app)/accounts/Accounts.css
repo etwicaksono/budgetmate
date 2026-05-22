@@ -40,23 +40,16 @@
   border-radius: 999px;
   padding: 0.75rem 1rem;
   font-weight: 600;
-  background-color: #059669;
-  border-color: #059669;
-  box-shadow: 0 12px 28px rgba(5, 150, 105, 0.2);
+  box-shadow: 0 12px 28px rgba(30, 58, 95, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  color: #fff;
 }
 
 .accounts-sidebar__add-btn svg {
   flex-shrink: 0;
-}
-
-.accounts-sidebar__add-btn:hover,
-.accounts-sidebar__add-btn:focus {
-  background-color: #047857;
-  border-color: #047857;
 }
 
 .accounts-sidebar__switch {

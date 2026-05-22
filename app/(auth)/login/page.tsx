@@ -83,9 +83,9 @@ function LoginPageContent(): React.ReactElement {
         {/* Left Panel - App Info */}
         <div className="app-info">
           <h1>
-            Your Finances
+            Smart Finance,
             <br />
-            in One Place
+            Simplified
           </h1>
           <div className="app-preview" aria-label="Application preview" />
         </div>
@@ -171,7 +171,7 @@ function LoginPageContent(): React.ReactElement {
           {/* Learn More */}
           <p className="learn-more">
             <button className="link-button" type="button">
-              Learn more about how Wallet works
+              Learn more about how BudgetMate works
             </button>
           </p>
 

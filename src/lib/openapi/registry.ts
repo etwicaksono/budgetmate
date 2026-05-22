@@ -20,8 +20,8 @@ export function generateOpenApiDocument() {
     openapi: '3.0.0',
     info: {
       version: '1.0.0',
-      title: 'Finance App API v1',
-      description: 'API for managing finances, accounts, debts, and transactions.',
+      title: 'BudgetMate API v1',
+      description: 'BudgetMate API for managing finances, accounts, debts, and transactions.',
     },
     servers: [
       {

@@ -62,7 +62,7 @@ interface NavigationSection {
 // Navigation configuration
 const navigationItems: NavigationSection[] = [
   {
-    title: 'WALLET',
+    title: 'BUDGETMATE',
     items: [
       { id: 'categories', label: 'Categories', icon: FaList },
       { id: 'templates', label: 'Templates', icon: FaFileAlt },

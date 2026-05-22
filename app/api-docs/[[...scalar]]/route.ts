@@ -12,7 +12,7 @@ export const GET = ApiReference({
   },
   theme: 'deepSpace',
   metaData: {
-    title: 'Finance App API Reference',
+    title: 'BudgetMate API Reference',
     description: 'Interactive API Documentation built purely from Zod schemas'
   },
   customCss: `

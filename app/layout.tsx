@@ -12,13 +12,13 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Finance Manager',
-  description: 'Personal Finance Management Application',
+  title: 'BudgetMate — Smart Finance, Simplified',
+  description: 'Take control of your personal finances with BudgetMate. Smart budgeting, expense tracking, and financial analytics in one place.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Finance Manager',
+    title: 'BudgetMate',
   },
   icons: {
     icon: '/images/icon-192x192.png',
@@ -37,8 +37,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="theme-color" content="#21CB87" />
-        <meta name="application-name" content="Finance Manager" />
+        <meta name="theme-color" content="#1E3A5F" />
+        <meta name="application-name" content="BudgetMate" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
         <script
