@@ -1,6 +1,6 @@
-# Finance Manager - Personal Finance Management Application
+# BudgetMate - Smart Finance, Simplified
 
-A comprehensive personal finance management application built with Next.js 15+, TypeScript, Prisma, and PostgreSQL.
+Take control of your personal finances with BudgetMate. A comprehensive personal finance management application built with Next.js 15+, TypeScript, Prisma, and PostgreSQL.
 
 ## Features
 
@@ -39,7 +39,7 @@ A comprehensive personal finance management application built with Next.js 15+, 
 
 ```bash
 git clone <repository-url>
-cd finance-app
+cd budgetmate
 ```
 
 ### 2. Install dependencies
@@ -121,7 +121,7 @@ After seeding, you can login with:
 ## Project Structure
 
 ```
-finance-app/
+budgetmate/
 ├── app/                      # Next.js app directory
 │   ├── (auth)/              # Authentication pages (login, register)
 │   ├── dashboard/           # Protected dashboard pages
