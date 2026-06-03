@@ -1,6 +1,6 @@
 'use client';
 
-import { Col, Offcanvas } from 'react-bootstrap';
+import { Button, Col, Offcanvas } from 'react-bootstrap';
 import { FilterSidebar } from '@/components/FilterSidebar';
 import type { useFilterData } from '@/hooks/useFilterData';
 import type { useSavedFilters } from '@/hooks/useSavedFilters';
@@ -122,13 +122,27 @@ export function TransactionFilterSidebar({
         onHide={onHideMobile}
         placement="end"
         className="d-lg-none"
+        style={{ display: 'flex', flexDirection: 'column' }}
       >
         <Offcanvas.Header closeButton className="border-bottom">
           <Offcanvas.Title className="fw-bold">Filters</Offcanvas.Title>
         </Offcanvas.Header>
-        <Offcanvas.Body className="p-0">
+        <Offcanvas.Body className="p-0" style={{ overflowY: 'auto', flex: 1 }}>
           <FilterSidebar {...sharedProps} />
         </Offcanvas.Body>
+        {/* Sticky footer — mobile only */}
+        <div
+          className="border-top p-3"
+          style={{ flexShrink: 0, backgroundColor: 'var(--bs-body-bg, #fff)' }}
+        >
+          <Button
+            variant="primary"
+            className="w-100"
+            onClick={onHideMobile}
+          >
+            Show Result
+          </Button>
+        </div>
       </Offcanvas>
     </>
   );
