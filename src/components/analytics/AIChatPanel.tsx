@@ -147,6 +147,15 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 768px)');
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -401,13 +410,13 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
           style={{
             position: 'fixed',
             bottom: isExpanded ? 0 : '88px',
-            right: isExpanded ? 0 : '24px',
-            width: isExpanded ? '100vw' : '360px',
+            right: isExpanded ? 0 : (isMobile ? '16px' : '24px'),
+            width: isExpanded ? '100vw' : (isMobile ? 'calc(100vw - 32px)' : '360px'),
             maxWidth: isExpanded ? '100vw' : 'calc(100vw - 32px)',
             height: isExpanded ? '100vh' : 'auto',
             maxHeight: isExpanded ? '100vh' : 'calc(100vh - 120px)',
             display: 'flex',
-            flexDirection: isExpanded ? 'row' : 'column',
+            flexDirection: (isExpanded && !isMobile) ? 'row' : 'column',
             background: '#fff',
             borderRadius: isExpanded ? 0 : '16px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
@@ -417,8 +426,8 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
             transition: 'width 0.25s ease, height 0.25s ease, max-height 0.25s ease, bottom 0.25s ease, right 0.25s ease, border-radius 0.25s ease',
           }}
         >
-          {/* ── Sidebar (Only visible when expanded) ── */}
-          {isExpanded && (
+          {/* ── Sidebar (Only visible when expanded and not on mobile) ── */}
+          {isExpanded && !isMobile && (
             <div style={{ width: '260px', background: '#f9f9f9', borderRight: '1px solid #e9ecef', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
               <div style={{ padding: '14px', borderBottom: '1px solid #e9ecef' }}>
                 <button
@@ -557,7 +566,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
               >
                 {isExpanded ? <FaMinimize /> : <FaMaximize />}
               </button>
-              {!isExpanded && (
+              {(!isExpanded || isMobile) && (
                 <button
                   title="Riwayat percakapan"
                   onClick={() => { setShowSessionList((v) => !v); if (!showSessionList) void loadSessions(); }}
@@ -597,8 +606,8 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
             </div>
           )}
 
-          {/* Session list (Only shown in floating mode) */}
-          {!isExpanded && showSessionList && (
+          {/* Session list (Only shown in floating mode or on mobile) */}
+          {(!isExpanded || isMobile) && showSessionList && (
             <div style={{ maxHeight: '200px', overflowY: 'auto', background: '#fafafa', borderBottom: '1px solid #e9ecef', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid #e9ecef' }}>
                 <span style={{ fontSize: '11px', fontWeight: 600, color: '#6c757d' }}>Riwayat Percakapan</span>
