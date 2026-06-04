@@ -64,6 +64,7 @@ export const useFilterData = () => {
     transfers: true,
     debts: true,
   });
+  const [numberOfColumns, setNumberOfColumns] = useState<number>(2);
 
   // Data state
   const [categories, setCategories] = useState<Category[]>([]);
@@ -249,6 +250,8 @@ export const useFilterData = () => {
     setMaxAmount,
     filterVisibility,
     setFilterVisibility,
+    numberOfColumns,
+    setNumberOfColumns,
 
     // Category data
     categories,

@@ -16,6 +16,9 @@ import IncomesExpensesReport from '@/components/analytics/IncomesExpensesReport'
 import BalanceTrendReport from '@/components/analytics/BalanceTrendReport';
 import CashFlowReport from '@/components/analytics/CashFlowReport';
 import AdvancedChartsReport from '@/components/analytics/AdvancedChartsReport';
+import AIChatPanel from '@/components/analytics/AIChatPanel';
+import type { ContextSnapshot } from '@/lib/ai/types';
+import { useAuth } from '@/context/AuthContext';
 
 type TabKey = 'income-expense' | 'balance-trend' | 'cash-flow' | 'advanced-charts';
 
@@ -32,6 +35,7 @@ function AnalyticsContent(): React.ReactElement {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
 
   // Get active tab from URL, default to 'income-expense'
   const tabParam = searchParams.get('tab');
@@ -83,6 +87,8 @@ function AnalyticsContent(): React.ReactElement {
     selectedLabelIds,
     setSelectedLabelIds,
     labels,
+    numberOfColumns,
+    setNumberOfColumns,
   } = useFilterData();
 
   const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
@@ -107,6 +113,65 @@ function AnalyticsContent(): React.ReactElement {
       .map(acc => acc.id);
   }, [selectedAccounts, apiAccounts]);
 
+  // Build context snapshot for AIChatPanel from current filter state
+  const buildContextSnapshot = React.useCallback((): ContextSnapshot => {
+    const activeFilter = savedFilters.find(f => f.id === activeFilterId);
+    return {
+      activeTab,
+      ...(dateRange.start ? { startDate: new Date(dateRange.start + 'T00:00:00').toISOString() } : {}),
+      ...(dateRange.end ? { endDate: new Date(dateRange.end + 'T23:59:59').toISOString() } : {}),
+      categoryIds: selectedCategoryIds,
+      accountIds: selectedAccountIds,
+      currencies: selectedCurrencies,
+      periodLabel,
+      periodType: activePeriod.type,
+      searchTerm,
+      minAmount,
+      maxAmount,
+      transferOption,
+      debtOption,
+      sortOption,
+      selectedLabelIds,
+      ...(activeFilterId && { filterId: activeFilterId }),
+      ...(activeFilter && { filterName: activeFilter.name }),
+      numberOfColumns,
+    };
+  }, [
+    activeTab, dateRange, selectedCategoryIds, selectedAccountIds, selectedCurrencies, 
+    periodLabel, activePeriod.type, searchTerm, minAmount, maxAmount, transferOption, 
+    debtOption, sortOption, selectedLabelIds, activeFilterId, savedFilters, numberOfColumns
+  ]);
+
+  // Restore filters from a saved session context snapshot
+  const handleRestoreContext = React.useCallback((snapshot: ContextSnapshot) => {
+    // Restore category selections (map IDs back to names)
+    if (snapshot.categoryIds?.length && categories.length) {
+      const names = categories.filter(c => snapshot.categoryIds.includes(c.id)).map(c => c.name);
+      setSelectedCategories(names);
+    } else {
+      setSelectedCategories([]);
+    }
+    // Restore account selections
+    if (snapshot.accountIds?.length && apiAccounts.length) {
+      const names = apiAccounts.filter(a => snapshot.accountIds.includes(a.id)).map(a => a.name);
+      setSelectedAccounts(names);
+    } else {
+      setSelectedAccounts([]);
+    }
+    // Restore currencies
+    setSelectedCurrencies(snapshot.currencies ?? []);
+    
+    // Restore advanced filters
+    if (snapshot.searchTerm !== undefined) setSearchTerm(snapshot.searchTerm);
+    if (snapshot.minAmount !== undefined) setMinAmount(snapshot.minAmount);
+    if (snapshot.maxAmount !== undefined) setMaxAmount(snapshot.maxAmount);
+    if (snapshot.transferOption) setTransferOption(snapshot.transferOption as any);
+    if (snapshot.debtOption) setDebtOption(snapshot.debtOption as any);
+    if (snapshot.sortOption) setSortOption(snapshot.sortOption as any);
+    if (snapshot.selectedLabelIds) setSelectedLabelIds(snapshot.selectedLabelIds);
+    if (snapshot.numberOfColumns !== undefined) setNumberOfColumns(snapshot.numberOfColumns);
+  }, [categories, apiAccounts, setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSearchTerm, setMinAmount, setMaxAmount, setTransferOption, setDebtOption, setSortOption, setSelectedLabelIds, setNumberOfColumns]);
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'income-expense': {
@@ -120,6 +185,8 @@ function AnalyticsContent(): React.ReactElement {
             selectedCategories={selectedCategoryIds}
             selectedAccounts={selectedAccountIds}
             selectedCurrencies={selectedCurrencies}
+            numberOfColumns={numberOfColumns}
+            onNumberOfColumnsChange={setNumberOfColumns}
           />
         );
       }
@@ -388,6 +455,14 @@ function AnalyticsContent(): React.ReactElement {
           </div>
         </Col>
       </Row>
+
+      {/* AI Chat — floating FAB, always visible across all tabs if user has access */}
+      {user?.has_ai_access && (
+        <AIChatPanel
+          context={buildContextSnapshot()}
+          onRestoreContext={handleRestoreContext}
+        />
+      )}
     </Container>
   );
 }

@@ -247,7 +247,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           email: result.email,
           username: result.username,
           full_name: result.full_name,
-          created_at: result.created_at
+          created_at: result.created_at,
+          has_ai_access: result.has_ai_access
         },
         access_token: accessToken,
         refresh_token: refreshToken

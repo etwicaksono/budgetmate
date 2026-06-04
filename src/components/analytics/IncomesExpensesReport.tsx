@@ -19,6 +19,8 @@ interface IncomesExpensesReportProps {
   selectedCategories?: string[];
   selectedAccounts?: string[];
   selectedCurrencies?: string[];
+  numberOfColumns?: number;
+  onNumberOfColumnsChange?: (val: number) => void;
 }
 
 interface SelectedCategory {
@@ -40,7 +42,9 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   periodType = 'month',
   selectedCategories,
   selectedAccounts,
-  selectedCurrencies
+  selectedCurrencies,
+  numberOfColumns = 2,
+  onNumberOfColumnsChange
 }) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
@@ -48,7 +52,6 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [showPercentageDiff, setShowPercentageDiff] = useState(false);
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
-  const [numberOfColumns, setNumberOfColumns] = useState(2);
   const { formatCurrency } = useFormattedCurrency();
 
   const { data, loading, error, sortedCurrencies, selectedCurrency, setSelectedCurrency, defaultCurrency } =
@@ -855,7 +858,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 min={2}
                 max={6}
                 value={numberOfColumns}
-                onChange={(e) => setNumberOfColumns(Number(e.target.value))}
+                onChange={(e) => onNumberOfColumnsChange?.(Number(e.target.value))}
                 style={{ flex: 1 }}
               />
               <div className="d-flex justify-content-between" style={{ width: '100%', position: 'absolute', left: '16px', right: '16px', bottom: '85px', pointerEvents: 'none' }}>

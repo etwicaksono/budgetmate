@@ -15,6 +15,7 @@ interface User {
   full_name?: string;
   timezone: string;
   currency: string;
+  has_ai_access?: boolean;
 }
 
 interface LoginResponse {
