@@ -55,7 +55,7 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
    if (isSettled) headerBadge = <Badge bg="secondary">SETTLED</Badge>;
 
    return (
-      <Modal show={show} onHide={onHide} size="lg" centered>
+      <Modal show={show} onHide={onHide} size="lg" centered scrollable>
          <Modal.Header closeButton>
             <Modal.Title className="d-flex align-items-center gap-2">
                Debt Details {headerBadge}
