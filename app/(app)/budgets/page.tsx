@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Container, Row, Col, ListGroup, OverlayTrigger, Placeholder, Tooltip, Button } from 'react-bootstrap';
-import { FaGift, FaChevronRight, FaEdit, FaInfoCircle, FaListUl, FaFilter } from 'react-icons/fa';
+import { FaGift, FaChevronRight, FaEdit, FaInfoCircle, FaListUl, FaFilter, FaTable } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import { categoryService, Category } from '@/services/categoryService';
@@ -21,6 +21,8 @@ import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import type { DraftOption } from '@/hooks/useFilterData';
 import { BudgetFilterSidebar } from './_components/BudgetFilterSidebar';
+import { BudgetTableMode } from './_components/BudgetTableMode';
+import { CombinedBudgetItem } from './types';
 
 const BUDGET_SORT_OPTIONS: SortOption<string>[] = [
   { value: 'name_asc', icon: FaSortAlphaDown, title: 'Alphabetical ASC', ariaLabel: 'Alphabetical ascending' },
@@ -43,20 +45,6 @@ function BudgetsPageContent(): React.ReactElement {
     endDate: string;
     currency: string;
     accountIds?: string[];
-  }
-
-  interface CombinedBudgetItem {
-    category: Category;
-    spentMonthly: number;
-    spentAnnual: number;
-    basicMonthly: number;
-    extendMonthly: number;
-    basicAnnual: number;
-    extendAnnual: number;
-    hasMonthly: boolean;
-    hasAnnual: boolean;
-    projectedAnnual: number;
-    children?: CombinedBudgetItem[];
   }
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -88,6 +76,7 @@ function BudgetsPageContent(): React.ReactElement {
   const [showTransactionsModal, setShowTransactionsModal] = useState<boolean>(false);
   const [selectedBudgetCategory, setSelectedBudgetCategory] = useState<SelectedBudgetCategory | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'table'>('list');
 
   const loadData = useCallback(async () => {
     try {
@@ -763,17 +752,36 @@ function BudgetsPageContent(): React.ReactElement {
             </Row>
 
             {/* Period navigator */}
-            <div className="d-flex justify-content-center align-items-center mb-3">
+            <div className="d-flex justify-content-center align-items-center mb-3 position-relative">
               <PeriodNavigation>
                 <MonthYearSelector label={periodLabel} activePeriod={activePeriod} />
               </PeriodNavigation>
+              <div className="position-absolute end-0">
+                <Button 
+                  variant={viewMode === 'table' ? 'primary' : 'outline-secondary'} 
+                  size="sm" 
+                  className="d-flex align-items-center gap-2"
+                  onClick={() => setViewMode(prev => prev === 'list' ? 'table' : 'list')}
+                  title={viewMode === 'table' ? 'Back to List' : 'Edit in table mode'}
+                >
+                  {viewMode === 'table' ? <FaListUl size={14} /> : <FaTable size={14} />}
+                  <span className="d-none d-md-inline">{viewMode === 'table' ? 'Back to List' : 'Edit in table mode'}</span>
+                </Button>
+              </div>
             </div>
           </section>
 
           {/* Budget list */}
           <section>
-            <div className="categories-list">
-              {loading ? (
+            {viewMode === 'table' ? (
+              <BudgetTableMode 
+                data={parentItems} 
+                currency={user?.currency || 'IDR'} 
+                onRefresh={refreshBudgets} 
+              />
+            ) : (
+              <div className="categories-list">
+                {loading ? (
                 renderBudgetListSkeleton()
               ) : parentItems.length === 0 ? (
                 <div className="py-5 d-flex flex-column align-items-center justify-content-center bg-white rounded shadow-sm border" style={{ minHeight: '300px' }}>
@@ -803,6 +811,7 @@ function BudgetsPageContent(): React.ReactElement {
                 </ListGroup>
               )}
             </div>
+            )}
           </section>
         </Col>
       </Row>
