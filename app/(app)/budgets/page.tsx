@@ -760,7 +760,7 @@ function BudgetsPageContent(): React.ReactElement {
                 <Button 
                   variant={viewMode === 'table' ? 'primary' : 'outline-secondary'} 
                   size="sm" 
-                  className="d-flex align-items-center gap-2"
+                  className="d-none d-lg-flex align-items-center gap-2"
                   onClick={() => setViewMode(prev => prev === 'list' ? 'table' : 'list')}
                   title={viewMode === 'table' ? 'Back to List' : 'Edit in table mode'}
                 >
