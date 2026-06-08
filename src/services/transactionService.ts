@@ -41,6 +41,7 @@ export interface Transaction {
   transfer_description?: string;
   transfer_currency?: string;
   to_currency?: string;
+  is_draft?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +58,7 @@ export interface CreateTransactionRequest {
   payment_method?: string;
   payment_status?: string;
   label_ids?: string[];
+  is_draft?: boolean;
   // Transfer-specific fields
   to_account_id?: string;
   to_amount?: number;

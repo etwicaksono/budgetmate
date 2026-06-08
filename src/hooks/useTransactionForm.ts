@@ -14,6 +14,7 @@ export interface TransactionFormData {
   payment_method: string;
   payment_status: string;
   label_ids: string[];
+  is_draft: boolean;
 }
 
 export interface ValidationErrors {
@@ -53,6 +54,7 @@ const getDefaultFormData = (): TransactionFormData => {
     payment_method: 'Cash',
     payment_status: 'Cleared',
     label_ids: [],
+    is_draft: false,
   };
 };
 
@@ -135,6 +137,7 @@ export function useTransactionForm(): TransactionFormHookResult {
       label_ids?: string[]; 
       to_account_id?: string; 
       to_amount?: number;
+      is_draft?: boolean;
     };
     
     // Extract label IDs - try label_ids first (from edit modal), then labels array (from API)
@@ -157,6 +160,7 @@ export function useTransactionForm(): TransactionFormHookResult {
       payment_method: transaction.payment_method || 'Cash',
       payment_status: transaction.payment_status || 'Cleared',
       label_ids: labelIds,
+      is_draft: transactionWithLabelIds.is_draft || transaction.is_draft || false,
     });
     setErrors({});
   }, [resetForm]);

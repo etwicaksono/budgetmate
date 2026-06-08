@@ -1,6 +1,6 @@
 import React from 'react';
 import { Form, InputGroup, Dropdown, Button } from 'react-bootstrap';
-import { FaSearch, FaTags, FaWallet, FaCheck, FaExchangeAlt, FaHandHoldingUsd, FaMoneyBillWave } from 'react-icons/fa';
+import { FaSearch, FaTags, FaWallet, FaCheck, FaExchangeAlt, FaHandHoldingUsd, FaMoneyBillWave, FaFileAlt } from 'react-icons/fa';
 import AmountRangeFilter from '../AmountRangeFilter';
 import { CategoryDropdown } from './CategoryDropdown';
 import { AccountDropdown } from './AccountDropdown';
@@ -8,7 +8,7 @@ import { LabelMultiSelect } from '../transaction/LabelMultiSelect';
 import { ClearButton } from '@/components/common/ClearButton';
 import { renderIcon } from './FilterSidebar.utils';
 import type { FilterSidebarProps } from './FilterSidebar.types';
-import type { TransferOption, DebtOption } from '@/hooks/useFilterData';
+import type { TransferOption, DebtOption, DraftOption } from '@/hooks/useFilterData';
 
 type FilterInputsProps = Pick<
   FilterSidebarProps,
@@ -21,6 +21,8 @@ type FilterInputsProps = Pick<
   | 'onTransferOptionChange'
   | 'debtOption'
   | 'onDebtOptionChange'
+  | 'draftOption'
+  | 'onDraftOptionChange'
   | 'selectedCategories'
   | 'onSelectedCategoriesChange'
   | 'categoryTree'
@@ -66,6 +68,8 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
   onTransferOptionChange = () => {},
   debtOption = 'include',
   onDebtOptionChange = () => {},
+  draftOption = 'exclude',
+  onDraftOptionChange = () => {},
   selectedCategories = [],
   onSelectedCategoriesChange = () => {},
   categoryTree = {},
@@ -364,6 +368,59 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
                     }`}
                     style={isSelected ? { backgroundColor: '#e9ecef' } : {}}
                     onClick={() => onDebtOptionChange(option.value as DebtOption)}
+                  >
+                    {isSelected && (
+                      <span className="d-inline-flex justify-content-center" style={{ width: '1.25rem' }}>
+                        {renderIcon(FaCheck, { className: 'text-success' })}
+                      </span>
+                    )}
+                    {!isSelected && <span style={{ width: '1.25rem' }}></span>}
+                    <span className="flex-grow-1 text-start">{option.label}</span>
+                  </Dropdown.Item>
+                );
+              })}
+            </Dropdown.Menu>
+          </Dropdown>
+        </Form.Group>
+      )}
+
+      {filterVisibility.drafts && (
+        <Form.Group className="mb-2" controlId="draftFilter">
+          <Form.Label className="fw-semibold text-muted small">Drafts</Form.Label>
+          <Dropdown>
+            <Dropdown.Toggle
+              variant="outline-secondary"
+              className="w-100 d-flex align-items-center justify-content-between"
+              style={{ textAlign: 'left' }}
+            >
+              <span className="d-flex align-items-center gap-2">
+                {renderIcon(FaFileAlt, { size: 14 })}
+                <span className="d-inline-flex align-items-center gap-1">
+                  {draftOption === 'include'
+                    ? 'Include drafts'
+                    : draftOption === 'only'
+                      ? 'Only drafts'
+                      : 'Exclude drafts'}
+                </span>
+              </span>
+            </Dropdown.Toggle>
+            <Dropdown.Menu className="w-100 p-1">
+              {[
+                { label: 'Include drafts', value: 'include' },
+                { label: 'Only drafts', value: 'only' },
+                { label: 'Exclude drafts', value: 'exclude' },
+              ].map((option) => {
+                const isSelected = draftOption === option.value;
+                return (
+                  <Dropdown.Item
+                    key={option.value}
+                    as="button"
+                    type="button"
+                    className={`d-flex align-items-center gap-2 w-100 bg-white ${
+                      isSelected ? 'selected' : ''
+                    }`}
+                    style={isSelected ? { backgroundColor: '#e9ecef' } : {}}
+                    onClick={() => onDraftOptionChange(option.value as DraftOption)}
                   >
                     {isSelected && (
                       <span className="d-inline-flex justify-content-center" style={{ width: '1.25rem' }}>

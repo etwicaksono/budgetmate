@@ -23,6 +23,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const startDateParam = searchParams.get('start_date');
   const endDateParam = searchParams.get('end_date');
   const accountIdsParam = searchParams.get('account_ids')?.split(',').filter(Boolean) ?? [];
+  const draftsParam = searchParams.get('drafts') || 'exclude'; // 'include', 'exclude', 'only'
 
   const now = new Date();
   const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
@@ -62,6 +63,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Run aggregations concurrently
     const accountFilter = accountIdsParam.length > 0 ? { account_id: { in: accountIdsParam } } : {};
+    
+    // Determine draft filter
+    const draftFilter: { is_draft?: boolean } = {};
+    if (draftsParam === 'exclude') draftFilter.is_draft = false;
+    else if (draftsParam === 'only') draftFilter.is_draft = true;
 
     const [monthlyAgg, annualAgg] = await Promise.all([
       prisma.transaction.groupBy({
@@ -72,6 +78,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           type: { in: ['income', 'expense'] },
           date: { gte: monthlyStart, lte: monthlyEnd },
           ...accountFilter,
+          ...draftFilter,
         },
         _sum: { amount: true },
       }),
@@ -83,6 +90,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           type: { in: ['income', 'expense'] },
           date: { gte: annualStart, lte: annualEnd },
           ...accountFilter,
+          ...draftFilter,
         },
         _sum: { amount: true },
       })

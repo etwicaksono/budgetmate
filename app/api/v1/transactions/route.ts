@@ -108,6 +108,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Draft option (default: exclude)
+    if (filters.draft_option === 'only') {
+      where.is_draft = true;
+    } else if (filters.draft_option === 'include') {
+      // include both true and false, no filter needed
+    } else {
+      where.is_draft = false;
+    }
+
     // Date range
     if (filters.start_date || filters.end_date) {
       where.date = {};
@@ -273,6 +282,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         reference_number: tx.reference_number,
         labels: tx.labels.map(l => l.label),
         debt_id: tx.debt_id,
+        is_draft: tx.is_draft,
         created_at: tx.created_at,
         updated_at: tx.updated_at
       };
@@ -398,6 +408,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           payment_method: data.payment_method ?? null,
           payment_status: data.payment_status ?? null,
           reference_number: data.reference_number ?? null,
+          is_draft: data.is_draft ?? false,
           created_by: user.user_id
         },
         include: {
@@ -456,6 +467,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payment_method: transaction.payment_method,
       payment_status: transaction.payment_status,
       reference_number: transaction.reference_number,
+      is_draft: transaction.is_draft,
       created_at: transaction.created_at
     };
 

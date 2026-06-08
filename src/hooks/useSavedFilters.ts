@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { savedFilterService, type SavedFilter, type SavedFilterPayload } from '@/services/savedFilterService';
-import type { SortValue, TransferOption, DebtOption } from '@/hooks/useFilterData';
+import type { SortValue, TransferOption, DebtOption, DraftOption } from '@/hooks/useFilterData';
 import type { Category } from '@/services/categoryService';
 import type { Account } from '@/services/accountService';
 
@@ -12,6 +12,7 @@ export interface FilterSnapshot {
    sortOption: SortValue;
    transferOption: string;
    debtOption: string;
+   draftOption: string;
 }
 
 export interface LoadFilterCallback {
@@ -22,6 +23,7 @@ export interface LoadFilterCallback {
    setSortOption: React.Dispatch<React.SetStateAction<SortValue>>;
    setTransferOption: React.Dispatch<React.SetStateAction<TransferOption>>;
    setDebtOption: React.Dispatch<React.SetStateAction<DebtOption>>;
+   setDraftOption: React.Dispatch<React.SetStateAction<DraftOption>>;
 }
 
 interface UseSavedFiltersOptions {
@@ -116,6 +118,7 @@ export function useSavedFilters({
             sortOption: current.sortOption,
             transferOption: current.transferOption,
             debtOption: current.debtOption,
+            draftOption: current.draftOption,
          };
          try {
             const created = await savedFilterService.createSavedFilter({ name, context, filters });
@@ -156,6 +159,9 @@ export function useSavedFilters({
          }
          if (filters.debtOption) {
             dispatchers.setDebtOption(filters.debtOption as DebtOption);
+         }
+         if (filters.draftOption) {
+            dispatchers.setDraftOption(filters.draftOption as DraftOption);
          }
          setActiveFilterId(filter.id);
       },
@@ -205,6 +211,7 @@ export function useSavedFilters({
             sortOption: current.sortOption,
             transferOption: current.transferOption,
             debtOption: current.debtOption,
+            draftOption: current.draftOption,
          };
          try {
             const updated = await savedFilterService.updateSavedFilter(id, { name, context, filters });

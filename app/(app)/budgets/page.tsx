@@ -19,6 +19,7 @@ import { FaSortAlphaDown, FaSortAlphaUpAlt, FaSortAmountDown, FaSortAmountUp } f
 import type { SortOption } from '@/components/common/SortDropdown';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
+import type { DraftOption } from '@/hooks/useFilterData';
 import { BudgetFilterSidebar } from './_components/BudgetFilterSidebar';
 
 const BUDGET_SORT_OPTIONS: SortOption<string>[] = [
@@ -62,6 +63,7 @@ function BudgetsPageContent(): React.ReactElement {
   const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [draftOption, setDraftOption] = useState<DraftOption>('exclude');
   // Ref keeps latest accounts accessible inside callbacks without being a dep
   const accountsRef = useRef<Account[]>([]);
 
@@ -106,6 +108,7 @@ function BudgetsPageContent(): React.ReactElement {
           ...(startDateTime ? { start_date: startDateTime } : {}),
           ...(endDateTime ? { end_date: endDateTime } : {}),
           ...(accountIds ? { account_ids: accountIds } : {}),
+          drafts: draftOption,
         })
       ]);
       setCategories(
@@ -119,7 +122,7 @@ function BudgetsPageContent(): React.ReactElement {
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, selectedYear, selectedAccounts]);
+  }, [selectedMonth, selectedYear, selectedAccounts, draftOption]);
 
   // Load accounts once on mount — separate from the main data loop
   useEffect(() => {
@@ -148,12 +151,13 @@ function BudgetsPageContent(): React.ReactElement {
         ...(startDateTime ? { start_date: startDateTime } : {}),
         ...(endDateTime ? { end_date: endDateTime } : {}),
         ...(accountIds ? { account_ids: accountIds } : {}),
+        drafts: draftOption,
       });
       setBudgets(budRes);
     } catch (error) {
       console.error(error);
     }
-  }, [selectedMonth, selectedYear, selectedAccounts]);
+  }, [selectedMonth, selectedYear, selectedAccounts, draftOption]);
 
   useEffect(() => {
     loadData();
@@ -171,15 +175,17 @@ function BudgetsPageContent(): React.ReactElement {
       sortOption: sortBy as any,
       transferOption: 'include',
       debtOption: 'include',
+      draftOption: draftOption,
     },
     dispatchers: {
       setSelectedCategories: () => {},
       setSelectedAccounts,
       setSelectedCurrencies: () => {},
       setSelectedLabelIds: () => {},
-      setSortOption: setSortBy as any,
+      setSortOption: (s: any) => setSortBy(s),
       setTransferOption: () => {},
       setDebtOption: () => {},
+      setDraftOption,
     },
     context: 'budget',
   });
@@ -718,6 +724,8 @@ function BudgetsPageContent(): React.ReactElement {
           onShowProjectionsChange={setShowProjections}
           onExpandAll={expandAll}
           onCollapseAll={collapseAll}
+          draftOption={draftOption}
+          onDraftOptionChange={setDraftOption}
           savedFiltersData={savedFiltersData}
           showMobile={showMobileFilters}
           onHideMobile={() => setShowMobileFilters(false)}

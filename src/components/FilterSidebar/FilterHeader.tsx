@@ -100,6 +100,7 @@ export const FilterHeader: React.FC<FilterHeaderProps> = ({
                 { id: 'currencies', label: 'Currencies' },
                 { id: 'transfers', label: 'Transfers', defaultState: true },
                 { id: 'debts', label: 'Debts', defaultState: true },
+                { id: 'drafts', label: 'Drafts', defaultState: true },
               ].map((item) => (
                 <Form.Check
                   key={item.id}

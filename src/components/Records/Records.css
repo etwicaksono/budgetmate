@@ -225,7 +225,7 @@
 .records-item-card:hover .records-item-actions {
   opacity: 1;
   pointer-events: auto;
-  max-width: 120px;
+  max-width: 250px;
   margin-left: 0.5rem;
 }
 

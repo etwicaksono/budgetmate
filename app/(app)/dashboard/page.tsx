@@ -97,8 +97,7 @@ function DashboardContent(): React.ReactElement {
   const [isLoadingMoreTx, setIsLoadingMoreTx] = useState(false);
 
   const { handleEditRecord } = useTransactionActions({
-    transactions: transactions,
-    onTransactionMutated: () => fetchDashboardData(),
+    transactions: transactions
   });
 
   const { formatCurrency } = useFormattedCurrency();

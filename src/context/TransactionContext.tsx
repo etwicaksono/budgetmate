@@ -17,6 +17,7 @@ export interface TransactionFormData {
   transfer_id?: string;
   to_account_id?: string;
   to_amount?: number | string;
+  is_draft?: boolean;
 }
 
 interface TransactionContextValue {

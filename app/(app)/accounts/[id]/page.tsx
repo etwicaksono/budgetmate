@@ -171,6 +171,13 @@ const RecordsTab = ({ accountId }: { accountId: string }) => {
     fetchTransactions(1);
   }, [fetchTransactions]);
 
+  // Listen for transaction updates
+  useEffect(() => {
+    const handleUpdate = () => fetchTransactions(1);
+    window.addEventListener('transaction-updated', handleUpdate);
+    return () => window.removeEventListener('transaction-updated', handleUpdate);
+  }, [fetchTransactions]);
+
   // Infinite scroll
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -263,7 +270,6 @@ const RecordsTab = ({ accountId }: { accountId: string }) => {
   
   const { handleEditRecord, handleDeleteRecord } = useTransactionActions({
     transactions,
-    onTransactionMutated: () => fetchTransactions(1),
   });
 
   const netTotalsByCurrency = useMemo(() => {

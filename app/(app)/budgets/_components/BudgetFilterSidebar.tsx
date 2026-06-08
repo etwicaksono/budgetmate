@@ -1,8 +1,8 @@
 'use client';
 
 
-import { Col, Offcanvas, Form, Button, Card } from 'react-bootstrap';
-import { FaChevronRight, FaSearch } from 'react-icons/fa';
+import { Col, Offcanvas, Form, Button, Card, Dropdown } from 'react-bootstrap';
+import { FaChevronRight, FaSearch, FaFileAlt, FaCheck } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
 import type { Account } from '@/services/accountService';
 import type { useSavedFilters } from '@/hooks/useSavedFilters';
@@ -11,6 +11,7 @@ import { SavedFiltersManager } from '@/components/FilterSidebar/SavedFiltersMana
 import { ClearButton } from '@/components/common/ClearButton';
 import { SortDropdown } from '@/components/common/SortDropdown';
 import type { SortOption } from '@/components/common/SortDropdown';
+import type { DraftOption } from '@/hooks/useFilterData';
 import '@/components/FilterSidebar/FilterSidebar.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -35,6 +36,9 @@ export interface BudgetFilterSidebarProps {
   // Expand / Collapse
   onExpandAll: () => void;
   onCollapseAll: () => void;
+  // Draft filter
+  draftOption: DraftOption;
+  onDraftOptionChange: (v: DraftOption) => void;
   // Saved filters
   savedFiltersData: SavedFiltersData;
   // Mobile Offcanvas
@@ -71,6 +75,8 @@ function BudgetFilterPanel({
   onShowProjectionsChange,
   onExpandAll,
   onCollapseAll,
+  draftOption,
+  onDraftOptionChange,
   savedFiltersData,
 }: Omit<BudgetFilterSidebarProps, 'showMobile' | 'onHideMobile'>) {
   const {
@@ -93,6 +99,7 @@ function BudgetFilterPanel({
   const handleReset = () => {
     onSearchTermChange('');
     onSelectedAccountsChange([]);
+    onDraftOptionChange('exclude');
     clearActiveFilter();
   };
 
@@ -223,6 +230,58 @@ function BudgetFilterPanel({
                 style={{ pointerEvents: 'none' }}
               />
             </div>
+          </Form.Group>
+
+          {/* Drafts Filter */}
+          <Form.Group className="mb-4" controlId="budgetDraftFilter">
+            <Form.Label className="fw-semibold text-muted small">Drafts</Form.Label>
+            <Dropdown>
+              <Dropdown.Toggle
+                variant="outline-secondary"
+                className="w-100 d-flex align-items-center justify-content-between"
+                style={{ textAlign: 'left' }}
+              >
+                <span className="d-flex align-items-center gap-2">
+                  <FaFileAlt size={14} color="#adb5bd" />
+                  <span className="d-inline-flex align-items-center gap-1">
+                    {draftOption === 'include'
+                      ? 'Include drafts'
+                      : draftOption === 'only'
+                        ? 'Only drafts'
+                        : 'Exclude drafts'}
+                  </span>
+                </span>
+              </Dropdown.Toggle>
+              <Dropdown.Menu className="w-100 p-1">
+                {[
+                  { label: 'Include drafts', value: 'include' },
+                  { label: 'Only drafts', value: 'only' },
+                  { label: 'Exclude drafts', value: 'exclude' },
+                ].map((option) => {
+                  const isSelected = draftOption === option.value;
+                  return (
+                    <Dropdown.Item
+                      key={option.value}
+                      as="button"
+                      type="button"
+                      className={`d-flex align-items-center gap-2 w-100 bg-white ${
+                        isSelected ? 'selected' : ''
+                      }`}
+                      style={isSelected ? { backgroundColor: '#e9ecef' } : {}}
+                      onClick={() => onDraftOptionChange(option.value as DraftOption)}
+                    >
+                      {isSelected && (
+                        <span className="d-inline-flex justify-content-center" style={{ width: '1.25rem' }}>
+                          <FaCheck className="text-success" />
+                        </span>
+                      )}
+                      {!isSelected && <span style={{ width: '1.25rem' }}></span>}
+                      <span className="flex-grow-1 text-start">{option.label}</span>
+                    </Dropdown.Item>
+                  );
+                })}
+              </Dropdown.Menu>
+            </Dropdown>
           </Form.Group>
 
           {/* Expand / Collapse All */}

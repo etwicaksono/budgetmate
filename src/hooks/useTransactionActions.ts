@@ -9,10 +9,9 @@ import { isTransferTransaction, mapTransferAccounts, getModalTransactionType } f
 
 interface UseTransactionActionsOptions {
   transactions: Transaction[];
-  onTransactionMutated: () => void;
 }
 
-export function useTransactionActions({ transactions, onTransactionMutated }: UseTransactionActionsOptions) {
+export function useTransactionActions({ transactions }: UseTransactionActionsOptions) {
   const { openEditModal } = useTransaction();
   const { openIncreaseModal, openRepaymentModal } = useDebt();
 
@@ -106,29 +105,129 @@ export function useTransactionActions({ transactions, onTransactionMutated }: Us
       reverseButtons: true
     });
 
-    if (!result.isConfirmed) return;
-
-    try {
-      await transactionService.deleteTransaction(recordId);
-      await Swal.fire({
-        icon: 'success',
-        title: 'Deleted',
-        text: 'Transaction deleted successfully',
-        timer: 2000,
-        showConfirmButton: false
+    if (result.isConfirmed) {
+      // Background delete
+      transactionService.deleteTransaction(recordId).catch(error => {
+        console.error('Failed to delete transaction in background:', error);
+        
+        // Revert optimistic update
+        const deletedTransaction = transactions.find((t) => t.id === recordId);
+        if (deletedTransaction) {
+          window.dispatchEvent(
+            new CustomEvent('transaction-updated', {
+              detail: { action: 'add', data: deletedTransaction },
+            })
+          );
+        }
+        
+        Swal.fire({
+          icon: 'error',
+          title: 'Delete Failed',
+          text: 'Failed to delete transaction on the server. Your data has been restored.',
+        });
       });
-      onTransactionMutated();
+
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+      });
+
+      Toast.fire({
+        icon: 'success',
+        title: 'Transaction deleted'
+      });
+
+      window.dispatchEvent(
+        new CustomEvent('transaction-updated', {
+          detail: { action: 'delete', data: { id: recordId } },
+        })
+      );
+    }
+  }, [transactions]);
+
+  const handleCloneAsDraft = useCallback(async (record: TransactionRecord) => {
+    const transaction = transactions.find((t) => t.id === record.id);
+    if (!transaction) return;
+
+    const labelIds = transaction.labels?.map(label => label.id).filter((id): id is string => !!id) || [];
+    const modalType = getModalTransactionType(transaction);
+
+    // Open add modal prefilled with cloned data, and flag as draft
+    openEditModal({
+      // no id -> Create Mode
+      date: new Date().toISOString(), // Use current date for clone
+      account_id: transaction.account_id,
+      category_id: transaction.category_id || '',
+      amount: Math.abs(transaction.amount),
+      type: modalType,
+      description: transaction.description || '',
+      payee: transaction.payee || '',
+      payment_method: transaction.payment_method || 'Cash',
+      label_ids: labelIds,
+      is_draft: true // Preselect "Save as Draft" if implemented in modal, or use as indicator
+    });
+  }, [transactions, openEditModal]);
+
+  const handleConfirmDraft = useCallback(async (record: TransactionRecord) => {
+    const transaction = transactions.find((t) => t.id === record.id);
+    if (!transaction) return;
+
+    // Confirm Draft via background process: update transaction.is_draft to false
+    try {
+      // Create a toast for background processing
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+      });
+
+      const optimisticData = { ...transaction, is_draft: false };
+      
+      window.dispatchEvent(
+        new CustomEvent('transaction-updated', {
+          detail: { action: 'edit', data: optimisticData },
+        })
+      );
+      
+      Toast.fire({
+        icon: 'success',
+        title: 'Transaction Confirmed'
+      });
+
+      // Update API in background
+      transactionService.updateTransaction(transaction.id, {
+        is_draft: false
+      }).catch(error => {
+        console.error('Failed to confirm draft in background:', error);
+        
+        // Revert optimistic update
+        window.dispatchEvent(
+          new CustomEvent('transaction-updated', {
+            detail: { action: 'edit', data: transaction },
+          })
+        );
+        
+        Swal.fire({
+          icon: 'error',
+          title: 'Confirmation Failed',
+          text: 'Failed to confirm draft on the server. Your data has been reverted.',
+        });
+      });
     } catch (error) {
-      console.error('Failed to delete transaction:', error);
-      await Swal.fire({
+      console.error('Failed to confirm draft:', error);
+      Swal.fire({
         icon: 'error',
-        title: 'Delete Failed',
-        text: 'Failed to delete transaction',
-        confirmButtonText: 'OK',
+        title: 'Confirmation Failed',
+        text: 'Failed to confirm draft transaction',
         confirmButtonColor: '#dc3545'
       });
     }
-  }, [transactions, onTransactionMutated]);
+  }, [transactions]);
 
-  return { handleEditRecord, handleDeleteRecord };
+  return { handleEditRecord, handleDeleteRecord, handleCloneAsDraft, handleConfirmDraft };
 }

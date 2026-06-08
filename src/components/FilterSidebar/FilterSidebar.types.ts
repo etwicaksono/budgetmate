@@ -1,10 +1,10 @@
 import type { ComponentType } from 'react';
 import type { IconType, IconBaseProps } from 'react-icons';
 import type { Label } from '@/services/labelService';
-import type { SortValue, FilterVisibility, TransferOption, DebtOption } from '@/hooks/useFilterData';
+import type { SortValue, FilterVisibility, TransferOption, DebtOption, DraftOption } from '@/hooks/useFilterData';
 import type { SavedFilter } from '@/services/savedFilterService';
 
-export type { SortValue, FilterVisibility, TransferOption, DebtOption };
+export type { SortValue, FilterVisibility, TransferOption, DebtOption, DraftOption };
 
 export type IconRenderable = IconType | ComponentType<IconBaseProps>;
 
@@ -33,6 +33,8 @@ export interface FilterSidebarProps {
   onTransferOptionChange?: React.Dispatch<React.SetStateAction<TransferOption>>;
   debtOption?: DebtOption;
   onDebtOptionChange?: React.Dispatch<React.SetStateAction<DebtOption>>;
+  draftOption?: DraftOption;
+  onDraftOptionChange?: React.Dispatch<React.SetStateAction<DraftOption>>;
   selectedCategories?: string[];
   onSelectedCategoriesChange?: React.Dispatch<React.SetStateAction<string[]>>;
   categoryTree?: Record<string, string[]>;

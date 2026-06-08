@@ -13,7 +13,9 @@ export interface TransactionModalProps {
   onSave: (transaction: Partial<Transaction>) => Promise<void>;
   transaction?: Transaction | null;
   title?: string;
-  onDelete?: (transactionId: string) => Promise<void>;
+  onDelete?: (transactionId: string) => void;
+  onCloneAsDraft?: (transaction: Transaction) => void;
+  onConfirmDraft?: (transaction: Transaction) => void;
 }
 
 export function TransactionModal({
@@ -23,6 +25,8 @@ export function TransactionModal({
   transaction = null,
   title,
   onDelete,
+  onCloneAsDraft,
+  onConfirmDraft,
 }: TransactionModalProps): React.JSX.Element {
   const { formData, errors, updateField, validateForm, resetForm, initializeFromTransaction } =
     useTransactionForm();
@@ -57,7 +61,7 @@ export function TransactionModal({
   }, [show, transaction, initializeFromTransaction, resetForm]);
 
   const handleSave = useCallback(
-    async (createAnother: boolean = false) => {
+    async (createAnother: boolean = false, isDraftOverride?: boolean) => {
       if (!validateForm()) {
         return;
       }
@@ -117,6 +121,7 @@ export function TransactionModal({
           ...(formData.type !== 'transfer' && formData.category_id && { category_id: formData.category_id }),
           currency: accountCurrency, // ✅ Use account currency instead of hardcoded 'USD'
           label_ids: formData.label_ids,
+          ...(isDraftOverride !== undefined ? { is_draft: isDraftOverride } : { is_draft: formData.is_draft }),
           ...(formData.description && { description: formData.description }),
           ...(formData.payee && { payee: formData.payee }),
           ...(formData.payment_method && { payment_method: formData.payment_method }),
@@ -183,16 +188,51 @@ export function TransactionModal({
             </Button>
           )}
 
-          <Button variant="primary" onClick={() => handleSave(false)} disabled={isSubmitting} className="flex-grow-1">
+          {isEditMode && transaction?.is_draft ? (
+            onConfirmDraft && (
+              <Button
+                variant="success"
+                onClick={() => onConfirmDraft(transaction)}
+                disabled={isSubmitting}
+                title="Confirm Transaction"
+              >
+                Confirm
+              </Button>
+            )
+          ) : (
+            isEditMode && onCloneAsDraft && formData.type !== 'transfer' && (
+              <Button
+                variant="outline-secondary"
+                onClick={() => onCloneAsDraft(transaction!)}
+                disabled={isSubmitting}
+                title="Clone as Draft"
+              >
+                Clone as Draft
+              </Button>
+            )
+          )}
+
+          <Button variant="primary" onClick={() => handleSave(false, false)} disabled={isSubmitting} className="flex-grow-1">
             {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : (isEditMode ? 'Save Changes' : 'Add Transaction')}
           </Button>
+
+          {!isEditMode && formData.type !== 'transfer' && (
+            <Button
+              variant="outline-warning"
+              onClick={() => handleSave(false, true)}
+              disabled={isSubmitting}
+              className="flex-grow-1"
+            >
+              {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Save as Draft'}
+            </Button>
+          )}
 
           {!isEditMode && (
             <Button
               variant="outline-primary"
-              onClick={() => handleSave(true)}
+              onClick={() => handleSave(true, false)}
               disabled={isSubmitting}
-              className="flex-grow-1"
+              className="flex-grow-1 d-none d-md-block"
             >
               {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Add & Create Another'}
             </Button>

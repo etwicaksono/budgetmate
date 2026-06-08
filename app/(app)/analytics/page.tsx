@@ -69,6 +69,8 @@ function AnalyticsContent(): React.ReactElement {
     setTransferOption,
     debtOption,
     setDebtOption,
+    draftOption,
+    setDraftOption,
     minAmount,
     setMinAmount,
     maxAmount,
@@ -94,8 +96,8 @@ function AnalyticsContent(): React.ReactElement {
   const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
     categories,
     accounts: apiAccounts,
-    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption, transferOption, debtOption },
-    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption, setTransferOption, setDebtOption },
+    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption, transferOption, debtOption, draftOption },
+    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption, setTransferOption, setDebtOption, setDraftOption },
   });
 
   // Map selected names to IDs for API calls

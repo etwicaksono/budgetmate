@@ -18,6 +18,7 @@ export interface TransactionRecord {
   amount: number;
   currency: string;
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_IN' | 'DEBT_OUT';
+  is_draft?: boolean;
   debt_id?: string;
   // IDs forwarded from the source Transaction so the edit modal can pre-fill selects
   account_id?: string;
@@ -38,6 +39,8 @@ interface RecordsListProps {
   onSelectRecord: (recordId: string) => void;
   onEditRecord: (record: TransactionRecord) => void;
   onDeleteRecord?: (recordId: string) => void;
+  onCloneAsDraft?: (record: TransactionRecord) => void;
+  onConfirmDraft?: (record: TransactionRecord) => void;
   showCheckboxes?: boolean;
   showDropdownMenu?: boolean;
   isModal?: boolean;
@@ -49,12 +52,31 @@ export const RecordsList: React.FC<RecordsListProps> = ({
   onSelectRecord,
   onEditRecord,
   onDeleteRecord,
+  onCloneAsDraft,
+  onConfirmDraft,
   showCheckboxes = true,
   showDropdownMenu = true,
   isModal = false,
 }) => {
   const { formatCurrency } = useFormattedCurrency();
   const longPressTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [confirmingIds, setConfirmingIds] = React.useState<Set<string>>(new Set());
+
+  const handleConfirmDraftClick = async (e: React.MouseEvent, transaction: TransactionRecord) => {
+    e.stopPropagation();
+    if (!onConfirmDraft || confirmingIds.has(transaction.id)) return;
+    
+    setConfirmingIds(prev => new Set(prev).add(transaction.id));
+    try {
+      await onConfirmDraft(transaction);
+    } finally {
+      setConfirmingIds(prev => {
+        const next = new Set(prev);
+        next.delete(transaction.id);
+        return next;
+      });
+    }
+  };
 
   const resolveIconComponent = (
     iconName?: string
@@ -239,7 +261,6 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                         <div className="records-item-category fw-bold text-truncate" style={{ fontSize: '0.95rem' }}>
                           {transaction.categoryName}
                         </div>
-                        {/* Mobile: Stacked, Desktop: Inline */}
                         <div className="d-flex flex-column flex-md-row align-items-md-center text-muted small mt-1 w-100 overflow-hidden">
                           {/* Account Line */}
                           <div className="d-flex align-items-center mb-1 mb-md-0 flex-shrink-0" style={{ maxWidth: '100%' }}>
@@ -276,29 +297,42 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                             </div>
                           )}
                         </div>
-                        {Array.isArray(transaction.labels) && transaction.labels.length > 0 && (
-                          <div className="d-flex gap-1 flex-wrap mt-1">
-                            {transaction.labels.map((label) => {
-                              const labelKey = label.id ?? `${label.name}-${label.color ?? 'default'}`;
-                              return (
-                                <span
-                                  key={labelKey}
-                                  className="badge text-uppercase text-truncate"
-                                  style={{
-                                    backgroundColor: label.color || '#6c757d',
-                                    color: '#fff',
-                                    fontSize: '0.6rem',
-                                    padding: '0.15rem 0.4rem',
-                                    fontWeight: '600',
-                                    maxWidth: '80px'
-                                  }}
-                                >
-                                  {label.name}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
+                        <div className="d-flex gap-1 flex-wrap mt-1">
+                          {transaction.is_draft && (
+                            <span
+                              className="badge text-uppercase text-truncate"
+                              style={{
+                                backgroundColor: '#ffc107',
+                                color: '#000',
+                                fontSize: '0.6rem',
+                                padding: '0.15rem 0.4rem',
+                                fontWeight: '600',
+                                maxWidth: '80px'
+                              }}
+                            >
+                              DRAFT
+                            </span>
+                          )}
+                          {Array.isArray(transaction.labels) && transaction.labels.length > 0 && transaction.labels.map((label) => {
+                            const labelKey = label.id ?? `${label.name}-${label.color ?? 'default'}`;
+                            return (
+                              <span
+                                key={labelKey}
+                                className="badge text-uppercase text-truncate"
+                                style={{
+                                  backgroundColor: label.color || '#6c757d',
+                                  color: '#fff',
+                                  fontSize: '0.6rem',
+                                  padding: '0.15rem 0.4rem',
+                                  fontWeight: '600',
+                                  maxWidth: '80px'
+                                }}
+                              >
+                                {label.name}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       {/* Right Side Amount */}
@@ -322,19 +356,46 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                       </div>
 
                       {/* Action Menu (Desktop only) */}
-                      {showDropdownMenu && onDeleteRecord && (
+                      {showDropdownMenu && (
                         <div
                           className="records-item-actions d-none d-md-flex align-items-center"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <button
-                            className="records-action-btn text-danger"
-                            onClick={() => onDeleteRecord(transaction.id)}
-                            title="Delete Record"
-                          >
-                            <FaTrash size={14} />
-                            <span>Delete</span>
-                          </button>
+                          {transaction.is_draft ? (
+                            onConfirmDraft && (
+                              <button
+                                className="records-action-btn text-success"
+                                onClick={(e) => handleConfirmDraftClick(e, transaction)}
+                                title="Confirm Transaction"
+                                disabled={confirmingIds.has(transaction.id)}
+                                style={{ opacity: confirmingIds.has(transaction.id) ? 0.5 : 1, cursor: confirmingIds.has(transaction.id) ? 'not-allowed' : 'pointer' }}
+                              >
+                                <FaCheck size={14} />
+                                <span>{confirmingIds.has(transaction.id) ? 'Confirming...' : 'Confirm'}</span>
+                              </button>
+                            )
+                          ) : (
+                            onCloneAsDraft && transaction.type !== 'TRANSFER' && transaction.type !== 'DEBT_IN' && transaction.type !== 'DEBT_OUT' && (
+                              <button
+                                className="records-action-btn text-secondary"
+                                onClick={() => onCloneAsDraft(transaction)}
+                                title="Clone as Draft"
+                              >
+                                <FaIcons.FaCopy size={14} />
+                                <span>Clone</span>
+                              </button>
+                            )
+                          )}
+                          {onDeleteRecord && (
+                            <button
+                              className="records-action-btn text-danger"
+                              onClick={() => onDeleteRecord(transaction.id)}
+                              title="Delete Record"
+                            >
+                              <FaTrash size={14} />
+                              <span>Delete</span>
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

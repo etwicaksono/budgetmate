@@ -105,6 +105,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       is_recurring: transaction.is_recurring,
       transfer_id: transaction.transfer_id,
       labels: transaction.labels.map(l => l.label),
+      is_draft: transaction.is_draft,
       created_at: transaction.created_at,
       updated_at: transaction.updated_at
     };
@@ -236,6 +237,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       ...(data.payment_method !== undefined && { payment_method: data.payment_method || null }),
       ...(data.payment_status !== undefined && { payment_status: data.payment_status || null }),
       ...(data.reference_number !== undefined && { reference_number: data.reference_number || null }),
+      ...(data.is_draft !== undefined && { is_draft: data.is_draft }),
     };
 
     let updated;
@@ -323,6 +325,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       payment_method: updated.payment_method,
       payment_status: updated.payment_status,
       reference_number: updated.reference_number,
+      is_draft: updated.is_draft,
       updated_at: updated.updated_at
     };
 

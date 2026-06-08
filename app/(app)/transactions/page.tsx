@@ -39,6 +39,7 @@ function TransactionsContent() {
     sortOption,
     transferOption,
     debtOption,
+    draftOption,
     minAmount,
     maxAmount,
     parentCategoryColors,
@@ -63,7 +64,7 @@ function TransactionsContent() {
   const savedFiltersData = useSavedFilters({
     categories,
     accounts: apiAccounts,
-    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption, transferOption, debtOption },
+    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption, transferOption, debtOption, draftOption },
     dispatchers: { 
       setSelectedCategories: filterData.setSelectedCategories, 
       setSelectedAccounts: filterData.setSelectedAccounts, 
@@ -71,7 +72,8 @@ function TransactionsContent() {
       setSelectedLabelIds, 
       setSortOption: filterData.setSortOption, 
       setTransferOption: filterData.setTransferOption, 
-      setDebtOption: filterData.setDebtOption 
+      setDebtOption: filterData.setDebtOption,
+      setDraftOption: filterData.setDraftOption
     },
   });
 
@@ -81,9 +83,8 @@ function TransactionsContent() {
   // Responses belonging to a superseded generation are silently discarded.
   const fetchGenerationRef = useRef(0);
 
-  const { handleEditRecord, handleDeleteRecord } = useTransactionActions({
-    transactions,
-    onTransactionMutated: () => fetchTransactions(1),
+  const { handleEditRecord, handleDeleteRecord, handleCloneAsDraft, handleConfirmDraft } = useTransactionActions({
+    transactions
   });
 
   // Callback ref for sticky RecordsHeader to attach ResizeObserver safely
@@ -193,6 +194,11 @@ function TransactionsContent() {
         filters['debt_option'] = debtOption;
       }
 
+      // Add draft option filter
+      if (draftOption) {
+        filters['draft_option'] = draftOption;
+      }
+
       // Add sort option - convert frontend format to API format
       if (sortOption) {
         switch (sortOption) {
@@ -264,6 +270,7 @@ function TransactionsContent() {
     sortOption,
     transferOption,
     debtOption,
+    draftOption,
     categories,
     apiAccounts
   ]);
@@ -274,7 +281,105 @@ function TransactionsContent() {
 
   // Listen for transaction updates
   useEffect(() => {
-    const handleUpdate = () => fetchTransactions(1);
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const detail = customEvent.detail;
+      
+      if (!detail) return;
+
+      if (detail.action === 'edit' && detail.data && detail.data.id) {
+        // Optimistic local update for edits to preserve scroll position and page
+        setTransactions(prev => prev.map(t => {
+          if (t.id === detail.data.id) {
+            // Calculate differences to update summaryTotals
+            const oldAmount = t.amount || 0;
+            const newAmount = detail.data.amount ?? oldAmount;
+            const currency = t.currency || 'USD';
+            
+            const wasDraft = t.is_draft ?? false;
+            const isNowDraft = detail.data.is_draft ?? wasDraft;
+            
+            let diff = 0;
+            if (wasDraft && !isNowDraft) {
+              // Newly confirmed, add full amount
+              diff = newAmount;
+            } else if (!wasDraft && isNowDraft) {
+              // Reverted to draft, subtract full amount
+              diff = -oldAmount;
+            } else if (!wasDraft && !isNowDraft) {
+              // Normal edit, just the difference
+              diff = newAmount - oldAmount;
+            }
+            
+            if (diff !== 0) {
+              setSummaryTotals(totals => {
+                const current = totals[currency] || { income: 0, expense: 0, net: 0 };
+                const updatedCurrent = { ...current };
+                if (t.type === 'income' || t.type === 'debt_in') {
+                  updatedCurrent.income += diff;
+                } else if (t.type === 'expense' || t.type === 'debt_out') {
+                  updatedCurrent.expense += diff;
+                }
+                updatedCurrent.net += diff;
+                return { ...totals, [currency]: updatedCurrent };
+              });
+            }
+            return { ...t, ...detail.data };
+          }
+          return t;
+        }));
+      } else if (detail.action === 'add' && detail.data) {
+        // Optimistic add (prepend to top)
+        setTransactions(prev => [detail.data, ...prev]);
+        setTotalRecords(prev => prev + 1);
+        
+        if (!detail.data.is_draft) {
+          setSummaryTotals(totals => {
+            const currency = detail.data.currency || 'USD';
+            const amount = detail.data.amount || 0;
+            const type = detail.data.type;
+            const current = totals[currency] || { income: 0, expense: 0, net: 0 };
+            const updatedCurrent = { ...current };
+            
+            if (type === 'income' || type === 'debt_in') {
+              updatedCurrent.income += amount;
+            } else if (type === 'expense' || type === 'debt_out') {
+              updatedCurrent.expense += amount;
+            }
+            updatedCurrent.net += amount;
+            return { ...totals, [currency]: updatedCurrent };
+          });
+        }
+      } else if (detail.action === 'delete' && detail.data && detail.data.id) {
+        // Optimistic delete
+        setTransactions(prev => {
+          const txToDelete = prev.find(t => t.id === detail.data.id);
+          if (txToDelete && !txToDelete.is_draft) {
+            setSummaryTotals(totals => {
+              const currency = txToDelete.currency || 'USD';
+              const amount = txToDelete.amount || 0;
+              const type = txToDelete.type;
+              const current = totals[currency] || { income: 0, expense: 0, net: 0 };
+              const updatedCurrent = { ...current };
+              
+              if (type === 'income' || type === 'debt_in') {
+                updatedCurrent.income -= amount;
+              } else if (type === 'expense' || type === 'debt_out') {
+                updatedCurrent.expense -= amount;
+              }
+              updatedCurrent.net -= amount;
+              return { ...totals, [currency]: updatedCurrent };
+            });
+          }
+          return prev.filter(t => t.id !== detail.data.id);
+        });
+        setTotalRecords(prev => Math.max(0, prev - 1));
+      } else {
+        // Fallback to full fetch for others
+        fetchTransactions(1);
+      }
+    };
+    
     window.addEventListener('transaction-updated', handleUpdate);
     return () => window.removeEventListener('transaction-updated', handleUpdate);
   }, [fetchTransactions]);
@@ -380,6 +485,7 @@ function TransactionsContent() {
             transaction.type === 'debt_out' ? 'DEBT_OUT' :
               transaction.type === 'income' ? 'INCOME' : 'EXPENSE'
         ),
+        is_draft: transaction.is_draft,
         debt_id: transaction.debt_id,
         labels: transaction.labels || [],
       } as TransactionRecord;
@@ -646,6 +752,8 @@ function TransactionsContent() {
                       onSelectRecord={handleSelectRecord}
                       onEditRecord={handleEditRecord}
                       onDeleteRecord={handleDeleteRecord}
+                      onCloneAsDraft={handleCloneAsDraft}
+                      onConfirmDraft={handleConfirmDraft}
                       showCheckboxes
                       showDropdownMenu
                     />

@@ -17,6 +17,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const startDateStr = searchParams.get('start_date');
   const endDateStr = searchParams.get('end_date');
   const limit = parseInt(searchParams.get('limit') || '10', 10);
+  const draftsParam = searchParams.get('drafts') || 'exclude'; // 'include', 'exclude', 'only'
 
   try {
     // Build date filter
@@ -64,6 +65,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Calculate spending for each budget via single optimized grouped SQL query
     const categoryIds = categoryBudgets.map(b => b.category_id);
+    
+    // Determine draft filter
+    const draftFilter: { is_draft?: boolean } = {};
+    if (draftsParam === 'exclude') draftFilter.is_draft = false;
+    else if (draftsParam === 'only') draftFilter.is_draft = true;
+
     const aggregations = await prisma.transaction.groupBy({
       by: ['category_id'],
       where: {
@@ -71,6 +78,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         deleted_at: null,
         type: { in: ['income', 'expense'] },
         category_id: { in: categoryIds },
+        ...draftFilter,
         ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
       },
       _sum: {

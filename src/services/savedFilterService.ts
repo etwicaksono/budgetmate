@@ -8,6 +8,7 @@ export interface SavedFilterPayload {
    sortOption?: string;
    transferOption?: string;
    debtOption?: string;
+   draftOption?: string;
 }
 
 export interface SavedFilter {

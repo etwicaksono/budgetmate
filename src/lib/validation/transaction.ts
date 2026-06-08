@@ -16,7 +16,8 @@ export const CreateTransactionSchema = z.object({
   payment_method: z.string().optional(),
   payment_status: z.string().optional(),
   reference_number: z.string().optional(),
-  label_ids: z.array(z.string().regex(cuidRegex, 'Invalid label ID')).optional()
+  label_ids: z.array(z.string().regex(cuidRegex, 'Invalid label ID')).optional(),
+  is_draft: z.boolean().optional()
 });
 
 export type CreateTransactionInput = z.infer<typeof CreateTransactionSchema>;
@@ -33,7 +34,8 @@ export const UpdateTransactionSchema = z.object({
   payment_method: z.string().optional(),
   payment_status: z.string().optional(),
   reference_number: z.string().optional(),
-  label_ids: z.array(z.string().regex(cuidRegex, 'Invalid label ID')).optional()
+  label_ids: z.array(z.string().regex(cuidRegex, 'Invalid label ID')).optional(),
+  is_draft: z.boolean().optional()
 });
 
 export type UpdateTransactionInput = z.infer<typeof UpdateTransactionSchema>;
@@ -58,7 +60,8 @@ export const TransactionFilterSchema = z.object({
   sort_by: z.enum(['date', 'amount', 'created_at']).default('date'),
   sort_order: z.enum(['asc', 'desc']).default('desc'),
   transfer_option: z.enum(['include', 'only', 'exclude']).optional(),
-  debt_option: z.enum(['include', 'only', 'exclude']).optional()
+  debt_option: z.enum(['include', 'only', 'exclude']).optional(),
+  draft_option: z.enum(['include', 'only', 'exclude']).optional()
 });
 
 export type TransactionFilterInput = z.infer<typeof TransactionFilterSchema>;
