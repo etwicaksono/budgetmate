@@ -66,6 +66,12 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
   const [searchMatches, setSearchMatches] = useState<string[]>([]);
   const [currentMatchId, setCurrentMatchId] = useState<string | null>(null);
 
+  // Selection State
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+  const [selectionStart, setSelectionStart] = useState<{ rowIdx: number, colIdx: number } | null>(null);
+  const [lastActiveCell, setLastActiveCell] = useState<{ rowIdx: number, colIdx: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   // Debounce search input
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -183,6 +189,289 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     // Actually, onRefresh will trigger this, so we should always refresh originalRows
     setOriginalRows(JSON.parse(JSON.stringify(flattened)));
   }, [processedData, collapsedParents, data]);
+
+  const getCellCoords = (e: React.PointerEvent<HTMLDivElement> | PointerEvent): { rowIdx: number, colIdx: number } | null => {
+    const target = e.target as HTMLElement;
+    const cell = target.closest('.rdg-cell');
+    const row = target.closest('.rdg-row');
+    if (!cell || !row) return null;
+
+    const ariaRowIndex = parseInt(row.getAttribute('aria-rowindex') || '0', 10);
+    const ariaColIndex = parseInt(cell.getAttribute('aria-colindex') || '0', 10);
+
+    const rowIdx = ariaRowIndex - 2;
+    const colIdx = ariaColIndex - 1;
+
+    if (rowIdx < 0 || colIdx < 0 || rowIdx >= rows.length || colIdx >= columns.length) return null;
+    return { rowIdx, colIdx };
+  };
+
+  const isSelectable = (rowIdx: number, colIdx: number) => {
+    const row = rows[rowIdx];
+    const col = columns[colIdx];
+    if (!row || !col) return false;
+    if (row.isSummary || row.isParent) return false;
+    const editableColumns = new Set(['basicMonthly', 'extendMonthly', 'basicAnnual', 'extendAnnual']);
+    return editableColumns.has(col.key);
+  };
+
+  const updateSelectionRectangle = (start: { rowIdx: number, colIdx: number }, end: { rowIdx: number, colIdx: number }, add: boolean = false) => {
+    const minRow = Math.min(start.rowIdx, end.rowIdx);
+    const maxRow = Math.max(start.rowIdx, end.rowIdx);
+    const minCol = Math.min(start.colIdx, end.colIdx);
+    const maxCol = Math.max(start.colIdx, end.colIdx);
+
+    const newSelection = add ? new Set(selectedCells) : new Set<string>();
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        if (isSelectable(r, c)) {
+          if (columns[c] && rows[r]) newSelection.add(`${rows[r]!.id}:::${columns[c]!.key}`);
+        }
+      }
+    }
+    setSelectedCells(newSelection);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const coords = getCellCoords(e);
+    if (!coords) return;
+    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+
+    if (!isSelectable(coords.rowIdx, coords.colIdx)) {
+      if (!e.ctrlKey && !e.shiftKey) setSelectedCells(new Set());
+      return;
+    }
+
+    setIsDragging(true);
+    setLastActiveCell(coords);
+
+    if (e.shiftKey && selectionStart) {
+      updateSelectionRectangle(selectionStart, coords, e.ctrlKey);
+    } else {
+      setSelectionStart(coords);
+      updateSelectionRectangle(coords, coords, e.ctrlKey);
+    }
+  };
+
+  const handlePointerOver = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || !selectionStart) return;
+    const coords = getCellCoords(e);
+    if (!coords) return;
+    if (lastActiveCell && coords.rowIdx === lastActiveCell.rowIdx && coords.colIdx === lastActiveCell.colIdx) return;
+    
+    setLastActiveCell(coords);
+    updateSelectionRectangle(selectionStart, coords, e.ctrlKey);
+  };
+
+  useEffect(() => {
+    const handlePointerUp = () => setIsDragging(false);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => window.removeEventListener('pointerup', handlePointerUp);
+  }, []);
+
+  const handleCopy = async (e: React.KeyboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (selectedCells.size === 0) return;
+
+    const coords = Array.from(selectedCells).map(sc => {
+      const [id, key] = sc.split(':::');
+      const r = rows.findIndex(row => row.id === id);
+      const c = columns.findIndex(col => col.key === key);
+      return { r, c };
+    }).filter(pos => pos.r !== -1 && pos.c !== -1);
+
+    if (coords.length === 0) return;
+
+    const minR = Math.min(...coords.map(pos => pos.r));
+    const maxR = Math.max(...coords.map(pos => pos.r));
+    const minC = Math.min(...coords.map(pos => pos.c));
+    const maxC = Math.max(...coords.map(pos => pos.c));
+
+    let tsv = '';
+    for (let r = minR; r <= maxR; r++) {
+      let rowTsv = [];
+      for (let c = minC; c <= maxC; c++) {
+        const id = columns[c] && rows[r] ? `${rows[r]!.id}:::${columns[c]!.key}` : '';
+        if (id && selectedCells.has(id)) {
+           rowTsv.push(String(rows[r]![columns[c]!.key as keyof Row] ?? '0'));
+        } else {
+           rowTsv.push('');
+        }
+      }
+      tsv += rowTsv.join('\t') + '\n';
+    }
+
+    try {
+      await navigator.clipboard.writeText(tsv);
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Copied to clipboard', showConfirmButton: false, timer: 1500 });
+    } catch (err) {
+      console.error('Failed to copy', err);
+    }
+  };
+
+  const handlePaste = async (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!lastActiveCell) return;
+    if (document.activeElement?.tagName === 'INPUT') return;
+    e.preventDefault();
+
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+
+      const lines = text.split(/\r?\n/).filter(line => line.length > 0);
+      const matrix = lines.map(line => line.split('\t'));
+
+      let minR = lastActiveCell.rowIdx;
+      let minC = lastActiveCell.colIdx;
+
+      if (selectedCells.size > 0) {
+        const coords = Array.from(selectedCells).map(sc => {
+          const [id, key] = sc.split(':::');
+          const r = rows.findIndex(row => row.id === id);
+          const c = columns.findIndex(col => col.key === key);
+          return { r, c };
+        }).filter(pos => pos.r !== -1 && pos.c !== -1);
+        if (coords.length > 0) {
+          minR = Math.min(...coords.map(pos => pos.r));
+          minC = Math.min(...coords.map(pos => pos.c));
+        }
+      }
+
+      const singleValue = matrix.length === 1 && matrix[0] && matrix[0].length === 1 ? matrix[0][0] : null;
+
+      let changed = false;
+      const newRows = [...rows];
+      const newDirtyIds = new Set(dirtyRowIds);
+
+      const processCell = (r: number, c: number, rawVal: string) => {
+        if (r < rows.length && c < columns.length && isSelectable(r, c)) {
+          let cleanStr = rawVal.replace(/[^\d.,-]/g, '');
+          if (cleanStr.includes('.') && cleanStr.includes(',')) {
+            const lastDot = cleanStr.lastIndexOf('.');
+            const lastComma = cleanStr.lastIndexOf(',');
+            if (lastComma > lastDot) cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
+            else cleanStr = cleanStr.replace(/,/g, '');
+          } else if (cleanStr.includes(',')) {
+            if (/,(\d{1,2})$/.test(cleanStr)) cleanStr = cleanStr.replace(',', '.');
+            else cleanStr = cleanStr.replace(/,/g, '');
+          } else {
+            if (/\.(\d{3})$/.test(cleanStr) && cleanStr.length > 4) cleanStr = cleanStr.replace(/\./g, '');
+          }
+          
+          const numVal = parseFloat(cleanStr) || 0;
+          const finalVal = Math.round(numVal);
+          
+          if (!isNaN(finalVal)) {
+            const row = newRows[r];
+            if (row && columns[c]) {
+              const colKey = columns[c].key as keyof Row;
+              (row as any)[colKey] = finalVal;
+            
+              row.periodicMargin = row.basicMonthly + row.extendMonthly - Math.abs(row.spentMonthly);
+              row.dailyBudget = (row.basicMonthly + row.extendMonthly) / 30;
+              row.periodicAvailablePercentage = (row.basicMonthly + row.extendMonthly) > 0 ? (Math.abs(row.spentMonthly) / (row.basicMonthly + row.extendMonthly)) * 100 : 0;
+              row.annualMargin = row.basicAnnual + row.extendAnnual - Math.abs(row.spentAnnual);
+
+              newDirtyIds.add(row.id);
+              changed = true;
+            }
+          }
+        }
+      };
+
+      if (singleValue !== null && selectedCells.size > 1) {
+         Array.from(selectedCells).forEach(sc => {
+            const [id, key] = sc.split(':::');
+            const r = rows.findIndex(row => row.id === id);
+            const c = columns.findIndex(col => col.key === key);
+            if (r !== -1 && c !== -1 && singleValue !== undefined) processCell(r, c, singleValue);
+         });
+      } else {
+         for (let i = 0; i < matrix.length; i++) {
+           const rowMatrix = matrix[i];
+           if (!rowMatrix) continue;
+           for (let j = 0; j < rowMatrix.length; j++) {
+             const val = rowMatrix[j];
+             if (val !== undefined) processCell(minR + i, minC + j, val);
+           }
+         }
+      }
+
+      if (changed) {
+        setRows(newRows);
+        setDirtyRowIds(newDirtyIds);
+      }
+    } catch (err) {
+      console.error('Failed to paste', err);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (document.activeElement?.tagName === 'INPUT') return;
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+      handleCopy(e);
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+      handlePaste(e);
+      return;
+    }
+
+    if (e.shiftKey && e.key.startsWith('Arrow')) {
+      if (!lastActiveCell || !selectionStart) return;
+      e.preventDefault();
+      let { rowIdx, colIdx } = lastActiveCell;
+      if (e.key === 'ArrowUp') rowIdx = Math.max(0, rowIdx - 1);
+      if (e.key === 'ArrowDown') rowIdx = Math.min(rows.length - 1, rowIdx + 1);
+      if (e.key === 'ArrowLeft') colIdx = Math.max(0, colIdx - 1);
+      if (e.key === 'ArrowRight') colIdx = Math.min(columns.length - 1, colIdx + 1);
+      
+      const newCoords = { rowIdx, colIdx };
+      setLastActiveCell(newCoords);
+      updateSelectionRectangle(selectionStart, newCoords, false);
+      gridRef.current?.scrollToCell({ rowIdx: newCoords.rowIdx, idx: newCoords.colIdx });
+      return;
+    }
+
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (selectedCells.size > 0) {
+        e.preventDefault();
+        let changed = false;
+        const newRows = [...rows];
+        const newDirtyIds = new Set(dirtyRowIds);
+
+        selectedCells.forEach(sc => {
+          const [id, key] = sc.split(':::');
+          const r = newRows.findIndex(row => row.id === id);
+          const c = columns.findIndex(col => col.key === key);
+          
+          if (r !== -1 && c !== -1 && isSelectable(r, c)) {
+            const row = newRows[r];
+            if (row) {
+              const colKey = key as keyof Row;
+              (row as any)[colKey] = 0;
+              
+              row.periodicMargin = row.basicMonthly + row.extendMonthly - Math.abs(row.spentMonthly);
+              row.dailyBudget = (row.basicMonthly + row.extendMonthly) / 30;
+              row.periodicAvailablePercentage = (row.basicMonthly + row.extendMonthly) > 0 ? (Math.abs(row.spentMonthly) / (row.basicMonthly + row.extendMonthly)) * 100 : 0;
+              row.annualMargin = row.basicAnnual + row.extendAnnual - Math.abs(row.spentAnnual);
+
+              newDirtyIds.add(row.id);
+              changed = true;
+            }
+          }
+        });
+
+        if (changed) {
+          setRows(newRows);
+          setDirtyRowIds(newDirtyIds);
+        }
+      }
+    }
+  };
 
 
   // Search effect
@@ -323,24 +612,48 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     if (!hasChanges) return;
     
     setIsSaving(true);
-    try {
-      const changes = Array.from(dirtyRowIds)
-        .map(id => rows.find(r => r.id === id))
-        .filter((r): r is Row => r !== undefined);
+    const changes = Array.from(dirtyRowIds)
+      .map(id => rows.find(r => r.id === id))
+      .filter((r): r is Row => r !== undefined);
       
-      // Update each changed budget sequentially (since we don't have a bulk endpoint in budgetService)
-      for (const row of changes) {
+    const newDirtyRowIds = new Set(dirtyRowIds);
+    const newOriginalRows = [...originalRows];
+    const errors: { categoryName: string, message: string }[] = [];
+    
+    // Update each changed budget sequentially
+    for (const row of changes) {
+      try {
         await budgetService.setCategoryBudget(row.id, {
           basic_monthly_amount: row.basicMonthly,
           extend_monthly_amount: row.extendMonthly,
           basic_annual_amount: row.basicAnnual,
           extend_annual_amount: row.extendAnnual,
         });
+        
+        // On success, remove from dirty set
+        newDirtyRowIds.delete(row.id);
+        
+        // Update originalRows with the new saved state
+        const origIdx = newOriginalRows.findIndex(r => r.id === row.id);
+        if (origIdx !== -1) {
+          newOriginalRows[origIdx] = JSON.parse(JSON.stringify(row));
+        }
+      } catch (error: any) {
+        console.error(`Failed to save budget for ${row.category.name}`, error);
+        let msg = 'Failed to save changes';
+        if (error?.response?.data?.error?.message) {
+          msg = error.response.data.error.message;
+        }
+        errors.push({ categoryName: row.category.name, message: msg });
       }
+    }
 
-      setDirtyRowIds(new Set());
-      setOriginalRows(JSON.parse(JSON.stringify(rows)));
-      
+    setDirtyRowIds(newDirtyRowIds);
+    setOriginalRows(newOriginalRows);
+    
+    setIsSaving(false);
+    
+    if (errors.length === 0) {
       Swal.fire({
         toast: true,
         position: 'top-end',
@@ -349,13 +662,22 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
         showConfirmButton: false,
         timer: 3000
       });
-      
       onRefresh();
-    } catch (error) {
-      console.error('Failed to save budgets', error);
-      Swal.fire('Error', 'Failed to save changes. Please try again.', 'error');
-    } finally {
-      setIsSaving(false);
+    } else {
+      const errorHtml = `
+        <div class="text-start" style="font-size: 0.9rem;">
+          <p class="mb-2">Beberapa kategori gagal disimpan:</p>
+          <ul class="text-danger ps-3 mb-0">
+            ${errors.map(e => `<li><strong>${e.categoryName}</strong>: ${e.message}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+      Swal.fire({
+        title: 'Sebagian Data Gagal',
+        html: errorHtml,
+        icon: 'warning',
+        confirmButtonText: 'Tutup'
+      });
     }
   };
 
@@ -420,33 +742,40 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     );
   };
 
-  const allColumns: Column<Row>[] = [
+  const getEditableCellClass = (row: Row) => {
+    if (row.isSummary) return 'fw-bold bg-light';
+    if (row.isParent) return 'text-muted'; // inherits .bg-parent background
+    return 'cell-editable';
+  };
+
+  const allColumns: Column<Row>[] = useMemo(() => [
     { 
       key: 'name', 
       name: 'Category Name', 
       width: 250, 
       frozen: true,
       sortable: true,
+      headerCellClass: 'header-readonly',
       renderCell: (props) => props.row.isSummary ? <div className="fw-bold text-end pe-2">Total</div> : <NameFormatter row={props.row} />,
     },
     { 
       key: 'basicMonthly', 
       name: 'Monthly Basic', 
       width: 150, 
-      cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : 'cell-editable',
+      cellClass: (row) => getEditableCellClass(row),
       headerCellClass: 'header-editable',
       sortable: true,
-      renderEditCell: (props) => props.row.isSummary ? null : numberEditor(props),
+      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : numberEditor(props),
       renderCell: (props) => <CurrencyFormatter value={props.row.basicMonthly} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
       key: 'extendMonthly', 
       name: 'Monthly Extend', 
       width: 150, 
-      cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : 'cell-editable',
+      cellClass: (row) => getEditableCellClass(row),
       headerCellClass: 'header-editable',
       sortable: true,
-      renderEditCell: (props) => props.row.isSummary ? null : numberEditor(props),
+      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : numberEditor(props),
       renderCell: (props) => <CurrencyFormatter value={props.row.extendMonthly} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
@@ -454,6 +783,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       name: 'Monthly Expense', 
       width: 150, 
       cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : '',
+      headerCellClass: 'header-readonly',
       sortable: true,
       renderCell: (props) => <CurrencyFormatter value={Math.abs(props.row.spentMonthly)} />,
     },
@@ -462,6 +792,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       name: 'Monthly Margin', 
       width: 150, 
       cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : '',
+      headerCellClass: 'header-readonly',
       sortable: true,
       renderCell: (props) => (
         <div className={`text-end h-100 d-flex align-items-center justify-content-end ${props.row.periodicMargin < 0 ? 'text-danger fw-bold' : 'text-success'}`}>
@@ -474,6 +805,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       name: 'Daily Budget (Est)', 
       width: 150, 
       cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : '',
+      headerCellClass: 'header-readonly',
       sortable: true,
       renderCell: (props) => <CurrencyFormatter value={props.row.dailyBudget} />,
     },
@@ -482,6 +814,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       name: 'Monthly % Used', 
       width: 130, 
       cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : '',
+      headerCellClass: 'header-readonly',
       sortable: true,
       renderCell: (props) => <PercentageFormatter value={props.row.periodicAvailablePercentage} />,
     },
@@ -489,20 +822,20 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       key: 'basicAnnual', 
       name: 'Annual Basic', 
       width: 150, 
-      cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : 'cell-editable',
+      cellClass: (row) => getEditableCellClass(row),
       headerCellClass: 'header-editable',
       sortable: true,
-      renderEditCell: (props) => props.row.isSummary ? null : numberEditor(props),
+      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : numberEditor(props),
       renderCell: (props) => <CurrencyFormatter value={props.row.basicAnnual} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
       key: 'extendAnnual', 
       name: 'Annual Extend', 
       width: 150, 
-      cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : 'cell-editable',
+      cellClass: (row) => getEditableCellClass(row),
       headerCellClass: 'header-editable',
       sortable: true,
-      renderEditCell: (props) => props.row.isSummary ? null : numberEditor(props),
+      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : numberEditor(props),
       renderCell: (props) => <CurrencyFormatter value={props.row.extendAnnual} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
@@ -510,6 +843,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       name: 'Annual Expense', 
       width: 150, 
       cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : '',
+      headerCellClass: 'header-readonly',
       sortable: true,
       renderCell: (props) => <CurrencyFormatter value={Math.abs(props.row.spentAnnual)} />,
     },
@@ -518,6 +852,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       name: 'Annual Margin', 
       width: 150, 
       cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : '',
+      headerCellClass: 'header-readonly',
       sortable: true,
       renderCell: (props) => (
         <div className={`text-end h-100 d-flex align-items-center justify-content-end ${props.row.annualMargin < 0 ? 'text-danger fw-bold' : 'text-success'}`}>
@@ -525,7 +860,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
         </div>
       ),
     },
-  ];
+  ], [dirtyRowIds, currency]); // allColumns now memoized without selectedCells to keep DOM stable
 
   // Configurable Columns State with LocalStorage
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
@@ -558,7 +893,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     localStorage.setItem('budgetTableVisibleColumns', JSON.stringify(visibleColumns));
   }, [visibleColumns]);
 
-  const columns = allColumns.filter(col => visibleColumns[col.key]);
+  const columns = useMemo(() => allColumns.filter(col => visibleColumns[col.key]), [allColumns, visibleColumns]);
 
   const toggleColumn = (key: string) => {
     setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
@@ -574,8 +909,52 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     return classes.join(' ');
   };
 
+  // Apply selected styles manually to avoid re-rendering react-data-grid cells and breaking double-click
+  useEffect(() => {
+    const gridEl = document.querySelector('.rdg');
+    if (!gridEl) return;
+    
+    const applyStyles = () => {
+      const currentSelected = gridEl.querySelectorAll('.multi-selected');
+      currentSelected.forEach(el => el.classList.remove('multi-selected'));
+      
+      selectedCells.forEach(sc => {
+        const [id, key] = sc.split(':::');
+        const r = rows.findIndex(row => row.id === id);
+        const c = columns.findIndex(col => col.key === key);
+        
+        if (r !== -1 && c !== -1) {
+          const ariaRowIndex = r + 2;
+          const ariaColIndex = c + 1;
+          const cell = gridEl.querySelector(`[aria-rowindex="${ariaRowIndex}"] > [aria-colindex="${ariaColIndex}"]`);
+          if (cell) cell.classList.add('multi-selected');
+        }
+      });
+    };
+
+    applyStyles();
+
+    // Use MutationObserver to reapply styles when virtualized rows are rendered
+    const observer = new MutationObserver(() => {
+      applyStyles();
+    });
+    observer.observe(gridEl, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, [selectedCells, rows, columns]);
+
   return (
-    <div className="d-flex flex-column bg-white border rounded shadow-sm overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+    <div 
+      className="d-flex flex-column bg-white border rounded shadow-sm overflow-hidden" 
+      onPointerDownCapture={handlePointerDown}
+      onPointerOverCapture={handlePointerOver}
+      onKeyDownCapture={handleKeyDown}
+      tabIndex={-1}
+      style={{ 
+        outline: 'none', 
+        maxHeight: 'calc(100vh - 120px)'
+      }}
+    >
       
       {/* Sticky Toolbar */}
       <div className="d-flex flex-wrap justify-content-between align-items-center p-3 border-bottom bg-white gap-3" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
@@ -681,10 +1060,18 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
             height: auto;
             max-height: calc(100vh - 250px);
             --rdg-background-color: #f8f9fa; /* Dark gray for readonly cells */
-            --rdg-header-background-color: #e9ecef; /* Slightly darker for headers */
+            --rdg-header-background-color: #e2e6ea; /* Distinct gray for headers */
             --rdg-row-height: 40px;
             --rdg-header-row-height: 45px;
             --rdg-selection-color: var(--bs-primary);
+            user-select: none;
+          }
+          .rdg input {
+            user-select: text;
+          }
+          .rdg-cell.multi-selected {
+            background-color: rgba(13, 110, 253, 0.15) !important;
+            box-shadow: inset 0 0 0 1px #0d6efd !important;
           }
           .rdg-row.bg-parent {
             --rdg-background-color: #e2e6ea; /* Distinct gray for parent rows */
@@ -716,11 +1103,14 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
           }
           /* Override editable background on parent rows */
           .rdg-row.bg-parent .cell-editable {
-            background-color: #f8f9fa;
+            background-color: #e2e6ea;
           }
           .header-editable {
             background-color: #cfe2ff !important; /* Blue tint for editable headers */
             color: #084298;
+          }
+          .header-readonly {
+            background-color: #ced4da !important;
           }
         `}} />
         <DataGrid

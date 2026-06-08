@@ -80,11 +80,17 @@ export async function PUT(
 
     const basicMonthly = Number(data.basic_monthly_amount || 0);
     const extendMonthly = Number(data.extend_monthly_amount || 0);
-    const basicAnnual = Number(data.basic_annual_amount || 0);
-    const extendAnnual = Number(data.extend_annual_amount || 0);
+    let basicAnnual = Number(data.basic_annual_amount || 0);
+    let extendAnnual = Number(data.extend_annual_amount || 0);
 
     const totalMonthly = basicMonthly + extendMonthly;
-    const totalAnnual = basicAnnual + extendAnnual;
+    let totalAnnual = basicAnnual + extendAnnual;
+
+    if (totalAnnual === 0 && totalMonthly > 0) {
+      basicAnnual = basicMonthly * 12;
+      extendAnnual = extendMonthly * 12;
+      totalAnnual = basicAnnual + extendAnnual;
+    }
 
     // Validation rule
     if (totalMonthly > totalAnnual) {
