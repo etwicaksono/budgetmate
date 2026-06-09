@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Container, Row, Col, ListGroup, OverlayTrigger, Placeholder, Tooltip, Button } from 'react-bootstrap';
+import { Container, Row, Col, ListGroup, OverlayTrigger, Placeholder, Tooltip, Button, Form } from 'react-bootstrap';
 import { FaGift, FaChevronRight, FaEdit, FaInfoCircle, FaListUl, FaFilter, FaTable } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
@@ -21,6 +21,7 @@ import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import type { DraftOption } from '@/hooks/useFilterData';
 import { BudgetFilterSidebar } from './_components/BudgetFilterSidebar';
+import { BudgetToolbar } from './_components/BudgetToolbar';
 import { BudgetTableMode } from './_components/BudgetTableMode';
 import { CombinedBudgetItem } from './types';
 
@@ -77,6 +78,7 @@ function BudgetsPageContent(): React.ReactElement {
   const [selectedBudgetCategory, setSelectedBudgetCategory] = useState<SelectedBudgetCategory | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'table'>('list');
+  const [listViewMode, setListViewMode] = useState<'grouped' | 'flat'>('grouped');
 
   const loadData = useCallback(async () => {
     try {
@@ -352,7 +354,7 @@ function BudgetsPageContent(): React.ReactElement {
 
   const expandAll = () => {
     const allParentIds = parentItems.reduce((acc, item) => {
-      if (item.children.length > 0) {
+      if (item.children && item.children.length > 0) {
         acc[item.category.id] = true;
       }
       return acc;
@@ -443,6 +445,31 @@ function BudgetsPageContent(): React.ReactElement {
     // Filter parents first
     const parents = combinedData.filter(item => !item.category.parent_id);
 
+    if (listViewMode === 'flat') {
+      const flatList: CombinedBudgetItem[] = [];
+      parents.forEach(parentItem => {
+        let children = combinedData.filter(item => item.category.parent_id === parentItem.category.id);
+        
+        if (children.length > 0) {
+          children.forEach(child => {
+            const matchesSearch = !searchLower || 
+              child.category.name.toLowerCase().includes(searchLower) || 
+              parentItem.category.name.toLowerCase().includes(searchLower);
+            
+            if (matchesSearch) {
+              flatList.push({ ...child, parentName: parentItem.category.name });
+            }
+          });
+        } else {
+          const matchesSearch = !searchLower || parentItem.category.name.toLowerCase().includes(searchLower);
+          if (matchesSearch) {
+            flatList.push({ ...parentItem, parentName: '' });
+          }
+        }
+      });
+      return flatList.sort(compareBudgetItems);
+    }
+
     return parents.map(parentItem => {
       // Find children for this parent
       let children = combinedData.filter(item => item.category.parent_id === parentItem.category.id);
@@ -494,7 +521,7 @@ function BudgetsPageContent(): React.ReactElement {
       };
     }).filter(parent => parent.shouldRender).sort(compareBudgetItems);
 
-  }, [combinedData, compareBudgetItems, searchTerm]);
+  }, [combinedData, compareBudgetItems, searchTerm, listViewMode]);
 
   const collectCategoryIds = useCallback((categoryId: string): string[] => {
     const ids = [categoryId];
@@ -614,13 +641,21 @@ function BudgetsPageContent(): React.ReactElement {
         >
           {/* Header row: chevron + icon + name + edit */}
           <div className="d-flex align-items-center gap-2 mb-2">
-            {!isChild ? chevron : <div style={{ width: '20px', flexShrink: 0 }} />}
+            {!isChild && listViewMode === 'grouped' ? chevron : <div style={{ width: '20px', flexShrink: 0 }} />}
             {iconEl}
-            <span className="fw-semibold flex-grow-1" style={{ fontSize: '14px', lineHeight: 1.3 }}>
-              {item.category.name}
+            <span className="fw-semibold flex-grow-1 d-flex align-items-center flex-wrap" style={{ fontSize: '14px', lineHeight: 1.3 }}>
+              {item.parentName && listViewMode === 'flat' ? (
+                <>
+                  <span className="text-muted fw-normal me-1 text-truncate" title={item.parentName} style={{ maxWidth: '40%' }}>
+                    {item.parentName}
+                  </span>
+                  <FaChevronRight size={8} className="text-muted me-1 opacity-50 flex-shrink-0" />
+                </>
+              ) : null}
+              <span className="text-truncate" title={item.category.name}>{item.category.name}</span>
             </span>
-            {!isChild && hasChildren && transactionsButton}
-            {(!hasChildren || isChild) && (
+            {transactionsButton}
+            {(!hasChildren || isChild || listViewMode === 'flat') && (
               <button
                 className="btn btn-sm btn-link text-muted p-1"
                 style={{ flexShrink: 0 }}
@@ -659,9 +694,19 @@ function BudgetsPageContent(): React.ReactElement {
           onMouseLeave={() => setHoveredItemId(null)}
         >
           <div className="d-flex align-items-center" style={{ width: '25%', minWidth: '200px' }}>
-            {!isChild ? chevron : <div style={{ width: '20px' }} />}
+            {!isChild && listViewMode === 'grouped' ? chevron : <div style={{ width: '20px' }} />}
             <div className="mx-2">{iconEl}</div>
-            <span className="fw-semibold text-truncate" style={{ fontSize: '15px' }}>{item.category.name}</span>
+            <span className="fw-semibold text-truncate d-flex align-items-center" style={{ fontSize: '15px' }}>
+              {item.parentName && listViewMode === 'flat' ? (
+                <>
+                  <span className="text-muted fw-normal me-1 text-truncate" title={item.parentName} style={{ maxWidth: '40%' }}>
+                    {item.parentName}
+                  </span>
+                  <FaChevronRight size={8} className="text-muted me-1 opacity-50 flex-shrink-0" />
+                </>
+              ) : null}
+              <span className="text-truncate" title={item.category.name}>{item.category.name}</span>
+            </span>
           </div>
 
           <div className="flex-grow-1 px-4 d-flex gap-4 align-items-center">
@@ -677,9 +722,9 @@ function BudgetsPageContent(): React.ReactElement {
               title="View transactions"
               aria-label={`View ${item.category.name} transactions`}
             >
-              {!isChild && hasChildren ? <FaListUl size={16} /> : null}
+              <FaListUl size={16} />
             </div>
-            {(!hasChildren || isChild) && (
+            {(!hasChildren || isChild || listViewMode === 'flat') && (
               <button
                 className="btn btn-sm btn-link text-muted p-0 border-0"
                 style={{ opacity: hoveredItemId === item.category.id ? 0.8 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
@@ -701,18 +746,11 @@ function BudgetsPageContent(): React.ReactElement {
       <Row>
         {/* ── Sidebar (desktop sticky col + mobile offcanvas) ── */}
         <BudgetFilterSidebar
-          searchTerm={searchTerm}
-          onSearchTermChange={setSearchTerm}
           accounts={accounts}
           selectedAccounts={selectedAccounts}
           onSelectedAccountsChange={setSelectedAccounts}
-          sortBy={sortBy}
-          onSortByChange={setSortBy}
-          sortOptions={BUDGET_SORT_OPTIONS}
           showProjections={showProjections}
           onShowProjectionsChange={setShowProjections}
-          onExpandAll={expandAll}
-          onCollapseAll={collapseAll}
           draftOption={draftOption}
           onDraftOptionChange={setDraftOption}
           savedFiltersData={savedFiltersData}
@@ -781,6 +819,36 @@ function BudgetsPageContent(): React.ReactElement {
               />
             ) : (
               <div className="categories-list">
+                <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                  <BudgetToolbar
+                    sortBy={sortBy}
+                    onSortByChange={setSortBy}
+                    sortOptions={BUDGET_SORT_OPTIONS}
+                    viewMode={listViewMode}
+                    onViewModeChange={setListViewMode}
+                    isAllCollapsed={Object.keys(expandedCategories).length === 0}
+                    onExpandAll={expandAll}
+                    onCollapseAll={collapseAll}
+                    searchSlot={
+                      <>
+                        <FaIcons.FaSearch className="text-muted me-2 flex-shrink-0" size={12} />
+                        <Form.Control
+                          type="text"
+                          size="sm"
+                          placeholder="Search categories..."
+                          className="border-0 bg-transparent shadow-none flex-grow-1 p-0 h-100"
+                          value={searchTerm}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                        />
+                        {searchTerm && (
+                          <Button variant="link" size="sm" className="p-0 text-muted mx-1 d-flex align-items-center" onClick={() => setSearchTerm('')}>
+                            <FaIcons.FaTimes size={12} />
+                          </Button>
+                        )}
+                      </>
+                    }
+                  />
+                </div>
                 {loading ? (
                 renderBudgetListSkeleton()
               ) : parentItems.length === 0 ? (
@@ -797,7 +865,7 @@ function BudgetsPageContent(): React.ReactElement {
                     <ListGroup.Item key={parentItem.category.id} className="p-0 overflow-hidden">
                       {renderBudgetItem(parentItem, false)}
 
-                      {parentItem.children.length > 0 && expandedCategories[parentItem.category.id] && (
+                      {listViewMode === 'grouped' && parentItem.children && parentItem.children.length > 0 && expandedCategories[parentItem.category.id] && (
                         <div className="category-children">
                           {parentItem.children.map((childItem: CombinedBudgetItem) => (
                             <div key={childItem.category.id}>

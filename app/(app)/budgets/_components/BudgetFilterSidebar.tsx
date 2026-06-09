@@ -1,16 +1,13 @@
 'use client';
 
 
-import { Col, Offcanvas, Form, Button, Card, Dropdown } from 'react-bootstrap';
-import { FaChevronRight, FaSearch, FaFileAlt, FaCheck } from 'react-icons/fa';
+import { Col, Offcanvas, Form, Card, Dropdown } from 'react-bootstrap';
+import { FaFileAlt, FaCheck } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
 import type { Account } from '@/services/accountService';
 import type { useSavedFilters } from '@/hooks/useSavedFilters';
 import { AccountDropdown } from '@/components/FilterSidebar/AccountDropdown';
 import { SavedFiltersManager } from '@/components/FilterSidebar/SavedFiltersManager';
-import { ClearButton } from '@/components/common/ClearButton';
-import { SortDropdown } from '@/components/common/SortDropdown';
-import type { SortOption } from '@/components/common/SortDropdown';
 import type { DraftOption } from '@/hooks/useFilterData';
 import '@/components/FilterSidebar/FilterSidebar.css';
 
@@ -19,23 +16,13 @@ import '@/components/FilterSidebar/FilterSidebar.css';
 type SavedFiltersData = ReturnType<typeof useSavedFilters>;
 
 export interface BudgetFilterSidebarProps {
-  // Search
-  searchTerm: string;
-  onSearchTermChange: (v: string) => void;
   // Account filter
   accounts: Account[];
   selectedAccounts: string[];
   onSelectedAccountsChange: (names: string[]) => void;
-  // Sort
-  sortBy: string;
-  onSortByChange: (v: string) => void;
-  sortOptions: SortOption<string>[];
   // Projections
   showProjections: boolean;
   onShowProjectionsChange: (v: boolean) => void;
-  // Expand / Collapse
-  onExpandAll: () => void;
-  onCollapseAll: () => void;
   // Draft filter
   draftOption: DraftOption;
   onDraftOptionChange: (v: DraftOption) => void;
@@ -63,18 +50,11 @@ function toIconMap(accounts: Account[]): Record<string, string | undefined> {
 // ─── Inner panel (shared between desktop col and mobile offcanvas) ────────────
 
 function BudgetFilterPanel({
-  searchTerm,
-  onSearchTermChange,
   accounts,
   selectedAccounts,
   onSelectedAccountsChange,
-  sortBy,
-  onSortByChange,
-  sortOptions,
   showProjections,
   onShowProjectionsChange,
-  onExpandAll,
-  onCollapseAll,
   draftOption,
   onDraftOptionChange,
   savedFiltersData,
@@ -94,10 +74,9 @@ function BudgetFilterPanel({
 
   const accountColors = toColorMap(accounts);
   const accountIcons = toIconMap(accounts);
-  const selectableAccounts = accounts.map((a) => a.name);
+  const selectableAccounts = accounts.map((a: Account) => a.name);
 
   const handleReset = () => {
-    onSearchTermChange('');
     onSelectedAccountsChange([]);
     onDraftOptionChange('exclude');
     clearActiveFilter();
@@ -116,7 +95,6 @@ function BudgetFilterPanel({
     onClearActiveFilter: clearActiveFilter,
     onReorderFilter: reorderFilter,
     selectedAccounts,
-    sortOption: sortBy as any,
   };
 
   return (
@@ -149,38 +127,6 @@ function BudgetFilterPanel({
         <SavedFiltersManager {...savedFilterProps} handleResetFilters={handleReset} />
 
         <Form>
-          {/* Search categories */}
-          <Form.Group className="mb-4" controlId="budgetSearch">
-            <Form.Label className="fw-semibold text-muted small">Search</Form.Label>
-            <div className="position-relative">
-              <div
-                className="input-group"
-                style={{ borderRadius: '0.375rem', overflow: 'hidden' }}
-              >
-                <span
-                  className="input-group-text bg-white"
-                  style={{ borderRight: 'none' }}
-                >
-                  <FaSearch size={14} color="#adb5bd" />
-                </span>
-                <input
-                  type="text"
-                  className="form-control shadow-none border-start-0 ps-0 pe-5"
-                  placeholder="Search categories"
-                  value={searchTerm}
-                  onChange={(e) => onSearchTermChange(e.target.value)}
-                  autoComplete="off"
-                />
-              </div>
-              {searchTerm && (
-                <ClearButton
-                  className="position-absolute end-0 top-50 translate-middle-y me-2"
-                  style={{ zIndex: 5 }}
-                  onClick={() => onSearchTermChange('')}
-                />
-              )}
-            </div>
-          </Form.Group>
 
           {/* Account filter */}
           <Form.Group className="mb-4" controlId="budgetAccountFilter">
@@ -200,17 +146,7 @@ function BudgetFilterPanel({
             />
           </Form.Group>
 
-          {/* Sort */}
-          <Form.Group className="mb-4" controlId="budgetSort">
-            <Form.Label className="fw-semibold text-muted small">Sort by</Form.Label>
-            <SortDropdown
-              id="budgetSortSidebar"
-              value={sortBy}
-              options={sortOptions}
-              onChange={onSortByChange}
-              className="w-100"
-            />
-          </Form.Group>
+
 
           {/* Show Projections toggle */}
           <Form.Group className="mb-4" controlId="budgetProjections">
@@ -284,30 +220,7 @@ function BudgetFilterPanel({
             </Dropdown>
           </Form.Group>
 
-          {/* Expand / Collapse All */}
-          <Form.Group className="mb-2" controlId="budgetExpandCollapse">
-            <Form.Label className="fw-semibold text-muted small">Categories</Form.Label>
-            <div className="d-flex gap-2">
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                className="flex-fill d-flex align-items-center justify-content-center gap-1 shadow-sm"
-                onClick={onExpandAll}
-              >
-                <FaChevronRight size={10} style={{ transform: 'rotate(90deg)' }} />
-                Expand All
-              </Button>
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                className="flex-fill d-flex align-items-center justify-content-center gap-1 shadow-sm"
-                onClick={onCollapseAll}
-              >
-                <FaChevronRight size={10} />
-                Collapse All
-              </Button>
-            </div>
-          </Form.Group>
+
         </Form>
       </Card.Body>
 

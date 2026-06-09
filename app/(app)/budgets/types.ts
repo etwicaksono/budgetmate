@@ -15,4 +15,5 @@ export interface CombinedBudgetItem {
   projectedAnnual: number;
   children?: CombinedBudgetItem[];
   shouldRender?: boolean;
+  parentName?: string;
 }
