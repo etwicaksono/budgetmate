@@ -44,6 +44,15 @@ const numberEditor = (props: RenderEditCellProps<Row, any>) => {
         const val = e.target.value === '' ? 0 : Number(e.target.value);
         props.onRowChange({ ...props.row, [props.column.key]: val }, true);
       }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          props.onClose(true, false);
+          window.dispatchEvent(new CustomEvent('editor-enter-pressed', { 
+            detail: { rowId: props.row.id, colKey: props.column.key } 
+          }));
+        }
+      }}
       onBlur={() => props.onClose(true, false)}
     />
   );
@@ -214,6 +223,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     const editableColumns = new Set(['basicMonthly', 'extendMonthly', 'basicAnnual', 'extendAnnual']);
     return editableColumns.has(col.key);
   };
+
 
   const updateSelectionRectangle = (start: { rowIdx: number, colIdx: number }, end: { rowIdx: number, colIdx: number }, add: boolean = false) => {
     const minRow = Math.min(start.rowIdx, end.rowIdx);
@@ -894,6 +904,27 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
   }, [visibleColumns]);
 
   const columns = useMemo(() => allColumns.filter(col => visibleColumns[col.key]), [allColumns, visibleColumns]);
+
+  useEffect(() => {
+    const handleEditorEnter = (e: any) => {
+      const { rowId, colKey } = e.detail;
+      const r = rows.findIndex(row => row.id === rowId);
+      const c = columns.findIndex(col => col.key === colKey);
+      if (r !== -1 && c !== -1) {
+        let nextRow = r + 1;
+        while (nextRow < rows.length && !isSelectable(nextRow, c)) {
+          nextRow++;
+        }
+        if (nextRow < rows.length) {
+          setTimeout(() => {
+            gridRef.current?.selectCell({ rowIdx: nextRow, idx: c });
+          }, 10);
+        }
+      }
+    };
+    window.addEventListener('editor-enter-pressed', handleEditorEnter);
+    return () => window.removeEventListener('editor-enter-pressed', handleEditorEnter);
+  }, [rows, columns]);
 
   const toggleColumn = (key: string) => {
     setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
