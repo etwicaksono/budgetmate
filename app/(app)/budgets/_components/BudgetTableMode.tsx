@@ -23,6 +23,7 @@ interface Row extends CombinedBudgetItem {
   isParent: boolean;
   parentId: string | null;
   hasChildren: boolean;
+  isCollapsed?: boolean;
   isSummary?: boolean;
   // Read-only calculated fields
   periodicMargin: number;
@@ -31,18 +32,31 @@ interface Row extends CombinedBudgetItem {
   annualMargin: number;
 }
 
+let initialOverwriteKey: string | null = null;
+
 // Custom cell editors
 const numberEditor = (props: RenderEditCellProps<Row, any>) => {
+  const overwriteKey = initialOverwriteKey;
+  initialOverwriteKey = null; // consume immediately
+
   return (
     <input
       type="number"
       className="w-100 h-100 px-2 border-0 bg-transparent text-end"
       style={{ outline: 'none' }}
       autoFocus
-      value={props.row[props.column.key as keyof Row] as number}
+      defaultValue={overwriteKey !== null ? overwriteKey : String(props.row[props.column.key as keyof Row])}
+      onFocus={(e) => {
+        // Move cursor to end
+        const v = e.target.value;
+        e.target.value = '';
+        e.target.value = v;
+        // If overwrite mode, select-all so next char replaces
+        if (overwriteKey === null) return;
+      }}
       onChange={(e) => {
-        const val = e.target.value === '' ? 0 : Number(e.target.value);
-        props.onRowChange({ ...props.row, [props.column.key]: val }, true);
+        const parsed = e.target.value === '' ? 0 : Number(e.target.value);
+        props.onRowChange({ ...props.row, [props.column.key]: parsed }, false);
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
@@ -80,6 +94,24 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
   const [selectionStart, setSelectionStart] = useState<{ rowIdx: number, colIdx: number } | null>(null);
   const [lastActiveCell, setLastActiveCell] = useState<{ rowIdx: number, colIdx: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Compute selection summary (sum/avg/count) from selectedCells
+  const selectionStats = useMemo(() => {
+    if (selectedCells.size === 0) return null;
+    const values: number[] = [];
+    selectedCells.forEach(sc => {
+      const [id, key] = sc.split(':::');
+      const row = rows.find(r => r.id === id);
+      if (row) {
+        const val = row[key as keyof Row];
+        if (typeof val === 'number') values.push(val);
+      }
+    });
+    if (values.length === 0) return null;
+    const sum = values.reduce((a, b) => a + b, 0);
+    const avg = sum / values.length;
+    return { sum, avg, count: values.length };
+  }, [selectedCells, rows]);
 
   // Debounce search input
   useEffect(() => {
@@ -139,6 +171,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
         dailyBudget: (parent.basicMonthly + parent.extendMonthly) / 30,
         periodicAvailablePercentage: (parent.basicMonthly + parent.extendMonthly) > 0 ? (Math.abs(parent.spentMonthly) / (parent.basicMonthly + parent.extendMonthly)) * 100 : 0,
         annualMargin: parent.basicAnnual + parent.extendAnnual - Math.abs(parent.spentAnnual),
+        isCollapsed: collapsedParents.has(parent.category.id),
       };
       flattened.push(pRow);
 
@@ -224,6 +257,20 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     return editableColumns.has(col.key);
   };
 
+  // Any cell with a numeric value (editable + readonly) can be included in selection for sum display
+  const isNumeric = (rowIdx: number, colIdx: number) => {
+    const row = rows[rowIdx];
+    const col = columns[colIdx];
+    if (!row || !col) return false;
+    if (row.isSummary) return false; // exclude total summary row
+    const numericColumns = new Set([
+      'basicMonthly', 'extendMonthly', 'basicAnnual', 'extendAnnual',
+      'spentMonthly', 'spentAnnual', 'periodicMargin', 'annualMargin',
+      'dailyBudget', 'periodicAvailablePercentage'
+    ]);
+    return numericColumns.has(col.key);
+  };
+
 
   const updateSelectionRectangle = (start: { rowIdx: number, colIdx: number }, end: { rowIdx: number, colIdx: number }, add: boolean = false) => {
     const minRow = Math.min(start.rowIdx, end.rowIdx);
@@ -235,7 +282,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
 
     for (let r = minRow; r <= maxRow; r++) {
       for (let c = minCol; c <= maxCol; c++) {
-        if (isSelectable(r, c)) {
+        if (isNumeric(r, c)) {  // include all numeric cells, not just editable
           if (columns[c] && rows[r]) newSelection.add(`${rows[r]!.id}:::${columns[c]!.key}`);
         }
       }
@@ -249,7 +296,8 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     if (!coords) return;
     if ((e.target as HTMLElement).tagName === 'INPUT') return;
 
-    if (!isSelectable(coords.rowIdx, coords.colIdx)) {
+    // Allow selection on any numeric cell (editable + readonly)
+    if (!isNumeric(coords.rowIdx, coords.colIdx)) {
       if (!e.ctrlKey && !e.shiftKey) setSelectedCells(new Set());
       return;
     }
@@ -419,6 +467,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Only act when NOT in an input (edit mode already handled by onCellKeyDown)
     if (document.activeElement?.tagName === 'INPUT') return;
 
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
@@ -717,7 +766,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
              style={{ width: '20px', cursor: 'pointer' }}
              onClick={toggleCollapse}
           >
-             {collapsedParents.has(row.id) ? <FaIcons.FaChevronRight size={12} /> : <FaIcons.FaChevronDown size={12} />}
+             {row.isCollapsed ? <FaIcons.FaChevronRight size={12} /> : <FaIcons.FaChevronDown size={12} />}
           </div>
         ) : row.isParent ? (
           <div className="me-2 flex-shrink-0" style={{ width: '20px' }} />
@@ -975,6 +1024,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
   }, [selectedCells, rows, columns]);
 
   return (
+    <>
     <div 
       className="d-flex flex-column bg-white border rounded shadow-sm overflow-hidden" 
       onPointerDownCapture={handlePointerDown}
@@ -1154,8 +1204,72 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
           rowKeyGetter={(row: Row) => row.id}
           rowClass={rowClass}
           className="rdg-light"
+          onSelectedCellChange={(args) => {
+            // Keep lastActiveCell in sync when user navigates with keyboard arrows
+            const colIdx = columns.findIndex(c => c.key === args.column.key);
+            if (colIdx >= 0 && args.rowIdx >= 0) {
+              setLastActiveCell({ rowIdx: args.rowIdx, colIdx });
+            }
+          }}
+          onCellKeyDown={(args, event) => {
+            // Only trigger overwrite in SELECT mode (not when already editing)
+            if (args.mode === 'SELECT' && /^[0-9]$/.test(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey) {
+              const colIdx = columns.findIndex(c => c.key === args.column.key);
+              if (isSelectable(args.rowIdx, colIdx)) {
+                event.preventGridDefault();
+                event.preventDefault(); // prevent the key from also being typed into the newly-opened input
+                initialOverwriteKey = event.key;
+                gridRef.current?.selectCell({ rowIdx: args.rowIdx, idx: colIdx }, { enableEditor: true });
+              }
+            }
+          }}
         />
       </div>
     </div>
+
+    {/* Excel-like selection summary bar — fixed bottom-right of viewport */}
+    {selectionStats && selectionStats.count > 1 && (
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '24px',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '20px',
+          background: 'rgba(15, 23, 42, 0.92)',
+          backdropFilter: 'blur(8px)',
+          color: '#f1f5f9',
+          borderRadius: '10px',
+          padding: '8px 18px',
+          fontSize: '13px',
+          fontWeight: 500,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          pointerEvents: 'none',
+          userSelect: 'none',
+        }}
+      >
+        <span style={{ color: '#94a3b8', fontSize: '12px' }}>
+          {selectionStats.count} {selectionStats.count === 1 ? 'cell' : 'cells'} selected
+        </span>
+        <span style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.15)' }} />
+        <span>
+          <span style={{ color: '#94a3b8', marginRight: '4px' }}>Sum</span>
+          <span style={{ color: '#e2e8f0', fontWeight: 700 }}>
+            {new Intl.NumberFormat('id-ID').format(selectionStats.sum)}
+          </span>
+        </span>
+        <span style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.15)' }} />
+        <span>
+          <span style={{ color: '#94a3b8', marginRight: '4px' }}>Avg</span>
+          <span style={{ color: '#e2e8f0' }}>
+            {new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(selectionStats.avg)}
+          </span>
+        </span>
+      </div>
+    )}
+    </>
   );
 }
