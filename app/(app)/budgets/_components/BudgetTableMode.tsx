@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 import { DataGrid, Column, RenderEditCellProps, SortColumn, DataGridHandle } from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
@@ -61,9 +61,21 @@ const numberEditor = (props: RenderEditCellProps<Row, any>) => {
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
-          props.onClose(true, false);
-          window.dispatchEvent(new CustomEvent('editor-enter-pressed', { 
-            detail: { rowId: props.row.id, colKey: props.column.key } 
+          props.onClose(true, true);
+          window.dispatchEvent(new CustomEvent('editor-navigate', { 
+            detail: { rowId: props.row.id, colKey: props.column.key, direction: e.shiftKey ? 'up' : 'down' } 
+          }));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          props.onClose(true, true);
+          window.dispatchEvent(new CustomEvent('editor-navigate', { 
+            detail: { rowId: props.row.id, colKey: props.column.key, direction: 'up' } 
+          }));
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          props.onClose(true, true);
+          window.dispatchEvent(new CustomEvent('editor-navigate', { 
+            detail: { rowId: props.row.id, colKey: props.column.key, direction: 'down' } 
           }));
         }
       }}
@@ -81,6 +93,8 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
   // Sorting, Collapsing, Searching
   const [sortColumns, setSortColumns] = useState<readonly SortColumn[]>([]);
   const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set());
+  
+  const dirtyRowsRef = useRef<Record<string, Row>>({});
 
   const gridRef = useRef<DataGridHandle>(null);
   const lastQueryForExpandRef = useRef<string>('');
@@ -157,36 +171,85 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     return pData;
   }, [data, sortColumns]);
 
-  // Flatten the data on mount or when data changes
-  useEffect(() => {
+  const buildGridRows = useCallback((pData: CombinedBudgetItem[], collapsed: Set<string>, dirtyData: Record<string, Row>) => {
     const flattened: Row[] = [];
-    processedData.forEach((parent: CombinedBudgetItem) => {
+    
+    let summaryBasicMonthly = 0;
+    let summaryExtendMonthly = 0;
+    let summarySpentMonthly = 0;
+    let summaryBasicAnnual = 0;
+    let summaryExtendAnnual = 0;
+    let summarySpentAnnual = 0;
+
+    pData.forEach((parent: CombinedBudgetItem) => {
+      let pBasicMonthly = 0;
+      let pExtendMonthly = 0;
+      let pSpentMonthly = 0;
+      let pBasicAnnual = 0;
+      let pExtendAnnual = 0;
+      let pSpentAnnual = 0;
+
+      if (parent.children && parent.children.length > 0) {
+        parent.children.forEach(child => {
+          const cRow = dirtyData[child.category.id] || child;
+          pBasicMonthly += cRow.basicMonthly || 0;
+          pExtendMonthly += cRow.extendMonthly || 0;
+          pSpentMonthly += cRow.spentMonthly || 0;
+          pBasicAnnual += cRow.basicAnnual || 0;
+          pExtendAnnual += cRow.extendAnnual || 0;
+          pSpentAnnual += cRow.spentAnnual || 0;
+        });
+      } else {
+        const pRow = dirtyData[parent.category.id] || parent;
+        pBasicMonthly = pRow.basicMonthly || 0;
+        pExtendMonthly = pRow.extendMonthly || 0;
+        pSpentMonthly = pRow.spentMonthly || 0;
+        pBasicAnnual = pRow.basicAnnual || 0;
+        pExtendAnnual = pRow.extendAnnual || 0;
+        pSpentAnnual = pRow.spentAnnual || 0;
+      }
+
+      summaryBasicMonthly += pBasicMonthly;
+      summaryExtendMonthly += pExtendMonthly;
+      summarySpentMonthly += pSpentMonthly;
+      summaryBasicAnnual += pBasicAnnual;
+      summaryExtendAnnual += pExtendAnnual;
+      summarySpentAnnual += pSpentAnnual;
+
       const pRow: Row = {
-        ...parent,
+        ...(dirtyData[parent.category.id] || parent),
         id: parent.category.id,
         isParent: true,
         parentId: null,
         hasChildren: !!parent.children && parent.children.length > 0,
-        periodicMargin: parent.basicMonthly + parent.extendMonthly - Math.abs(parent.spentMonthly),
-        dailyBudget: (parent.basicMonthly + parent.extendMonthly) / 30,
-        periodicAvailablePercentage: (parent.basicMonthly + parent.extendMonthly) > 0 ? (Math.abs(parent.spentMonthly) / (parent.basicMonthly + parent.extendMonthly)) * 100 : 0,
-        annualMargin: parent.basicAnnual + parent.extendAnnual - Math.abs(parent.spentAnnual),
-        isCollapsed: collapsedParents.has(parent.category.id),
+        basicMonthly: pBasicMonthly,
+        extendMonthly: pExtendMonthly,
+        spentMonthly: pSpentMonthly,
+        basicAnnual: pBasicAnnual,
+        extendAnnual: pExtendAnnual,
+        spentAnnual: pSpentAnnual,
+        periodicMargin: pBasicMonthly + pExtendMonthly - Math.abs(pSpentMonthly),
+        dailyBudget: (pBasicMonthly + pExtendMonthly) / 30,
+        periodicAvailablePercentage: (pBasicMonthly + pExtendMonthly) > 0 ? (Math.abs(pSpentMonthly) / (pBasicMonthly + pExtendMonthly)) * 100 : 0,
+        annualMargin: pBasicAnnual + pExtendAnnual - Math.abs(pSpentAnnual),
+        isCollapsed: collapsed.has(parent.category.id),
       };
       flattened.push(pRow);
 
-      if (parent.children && !collapsedParents.has(parent.category.id)) {
+      if (parent.children && !collapsed.has(parent.category.id)) {
         parent.children.forEach((child: CombinedBudgetItem) => {
+          const cData = dirtyData[child.category.id] || child;
           const cRow: Row = {
             ...child,
+            ...cData,
             id: child.category.id,
             isParent: false,
             parentId: parent.category.id,
             hasChildren: false,
-            periodicMargin: child.basicMonthly + child.extendMonthly - Math.abs(child.spentMonthly),
-            dailyBudget: (child.basicMonthly + child.extendMonthly) / 30,
-            periodicAvailablePercentage: (child.basicMonthly + child.extendMonthly) > 0 ? (Math.abs(child.spentMonthly) / (child.basicMonthly + child.extendMonthly)) * 100 : 0,
-            annualMargin: child.basicAnnual + child.extendAnnual - Math.abs(child.spentAnnual),
+            periodicMargin: cData.basicMonthly + cData.extendMonthly - Math.abs(cData.spentMonthly),
+            dailyBudget: (cData.basicMonthly + cData.extendMonthly) / 30,
+            periodicAvailablePercentage: (cData.basicMonthly + cData.extendMonthly) > 0 ? (Math.abs(cData.spentMonthly) / (cData.basicMonthly + cData.extendMonthly)) * 100 : 0,
+            annualMargin: cData.basicAnnual + cData.extendAnnual - Math.abs(cData.spentAnnual),
           };
           flattened.push(cRow);
         });
@@ -200,37 +263,26 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       hasChildren: false,
       isSummary: true,
       category: { id: 'summary-row', name: 'Total', color: '#6c757d' } as any,
-      basicMonthly: 0,
-      extendMonthly: 0,
-      spentMonthly: 0,
-      periodicMargin: 0,
-      dailyBudget: 0,
-      periodicAvailablePercentage: 0,
-      basicAnnual: 0,
-      extendAnnual: 0,
-      spentAnnual: 0,
-      annualMargin: 0
+      basicMonthly: summaryBasicMonthly,
+      extendMonthly: summaryExtendMonthly,
+      spentMonthly: summarySpentMonthly,
+      periodicMargin: summaryBasicMonthly + summaryExtendMonthly - Math.abs(summarySpentMonthly),
+      dailyBudget: (summaryBasicMonthly + summaryExtendMonthly) / 30,
+      periodicAvailablePercentage: (summaryBasicMonthly + summaryExtendMonthly) > 0 ? (Math.abs(summarySpentMonthly) / (summaryBasicMonthly + summaryExtendMonthly)) * 100 : 0,
+      basicAnnual: summaryBasicAnnual,
+      extendAnnual: summaryExtendAnnual,
+      spentAnnual: summarySpentAnnual,
+      annualMargin: summaryBasicAnnual + summaryExtendAnnual - Math.abs(summarySpentAnnual),
     };
 
-    data.forEach(parent => {
-      summary.basicMonthly += parent.basicMonthly || 0;
-      summary.extendMonthly += parent.extendMonthly || 0;
-      summary.spentMonthly += parent.spentMonthly || 0;
-      summary.basicAnnual += parent.basicAnnual || 0;
-      summary.extendAnnual += parent.extendAnnual || 0;
-      summary.spentAnnual += parent.spentAnnual || 0;
-    });
+    return [...flattened, summary as unknown as Row];
+  }, []);
 
-    summary.periodicMargin = summary.basicMonthly + summary.extendMonthly - Math.abs(summary.spentMonthly);
-    summary.dailyBudget = (summary.basicMonthly + summary.extendMonthly) / 30;
-    summary.periodicAvailablePercentage = (summary.basicMonthly + summary.extendMonthly) > 0 ? (Math.abs(summary.spentMonthly) / (summary.basicMonthly + summary.extendMonthly)) * 100 : 0;
-    summary.annualMargin = summary.basicAnnual + summary.extendAnnual - Math.abs(summary.spentAnnual);
-
-    setRows([...flattened, summary as unknown as Row]);
-    // Only deep copy original rows if not saving/reloading, or if it's the first time
-    // Actually, onRefresh will trigger this, so we should always refresh originalRows
-    setOriginalRows(JSON.parse(JSON.stringify(flattened)));
-  }, [processedData, collapsedParents, data]);
+  useEffect(() => {
+    const newRows = buildGridRows(processedData, collapsedParents, dirtyRowsRef.current);
+    setRows(newRows);
+    setOriginalRows(JSON.parse(JSON.stringify(newRows)));
+  }, [processedData, collapsedParents, buildGridRows]);
 
   const getCellCoords = (e: React.PointerEvent<HTMLDivElement> | PointerEvent): { rowIdx: number, colIdx: number } | null => {
     const target = e.target as HTMLElement;
@@ -645,9 +697,10 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       row.periodicAvailablePercentage = (row.basicMonthly + row.extendMonthly) > 0 ? (Math.abs(row.spentMonthly) / (row.basicMonthly + row.extendMonthly)) * 100 : 0;
       row.annualMargin = row.basicAnnual + row.extendAnnual - Math.abs(row.spentAnnual);
       
+      dirtyRowsRef.current[row.id] = row;
       setDirtyRowIds(prev => new Set(prev).add(row.id));
     });
-    setRows(updatedRows);
+    setRows(buildGridRows(processedData, collapsedParents, dirtyRowsRef.current));
   };
 
   const handleDiscard = () => {
@@ -661,8 +714,14 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       confirmButtonText: 'Yes, discard'
     }).then((result) => {
       if (result.isConfirmed) {
-        setRows(JSON.parse(JSON.stringify(originalRows)));
+        dirtyRowsRef.current = {};
         setDirtyRowIds(new Set());
+        // Temporarily trigger an update using setRows from originalRows,
+        // but to handle correctly un-collapsed parents without edits,
+        // we trigger a re-flatten by slightly toggling and un-toggling a fake state, or just call setRows.
+        // Wait, since we clear dirtyRowsRef, we can just rebuild the rows manually here or let originalRows restore it.
+        // Restoring originalRows is safe enough since it preserves the exact visible state before edits.
+        setRows(JSON.parse(JSON.stringify(originalRows)));
       }
     });
   };
@@ -672,7 +731,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     
     setIsSaving(true);
     const changes = Array.from(dirtyRowIds)
-      .map(id => rows.find(r => r.id === id))
+      .map(id => dirtyRowsRef.current[id])
       .filter((r): r is Row => r !== undefined);
       
     const newDirtyRowIds = new Set(dirtyRowIds);
@@ -689,8 +748,9 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
           extend_annual_amount: row.extendAnnual,
         });
         
-        // On success, remove from dirty set
+        // On success, remove from dirty set and ref
         newDirtyRowIds.delete(row.id);
+        delete dirtyRowsRef.current[row.id];
         
         // Update originalRows with the new saved state
         const origIdx = newOriginalRows.findIndex(r => r.id === row.id);
@@ -759,12 +819,18 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     };
 
     return (
-      <div className={`d-flex align-items-center h-100 ${row.isParent ? 'fw-bold' : ''}`} style={{ paddingLeft: row.isParent ? '0' : '2rem' }}>
+      <div 
+        className={`d-flex align-items-center h-100 ${row.isParent ? 'fw-bold' : ''}`} 
+        style={{ 
+          paddingLeft: row.isParent ? '0' : '2rem',
+          cursor: row.hasChildren ? 'pointer' : 'default'
+        }}
+        onClick={row.hasChildren ? toggleCollapse : undefined}
+      >
         {row.hasChildren ? (
           <div 
              className="me-2 text-muted d-flex align-items-center justify-content-center flex-shrink-0" 
-             style={{ width: '20px', cursor: 'pointer' }}
-             onClick={toggleCollapse}
+             style={{ width: '20px' }}
           >
              {row.isCollapsed ? <FaIcons.FaChevronRight size={12} /> : <FaIcons.FaChevronDown size={12} />}
           </div>
@@ -955,25 +1021,25 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
   const columns = useMemo(() => allColumns.filter(col => visibleColumns[col.key]), [allColumns, visibleColumns]);
 
   useEffect(() => {
-    const handleEditorEnter = (e: any) => {
-      const { rowId, colKey } = e.detail;
+    const handleEditorNavigate = (e: any) => {
+      const { rowId, colKey, direction } = e.detail;
       const r = rows.findIndex(row => row.id === rowId);
       const c = columns.findIndex(col => col.key === colKey);
       if (r !== -1 && c !== -1) {
-        let nextRow = r + 1;
-        while (nextRow < rows.length && !isSelectable(nextRow, c)) {
-          nextRow++;
+        let nextRow = direction === 'up' ? r - 1 : r + 1;
+        while (nextRow >= 0 && nextRow < rows.length && !isSelectable(nextRow, c)) {
+          nextRow += direction === 'up' ? -1 : 1;
         }
-        if (nextRow < rows.length) {
-          setTimeout(() => {
-            gridRef.current?.selectCell({ rowIdx: nextRow, idx: c });
-          }, 10);
-        }
+        
+        const targetRow = (nextRow >= 0 && nextRow < rows.length) ? nextRow : r; // fallback to current if at bounds
+        setTimeout(() => {
+          gridRef.current?.selectCell({ rowIdx: targetRow, idx: c });
+        }, 10);
       }
     };
-    window.addEventListener('editor-enter-pressed', handleEditorEnter);
-    return () => window.removeEventListener('editor-enter-pressed', handleEditorEnter);
-  }, [rows, columns]);
+    window.addEventListener('editor-navigate', handleEditorNavigate);
+    return () => window.removeEventListener('editor-navigate', handleEditorNavigate);
+  }, [rows, columns, isSelectable]);
 
   const toggleColumn = (key: string) => {
     setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
@@ -1212,9 +1278,40 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
             }
           }}
           onCellKeyDown={(args, event) => {
+            const colIdx = columns.findIndex(c => c.key === args.column.key);
+            
+            // Handle Enter on SELECT mode
+            if (args.mode === 'SELECT' && event.key === 'Enter') {
+              if (!isSelectable(args.rowIdx, colIdx)) {
+                // Prevent Enter on non-editable cells from opening a blank editor
+                event.preventGridDefault();
+                // Navigate up or down
+                const direction = event.shiftKey ? 'up' : 'down';
+                let nextRow = direction === 'up' ? args.rowIdx - 1 : args.rowIdx + 1;
+                while (nextRow >= 0 && nextRow < rows.length && !isSelectable(nextRow, colIdx)) {
+                  nextRow += direction === 'up' ? -1 : 1;
+                }
+                const targetRow = (nextRow >= 0 && nextRow < rows.length) ? nextRow : args.rowIdx;
+                gridRef.current?.selectCell({ rowIdx: targetRow, idx: colIdx });
+                return;
+              }
+            }
+
+            // Handle Delete/Backspace on SELECT mode
+            if (args.mode === 'SELECT' && (event.key === 'Delete' || event.key === 'Backspace')) {
+              if (isSelectable(args.rowIdx, colIdx)) {
+                event.preventGridDefault();
+                event.preventDefault();
+                
+                const newRows = [...rows];
+                newRows[args.rowIdx] = { ...newRows[args.rowIdx], [args.column.key]: 0 } as Row;
+                handleRowsChange(newRows, { indexes: [args.rowIdx] });
+                return;
+              }
+            }
+
             // Only trigger overwrite in SELECT mode (not when already editing)
             if (args.mode === 'SELECT' && /^[0-9]$/.test(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey) {
-              const colIdx = columns.findIndex(c => c.key === args.column.key);
               if (isSelectable(args.rowIdx, colIdx)) {
                 event.preventGridDefault();
                 event.preventDefault(); // prevent the key from also being typed into the newly-opened input
