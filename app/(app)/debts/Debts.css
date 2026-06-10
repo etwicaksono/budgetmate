@@ -182,7 +182,7 @@
 
 .debt-item:hover .debt-card-actions {
   opacity: 1;
-  pointer-events: auto;
+  /* Do not set pointer-events: auto here, so clicks pass through empty space */
 }
 
 /* Each action button: slide in from bottom, staggered */
@@ -199,6 +199,7 @@
   white-space: nowrap;
   cursor: pointer;
   opacity: 0;
+  pointer-events: auto;
   transform: translateY(10px);
   transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease, box-shadow 0.15s ease;
 }

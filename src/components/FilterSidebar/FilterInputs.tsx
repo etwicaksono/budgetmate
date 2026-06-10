@@ -93,6 +93,8 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
   onMaxAmountChange = () => {},
   SortDropdownComponent,
 }) => {
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
   return (
     <Form>
       {filterVisibility.search && (
@@ -106,6 +108,7 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
               {renderIcon(FaSearch, { size: 14, color: '#adb5bd' })}
             </InputGroup.Text>
             <Form.Control
+              ref={searchInputRef}
               type="text"
               placeholder="Search transactions"
               value={searchTerm}
@@ -120,7 +123,10 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
               <ClearButton
                 className="position-absolute end-0 top-50 translate-middle-y me-2"
                 style={{ zIndex: 5 }}
-                onClick={() => onSearchTermChange('')}
+                onClick={() => {
+                  onSearchTermChange('');
+                  searchInputRef.current?.focus();
+                }}
               />
             )}
           </InputGroup>

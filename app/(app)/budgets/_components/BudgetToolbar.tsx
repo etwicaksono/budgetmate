@@ -45,7 +45,7 @@ export function BudgetToolbar({
 
   return (
     <div className="d-flex flex-wrap justify-content-between align-items-center p-3 border-bottom bg-white gap-3 rounded-top">
-      <div className="d-flex align-items-center gap-2 flex-wrap">
+      <div className="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
         {leftSlot}
 
         {sortBy && onSortByChange && sortOptions && (
@@ -102,9 +102,15 @@ export function BudgetToolbar({
         )}
         
         {searchSlot && (
-          <div className="ms-auto d-flex align-items-center bg-light rounded px-2 border flex-grow-1" style={{ maxWidth: '300px', height: '31px' }}>
-            {searchSlot}
-          </div>
+          <>
+            <style dangerouslySetInnerHTML={{__html: `
+              .budget-search-slot { max-width: 100%; }
+              @media (min-width: 768px) { .budget-search-slot { max-width: 300px; } }
+            `}} />
+            <div className="ms-auto d-flex align-items-center bg-light rounded px-2 border flex-grow-1 budget-search-slot" style={{ height: '31px' }}>
+              {searchSlot}
+            </div>
+          </>
         )}
       </div>
 

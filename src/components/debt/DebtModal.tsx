@@ -43,6 +43,9 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<typeof DEBT_STATUSES.ACTIVE | typeof DEBT_STATUSES.SETTLED>(DEBT_STATUSES.ACTIVE);
 
+  const counterpartyInputRef = useRef<HTMLInputElement>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   const handleDateClick = useCallback(() => {
@@ -153,6 +156,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
               <InputGroup>
                 <InputGroup.Text><FaUser /></InputGroup.Text>
                 <Form.Control
+                  ref={counterpartyInputRef}
                   type="text"
                   placeholder="Person or business name"
                   value={counterparty}
@@ -166,7 +170,10 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                     <ClearButton
                       size={14}
                       ariaLabel="Clear counterparty"
-                      onClick={() => setCounterparty('')}
+                      onClick={() => {
+                        setCounterparty('');
+                        counterpartyInputRef.current?.focus();
+                      }}
                     />
                   </div>
                 )}
@@ -187,6 +194,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
               <Form.Label>Amount <span className="text-danger">*</span></Form.Label>
               <div className="position-relative d-flex align-items-center">
                 <NumericFormat
+                   getInputRef={amountInputRef}
                    customInput={Form.Control as React.ComponentType<unknown>}
                    thousandSeparator={true}
                    prefix={currencyPrefix}
@@ -204,7 +212,10 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                     <ClearButton
                       size={14}
                       ariaLabel="Clear amount"
-                      onClick={() => setAmount('')}
+                      onClick={() => {
+                        setAmount('');
+                        amountInputRef.current?.focus();
+                      }}
                     />
                   </div>
                 )}
@@ -242,6 +253,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                <Form.Label>Description</Form.Label>
                <div className="position-relative">
                  <Form.Control
+                   ref={descriptionInputRef}
                    as="textarea"
                    rows={2}
                    placeholder="Optional note"
@@ -255,7 +267,10 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                      <ClearButton
                        size={14}
                        ariaLabel="Clear description"
-                       onClick={() => setDescription('')}
+                       onClick={() => {
+                         setDescription('');
+                         descriptionInputRef.current?.focus();
+                       }}
                      />
                    </div>
                  )}

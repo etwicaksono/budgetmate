@@ -31,6 +31,8 @@ export function TransactionForm({
   isLoading,
 }: TransactionFormProps): React.JSX.Element {
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+  const payeeInputRef = useRef<HTMLInputElement>(null);
 
   const handleAccountSelectSimple = useCallback(
     (accountId: string | null) => {
@@ -332,6 +334,7 @@ export function TransactionForm({
             <Form.Label>Description</Form.Label>
             <div className="position-relative">
               <Form.Control
+                ref={descriptionInputRef}
                 as="textarea"
                 rows={3}
                 value={formData.description}
@@ -343,7 +346,10 @@ export function TransactionForm({
                 <ClearButton
                   className="position-absolute end-0 me-1"
                   style={{ top: '0.5rem', zIndex: 5 }}
-                  onClick={() => updateField('description', '')}
+                  onClick={() => {
+                    updateField('description', '');
+                    descriptionInputRef.current?.focus();
+                  }}
                 />
               )}
             </div>
@@ -371,6 +377,7 @@ export function TransactionForm({
             <Form.Label>Payee</Form.Label>
             <div className="position-relative">
               <Form.Control
+                ref={payeeInputRef}
                 type="text"
                 value={formData.payee}
                 onChange={(e) => updateField('payee', e.target.value)}
@@ -381,7 +388,10 @@ export function TransactionForm({
                 <ClearButton
                   className="position-absolute end-0 top-50 translate-middle-y me-1"
                   style={{ zIndex: 5 }}
-                  onClick={() => updateField('payee', '')}
+                  onClick={() => {
+                    updateField('payee', '');
+                    payeeInputRef.current?.focus();
+                  }}
                 />
               )}
             </div>

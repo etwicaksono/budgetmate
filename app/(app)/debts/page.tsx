@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Container, Row, Col, Card, Button, Form, Dropdown, Offcanvas, Nav, Badge } from 'react-bootstrap';
 import {
   FaArrowCircleUp,
@@ -133,6 +133,7 @@ export default function DebtsPage() {
   // Shared filters
   const [statusFilter, setStatusFilter] = useState<string>(DEBT_STATUSES.ACTIVE);
   const [counterpartyFilter, setCounterpartyFilter] = useState('');
+  const counterpartyInputRef = useRef<HTMLInputElement>(null);
 
   // Sorting
   const [sortBy, setSortBy] = useState('date');
@@ -193,6 +194,7 @@ export default function DebtsPage() {
             <Form.Label className="fw-semibold text-muted small">Search Counterparty</Form.Label>
             <div className="position-relative">
               <Form.Control
+                ref={counterpartyInputRef}
                 type="text"
                 placeholder="Find counterparty..."
                 value={counterpartyFilter}
@@ -203,7 +205,10 @@ export default function DebtsPage() {
                 <ClearButton
                   className="position-absolute end-0 top-50 translate-middle-y p-0 me-2"
                   style={{ zIndex: 5 }}
-                  onClick={() => setCounterpartyFilter('')}
+                  onClick={() => {
+                    setCounterpartyFilter('');
+                    counterpartyInputRef.current?.focus();
+                  }}
                 />
               )}
             </div>

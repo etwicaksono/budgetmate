@@ -40,6 +40,8 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   const [description, setDescription] = useState('');
 
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   const handleDateClick = useCallback(() => {
@@ -147,6 +149,7 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
               <Form.Label>Amount to Add <span className="text-danger">*</span></Form.Label>
               <div className="position-relative d-flex align-items-center">
                 <NumericFormat
+                   getInputRef={amountInputRef}
                    customInput={Form.Control as React.ComponentType<unknown>}
                    thousandSeparator={true}
                    prefix={currencyPrefix}
@@ -164,7 +167,10 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
                     <ClearButton
                       size={14}
                       ariaLabel="Clear amount"
-                      onClick={() => setAmount('')}
+                      onClick={() => {
+                        setAmount('');
+                        amountInputRef.current?.focus();
+                      }}
                     />
                   </div>
                 )}
@@ -188,6 +194,7 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
                <Form.Label>Description</Form.Label>
                <div className="position-relative">
                  <Form.Control
+                   ref={descriptionInputRef}
                    as="textarea"
                    rows={2}
                    placeholder="Reason for increase..."
@@ -201,7 +208,10 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
                      <ClearButton
                        size={14}
                        ariaLabel="Clear description"
-                       onClick={() => setDescription('')}
+                       onClick={() => {
+                         setDescription('');
+                         descriptionInputRef.current?.focus();
+                       }}
                      />
                    </div>
                  )}
