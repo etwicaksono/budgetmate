@@ -268,6 +268,24 @@ export function useBudgetSelection({ rows, columns, gridRef, onCellsChange }: Us
       return;
     }
 
+    if (e.key === 'Enter') {
+      if (!lastActiveCell) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      let { rowIdx, colIdx } = lastActiveCell;
+      rowIdx = e.shiftKey ? Math.max(0, rowIdx - 1) : Math.min(rows.length - 1, rowIdx + 1);
+      
+      const newCoords = { rowIdx, colIdx };
+      setLastActiveCell(newCoords);
+      updateSelectionRectangle(newCoords, newCoords, false);
+      
+      setTimeout(() => {
+        gridRef.current?.selectCell({ rowIdx: newCoords.rowIdx, idx: newCoords.colIdx });
+      }, 0);
+      return;
+    }
+
     if (e.shiftKey && e.key.startsWith('Arrow')) {
       if (!lastActiveCell || !selectionStart) return;
       e.preventDefault();

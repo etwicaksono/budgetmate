@@ -298,19 +298,6 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
           }}
           onCellKeyDown={(args, event) => {
             const colIdx = columns.findIndex(c => c.key === args.column.key);
-            if (args.mode === 'SELECT' && event.key === 'Enter') {
-              if (!isSelectable(args.rowIdx, colIdx)) {
-                event.preventGridDefault();
-                const direction = event.shiftKey ? 'up' : 'down';
-                let nextRow = direction === 'up' ? args.rowIdx - 1 : args.rowIdx + 1;
-                while (nextRow >= 0 && nextRow < rows.length && !isSelectable(nextRow, colIdx)) {
-                  nextRow += direction === 'up' ? -1 : 1;
-                }
-                const targetRow = (nextRow >= 0 && nextRow < rows.length) ? nextRow : args.rowIdx;
-                gridRef.current?.selectCell({ rowIdx: targetRow, idx: colIdx });
-                return;
-              }
-            }
             if (args.mode === 'SELECT' && (event.key === 'Delete' || event.key === 'Backspace')) {
               if (isSelectable(args.rowIdx, colIdx)) {
                 event.preventGridDefault();
