@@ -20,6 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 export interface WidgetConfig {
   title: string;
   component: React.ReactNode;
+  height?: string | number;
 }
 
 interface SortableWidgetCardProps {
@@ -50,7 +51,7 @@ export const SortableWidgetCard: React.FC<SortableWidgetCardProps> = ({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    height: '450px',
+    height: widget.height || '450px',
   };
 
   const handleExpandModal = () => {
@@ -64,7 +65,7 @@ export const SortableWidgetCard: React.FC<SortableWidgetCardProps> = ({
   return (
     <>
       <Col lg={4} md={6} sm={12} className="mb-4 d-flex" ref={setNodeRef} style={style}>
-        <Card className="h-100 w-100 shadow-sm">
+        <Card className={`w-100 shadow-sm ${!widget.height ? 'h-100' : ''}`}>
           <Card.Header className="d-flex justify-content-between align-items-center bg-white border-bottom">
             <span className="fw-bold">{widget.title}</span>
             <div className="d-flex gap-2 align-items-center">
@@ -139,8 +140,8 @@ interface WidgetCardProps {
 
 export const WidgetCard: React.FC<WidgetCardProps> = ({ widget }) => {
   return (
-    <div style={{ width: '400px', height: '450px' }}>
-      <Card className="h-100 w-100 shadow">
+    <div style={{ width: '400px', height: widget.height || '450px' }}>
+      <Card className={`w-100 shadow ${!widget.height ? 'h-100' : ''}`}>
         <Card.Header className="d-flex justify-content-between align-items-center bg-white">
           <span className="fw-bold">{widget.title}</span>
           <div className="d-flex gap-2 align-items-center">

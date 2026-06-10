@@ -35,6 +35,7 @@ export interface FilterSidebarProps {
   onDebtOptionChange?: React.Dispatch<React.SetStateAction<DebtOption>>;
   draftOption?: DraftOption;
   onDraftOptionChange?: React.Dispatch<React.SetStateAction<DraftOption>>;
+  disableDraftFilter?: boolean;
   selectedCategories?: string[];
   onSelectedCategoriesChange?: React.Dispatch<React.SetStateAction<string[]>>;
   categoryTree?: Record<string, string[]>;

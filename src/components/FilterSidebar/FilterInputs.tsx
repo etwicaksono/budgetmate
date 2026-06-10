@@ -23,6 +23,7 @@ type FilterInputsProps = Pick<
   | 'onDebtOptionChange'
   | 'draftOption'
   | 'onDraftOptionChange'
+  | 'disableDraftFilter'
   | 'selectedCategories'
   | 'onSelectedCategoriesChange'
   | 'categoryTree'
@@ -70,6 +71,7 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
   onDebtOptionChange = () => {},
   draftOption = 'exclude',
   onDraftOptionChange = () => {},
+  disableDraftFilter = false,
   selectedCategories = [],
   onSelectedCategoriesChange = () => {},
   categoryTree = {},
@@ -390,7 +392,7 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
         </Form.Group>
       )}
 
-      {filterVisibility.drafts && (
+      {filterVisibility.drafts && !disableDraftFilter && (
         <Form.Group className="mb-2" controlId="draftFilter">
           <Form.Label className="fw-semibold text-muted small">Drafts</Form.Label>
           <Dropdown>

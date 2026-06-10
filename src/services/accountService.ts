@@ -51,6 +51,7 @@ class AccountService {
     is_active?: boolean;
     group_id?: string;
     include_balance?: boolean;
+    include_draft?: boolean;
   }): Promise<Account[]> {
     if (USE_MOCK_DATA) {
       return mockDataService.fetchAccounts();

@@ -13,10 +13,12 @@ const STORAGE_KEYS = {
   AUTH_TOKEN: 'auth_token',
   REFRESH_TOKEN: 'refresh_token',
   USER_PREFERENCES: 'user-preferences',
+  INCLUDE_DRAFT: 'dashboard-include-draft',
 } as const;
 
 // Default Values
 export const DEFAULT_WIDGET_ORDER = [
+  'netWorth',
   'balanceTrend',
   'expensesByCategory',
   'incomeVsExpenses',
@@ -25,6 +27,7 @@ export const DEFAULT_WIDGET_ORDER = [
 ];
 
 export const DEFAULT_WIDGET_VISIBILITY = {
+  netWorth: true,
   balanceTrend: true,
   expensesByCategory: true,
   incomeVsExpenses: true,
@@ -303,6 +306,24 @@ export const updateUserPreference = <K extends keyof UserPreferences>(
 };
 
 // ============================================================================
+// Draft Filter Operations
+// ============================================================================
+
+/**
+ * Load the "include draft" toggle state (default: false — exclude drafts)
+ */
+export const loadIncludeDraft = (): boolean => {
+  return getItem<boolean>(STORAGE_KEYS.INCLUDE_DRAFT, false);
+};
+
+/**
+ * Save the "include draft" toggle state
+ */
+export const saveIncludeDraft = (value: boolean): boolean => {
+  return setItem(STORAGE_KEYS.INCLUDE_DRAFT, value);
+};
+
+// ============================================================================
 // Export Service Object
 // ============================================================================
 
@@ -326,6 +347,10 @@ export const localStorageService = {
   loadUserPreferences,
   saveUserPreferences,
   updateUserPreference,
+
+  // Draft Filter
+  loadIncludeDraft,
+  saveIncludeDraft,
   
   // Generic Operations
   clear,

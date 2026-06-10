@@ -288,6 +288,7 @@ function AnalyticsContent(): React.ReactElement {
             onRenameFilter={renameFilter}
             onClearActiveFilter={clearActiveFilter}
             onReorderFilter={reorderFilter}
+            disableDraftFilter={true}
           />
         </Col>
 
@@ -346,6 +347,7 @@ function AnalyticsContent(): React.ReactElement {
                 onRenameFilter={renameFilter}
                 onClearActiveFilter={clearActiveFilter}
                 onReorderFilter={reorderFilter}
+                disableDraftFilter={true}
               />
             </Offcanvas.Body>
           </Offcanvas>

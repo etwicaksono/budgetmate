@@ -33,6 +33,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where: {
         user_id: user.user_id,
         deleted_at: null,
+        is_draft: false,
         type: { in: ['income', 'expense'] },
         ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
         ...(currency && { currency }),

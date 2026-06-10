@@ -76,6 +76,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where: {
           user_id: user.user_id,
           deleted_at: null,
+          is_draft: false,
           ...(typeFilter && { type: typeFilter }),
           ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
         },
@@ -95,6 +96,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where: {
           user_id: user.user_id,
           deleted_at: null,
+          is_draft: false,
           ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
         },
         select: {

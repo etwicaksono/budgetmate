@@ -1,0 +1,247 @@
+.net-worth-widget {
+  padding: 1.25rem 1.5rem;
+}
+
+/* Toggle Chips Container */
+.net-worth-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+/* Base Chip Style */
+.net-worth-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1.5px solid;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.net-worth-chip span {
+  display: inline !important;
+  color: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+}
+
+.net-worth-chip:hover:not(.net-worth-chip--locked) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Locked chip (Saldo - always on) */
+.net-worth-chip--locked {
+  background-color: #e8f4fd;
+  border-color: #90caf9;
+  color: #1565c0;
+  cursor: default;
+  opacity: 0.85;
+}
+
+/* Active chip */
+.net-worth-chip--active {
+  color: #fff;
+}
+
+.net-worth-chip--credit.net-worth-chip--active {
+  background-color: #059669;
+  border-color: #059669;
+}
+
+.net-worth-chip--credit:not(.net-worth-chip--active) {
+  background-color: #fff;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.net-worth-chip--credit:not(.net-worth-chip--active):hover {
+  background-color: #ecfdf5;
+  border-color: #6ee7b7;
+}
+
+.net-worth-chip--debt.net-worth-chip--active {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.net-worth-chip--debt:not(.net-worth-chip--active) {
+  background-color: #fff;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.net-worth-chip--debt:not(.net-worth-chip--active):hover {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+}
+
+/* Chip check icon */
+.net-worth-chip__check {
+  font-size: 10px;
+}
+
+/* Currency Sections */
+.net-worth-currency-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.net-worth-currency-section {
+  padding: 0;
+}
+
+.net-worth-currency-section + .net-worth-currency-section {
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Currency Label */
+.net-worth-currency-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af !important;
+  margin-bottom: 2px;
+}
+
+/* Main Amount */
+.net-worth-amount {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1f2937 !important;
+  margin-bottom: 8px;
+  margin-top: 0;
+  transition: color 0.3s ease;
+  line-height: 1.3;
+}
+
+.net-worth-amount--negative {
+  color: #dc3545 !important;
+}
+
+/* Breakdown Lines */
+.net-worth-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.net-worth-breakdown-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.8rem;
+  padding: 1px 0;
+  transition: opacity 0.2s ease;
+}
+
+.net-worth-breakdown-line--muted {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+.net-worth-breakdown-label {
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+  font-size: 0.8rem !important;
+  margin: 0 !important;
+}
+
+.net-worth-breakdown-value {
+  font-weight: 600 !important;
+  color: #374151 !important;
+  font-size: 0.8rem !important;
+  margin: 0 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.net-worth-breakdown-value--credit {
+  color: #059669 !important;
+}
+
+.net-worth-breakdown-value--debt {
+  color: #dc3545 !important;
+}
+
+.net-worth-breakdown-line--muted .net-worth-breakdown-value {
+  color: #9ca3af !important;
+}
+
+/* Compact Mode (Accounts Sidebar) */
+.net-worth-widget--compact {
+  padding: 0;
+}
+
+.net-worth-widget--compact .net-worth-chips {
+  margin-bottom: 10px;
+}
+
+.net-worth-widget--compact .net-worth-amount {
+  font-size: 1.15rem;
+}
+
+.net-worth-widget--compact .net-worth-breakdown-line {
+  font-size: 0.78rem;
+}
+
+.net-worth-widget--compact .net-worth-breakdown-label,
+.net-worth-widget--compact .net-worth-breakdown-value {
+  font-size: 0.78rem !important;
+}
+
+/* Loading skeleton */
+.net-worth-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+}
+
+.net-worth-skeleton__chips {
+  display: flex;
+  gap: 6px;
+}
+
+.net-worth-skeleton__chip {
+  width: 72px;
+  height: 28px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: nw-shimmer 1.5s infinite;
+}
+
+.net-worth-skeleton__amount {
+  width: 60%;
+  height: 28px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: nw-shimmer 1.5s infinite;
+}
+
+.net-worth-skeleton__line {
+  width: 100%;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: nw-shimmer 1.5s infinite;
+}
+
+@keyframes nw-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

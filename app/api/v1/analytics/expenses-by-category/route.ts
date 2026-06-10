@@ -34,6 +34,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where: {
         user_id: user.user_id,
         deleted_at: null,
+        is_draft: false,
         type: 'expense',
         category_id: { not: null },
         ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),

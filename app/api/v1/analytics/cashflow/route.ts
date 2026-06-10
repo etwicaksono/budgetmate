@@ -90,6 +90,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const baseWhereClause: Prisma.TransactionWhereInput = {
       user_id: user.user_id,
       deleted_at: null,
+      is_draft: false,
       type: { in: ['income', 'expense'] },
       account: { is_included_in_total: true },
     };

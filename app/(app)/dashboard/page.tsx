@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Row, Col, Dropdown, Form, Alert } from 'react-bootstrap';
-import { FaWallet, FaUniversity, FaPiggyBank, FaPencilAlt } from 'react-icons/fa';
+import { FaWallet, FaUniversity, FaPiggyBank, FaPencilAlt, FaFileAlt, FaCheck } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
 import {
   DndContext,
@@ -62,11 +62,13 @@ const getIconComponent = (iconName: string): React.ComponentType<{ size?: number
 };
 
 import { useTransactionActions } from '@/hooks/useTransactionActions';
+import { useNetWorth } from '@/hooks/useNetWorth';
 import {
   BalanceTrendWidget,
   BudgetStatusWidget,
   ExpensesByCategoryWidget,
   IncomeVsExpensesWidget,
+  NetWorthWidget,
   type BudgetStatusWithCurrency,
 } from '@/components/dashboard/widgets';
 
@@ -76,6 +78,7 @@ function DashboardContent(): React.ReactElement {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showControlPanel, setShowControlPanel] = useState(false);
   const [widgetVisibility, setWidgetVisibility] = useState(() => localStorageService.loadWidgetVisibility());
+  const [includeDraft, setIncludeDraft] = useState<boolean>(() => localStorageService.loadIncludeDraft());
   const [loading, setLoading] = useState(true);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +105,9 @@ function DashboardContent(): React.ReactElement {
 
   const { formatCurrency } = useFormattedCurrency();
 
+  // Net Worth data
+  const { data: netWorthData, isLoading: netWorthLoading } = useNetWorth(includeDraft);
+
   const {
     state: { periodLabel, activePeriod, customRangeDraft, dateRange },
   } = usePeriodNavigation();
@@ -111,7 +117,7 @@ function DashboardContent(): React.ReactElement {
     try {
       setAccountsLoading(true);
       setError(null);
-      const data = await accountService.fetchAccounts({ is_active: true });
+      const data = await accountService.fetchAccounts({ is_active: true, include_draft: includeDraft });
       setAccounts(data);
     } catch (err) {
       console.error('Failed to fetch accounts:', err);
@@ -119,7 +125,7 @@ function DashboardContent(): React.ReactElement {
     } finally {
       setAccountsLoading(false);
     }
-  }, []);
+  }, [includeDraft]);
 
   // Account Modal hook (DRY principle)
   const accountModal = useAccountModal(fetchAccounts);
@@ -487,6 +493,17 @@ function DashboardContent(): React.ReactElement {
 
   // Widget configurations
   const widgets: Record<string, WidgetConfig> = {
+    netWorth: {
+      title: 'Net Worth',
+      height: 'auto',
+      component: (
+        <NetWorthWidget
+          data={netWorthData}
+          isLoading={netWorthLoading}
+          formatCurrencyValue={formatCurrencyValue}
+        />
+      ),
+    },
     balanceTrend: {
       title: 'Balance Trend',
       component: loading ? (
@@ -665,13 +682,31 @@ function DashboardContent(): React.ReactElement {
               <div className="d-none d-lg-block" style={{ flex: 1 }}></div>
 
               {/* Period Navigation — always centered */}
-              <PeriodNavigation>
-                <PeriodRangeSelector
-                  label={periodLabel}
-                  activePeriod={activePeriod}
-                  customRange={customRangeDraft}
-                />
-              </PeriodNavigation>
+              <div className="d-flex align-items-center gap-2">
+                {/* Draft Filter Chip */}
+                <button
+                  id="dashboard-draft-chip"
+                  className={`dashboard-filter-chip${includeDraft ? ' dashboard-filter-chip--active' : ''}`}
+                  onClick={() => {
+                    const next = !includeDraft;
+                    setIncludeDraft(next);
+                    localStorageService.saveIncludeDraft(next);
+                  }}
+                  title="Include draft transactions in balances"
+                >
+                  <FaFileAlt size={11} />
+                  <span>Draft</span>
+                  {includeDraft && <FaCheck size={10} />}
+                </button>
+
+                <PeriodNavigation>
+                  <PeriodRangeSelector
+                    label={periodLabel}
+                    activePeriod={activePeriod}
+                    customRange={customRangeDraft}
+                  />
+                </PeriodNavigation>
+              </div>
 
               {/* Widget Controls — right on desktop, below on mobile */}
               <div className="d-flex justify-content-end w-100" style={{ flex: 1 }}>

@@ -20,6 +20,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const is_active = searchParams.get('is_active');
   const group_id = searchParams.get('group_id');
   const include_balance = searchParams.get('include_balance') !== 'false';
+  const include_draft = searchParams.get('include_draft') === 'true';
 
   try {
     const where: Record<string, unknown> = {
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Calculate current balances for all accounts if requested (single query)
     const accountIds = accounts.map(a => a.id);
     const balances = include_balance
-      ? await balanceService.calculateAccountBalances(accountIds)
+      ? await balanceService.calculateAccountBalances(accountIds, { includeDraft: include_draft })
       : new Map<string, number>();
 
     // Transform response

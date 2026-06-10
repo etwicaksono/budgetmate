@@ -41,6 +41,9 @@ import {
   FaExclamationTriangle,
 } from 'react-icons/fa';
 import type { IconType } from 'react-icons';
+import { useNetWorth } from '@/hooks/useNetWorth';
+import { NetWorthWidget } from '@/components/dashboard/widgets';
+import { localStorageService } from '@/mocks/localStorageService';
 import './Accounts.css';
 
 // Map icon strings to components
@@ -172,8 +175,20 @@ const AccountsPage: React.FC = () => {
   const [showArchived, setShowArchived] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [includeDraft, setIncludeDraft] = useState<boolean>(() => localStorageService.loadIncludeDraft());
   const { formatCurrency } = useFormattedCurrency();
   const router = useRouter();
+
+  // Net Worth data for sidebar
+  const { data: netWorthData, isLoading: netWorthLoading } = useNetWorth(includeDraft);
+
+  const formatCurrencyValue = useCallback(
+    (value: number, currency: string = 'IDR'): string => {
+      const formatted = formatCurrency(Math.abs(value), currency);
+      return `${value < 0 ? '-' : ''}${formatted}`;
+    },
+    [formatCurrency]
+  );
 
   // Account Modal hook (DRY principle)
   const accountModal = useAccountModal(async () => {
@@ -202,14 +217,14 @@ const AccountsPage: React.FC = () => {
   const fetchAccounts = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await accountService.fetchAccounts();
+      const data = await accountService.fetchAccounts({ include_draft: includeDraft });
       setAccounts(data);
     } catch (err) {
       console.error('Failed to fetch accounts:', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [includeDraft]);
 
   useEffect(() => {
     fetchAccounts();
@@ -375,18 +390,20 @@ const AccountsPage: React.FC = () => {
 
                   <div className="accounts-sidebar__summary">
                     <div className="accounts-sidebar__summary-item">
-                      <span>Total Balance</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                        {summary.currencyBalances.length > 0 ? (
-                          summary.currencyBalances.map(({ currency, balance }) => (
-                            <strong key={currency}>
-                              {formatCurrency(balance, currency)}
-                            </strong>
-                          ))
-                        ) : (
-                          <strong>-</strong>
-                        )}
+                      <div className="d-flex align-items-center justify-content-between mb-2">
+                        <span className="accounts-sidebar__summary-title" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#6c757d' }}>Net Worth</span>
                       </div>
+                      <NetWorthWidget
+                        data={netWorthData}
+                        isLoading={netWorthLoading}
+                        formatCurrencyValue={formatCurrencyValue}
+                        compact={true}
+                        includeDraft={includeDraft}
+                        onToggleDraft={(next) => {
+                          setIncludeDraft(next);
+                          localStorageService.saveIncludeDraft(next);
+                        }}
+                      />
                     </div>
                     <div className="accounts-sidebar__summary-grid">
                       <div>

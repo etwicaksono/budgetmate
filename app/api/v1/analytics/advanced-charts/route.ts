@@ -134,6 +134,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const transactionWhereClause: Prisma.TransactionWhereInput = {
       user_id: user.user_id,
       deleted_at: null,
+      is_draft: false,
       date: { gte: start, lte: end },
       type: { in: ['income', 'expense'] },
       account: { is_included_in_total: true },
@@ -265,6 +266,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where: {
           user_id: user.user_id,
           deleted_at: null,
+          is_draft: false,
           date: { lt: start },
           account_id: { in: accountIds },
           type: { in: ['income', 'expense'] },

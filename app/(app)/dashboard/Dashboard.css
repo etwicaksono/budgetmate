@@ -1,5 +1,42 @@
 /* Dashboard Page Styles */
 
+/* Dashboard Filter Chip (e.g. Draft toggle) */
+.dashboard-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border: 1.5px solid #e5e7eb;
+  background: #fff;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  line-height: 1;
+  outline: none;
+}
+
+.dashboard-filter-chip:hover {
+  border-color: #d1d5db;
+  color: #6b7280;
+  background: #f9fafb;
+}
+
+.dashboard-filter-chip--active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #fff;
+}
+
+.dashboard-filter-chip--active:hover {
+  background: #d97706;
+  border-color: #d97706;
+  color: #fff;
+}
+
 /* Stat Cards */
 .stat-card {
   border: none;

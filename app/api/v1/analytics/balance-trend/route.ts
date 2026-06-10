@@ -118,6 +118,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const transactionWhereClause: Prisma.TransactionWhereInput = {
       user_id: user.user_id,
       deleted_at: null,
+      is_draft: false,
       date: {
         lte: end,
       },
