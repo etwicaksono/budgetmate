@@ -399,7 +399,7 @@ export default function AccountDetailPage() {
         await accountService.deleteAccount(accountId);
         await Swal.fire({ icon: 'success', title: 'Deleted', timer: 1500, showConfirmButton: false });
         router.push('/accounts');
-      } catch (err) {
+      } catch (_err) {
         Swal.fire({ icon: 'error', title: 'Failed to delete account' });
       }
     }

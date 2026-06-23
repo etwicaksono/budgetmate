@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Container, Row, Col, Nav, Offcanvas, Button, Dropdown } from 'react-bootstrap';
 import { FaFilter } from 'react-icons/fa';
 import { useFilterData } from '@/hooks/useFilterData';
+import type { TransferOption, DebtOption, SortValue } from '@/hooks/useFilterData';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { FilterSidebar } from '@/components/FilterSidebar';
 import PeriodNavigation, {
@@ -167,9 +168,9 @@ function AnalyticsContent(): React.ReactElement {
     if (snapshot.searchTerm !== undefined) setSearchTerm(snapshot.searchTerm);
     if (snapshot.minAmount !== undefined) setMinAmount(snapshot.minAmount);
     if (snapshot.maxAmount !== undefined) setMaxAmount(snapshot.maxAmount);
-    if (snapshot.transferOption) setTransferOption(snapshot.transferOption as any);
-    if (snapshot.debtOption) setDebtOption(snapshot.debtOption as any);
-    if (snapshot.sortOption) setSortOption(snapshot.sortOption as any);
+    if (snapshot.transferOption) setTransferOption(snapshot.transferOption as TransferOption);
+    if (snapshot.debtOption) setDebtOption(snapshot.debtOption as DebtOption);
+    if (snapshot.sortOption) setSortOption(snapshot.sortOption as SortValue);
     if (snapshot.selectedLabelIds) setSelectedLabelIds(snapshot.selectedLabelIds);
     if (snapshot.numberOfColumns !== undefined) setNumberOfColumns(snapshot.numberOfColumns);
   }, [categories, apiAccounts, setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSearchTerm, setMinAmount, setMaxAmount, setTransferOption, setDebtOption, setSortOption, setSelectedLabelIds, setNumberOfColumns]);

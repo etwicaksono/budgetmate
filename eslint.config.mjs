@@ -19,7 +19,9 @@ export default [
       'next-env.d.ts',
       'postcss.config.js',
       'tailwind.config.ts',
-      'next.config.js'
+      'next.config.js',
+      'generate-icons.js',
+      'public/sw.js'
     ]
   },
   js.configs.recommended,
@@ -49,7 +51,8 @@ export default [
         'warn',
         {
           argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_'
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
         }
       ],
       'react/react-in-jsx-scope': 'off',

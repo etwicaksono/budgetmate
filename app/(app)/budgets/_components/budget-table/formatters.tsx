@@ -95,15 +95,16 @@ export const setInitialOverwriteKey = (key: string | null) => {
   initialOverwriteKey = key;
 };
 
-export const numberEditor = (props: RenderEditCellProps<Row, any>) => {
+export const NumberEditor = ({ onRowChange, row, column, onClose }: RenderEditCellProps<Row, unknown>) => {
   const overwriteKey = initialOverwriteKey;
   initialOverwriteKey = null; // consume immediately
 
   React.useEffect(() => {
     if (overwriteKey !== null) {
       const parsed = overwriteKey === '' ? 0 : Number(overwriteKey);
-      props.onRowChange({ ...props.row, [props.column.key]: parsed }, false);
+      onRowChange({ ...row, [column.key]: parsed }, false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -112,7 +113,7 @@ export const numberEditor = (props: RenderEditCellProps<Row, any>) => {
       className="w-100 h-100 px-2 border-0 bg-transparent text-end"
       style={{ outline: 'none' }}
       autoFocus
-      defaultValue={overwriteKey !== null ? overwriteKey : String(props.row[props.column.key as keyof Row])}
+      defaultValue={overwriteKey !== null ? overwriteKey : String(row[column.key as keyof Row])}
       onFocus={(e) => {
         // Move cursor to end
         const v = e.target.value;
@@ -123,30 +124,30 @@ export const numberEditor = (props: RenderEditCellProps<Row, any>) => {
       }}
       onChange={(e) => {
         const parsed = e.target.value === '' ? 0 : Number(e.target.value);
-        props.onRowChange({ ...props.row, [props.column.key]: parsed }, false);
+        onRowChange({ ...row, [column.key]: parsed }, false);
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
-          props.onClose(true, true);
+          onClose(true, true);
           window.dispatchEvent(new CustomEvent('editor-navigate', { 
-            detail: { rowId: props.row.id, colKey: props.column.key, direction: e.shiftKey ? 'up' : 'down' } 
+            detail: { rowId: row.id, colKey: column.key, direction: e.shiftKey ? 'up' : 'down' } 
           }));
         } else if (e.key === 'ArrowUp') {
           e.preventDefault();
-          props.onClose(true, true);
+          onClose(true, true);
           window.dispatchEvent(new CustomEvent('editor-navigate', { 
-            detail: { rowId: props.row.id, colKey: props.column.key, direction: 'up' } 
+            detail: { rowId: row.id, colKey: column.key, direction: 'up' } 
           }));
         } else if (e.key === 'ArrowDown') {
           e.preventDefault();
-          props.onClose(true, true);
+          onClose(true, true);
           window.dispatchEvent(new CustomEvent('editor-navigate', { 
-            detail: { rowId: props.row.id, colKey: props.column.key, direction: 'down' } 
+            detail: { rowId: row.id, colKey: column.key, direction: 'down' } 
           }));
         }
       }}
-      onBlur={() => props.onClose(true, false)}
+      onBlur={() => onClose(true, false)}
     />
   );
 };

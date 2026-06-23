@@ -94,7 +94,7 @@ export class SwiftRouterProvider implements LLMProvider {
       stream: true,
     });
 
-    const toolCallsAcc: any[] = [];
+    const toolCallsAcc: Array<{ id: string; name: string; arguments: string }> = [];
     let isToolCall = false;
 
     for await (const chunk of responseStream) {

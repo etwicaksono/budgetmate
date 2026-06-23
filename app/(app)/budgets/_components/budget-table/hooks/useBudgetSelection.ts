@@ -223,7 +223,7 @@ export function useBudgetSelection({ rows, columns, gridRef, onCellsChange }: Us
             const row = { ...rows[r] } as Row; // Copy row
             if (row && columns[c]) {
               const colKey = columns[c].key as keyof Row;
-              (row as any)[colKey] = finalVal;
+              (row as unknown as Record<string, unknown>)[colKey as string] = finalVal;
               changedRows.push(row);
             }
           }
@@ -316,7 +316,7 @@ export function useBudgetSelection({ rows, columns, gridRef, onCellsChange }: Us
             const row = { ...rows[r] } as Row;
             if (row) {
               const colKey = key as keyof Row;
-              (row as any)[colKey] = 0;
+              (row as unknown as Record<string, unknown>)[colKey as string] = 0;
               changedRows.push(row);
             }
           }

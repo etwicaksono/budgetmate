@@ -19,7 +19,7 @@ import { FaSortAlphaDown, FaSortAlphaUpAlt, FaSortAmountDown, FaSortAmountUp } f
 import type { SortOption } from '@/components/common/SortDropdown';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
-import type { DraftOption } from '@/hooks/useFilterData';
+import type { DraftOption, SortValue } from '@/hooks/useFilterData';
 import { BudgetFilterSidebar } from './_components/BudgetFilterSidebar';
 import { BudgetToolbar } from './_components/BudgetToolbar';
 import { BudgetTableMode } from './_components/BudgetTableMode';
@@ -113,7 +113,7 @@ function BudgetsPageContent(): React.ReactElement {
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, selectedYear, selectedAccounts, draftOption]);
+  }, [selectedMonth, selectedYear, selectedAccounts, draftOption, dateRange.start, dateRange.end]);
 
   // Load accounts once on mount — separate from the main data loop
   useEffect(() => {
@@ -148,7 +148,7 @@ function BudgetsPageContent(): React.ReactElement {
     } catch (error) {
       console.error(error);
     }
-  }, [selectedMonth, selectedYear, selectedAccounts, draftOption]);
+  }, [selectedMonth, selectedYear, selectedAccounts, draftOption, dateRange.start, dateRange.end]);
 
   useEffect(() => {
     loadData();
@@ -163,7 +163,7 @@ function BudgetsPageContent(): React.ReactElement {
       selectedAccounts,
       selectedCurrencies: [],
       selectedLabelIds: [],
-      sortOption: sortBy as any,
+      sortOption: sortBy as SortValue,
       transferOption: 'include',
       debtOption: 'include',
       draftOption: draftOption,
@@ -173,7 +173,7 @@ function BudgetsPageContent(): React.ReactElement {
       setSelectedAccounts,
       setSelectedCurrencies: () => {},
       setSelectedLabelIds: () => {},
-      setSortOption: (s: any) => setSortBy(s),
+      setSortOption: setSortBy as React.Dispatch<React.SetStateAction<SortValue>>,
       setTransferOption: () => {},
       setDebtOption: () => {},
       setDraftOption,

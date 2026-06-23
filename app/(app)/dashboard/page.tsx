@@ -681,12 +681,12 @@ function DashboardContent(): React.ReactElement {
               {/* Spacer — desktop only */}
               <div className="d-none d-lg-block" style={{ flex: 1 }}></div>
 
-              {/* Period Navigation — always centered */}
-              <div className="d-flex align-items-center gap-2">
-                {/* Draft Filter Chip */}
+              {/* Period Navigation — centered on all screens */}
+              <div className="d-flex align-items-center justify-content-center gap-2">
+                {/* Draft Filter Chip — desktop only (next to Period Navigation) */}
                 <button
                   id="dashboard-draft-chip"
-                  className={`dashboard-filter-chip${includeDraft ? ' dashboard-filter-chip--active' : ''}`}
+                  className={`dashboard-filter-chip d-none d-lg-inline-flex${includeDraft ? ' dashboard-filter-chip--active' : ''}`}
                   onClick={() => {
                     const next = !includeDraft;
                     setIncludeDraft(next);
@@ -708,8 +708,22 @@ function DashboardContent(): React.ReactElement {
                 </PeriodNavigation>
               </div>
 
-              {/* Widget Controls — right on desktop, below on mobile */}
-              <div className="d-flex justify-content-end w-100" style={{ flex: 1 }}>
+              {/* Draft chip (mobile) + Widget Controls — spread on mobile, right on desktop */}
+              <div className="d-flex align-items-center justify-content-between justify-content-lg-end w-100 gap-2" style={{ flex: 1 }}>
+                {/* Draft Filter Chip — mobile only (left side) */}
+                <button
+                  className={`dashboard-filter-chip d-inline-flex d-lg-none${includeDraft ? ' dashboard-filter-chip--active' : ''}`}
+                  onClick={() => {
+                    const next = !includeDraft;
+                    setIncludeDraft(next);
+                    localStorageService.saveIncludeDraft(next);
+                  }}
+                  title="Include draft transactions in balances"
+                >
+                  <FaFileAlt size={11} />
+                  <span>Draft</span>
+                  {includeDraft && <FaCheck size={10} />}
+                </button>
                 {/* Widget Control Panel */}
                 <Dropdown show={showControlPanel} onToggle={setShowControlPanel}>
                   <Dropdown.Toggle

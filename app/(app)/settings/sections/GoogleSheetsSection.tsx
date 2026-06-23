@@ -117,7 +117,7 @@ export function GoogleSheetsSection() {
           confirmButtonColor: '#dc3545',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       await Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -174,7 +174,7 @@ export function GoogleSheetsSection() {
           confirmButtonColor: '#dc3545',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       await Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -246,7 +246,7 @@ export function GoogleSheetsSection() {
           confirmButtonColor: '#dc3545',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       await Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -307,7 +307,7 @@ export function GoogleSheetsSection() {
           confirmButtonColor: '#dc3545',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       await Swal.fire({
         icon: 'error',
         title: 'Error',

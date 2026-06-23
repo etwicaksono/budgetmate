@@ -178,23 +178,19 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
             )}
 
          </Modal.Body>
-         <Modal.Footer>
-            <Button variant="secondary" onClick={onHide} className="me-auto">
+         <Modal.Footer className="d-flex flex-column-reverse flex-md-row align-items-stretch align-items-md-center gap-2">
+            <Button variant="secondary" onClick={onHide} className="me-md-auto">
                Close
             </Button>
             {(isActive || isSettled) && (
-               <div className="d-flex gap-2">
-                  <Button variant="outline-primary" onClick={() => onIncreaseClick(debt)} className="d-flex align-items-center">
-                     <FaPlusCircle className="me-2" /> Increase Debt
-                  </Button>
-               </div>
+               <Button variant="outline-primary" onClick={() => onIncreaseClick(debt)} className="d-flex align-items-center justify-content-center">
+                  <FaPlusCircle className="me-2" /> Increase Debt
+               </Button>
             )}
             {isActive && (
-               <div className="d-flex gap-2">
-                  <Button variant="success" onClick={() => onRepayClick(debt)} className="d-flex align-items-center">
-                     <FaMoneyBillWave className="me-2" /> Record Repayment
-                  </Button>
-               </div>
+               <Button variant="success" onClick={() => onRepayClick(debt)} className="d-flex align-items-center justify-content-center">
+                  <FaMoneyBillWave className="me-2" /> Record Repayment
+               </Button>
             )}
          </Modal.Footer>
       </Modal>

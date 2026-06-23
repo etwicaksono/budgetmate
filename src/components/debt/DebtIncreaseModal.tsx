@@ -219,11 +219,11 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
             </Col>
           </Row>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide} disabled={isSubmitting} className="me-auto">
+        <Modal.Footer className="d-flex flex-column-reverse flex-md-row align-items-stretch align-items-md-center gap-2">
+          <Button variant="secondary" onClick={onHide} disabled={isSubmitting} className="me-md-auto">
             Cancel
           </Button>
-          <Button type="submit" variant="primary" disabled={isSubmitting}>
+          <Button type="submit" variant="primary" disabled={isSubmitting} className="d-flex align-items-center justify-content-center">
              {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : (editTransaction ? 'Save Changes' : 'Confirm Increase')}
           </Button>
         </Modal.Footer>

@@ -79,7 +79,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
         setError(null);
       }
     }
-  }, [show, isEdit, editDebt]);
+  }, [show, isEdit, editDebt, defaultType]);
 
   const selectedAccount = accounts.find(a => a.id === accountId);
   const currencyPrefix = getCurrencyPrefix(selectedAccount?.currency);
@@ -278,8 +278,8 @@ export const DebtModal: React.FC<DebtModalProps> = ({
             </Col>
           </Row>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide} disabled={isSubmitting} className="me-auto">
+        <Modal.Footer className="d-flex flex-column-reverse flex-md-row align-items-stretch align-items-md-center gap-2">
+          <Button variant="secondary" onClick={onHide} disabled={isSubmitting} className="me-md-auto">
             Cancel
           </Button>
           {!isEdit && (
@@ -287,11 +287,12 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                 variant={type === DEBT_TYPES.LEND ? "outline-danger" : "outline-success"}
                 onClick={(e) => handleSubmit(e, true)}
                 disabled={isSubmitting}
+                className="d-flex align-items-center justify-content-center"
              >
                 {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Save & Create Another'}
              </Button>
           )}
-          <Button type="submit" variant={type === DEBT_TYPES.LEND ? "danger" : "success"} disabled={isSubmitting}>
+          <Button type="submit" variant={type === DEBT_TYPES.LEND ? "danger" : "success"} disabled={isSubmitting} className="d-flex align-items-center justify-content-center">
              {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Save'}
           </Button>
         </Modal.Footer>

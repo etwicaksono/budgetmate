@@ -84,27 +84,24 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
   );
 
   useEffect(() => {
-    if (show) {
-      loadData();
-    }
-  }, [show]);
-
-  const loadData = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-
-      if (initialCategoryId) {
-        setSelectedCategoryId(initialCategoryId);
-      } else {
-        setSelectedCategoryId('');
+    if (!show) return;
+    const loadData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (initialCategoryId) {
+          setSelectedCategoryId(initialCategoryId);
+        } else {
+          setSelectedCategoryId('');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load options');
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load options');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    loadData();
+  }, [show, initialCategoryId]);
 
   // Cleaner side-effect for selecting a category
   useEffect(() => {

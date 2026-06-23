@@ -131,11 +131,11 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
           />
         </Modal.Body>
 
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide} disabled={loading}>
+        <Modal.Footer className="d-flex flex-column-reverse flex-md-row align-items-stretch align-items-md-center gap-2">
+          <Button variant="secondary" onClick={onHide} disabled={loading} className="me-md-auto">
             Cancel
           </Button>
-          <Button variant="primary" type="submit" disabled={loading}>
+          <Button variant="primary" type="submit" disabled={loading} className="d-flex align-items-center justify-content-center">
             {loading ? <Spinner as="span" animation="border" size="sm" /> : mode === 'add' ? 'Add Category' : 'Save Changes'}
           </Button>
         </Modal.Footer>

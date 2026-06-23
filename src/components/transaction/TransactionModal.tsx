@@ -154,7 +154,7 @@ export function TransactionModal({
         setIsSubmitting(false);
       }
     },
-    [formData, transaction, validateForm, onSave, onHide, resetForm, isEditMode, accounts]
+    [formData, validateForm, onSave, onHide, resetForm, isEditMode, accounts]
   );
 
 
@@ -176,13 +176,13 @@ export function TransactionModal({
         />
       </Modal.Body>
 
-      <Modal.Footer>
-        <div className="d-flex gap-2 w-100">
+      <Modal.Footer className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2">
           {isEditMode && onDelete && (
             <Button
               variant="outline-danger"
               onClick={() => transaction?.id && onDelete(transaction.id)}
               disabled={isSubmitting}
+              className="order-4 order-md-1"
             >
               Delete
             </Button>
@@ -195,6 +195,7 @@ export function TransactionModal({
                 onClick={() => onConfirmDraft(transaction)}
                 disabled={isSubmitting}
                 title="Confirm Transaction"
+                className="order-3 order-md-2"
               >
                 Confirm
               </Button>
@@ -206,13 +207,14 @@ export function TransactionModal({
                 onClick={() => onCloneAsDraft(transaction!)}
                 disabled={isSubmitting}
                 title="Clone as Draft"
+                className="order-3 order-md-2"
               >
                 Clone as Draft
               </Button>
             )
           )}
 
-          <Button variant="primary" onClick={() => handleSave(false, false)} disabled={isSubmitting} className="flex-grow-1">
+          <Button variant="primary" onClick={() => handleSave(false, false)} disabled={isSubmitting} className="order-1 order-md-3 flex-grow-1">
             {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : (isEditMode ? 'Save Changes' : 'Add Transaction')}
           </Button>
 
@@ -221,7 +223,7 @@ export function TransactionModal({
               variant="outline-warning"
               onClick={() => handleSave(false, true)}
               disabled={isSubmitting}
-              className="flex-grow-1"
+              className="order-2 order-md-4 flex-grow-1"
             >
               {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Save as Draft'}
             </Button>
@@ -232,16 +234,15 @@ export function TransactionModal({
               variant="outline-primary"
               onClick={() => handleSave(true, false)}
               disabled={isSubmitting}
-              className="flex-grow-1 d-none d-md-block"
+              className="order-3 order-md-5 flex-grow-1"
             >
               {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Add & Create Another'}
             </Button>
           )}
 
-          <Button variant="outline-secondary" onClick={onHide} disabled={isSubmitting}>
+          <Button variant="outline-secondary" onClick={onHide} disabled={isSubmitting} className="order-5 order-md-6">
             Cancel
           </Button>
-        </div>
       </Modal.Footer>
     </Modal>
   );

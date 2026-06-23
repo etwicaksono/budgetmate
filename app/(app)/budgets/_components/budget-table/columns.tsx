@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Column } from 'react-data-grid';
 import { Row } from './types';
-import { NameFormatter, CurrencyFormatter, PercentageFormatter, numberEditor } from './formatters';
+import { NameFormatter, CurrencyFormatter, PercentageFormatter, NumberEditor } from './formatters';
 
 interface UseBudgetColumnsProps {
   currency: string;
@@ -33,7 +33,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       cellClass: (row) => getEditableCellClass(row),
       headerCellClass: 'header-editable',
       sortable: true,
-      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : numberEditor(props),
+      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : <NumberEditor {...props} />,
       renderCell: (props) => <CurrencyFormatter currency={currency} value={props.row.basicMonthly} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
@@ -43,7 +43,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       cellClass: (row) => getEditableCellClass(row),
       headerCellClass: 'header-editable',
       sortable: true,
-      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : numberEditor(props),
+      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : <NumberEditor {...props} />,
       renderCell: (props) => <CurrencyFormatter currency={currency} value={props.row.extendMonthly} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
@@ -93,7 +93,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       cellClass: (row) => getEditableCellClass(row),
       headerCellClass: 'header-editable',
       sortable: true,
-      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : numberEditor(props),
+      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : <NumberEditor {...props} />,
       renderCell: (props) => <CurrencyFormatter currency={currency} value={props.row.basicAnnual} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
@@ -103,7 +103,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       cellClass: (row) => getEditableCellClass(row),
       headerCellClass: 'header-editable',
       sortable: true,
-      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : numberEditor(props),
+      renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : <NumberEditor {...props} />,
       renderCell: (props) => <CurrencyFormatter currency={currency} value={props.row.extendAnnual} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 

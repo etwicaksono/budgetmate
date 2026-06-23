@@ -22,10 +22,10 @@ export function useBudgetGridData(
       pData.forEach(parent => {
         if (parent.children && parent.children.length > 0) {
           parent.children.forEach(child => {
-            flatList.push({ ...child, parentName: parent.category.name } as any);
+            flatList.push({ ...child, parentName: parent.category.name } as CombinedBudgetItem);
           });
         } else {
-          flatList.push({ ...parent, parentName: '' } as any);
+          flatList.push({ ...parent, parentName: '' } as CombinedBudgetItem);
         }
       });
       pData = flatList;
@@ -40,7 +40,7 @@ export function useBudgetGridData(
         if (key === 'name') {
            const itemName = item.category.name.toLowerCase();
            if (viewMode === 'flat') {
-             const pName = (item as any).parentName ? (item as any).parentName.toLowerCase() : '';
+             const pName = item.parentName ? item.parentName.toLowerCase() : '';
              return pName ? `${pName} - ${itemName}` : itemName;
            }
            return itemName;
@@ -86,7 +86,7 @@ export function useBudgetGridData(
     let summarySpentAnnual = 0;
 
     if (mode === 'flat') {
-      pData.forEach((item: any) => {
+      pData.forEach((item: CombinedBudgetItem) => {
         const cData = dirtyData[item.category.id] || item;
         const pBasicMonthly = cData.basicMonthly || 0;
         const pExtendMonthly = cData.extendMonthly || 0;
@@ -107,9 +107,9 @@ export function useBudgetGridData(
           ...cData,
           id: item.category.id,
           isParent: false,
-          parentId: item.parentId || null,
+          parentId: null,
           hasChildren: false,
-          parentName: item.parentName,
+          parentName: item.parentName ?? '',
           periodicMargin: pBasicMonthly + pExtendMonthly - Math.abs(pSpentMonthly),
           dailyBudget: (pBasicMonthly + pExtendMonthly) / 30,
           periodicAvailablePercentage: (pBasicMonthly + pExtendMonthly) > 0 ? (Math.abs(pSpentMonthly) / (pBasicMonthly + pExtendMonthly)) * 100 : 0,
@@ -200,7 +200,7 @@ export function useBudgetGridData(
       parentId: null,
       hasChildren: false,
       isSummary: true,
-      category: { id: 'summary-row', name: 'Total', color: '#6c757d' } as any,
+      category: { id: 'summary-row', name: 'Total', color: '#6c757d', icon: '', type: 'expense', analytic_flag: 'expense', nature: 'NEED', is_system: false, is_active: true, parent_id: null } as unknown as Row['category'],
       basicMonthly: summaryBasicMonthly,
       extendMonthly: summaryExtendMonthly,
       spentMonthly: summarySpentMonthly,

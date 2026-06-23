@@ -182,11 +182,11 @@ export function LabelModal({
           </div>
         </Modal.Body>
 
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide} disabled={saving}>
+        <Modal.Footer className="d-flex flex-column-reverse flex-md-row align-items-stretch align-items-md-center gap-2">
+          <Button variant="secondary" onClick={onHide} disabled={saving} className="me-md-auto">
             Cancel
           </Button>
-          <Button variant="primary" type="submit" disabled={saving}>
+          <Button variant="primary" type="submit" disabled={saving} className="d-flex align-items-center justify-content-center">
             {saving ? <Spinner as="span" animation="border" size="sm" /> : mode === 'edit' ? 'Save Changes' : 'Add Label'}
           </Button>
         </Modal.Footer>

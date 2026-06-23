@@ -214,13 +214,13 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
       const loaded: Session = json.data ?? json;
       setCurrentSession(loaded);
       
-      const loadedMessages = (loaded as any).messages ?? [];
+      const loadedMessages = (loaded as Session & { messages?: Array<{ id?: string; role: string; content: string; created_at?: string }> }).messages ?? [];
       setMessages(
-        loadedMessages.map((m: any) => ({
-          id: m.id,
-          role: m.role,
+        loadedMessages.map((m) => ({
+          ...(m.id !== undefined && { id: m.id }),
+          role: m.role as 'user' | 'assistant',
           content: m.content,
-          created_at: m.created_at,
+          ...(m.created_at !== undefined && { created_at: m.created_at }),
         }))
       );
     } catch (err) {
@@ -345,7 +345,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
                 } else if (data.type === 'error') {
                    throw new Error(data.content);
                 }
-              } catch (e: any) {
+              } catch (e: unknown) {
                 if (e instanceof SyntaxError) {
                   // Ignore parse errors from partial JSON
                 } else {
@@ -357,9 +357,10 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
         }
         
         await loadSessions();
-      } catch (err: any) {
+      } catch (err: unknown) {
         setIsSending(false);
-        const errorMsg = err.response?.data?.message || err.message || 'Maaf, terjadi kesalahan. Silakan coba lagi.';
+        const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
+        const errorMsg = apiErr?.response?.data?.message || apiErr?.message || 'Maaf, terjadi kesalahan. Silakan coba lagi.';
         setMessages((prev) => [
           ...prev,
           { role: 'assistant', content: `**Error:** ${errorMsg}` },
@@ -767,12 +768,12 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
                   ) : (
                     <ReactMarkdown
                       components={{
-                        p: ({ node, ...props }) => <p style={{ margin: '0 0 8px 0' }} {...props} />,
-                        ul: ({ node, ...props }) => <ul style={{ margin: '0 0 8px 0', paddingLeft: '20px' }} {...props} />,
-                        ol: ({ node, ...props }) => <ol style={{ margin: '0 0 8px 0', paddingLeft: '20px' }} {...props} />,
-                        li: ({ node, ...props }) => <li style={{ marginBottom: '4px' }} {...props} />,
-                        h3: ({ node, ...props }) => <h3 style={{ fontSize: '14px', margin: '12px 0 8px 0' }} {...props} />,
-                        h4: ({ node, ...props }) => <h4 style={{ fontSize: '13px', margin: '10px 0 6px 0' }} {...props} />,
+                        p: ({ node: _node, ...props }) => <p style={{ margin: '0 0 8px 0' }} {...props} />,
+                        ul: ({ node: _node, ...props }) => <ul style={{ margin: '0 0 8px 0', paddingLeft: '20px' }} {...props} />,
+                        ol: ({ node: _node, ...props }) => <ol style={{ margin: '0 0 8px 0', paddingLeft: '20px' }} {...props} />,
+                        li: ({ node: _node, ...props }) => <li style={{ marginBottom: '4px' }} {...props} />,
+                        h3: ({ node: _node, ...props }) => <h3 style={{ fontSize: '14px', margin: '12px 0 8px 0' }} {...props} />,
+                        h4: ({ node: _node, ...props }) => <h4 style={{ fontSize: '13px', margin: '10px 0 6px 0' }} {...props} />,
                       }}
                     >
                       {msg.content}
@@ -800,7 +801,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
             <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
               <Form.Control
                 as="textarea"
-                ref={textareaRef as any}
+                ref={textareaRef as React.Ref<HTMLTextAreaElement>}
                 rows={1}
                 placeholder="Ketik pertanyaan..."
                 value={input}

@@ -143,8 +143,9 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
   } = useBudgetSelection({ rows, columns, gridRef, onCellsChange });
 
   useEffect(() => {
-    const handleEditorNavigate = (e: any) => {
-      const { rowId, colKey, direction } = e.detail;
+    const handleEditorNavigate = (e: Event) => {
+      const detail = (e as CustomEvent<{ rowId: string; colKey: string; direction: string }>).detail;
+      const { rowId, colKey, direction } = detail;
       const r = rows.findIndex(row => row.id === rowId);
       const c = columns.findIndex(col => col.key === colKey);
       if (r !== -1 && c !== -1) {

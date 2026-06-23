@@ -64,7 +64,7 @@ export function useSavedFilters({
          }
       };
       load();
-   }, []);
+   }, [context]);
 
    // Resolve category names → IDs
    const categoryNamesToIds = useCallback(

@@ -72,11 +72,12 @@ export function useBudgetPersistence({
         if (origIdx !== -1) {
           newOriginalRows[origIdx] = JSON.parse(JSON.stringify(row));
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`Failed to save budget for ${row.category.name}`, error);
         let msg = 'Failed to save changes';
-        if (error?.response?.data?.error?.message) {
-          msg = error.response.data.error.message;
+        const err = error as { response?: { data?: { error?: { message?: string } } } };
+        if (err?.response?.data?.error?.message) {
+          msg = err.response.data.error.message;
         }
         errors.push({ categoryName: row.category.name, message: msg });
       }

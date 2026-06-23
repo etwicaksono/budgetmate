@@ -253,9 +253,10 @@ function TransactionsContent() {
       if (generation !== fetchGenerationRef.current) return;
       console.error('Failed to fetch transactions:', error);
     } finally {
-      if (generation !== fetchGenerationRef.current) return;
-      if (pageNum === 1) setLoading(false);
-      else setIsLoadingMore(false);
+      if (generation === fetchGenerationRef.current) {
+        if (pageNum === 1) setLoading(false);
+        else setIsLoadingMore(false);
+      }
     }
   }, [
     dateRange.start,
@@ -351,29 +352,39 @@ function TransactionsContent() {
           });
         }
       } else if (detail.action === 'delete' && detail.data && detail.data.id) {
+        // Collect all IDs to delete (transfer pairs are deleted together)
+        const idsToDelete = new Set([detail.data.id]);
+        if (detail.data.pairedId) {
+          idsToDelete.add(detail.data.pairedId);
+        }
+
         // Optimistic delete
         setTransactions(prev => {
-          const txToDelete = prev.find(t => t.id === detail.data.id);
-          if (txToDelete && !txToDelete.is_draft) {
-            setSummaryTotals(totals => {
-              const currency = txToDelete.currency || 'USD';
-              const amount = txToDelete.amount || 0;
-              const type = txToDelete.type;
-              const current = totals[currency] || { income: 0, expense: 0, net: 0 };
-              const updatedCurrent = { ...current };
-              
-              if (type === 'income' || type === 'debt_in') {
-                updatedCurrent.income -= amount;
-              } else if (type === 'expense' || type === 'debt_out') {
-                updatedCurrent.expense -= amount;
-              }
-              updatedCurrent.net -= amount;
-              return { ...totals, [currency]: updatedCurrent };
-            });
-          }
-          return prev.filter(t => t.id !== detail.data.id);
+          const toDelete = prev.filter(t => idsToDelete.has(t.id));
+
+          toDelete.forEach(txToDelete => {
+            if (!txToDelete.is_draft) {
+              setSummaryTotals(totals => {
+                const currency = txToDelete.currency || 'USD';
+                const amount = txToDelete.amount || 0;
+                const type = txToDelete.type;
+                const current = totals[currency] || { income: 0, expense: 0, net: 0 };
+                const updatedCurrent = { ...current };
+                
+                if (type === 'income' || type === 'debt_in') {
+                  updatedCurrent.income -= amount;
+                } else if (type === 'expense' || type === 'debt_out') {
+                  updatedCurrent.expense -= amount;
+                }
+                updatedCurrent.net -= amount;
+                return { ...totals, [currency]: updatedCurrent };
+              });
+            }
+          });
+
+          return prev.filter(t => !idsToDelete.has(t.id));
         });
-        setTotalRecords(prev => Math.max(0, prev - 1));
+        setTotalRecords(prev => Math.max(0, prev - idsToDelete.size));
       } else {
         // Fallback to full fetch for others
         fetchTransactions(1);
@@ -635,6 +646,8 @@ function TransactionsContent() {
     minAmount,
     maxAmount,
     selectedCurrencies,
+    transferOption,
+    debtOption,
     fetchTransactions
   ]);
 

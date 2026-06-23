@@ -85,6 +85,7 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
       .catch(() => { /* silently ignore */ });
 
     return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategoryId]);
 
   const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
