@@ -6,6 +6,7 @@ import { transactionService, type Transaction } from '@/services/transactionServ
 import { debtService } from '@/services/debtService';
 import { type TransactionRecord } from '@/components/Records';
 import { isTransferTransaction, mapTransferAccounts, getModalTransactionType } from '@/utils/transferUtils';
+import { dispatchAppEvent } from '@/lib/eventBus';
 
 interface UseTransactionActionsOptions {
   transactions: Transaction[];
@@ -108,12 +109,6 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
     });
 
     if (result.isConfirmed) {
-      // Find paired transfer transaction so the UI can remove both halves
-      const isTransfer = isTransferTransaction(transaction);
-      const pairedTransaction = isTransfer && transaction.transfer_id
-        ? transactions.find(t => t.transfer_id === transaction.transfer_id && t.id !== recordId)
-        : null;
-
       // Background delete
       transactionService.deleteTransaction(recordId).catch(error => {
         console.error('Failed to delete transaction in background:', error);
@@ -121,11 +116,9 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
         // Revert optimistic update
         const deletedTransaction = transactions.find((t) => t.id === recordId);
         if (deletedTransaction) {
-          window.dispatchEvent(
-            new CustomEvent('transaction-updated', {
-              detail: { action: 'add', data: deletedTransaction },
-            })
-          );
+          dispatchAppEvent('transaction-updated', {
+            transactionId: recordId,
+          });
         }
         
         Swal.fire({
@@ -148,17 +141,9 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
         title: 'Transaction deleted'
       });
 
-      window.dispatchEvent(
-        new CustomEvent('transaction-updated', {
-          detail: {
-            action: 'delete',
-            data: {
-              id: recordId,
-              ...(pairedTransaction && { pairedId: pairedTransaction.id }),
-            },
-          },
-        })
-      );
+      dispatchAppEvent('transaction-updated', {
+        transactionId: recordId,
+      });
     }
   }, [transactions]);
 
@@ -200,13 +185,9 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
         timerProgressBar: true,
       });
 
-      const optimisticData = { ...transaction, is_draft: false };
-      
-      window.dispatchEvent(
-        new CustomEvent('transaction-updated', {
-          detail: { action: 'edit', data: optimisticData },
-        })
-      );
+      dispatchAppEvent('transaction-updated', {
+        transactionId: transaction.id,
+      });
       
       Toast.fire({
         icon: 'success',
@@ -220,11 +201,9 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
         console.error('Failed to confirm draft in background:', error);
         
         // Revert optimistic update
-        window.dispatchEvent(
-          new CustomEvent('transaction-updated', {
-            detail: { action: 'edit', data: transaction },
-          })
-        );
+        dispatchAppEvent('transaction-updated', {
+          transactionId: transaction.id,
+        });
         
         Swal.fire({
           icon: 'error',

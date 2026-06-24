@@ -6,6 +6,7 @@ import { useToast } from './ToastContext';
 import { accountService } from '@/services/accountService';
 import { categoryService } from '@/services/categoryService';
 import { transactionService, CreateTransactionRequest } from '@/services/transactionService';
+import { dispatchAppEvent } from '@/lib/eventBus';
 
 interface TransactionFormValues {
   id?: string;
@@ -197,9 +198,9 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
         showToast('Transaction updated successfully', 'success');
 
         // Dispatch event for other components
-        window.dispatchEvent(new CustomEvent('transaction-updated', {
-          detail: { transactionId: data.id, transaction: data }
-        }));
+        dispatchAppEvent('transaction-updated', {
+          transactionId: data.id,
+        });
       } else {
         // Create new transaction
         const createData: CreateTransactionRequest = {
@@ -219,9 +220,9 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
         showToast('Transaction created successfully', 'success');
 
         // Dispatch event for other components
-        window.dispatchEvent(new CustomEvent('transaction-created', {
-          detail: { transaction: created }
-        }));
+        dispatchAppEvent('transaction-created', {
+          transactionId: created.id,
+        });
       }
 
       // Refresh data
@@ -245,9 +246,9 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
       showToast('Transaction deleted successfully', 'success');
 
       // Dispatch event
-      window.dispatchEvent(new CustomEvent('transaction-deleted', {
-        detail: { transactionId: id }
-      }));
+      dispatchAppEvent('transaction-deleted', {
+        transactionId: id,
+      });
 
       await Promise.all([
         fetchAccounts(),

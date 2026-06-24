@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { accountService, type Account } from '@/services/accountService';
 import { debtService } from '@/services/debtService';
+import { onAppEvent } from '@/lib/eventBus';
 
 export interface UseNetWorthReturn {
   data: number;
@@ -57,26 +58,26 @@ export function useNetWorth(includeDraft: boolean = false): UseNetWorthReturn {
       fetchData();
     };
 
-    window.addEventListener('account-created', handleChange);
-    window.addEventListener('account-updated', handleChange);
-    window.addEventListener('account-deleted', handleChange);
-    window.addEventListener('transaction-created', handleChange);
-    window.addEventListener('transaction-updated', handleChange);
-    window.addEventListener('transaction-deleted', handleChange);
-    window.addEventListener('debt-created', handleChange);
-    window.addEventListener('debt-updated', handleChange);
-    window.addEventListener('debt-deleted', handleChange);
+    const unsubscribeAccountCreated = onAppEvent('account-created', handleChange);
+    const unsubscribeAccountUpdated = onAppEvent('account-updated', handleChange);
+    const unsubscribeAccountDeleted = onAppEvent('account-deleted', handleChange);
+    const unsubscribeTransactionCreated = onAppEvent('transaction-created', handleChange);
+    const unsubscribeTransactionUpdated = onAppEvent('transaction-updated', handleChange);
+    const unsubscribeTransactionDeleted = onAppEvent('transaction-deleted', handleChange);
+    const unsubscribeDebtCreated = onAppEvent('debt-created', handleChange);
+    const unsubscribeDebtUpdated = onAppEvent('debt-updated', handleChange);
+    const unsubscribeDebtDeleted = onAppEvent('debt-deleted', handleChange);
 
     return () => {
-      window.removeEventListener('account-created', handleChange);
-      window.removeEventListener('account-updated', handleChange);
-      window.removeEventListener('account-deleted', handleChange);
-      window.removeEventListener('transaction-created', handleChange);
-      window.removeEventListener('transaction-updated', handleChange);
-      window.removeEventListener('transaction-deleted', handleChange);
-      window.removeEventListener('debt-created', handleChange);
-      window.removeEventListener('debt-updated', handleChange);
-      window.removeEventListener('debt-deleted', handleChange);
+      unsubscribeAccountCreated();
+      unsubscribeAccountUpdated();
+      unsubscribeAccountDeleted();
+      unsubscribeTransactionCreated();
+      unsubscribeTransactionUpdated();
+      unsubscribeTransactionDeleted();
+      unsubscribeDebtCreated();
+      unsubscribeDebtUpdated();
+      unsubscribeDebtDeleted();
     };
   }, [fetchData]);
 
