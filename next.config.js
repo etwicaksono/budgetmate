@@ -1,26 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false,
+  reactStrictMode: true,
 
   // API configuration
   async headers() {
+    const allowedOrigins = [process.env['NEXT_PUBLIC_APP_URL'] || 'http://localhost:3000'];
     return [
       {
         source: '/api/:path*',
         headers: [
           { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Origin', value: allowedOrigins[0] },
           { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,DELETE,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Accept, Content-Type, Authorization' },
         ],
       },
     ]
-  },
-
-  // Environment variables to expose to client
-  env: {
-    NEXT_PUBLIC_API_URL: process.env['NEXT_PUBLIC_API_URL'],
-    NEXT_PUBLIC_APP_URL: process.env['NEXT_PUBLIC_APP_URL'],
   },
 
   // Image optimization
@@ -30,10 +25,6 @@ const nextConfig = {
         protocol: 'http',
         hostname: 'localhost',
       },
-      {
-        protocol: 'https',
-        hostname: 'your-cdn.com',
-      }
     ],
     formats: ['image/avif', 'image/webp'],
   },
