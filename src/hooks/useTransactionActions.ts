@@ -6,7 +6,6 @@ import { transactionService, type Transaction } from '@/services/transactionServ
 import { debtService } from '@/services/debtService';
 import { type TransactionRecord } from '@/components/Records';
 import { isTransferTransaction, mapTransferAccounts, getModalTransactionType } from '@/utils/transferUtils';
-import { dispatchAppEvent } from '@/lib/eventBus';
 
 interface UseTransactionActionsOptions {
   transactions: Transaction[];
@@ -201,10 +200,14 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
         timerProgressBar: true,
       });
 
-      dispatchAppEvent('transaction-updated', {
-        transactionId: transaction.id,
-      });
-      
+      const optimisticData = { ...transaction, is_draft: false };
+
+      window.dispatchEvent(
+        new CustomEvent('transaction-updated', {
+          detail: { action: 'edit', data: optimisticData },
+        })
+      );
+
       Toast.fire({
         icon: 'success',
         title: 'Transaction Confirmed'
@@ -217,9 +220,11 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
         console.error('Failed to confirm draft in background:', error);
         
         // Revert optimistic update
-        dispatchAppEvent('transaction-updated', {
-          transactionId: transaction.id,
-        });
+        window.dispatchEvent(
+          new CustomEvent('transaction-updated', {
+            detail: { action: 'edit', data: transaction },
+          })
+        );
         
         Swal.fire({
           icon: 'error',
