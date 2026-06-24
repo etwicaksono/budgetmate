@@ -45,6 +45,7 @@ import { useNetWorth } from '@/hooks/useNetWorth';
 import { NetWorthWidget } from '@/components/dashboard/widgets';
 import { localStorageService } from '@/mocks/localStorageService';
 import './Accounts.css';
+import Swal from 'sweetalert2';
 
 // Map icon strings to components
 const getIconComponent = (iconName: string): IconType => {
@@ -221,6 +222,15 @@ const AccountsPage: React.FC = () => {
       setAccounts(data);
     } catch (err) {
       console.error('Failed to fetch accounts:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to Load Accounts',
+        text: 'Unable to load accounts. Please try again.',
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -324,7 +334,16 @@ const AccountsPage: React.FC = () => {
 
             await accountService.swapAccountOrder(orderMap);
           } catch (error) {
-            console.error('Failed to update account order:', error);
+            console.error('Failed to reorder accounts:', error);
+            Swal.fire({
+              icon: 'warning',
+              title: 'Failed to Reorder Accounts',
+              text: 'Unable to save the new account order.',
+              toast: true,
+              position: 'top-end',
+              timer: 3000,
+              showConfirmButton: false,
+            });
           }
         })();
 

@@ -101,7 +101,17 @@ export async function POST(
       return successResponse(newIncreaseTx, { message: 'Debt increased successfully', code: 201 });
 
    } catch (error) {
-      console.error('Create debt increase error:', error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+         if (error.code === 'P2025') {
+            return errorResponse('NOT_FOUND', 'Debt not found', 404);
+         }
+         if (error.code === 'P2002') {
+            return errorResponse('DUPLICATE', 'Duplicate entry', 409);
+         }
+         console.error('Prisma error in debt increase create:', { code: error.code, message: error.message, meta: error.meta, debtId, userId: user.user_id });
+         return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
+      }
+      console.error('Create debt increase error:', { debtId, userId: user.user_id, error });
       return errorResponse('INTERNAL_ERROR', 'Failed to increase debt', 500);
    }
 }

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
@@ -88,7 +89,20 @@ export async function PUT(request: NextRequest, context: RouteParams) {
 
     return successResponse(label);
   } catch (error) {
-    console.error('Error updating label:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return errorResponse('NOT_FOUND', 'Label not found', 404);
+      }
+      if (error.code === 'P2003') {
+        return errorResponse('CONFLICT', 'Cannot update label: it is referenced by other records', 409);
+      }
+      if (error.code === 'P2002') {
+        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
+      }
+      console.error('Prisma error in label update:', { code: error.code, message: error.message, meta: error.meta, labelId, userId: user.user_id });
+      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
+    }
+    console.error('Error updating label:', { labelId, userId: user.user_id, error });
     return errorResponse('UPDATE_ERROR', 'Failed to update label', 500);
   }
 }
@@ -140,7 +154,20 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
 
     return successResponse(null);
   } catch (error) {
-    console.error('Error deleting label:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return errorResponse('NOT_FOUND', 'Label not found', 404);
+      }
+      if (error.code === 'P2003') {
+        return errorResponse('CONFLICT', 'Cannot delete label: it is referenced by other records', 409);
+      }
+      if (error.code === 'P2002') {
+        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
+      }
+      console.error('Prisma error in label delete:', { code: error.code, message: error.message, meta: error.meta, labelId, userId: user.user_id });
+      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
+    }
+    console.error('Error deleting label:', { labelId, userId: user.user_id, error });
     return errorResponse('DELETE_ERROR', 'Failed to delete label', 500);
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
@@ -45,7 +46,17 @@ export async function GET(
     // We can just return the budget, even if it's null (meaning no budget is configured yet)
     return successResponse(budget);
   } catch (error) {
-    console.error('Fetch category budget error:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return errorResponse('NOT_FOUND', 'Budget not found', 404);
+      }
+      if (error.code === 'P2002') {
+        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
+      }
+      console.error('Prisma error in budget fetch:', { code: error.code, message: error.message, meta: error.meta, categoryId });
+      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
+    }
+    console.error('Fetch category budget error:', { categoryId, error });
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch budget', 500);
   }
 }
@@ -122,7 +133,17 @@ export async function PUT(
 
     return successResponse(budget);
   } catch (error) {
-    console.error('Update category budget error:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return errorResponse('NOT_FOUND', 'Budget not found', 404);
+      }
+      if (error.code === 'P2002') {
+        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
+      }
+      console.error('Prisma error in budget update:', { code: error.code, message: error.message, meta: error.meta, categoryId });
+      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
+    }
+    console.error('Update category budget error:', { categoryId, error });
     return errorResponse('INTERNAL_ERROR', 'Failed to update budget', 500);
   }
 }
@@ -160,7 +181,17 @@ export async function DELETE(
 
     return successResponse({ success: true });
   } catch (error) {
-    console.error('Delete budget error:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return errorResponse('NOT_FOUND', 'Budget not found', 404);
+      }
+      if (error.code === 'P2002') {
+        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
+      }
+      console.error('Prisma error in budget delete:', { code: error.code, message: error.message, meta: error.meta, categoryId });
+      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
+    }
+    console.error('Delete budget error:', { categoryId, error });
     return errorResponse('INTERNAL_ERROR', 'Failed to delete budget', 500);
   }
 }

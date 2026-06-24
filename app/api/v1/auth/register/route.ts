@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { hashPassword, validatePasswordStrength } from '@/lib/auth/password';
@@ -24,6 +25,11 @@ interface ParentCategoryData {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  let email = '';
+  let username = '';
+  let password = '';
+  let full_name: string | null | undefined;
+
   try {
     // Parse and validate request body
     const body = await request.json();
@@ -38,7 +44,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { email, username, password, full_name } = validation.data;
+    const {
+      email: validationEmail,
+      username: validationUsername,
+      password: validationPassword,
+      full_name: validationFullName,
+    } = validation.data;
+
+    email = validationEmail.toLowerCase();
+    username = validationUsername.toLowerCase();
+    password = validationPassword;
+    full_name = validationFullName;
 
     // Validate password strength
     const passwordValidation = validatePasswordStrength(password);
@@ -55,14 +71,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: email.toLowerCase() },
-          { username: username.toLowerCase() }
+          { email: email },
+          { username: username }
         ]
       }
     });
 
     if (existingUser) {
-      const field = existingUser.email === email.toLowerCase() ? 'email' : 'username';
+      const field = existingUser.email === email ? 'email' : 'username';
       return errorResponse(
         'USER_EXISTS',
         `User with this ${field} already exists`,
@@ -78,8 +94,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // 1. Create user
       const user = await tx.user.create({
         data: {
-          email: email.toLowerCase(),
-          username: username.toLowerCase(),
+          email: email,
+          username: username,
           password_hash,
           full_name: full_name ?? null,
           email_verified: false,
@@ -257,8 +273,53 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       201
     );
 
-  } catch (error) {
-    console.error('Registration error:', error);
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        const target = error.meta?.['target'];
+        const fields = Array.isArray(target)
+          ? target
+          : typeof target === 'string'
+            ? [target]
+            : [];
+        const conflictField = fields.includes('email')
+          ? 'email'
+          : fields.includes('username')
+            ? 'username'
+            : fields[0] ?? 'field';
+
+        console.error('Prisma duplicate key error during registration:', {
+          code: error.code,
+          message: error.message,
+          meta: error.meta,
+          email,
+          username,
+          conflictField,
+        });
+
+        return errorResponse(
+          'USER_EXISTS',
+          `User with this ${conflictField} already exists`,
+          409
+        );
+      }
+
+      console.error('Prisma error during registration:', {
+        code: error.code,
+        message: error.message,
+        meta: error.meta,
+        email,
+        username,
+      });
+
+      return errorResponse(
+        'DATABASE_ERROR',
+        `Database operation failed: ${error.code}`,
+        500
+      );
+    }
+
+    console.error('Unexpected error during registration:', error);
     return errorResponse(
       'INTERNAL_ERROR',
       'An error occurred during registration',

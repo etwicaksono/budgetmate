@@ -80,7 +80,8 @@ export function useTransactionForm(): TransactionFormHookResult {
   const validateForm = useCallback((): boolean => {
     const newErrors: ValidationErrors = {};
 
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+    const amountValue = parseFloat(formData.amount);
+    if (!formData.amount || isNaN(amountValue) || amountValue <= 0) {
       newErrors['amount'] = 'Amount must be greater than 0';
     }
 
@@ -123,6 +124,10 @@ export function useTransactionForm(): TransactionFormHookResult {
     // Convert UTC datetime from backend to local datetime for input
     const convertUTCToLocal = (utcDateString: string): string => {
       const date = new Date(utcDateString);  // Parse UTC string
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid transaction date in useTransactionForm, falling back to current date:', utcDateString);
+        return getDefaultFormData().date;
+      }
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');

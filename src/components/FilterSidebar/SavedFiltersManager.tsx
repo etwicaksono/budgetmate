@@ -389,6 +389,8 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                   setSaveModalLoading(false);
                   if (result?.duplicateName) {
                     setSaveModalError(`"${saveModalName.trim()}" already exists`);
+                  } else if (!result?.success) {
+                    setSaveModalError('Failed to save filter. Please try again.');
                   } else {
                     setShowSaveAsNewModal(false);
                     setSaveModalName('');
@@ -415,6 +417,8 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
               setSaveModalLoading(false);
               if (result?.duplicateName) {
                 setSaveModalError(`"${saveModalName.trim()}" already exists`);
+              } else if (!result?.success) {
+                setSaveModalError('Failed to save filter. Please try again.');
               } else {
                 setShowSaveAsNewModal(false);
                 setSaveModalName('');
@@ -465,7 +469,9 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                   setSaveModalLoading(false);
                   if (result?.duplicateName) {
                     setSaveModalError(`"${saveModalName.trim()}" already exists`);
-                  } else if (result?.success) {
+                  } else if (!result?.success) {
+                    setSaveModalError('Failed to save filter. Please try again.');
+                  } else {
                     setShowUpdateModal(false);
                     setSaveModalName('');
                     setSaveModalError(null);
@@ -502,7 +508,9 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
               setSaveModalLoading(false);
               if (result?.duplicateName) {
                 setSaveModalError(`"${saveModalName.trim()}" already exists`);
-              } else if (result?.success) {
+              } else if (!result?.success) {
+                setSaveModalError('Failed to save filter. Please try again.');
+              } else {
                 setShowUpdateModal(false);
                 setSaveModalName('');
                 setSaveModalError(null);

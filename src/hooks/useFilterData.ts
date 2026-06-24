@@ -76,6 +76,7 @@ export const useFilterData = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   // Load filter visibility from localStorage
   useEffect(() => {
@@ -92,13 +93,18 @@ export const useFilterData = () => {
 
   // Save filter visibility to localStorage
   useEffect(() => {
-    localStorage.setItem('filter-visibility', JSON.stringify(filterVisibility));
+    try {
+      localStorage.setItem('filter-visibility', JSON.stringify(filterVisibility));
+    } catch (error) {
+      console.error('Failed to persist filter visibility to localStorage:', error);
+    }
   }, [filterVisibility]);
 
   // Fetch categories and accounts
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setError(null);
         setLoading(true);
         const [categoriesResponse, accountsData, labelsData] = await Promise.all([
           categoryService.fetchCategories(),
@@ -110,6 +116,7 @@ export const useFilterData = () => {
         setLabels(labelsData.data);
       } catch (error) {
         console.error('Failed to fetch filter data:', error);
+        setError(error instanceof Error ? error : new Error('Failed to fetch filter data'));
       } finally {
         setLoading(false);
       }
@@ -273,5 +280,6 @@ export const useFilterData = () => {
 
     // Loading state
     loading,
+    error,
   };
 };

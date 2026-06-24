@@ -23,6 +23,7 @@ import { BudgetFilterSidebar } from './_components/BudgetFilterSidebar';
 import { BudgetToolbar } from './_components/BudgetToolbar';
 import { BudgetTableMode } from './_components/BudgetTableMode';
 import { CombinedBudgetItem } from './types';
+import Swal from 'sweetalert2';
 
 const BUDGET_SORT_OPTIONS: SortOption<string>[] = [
   { value: 'name_asc', icon: FaSortAlphaDown, title: 'Alphabetical ASC', ariaLabel: 'Alphabetical ascending' },
@@ -106,7 +107,16 @@ function BudgetsPageContent(): React.ReactElement {
       );
       setBudgets(budRes);
     } catch (error) {
-      console.error(error);
+      console.error('Failed to load budgets:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to Load Budgets',
+        text: 'Unable to load budgets. Please try again.',
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+      });
     } finally {
       setLoading(false);
     }
@@ -143,7 +153,16 @@ function BudgetsPageContent(): React.ReactElement {
       });
       setBudgets(budRes);
     } catch (error) {
-      console.error(error);
+      console.error('Failed to refresh budgets:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to Refresh Budgets',
+        text: 'Unable to refresh budgets. Please try again.',
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+      });
     }
   }, [selectedMonth, selectedYear, selectedAccounts, draftOption, dateRange.start, dateRange.end]);
 

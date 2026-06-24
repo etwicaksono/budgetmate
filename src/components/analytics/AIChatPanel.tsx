@@ -252,7 +252,16 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
       await loadSessions();
       setMenuOpenId(null);
     } catch (err) {
-      console.error('Failed to delete session', err);
+      console.error('Failed to delete chat session:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Delete Failed',
+        text: 'Failed to delete chat session.',
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+      });
     }
   }, [currentSession, loadSessions]);
 
@@ -380,7 +389,20 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
   }, [currentSession, onRestoreContext]);
 
   const handleNewChat = useCallback(async () => {
-    try { await createSession(context); } catch { /* silent */ }
+    try {
+      await createSession(context);
+    } catch (error) {
+      console.error('Failed to create new chat session:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'New Chat Failed',
+        text: 'Failed to create a new chat session.',
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    }
   }, [context, createSession]);
 
   const handleRenameSubmit = useCallback(
@@ -393,9 +415,19 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
         if (currentSession?.id === sessionId) {
           setCurrentSession({ ...currentSession, title: renameValue } as Session);
         }
-      } catch { /* silent */ } finally {
         setRenamingId(null);
         setRenameValue('');
+      } catch (error) {
+        console.error('Failed to rename chat session:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Rename Failed',
+          text: 'Failed to rename chat session.',
+          toast: true,
+          position: 'top-end',
+          timer: 3000,
+          showConfirmButton: false,
+        });
       }
     },
     [renameValue, currentSession]

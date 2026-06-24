@@ -43,6 +43,9 @@ interface RecordsListProps {
   showCheckboxes?: boolean;
   showDropdownMenu?: boolean;
   isModal?: boolean;
+  /** When false, transactions are rendered as a flat list without date headers
+   *  (used when sorting by amount). Default: true */
+  isGroupedByDate?: boolean;
 }
 
 export const RecordsList: React.FC<RecordsListProps> = ({
@@ -56,6 +59,7 @@ export const RecordsList: React.FC<RecordsListProps> = ({
   showCheckboxes = true,
   showDropdownMenu = true,
   isModal = false,
+  isGroupedByDate = true,
 }) => {
   const { formatCurrency } = useFormattedCurrency();
   const longPressTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -136,33 +140,37 @@ export const RecordsList: React.FC<RecordsListProps> = ({
 
         return (
           <div key={dateKey} className="records-day-group">
-            <div 
-              className="records-day-header"
-              style={isModal ? { position: 'static' } : {}}
-            >
-              <div className="records-day-header-left">
-                {shouldShowDayCheckbox && (
-                  <Form.Check
-                    type="checkbox"
-                    id={dayCheckboxId}
-                    className="records-day-select"
-                    checked={areAllDayRecordsSelected}
-                    onChange={handleDaySelectionChange}
-                  />
-                )}
-                <h6 className="mb-0 fw-bold">{dateKey}</h6>
-              </div>
-              <div className="records-day-header-right">
-                <strong
-                  style={{ color: '#6C757D', whiteSpace: 'nowrap' }}
+            {isGroupedByDate && (
+              <>
+                <div
+                  className="records-day-header"
+                  style={isModal ? { position: 'static' } : {}}
                 >
-                  {dayTotal < 0 ? '-' : dayTotal > 0 ? '+' : ''}
-                  {formatCurrency(Math.abs(dayTotal)).replace(/\.00$/, '')}
-                </strong>
-              </div>
-            </div>
+                  <div className="records-day-header-left">
+                    {shouldShowDayCheckbox && (
+                      <Form.Check
+                        type="checkbox"
+                        id={dayCheckboxId}
+                        className="records-day-select"
+                        checked={areAllDayRecordsSelected}
+                        onChange={handleDaySelectionChange}
+                      />
+                    )}
+                    <h6 className="mb-0 fw-bold">{dateKey}</h6>
+                  </div>
+                  <div className="records-day-header-right">
+                    <strong
+                      style={{ color: '#6C757D', whiteSpace: 'nowrap' }}
+                    >
+                      {dayTotal < 0 ? '-' : dayTotal > 0 ? '+' : ''}
+                      {formatCurrency(Math.abs(dayTotal)).replace(/\.00$/, '')}
+                    </strong>
+                  </div>
+                </div>
 
-            <div className="records-day-separator" />
+                <div className="records-day-separator" />
+              </>
+            )}
 
             <div className="records-transactions">
               {dayTransactions.map((transaction) => {

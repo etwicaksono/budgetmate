@@ -336,6 +336,8 @@ function TransactionsContent() {
   }, [observerTarget, hasMore, loading, isLoadingMore, page, fetchTransactions]);
 
   // Group transactions by date
+  const isSortByAmount = sortOption === 'amountAsc' || sortOption === 'amountDesc' || sortOption === 'absAmountAsc' || sortOption === 'absAmountDesc';
+
   const groupedTransactions = useMemo<GroupedTransactions>(() => {
     const grouped: GroupedTransactions = {};
 
@@ -416,14 +418,16 @@ function TransactionsContent() {
         labels: transaction.labels || [],
       } as TransactionRecord;
 
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = [];
+      // When sorting by amount, use a single flat group to preserve API sort order
+      const groupKey = isSortByAmount ? '_flat' : dateKey;
+      if (!grouped[groupKey]) {
+        grouped[groupKey] = [];
       }
-      grouped[dateKey].push(record);
+      grouped[groupKey].push(record);
     });
 
     return grouped;
-  }, [transactions, parentCategoryColors, categoryTree]);
+  }, [transactions, parentCategoryColors, categoryTree, isSortByAmount]);
 
   // Selection handlers
   const handleSelectRecord = useCallback((recordId: string) => {
@@ -649,6 +653,7 @@ function TransactionsContent() {
                       onConfirmDraft={handleConfirmDraft}
                       showCheckboxes
                       showDropdownMenu
+                      isGroupedByDate={!isSortByAmount}
                     />
 
                     {/* Infinite Scroll Observer Target */}

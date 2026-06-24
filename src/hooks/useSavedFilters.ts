@@ -46,17 +46,20 @@ export function useSavedFilters({
 }: UseSavedFiltersOptions) {
    const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
    const [loading, setLoading] = useState(false);
+   const [error, setError] = useState<Error | null>(null);
    const [activeFilterId, setActiveFilterId] = useState<string | null>(null);
 
    // Load all saved filters on mount
    useEffect(() => {
       const load = async () => {
          setLoading(true);
+         setError(null);
          try {
             const data = await savedFilterService.fetchSavedFilters(context);
             setSavedFilters(data);
          } catch (error) {
             console.error('Failed to fetch saved filters:', error);
+            setError(error instanceof Error ? error : new Error('Failed to fetch saved filters'));
          } finally {
             setLoading(false);
          }
@@ -87,6 +90,10 @@ export function useSavedFilters({
    // Resolve category IDs → names (drops deleted entities silently)
    const categoryIdsToNames = useCallback(
       (ids: string[]): string[] => {
+         const unresolvedIds = ids.filter((id) => !categories.some((c) => c.id === id));
+         if (unresolvedIds.length > 0) {
+            console.warn('Saved filter references unresolved category IDs:', unresolvedIds);
+         }
          return ids
             .map((id) => categories.find((c) => c.id === id)?.name)
             .filter((name): name is string => !!name);
@@ -97,6 +104,10 @@ export function useSavedFilters({
    // Resolve account IDs → names
    const accountIdsToNames = useCallback(
       (ids: string[]): string[] => {
+         const unresolvedIds = ids.filter((id) => !accounts.some((a) => a.id === id));
+         if (unresolvedIds.length > 0) {
+            console.warn('Saved filter references unresolved account IDs:', unresolvedIds);
+         }
          return ids
             .map((id) => accounts.find((a) => a.id === id)?.name)
             .filter((name): name is string => !!name);
@@ -240,6 +251,7 @@ export function useSavedFilters({
    return {
       savedFilters,
       loading,
+      error,
       activeFilterId,
       saveCurrentFilter,
       loadFilter,

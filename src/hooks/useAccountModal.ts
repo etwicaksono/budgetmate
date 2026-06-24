@@ -94,8 +94,11 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
       }
 
       closeModal();
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : 'Failed to save account');
+    } catch (error) {
+      console.error('Failed to save account:', error);
+      const wrappedError = new Error('Failed to save account') as Error & { cause?: unknown };
+      wrappedError.cause = error;
+      throw wrappedError;
     }
   }, [modalMode, editingAccount, onSuccess, closeModal]);
 

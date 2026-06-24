@@ -174,10 +174,26 @@ export const GlobalTransactionModal: React.FC = () => {
         const transferId = initialData?.transfer_id || initialData?.id || transactionId;
         transferService.deleteTransfer(transferId).catch(error => {
           console.error('Failed to delete transfer in background:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Delete Failed',
+            text: 'Failed to delete transaction. It may still appear in the list.',
+            toast: true,
+            position: 'top-end',
+            timer: 3000,
+          });
         });
       } else {
         transactionService.deleteTransaction(transactionId).catch(error => {
           console.error('Failed to delete transaction in background:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Delete Failed',
+            text: 'Failed to delete transaction. It may still appear in the list.',
+            toast: true,
+            position: 'top-end',
+            timer: 3000,
+          });
         });
       }
 

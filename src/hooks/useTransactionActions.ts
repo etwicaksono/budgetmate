@@ -40,7 +40,17 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
           }
           return; // Skip opening the standard transaction modal
         } catch (error) {
-          console.error("Failed to load debt for this transaction", error);
+          console.error('Failed to load debt details for editing, falling back to generic editor:', error);
+          Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+          }).fire({
+            icon: 'warning',
+            title: 'Opened the generic editor after debt details failed to load.',
+          });
           // Fallback to standard edit if debt load fails
         }
       }

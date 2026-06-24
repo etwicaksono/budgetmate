@@ -54,17 +54,32 @@
      setImportProgress(0);
  
      // Validate file
-     const validation = await backupService.validateBackupFile(file);
-     setFileValidation(validation);
- 
-     if (!validation.valid) {
-       await Swal.fire({
-         icon: 'error',
-         title: 'Invalid File',
-         text: validation.error || 'The selected file is not a valid backup.',
-         confirmButtonColor: '#dc3545',
-       });
-     }
+    try {
+      const validation = await backupService.validateBackupFile(file);
+      setFileValidation(validation);
+
+      if (!validation.valid) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Invalid File',
+          text: validation.error || 'The selected file is not a valid backup.',
+          confirmButtonColor: '#dc3545',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to validate backup file:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to validate backup file.';
+      setFileValidation({ valid: false, error: errorMessage });
+      await Swal.fire({
+        icon: 'error',
+        title: 'Validation Failed',
+        text: errorMessage,
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    }
    };
  
    // Handle import

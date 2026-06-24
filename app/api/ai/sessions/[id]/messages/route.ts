@@ -13,6 +13,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { errorResponse } from '@/lib/api/response';
@@ -20,6 +21,8 @@ import { createLLMProvider } from '@/lib/ai/factory';
 import { ANALYTICS_TOOLS, toolExecutor } from '@/lib/ai/tools';
 import { buildSystemPrompt, formatIncomeExpenseReport } from '@/lib/ai/formatters';
 import type { ChatMessage, ContextSnapshot, ToolCall } from '@/lib/ai/types';
+
+const PrismaClientKnownRequestError = Prisma.PrismaClientKnownRequestError;
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -34,13 +37,53 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
   const { id: sessionId } = await params;
 
   // ── Validate session ownership ──────────────────────────────────────────
-  const session = await prisma.aiChatSession.findFirst({
-    where: { id: sessionId, user_id: auth.user.user_id },
-    include: {
-      messages: { orderBy: { created_at: 'asc' }, select: { role: true, content: true } },
-    },
-  });
-  if (!session) return errorResponse('NOT_FOUND', 'Session not found', 404);
+  let session: { context_snapshot: unknown; messages: Array<{ role: string; content: string }> } | null = null;
+  try {
+    session = await prisma.aiChatSession.findFirst({
+      where: { id: sessionId, user_id: auth.user.user_id },
+      include: {
+        messages: { orderBy: { created_at: 'asc' }, select: { role: true, content: true } },
+      },
+    });
+  } catch (error) {
+    if (error instanceof PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        console.error('Failed to validate AI chat session ownership:', {
+          operation: 'findFirst',
+          entity: 'aiChatSession',
+          code: error.code,
+          message: error.message,
+          meta: error.meta,
+        });
+        return errorResponse('NOT_FOUND', 'AI chat session not found', 404);
+      }
+
+      if (error.code === 'P2002') {
+        console.error('Failed to validate AI chat session ownership:', {
+          operation: 'findFirst',
+          entity: 'aiChatSession',
+          code: error.code,
+          message: error.message,
+          meta: error.meta,
+        });
+        return errorResponse('DUPLICATE', 'A session with this title already exists', 409);
+      }
+
+      console.error('Prisma error while validating AI chat session ownership:', {
+        operation: 'findFirst',
+        entity: 'aiChatSession',
+        code: error.code,
+        message: error.message,
+        meta: error.meta,
+      });
+      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
+    }
+
+    console.error('Unexpected error while validating AI chat session ownership:', error);
+    return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);
+  }
+
+  if (!session) return errorResponse('NOT_FOUND', 'AI chat session not found', 404);
 
   let body: { content: string; provider?: string; model?: string };
   try {
@@ -179,17 +222,33 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
         }
 
         // ── Persist messages (Wait before closing stream to ensure DB saves) ──
-        await prisma.aiChatMessage.createMany({
-          data: [
-            { session_id: sessionId, role: 'user', content: userContent },
-            { session_id: sessionId, role: 'assistant', content: finalText },
-          ],
-        });
+        try {
+          await prisma.aiChatMessage.createMany({
+            data: [
+              { session_id: sessionId, role: 'user', content: userContent },
+              { session_id: sessionId, role: 'assistant', content: finalText },
+            ],
+          });
 
-        await prisma.aiChatSession.update({
-          where: { id: sessionId },
-          data: { updated_at: new Date() },
-        });
+          await prisma.aiChatSession.update({
+            where: { id: sessionId },
+            data: { updated_at: new Date() },
+          });
+        } catch (error) {
+          if (error instanceof PrismaClientKnownRequestError) {
+            console.error('Failed to persist AI chat messages:', {
+              operation: 'createMany/update',
+              entity: 'aiChatMessage/aiChatSession',
+              code: error.code,
+              message: error.message,
+              meta: error.meta,
+            });
+          } else {
+            console.error('Unexpected error while persisting AI chat messages:', error);
+          }
+          sendEvent('error', 'Terjadi kesalahan pada sistem saat memproses pesan.');
+          return;
+        }
 
         if (isFirstMessage) {
           // Fire-and-forget title generation so we don't delay the stream end
@@ -215,23 +274,66 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
 }
 
 // ── Title generation (non-blocking) ─────────────────────────────────────────
+// Tries to generate a short AI title from the first exchange.
+// Falls back to the user's message (truncated to 255 chars) if AI fails.
 async function generateSessionTitle(
   sessionId: string,
   userMessage: string,
   assistantReply: string,
   provider: ReturnType<typeof createLLMProvider>
 ): Promise<void> {
+  // Fallback: use the user's first message as the title (max 255 chars per schema)
+  // userMessage is guaranteed non-empty — validated at POST handler line 94-96
+  const fallbackTitle = userMessage.slice(0, 255).trim();
+
+  let aiTitle: string | null = null;
   try {
     const prompt =
       `Berikan judul singkat (maks 7 kata, dalam Bahasa Indonesia) untuk percakapan berikut:\n\n` +
       `User: ${userMessage.slice(0, 200)}\nAI: ${assistantReply.slice(0, 200)}\n\n` +
       `Tulis HANYA judulnya saja, tanpa tanda kutip atau penjelasan tambahan.`;
 
-    const title = (await provider.complete(prompt)).trim().replace(/^["']|["']$/g, '');
-    if (title) {
-      await prisma.aiChatSession.update({ where: { id: sessionId }, data: { title } });
-    }
+    aiTitle = (await provider.complete(prompt)).trim().replace(/^["']|["']$/g, '');
   } catch (err) {
-    console.error('[AI] Failed to generate session title:', err);
+    console.error('[AI] LLM title generation failed, falling back to user message:', err);
+  }
+
+  // Use AI title if non-empty, otherwise fall back to user message
+  const finalTitle = aiTitle || fallbackTitle;
+
+  try {
+    await prisma.aiChatSession.update({ where: { id: sessionId }, data: { title: finalTitle } });
+  } catch (error) {
+    if (error instanceof PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        console.error('Failed to set AI chat session title (session not found):', {
+          operation: 'update',
+          entity: 'aiChatSession',
+          code: error.code,
+          message: error.message,
+          meta: error.meta,
+          sessionId,
+          usedFallback: !aiTitle,
+        });
+        return;
+      }
+
+      console.error('Prisma error while setting AI chat session title:', {
+        operation: 'update',
+        entity: 'aiChatSession',
+        code: error.code,
+        message: error.message,
+        meta: error.meta,
+        sessionId,
+        usedFallback: !aiTitle,
+      });
+      return;
+    }
+
+    console.error('[AI] Failed to persist session title:', {
+      error,
+      sessionId,
+      usedFallback: !aiTitle,
+    });
   }
 }

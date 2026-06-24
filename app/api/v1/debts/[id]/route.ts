@@ -204,7 +204,17 @@ export async function PUT(
 
       return successResponse(updatedDebt, { message: 'Debt updated successfully' });
    } catch (error) {
-      console.error('Update debt error:', error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+         if (error.code === 'P2025') {
+            return errorResponse('NOT_FOUND', 'Debt not found', 404);
+         }
+         if (error.code === 'P2002') {
+            return errorResponse('DUPLICATE', 'Duplicate entry', 409);
+         }
+         console.error('Prisma error in debt update:', { code: error.code, message: error.message, meta: error.meta, debtId, userId: authResult.user.user_id });
+         return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
+      }
+      console.error('Update debt error:', { debtId, userId: authResult.user.user_id, error });
       return errorResponse('INTERNAL_ERROR', 'Failed to update debt', 500);
    }
 }
@@ -251,7 +261,17 @@ export async function DELETE(
 
       return successResponse(null, { message: 'Debt deleted successfully' });
    } catch (error) {
-      console.error('Delete debt error:', error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+         if (error.code === 'P2025') {
+            return errorResponse('NOT_FOUND', 'Debt not found', 404);
+         }
+         if (error.code === 'P2002') {
+            return errorResponse('DUPLICATE', 'Duplicate entry', 409);
+         }
+         console.error('Prisma error in debt delete:', { code: error.code, message: error.message, meta: error.meta, debtId, userId: authResult.user.user_id });
+         return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
+      }
+      console.error('Delete debt error:', { debtId, userId: authResult.user.user_id, error });
       return errorResponse('INTERNAL_ERROR', 'Failed to delete debt', 500);
    }
 }

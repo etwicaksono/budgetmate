@@ -1,6 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
+
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
+import { errorResponse, successResponse } from '@/lib/api/response';
 import { isValidLocale } from '@/config/locales';
 
 /**
@@ -28,33 +31,35 @@ export async function GET(request: NextRequest) {
     });
 
     if (!userSettings) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'USER_NOT_FOUND',
-            message: 'User not found',
-          },
-        },
-        { status: 404 }
+      return errorResponse('NOT_FOUND', 'User settings not found', 404);
+    }
+
+    return successResponse(userSettings);
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      console.error('Prisma error while fetching user settings:', {
+        code: error.code,
+        message: error.message,
+        meta: error.meta,
+        userId: user.user_id,
+      });
+
+      return errorResponse(
+        'DATABASE_ERROR',
+        `Database operation failed: ${error.code}`,
+        500
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: userSettings,
+    console.error('Unexpected error while fetching user settings:', {
+      userId: user.user_id,
+      error,
     });
-  } catch (error) {
-    console.error('Failed to fetch user settings:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'SETTINGS_FETCH_FAILED',
-          message: 'Failed to fetch user settings',
-        },
-      },
-      { status: 500 }
+
+    return errorResponse(
+      'INTERNAL_ERROR',
+      'Failed to fetch user settings',
+      500
     );
   }
 }
@@ -71,33 +76,23 @@ export async function PUT(request: NextRequest) {
 
   const { user } = authResult;
 
+  let updateData: {
+    timezone?: string;
+    date_format?: string;
+    number_format?: string;
+    locale?: string;
+  } = {};
+
   try {
     const body = await request.json();
     const { timezone, date_format, number_format, locale } = body;
 
     // Validate locale if provided
     if (locale && !isValidLocale(locale)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: 'INVALID_LOCALE',
-            message: 'Invalid locale code provided',
-          },
-        },
-        { status: 400 }
-      );
+      return errorResponse('INVALID_LOCALE', 'Invalid locale code provided', 400);
     }
 
     // Build update data (only include provided fields)
-    const updateData: {
-      timezone?: string;
-
-      date_format?: string;
-      number_format?: string;
-      locale?: string;
-    } = {};
-
     if (timezone !== undefined) updateData.timezone = timezone;
 
     if (date_format !== undefined) updateData.date_format = date_format;
@@ -116,21 +111,46 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedUser,
+    return successResponse(updatedUser);
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        console.error('Prisma not-found error while updating user settings:', {
+          code: error.code,
+          message: error.message,
+          meta: error.meta,
+          userId: user.user_id,
+          updateData,
+        });
+
+        return errorResponse('NOT_FOUND', 'User settings not found', 404);
+      }
+
+      console.error('Prisma error while updating user settings:', {
+        code: error.code,
+        message: error.message,
+        meta: error.meta,
+        userId: user.user_id,
+        updateData,
+      });
+
+      return errorResponse(
+        'DATABASE_ERROR',
+        `Database operation failed: ${error.code}`,
+        500
+      );
+    }
+
+    console.error('Unexpected error while updating user settings:', {
+      userId: user.user_id,
+      updateData,
+      error,
     });
-  } catch (error) {
-    console.error('Failed to update user settings:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'SETTINGS_UPDATE_FAILED',
-          message: 'Failed to update user settings',
-        },
-      },
-      { status: 500 }
+
+    return errorResponse(
+      'INTERNAL_ERROR',
+      'Failed to update user settings',
+      500
     );
   }
 }

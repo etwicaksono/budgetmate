@@ -165,8 +165,8 @@ export default function DebtsPage() {
       });
       setTotalLent(lentOut);
       setTotalBorrowed(borrowIn);
-    } catch {
-      // silently ignore summary errors
+    } catch (error) {
+      console.error('Failed to fetch debt summary:', error);
     }
   }, []);
 
