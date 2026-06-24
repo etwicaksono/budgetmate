@@ -34,6 +34,71 @@ apiClient.interceptors.request.use(
 );
 
 // Response interceptor for token refresh
+// Mutex to prevent multiple concurrent refresh attempts
+let refreshPromise: Promise<string> | null = null;
+
+async function refreshToken(): Promise<string> {
+  // If a refresh is already in progress, wait for it
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const encryptedRefreshToken = localStorage.getItem(APP_CONFIG.storageKeys.refreshToken);
+
+      if (!encryptedRefreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      const refreshToken = await tokenCrypto.decryptToken(encryptedRefreshToken);
+
+      if (!refreshToken) {
+        throw new Error('Failed to decrypt refresh token');
+      }
+
+      // Call refresh endpoint (without Authorization header to avoid infinite loop)
+      const response = await axios.post(
+        `${APP_CONFIG.api.baseUrl}/auth/refresh`,
+        { refresh_token: refreshToken },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data?.success && response.data?.data) {
+        const { access_token } = response.data.data;
+
+        // Encrypt and store new access token
+        const encryptedAccessToken = await tokenCrypto.encryptToken(access_token);
+        localStorage.setItem(APP_CONFIG.storageKeys.authToken, encryptedAccessToken);
+
+        return access_token;
+      } else {
+        throw new Error('Invalid refresh response');
+      }
+    } finally {
+      // Clear the mutex so future refreshes can proceed
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+function clearAuthAndRedirect(reason: 'session_expired' | 'auth_error') {
+  localStorage.removeItem(APP_CONFIG.storageKeys.authToken);
+  localStorage.removeItem(APP_CONFIG.storageKeys.refreshToken);
+  localStorage.removeItem(APP_CONFIG.storageKeys.userData);
+  tokenCrypto.clearKey();
+
+  if (!window.location.pathname.includes('/login')) {
+    window.location.href = `/login?${reason}=true`;
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -54,75 +119,22 @@ apiClient.interceptors.response.use(
         originalRequest._retry = true;
 
         try {
-          // Get refresh token
-          const encryptedRefreshToken = localStorage.getItem(APP_CONFIG.storageKeys.refreshToken);
+          // Use the shared refresh mutex — concurrent requests will wait
+          // for the same refresh to complete instead of racing
+          const newAccessToken = await refreshToken();
 
-          if (!encryptedRefreshToken) {
-            throw new Error('No refresh token available');
-          }
-
-          const refreshToken = await tokenCrypto.decryptToken(encryptedRefreshToken);
-
-          if (!refreshToken) {
-            throw new Error('Failed to decrypt refresh token');
-          }
-
-          // Call refresh endpoint (without Authorization header to avoid infinite loop)
-          const response = await axios.post(
-            `${APP_CONFIG.api.baseUrl}/auth/refresh`,
-            { refresh_token: refreshToken },
-            {
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-
-          if (response.data?.success && response.data?.data) {
-            const { access_token } = response.data.data;
-            // Note: refresh_token in response is the same one we sent
-
-            // Encrypt and store new access token
-            const encryptedAccessToken = await tokenCrypto.encryptToken(access_token);
-            localStorage.setItem(APP_CONFIG.storageKeys.authToken, encryptedAccessToken);
-
-            // Retry original request with new access token
-            originalRequest.headers.Authorization = `Bearer ${access_token}`;
-            return apiClient(originalRequest);
-          } else {
-            throw new Error('Invalid refresh response');
-          }
+          // Retry original request with new access token
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return apiClient(originalRequest);
         } catch (refreshError) {
-          // Refresh failed (refresh token expired or invalid)
           console.error('Token refresh failed:', refreshError);
-
-          // Clear all auth data
-          localStorage.removeItem(APP_CONFIG.storageKeys.authToken);
-          localStorage.removeItem(APP_CONFIG.storageKeys.refreshToken);
-          localStorage.removeItem(APP_CONFIG.storageKeys.userData);
-          tokenCrypto.clearKey();
-
-          // Only redirect if we're not already on login page
-          if (!window.location.pathname.includes('/login')) {
-            window.location.href = '/login?session_expired=true';
-          }
-
+          clearAuthAndRedirect('session_expired');
           return Promise.reject(refreshError);
         }
       } else {
         // Other 401 errors (invalid token, user not found, etc.) - redirect immediately
         console.error('Authentication failed:', error.response?.data?.error?.message);
-
-        // Clear all auth data
-        localStorage.removeItem(APP_CONFIG.storageKeys.authToken);
-        localStorage.removeItem(APP_CONFIG.storageKeys.refreshToken);
-        localStorage.removeItem(APP_CONFIG.storageKeys.userData);
-        tokenCrypto.clearKey();
-
-        // Redirect to login
-        if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login?auth_error=true';
-        }
+        clearAuthAndRedirect('auth_error');
       }
     }
 
