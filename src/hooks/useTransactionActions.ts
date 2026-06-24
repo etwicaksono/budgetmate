@@ -109,18 +109,26 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
     });
 
     if (result.isConfirmed) {
+      // Find paired transfer transaction so the UI can remove both halves
+      const isTransfer = isTransferTransaction(transaction);
+      const pairedTransaction = isTransfer && transaction.transfer_id
+        ? transactions.find(t => t.transfer_id === transaction.transfer_id && t.id !== recordId)
+        : null;
+
       // Background delete
       transactionService.deleteTransaction(recordId).catch(error => {
         console.error('Failed to delete transaction in background:', error);
-        
+
         // Revert optimistic update
         const deletedTransaction = transactions.find((t) => t.id === recordId);
         if (deletedTransaction) {
-          dispatchAppEvent('transaction-updated', {
-            transactionId: recordId,
-          });
+          window.dispatchEvent(
+            new CustomEvent('transaction-updated', {
+              detail: { action: 'add', data: deletedTransaction },
+            })
+          );
         }
-        
+
         Swal.fire({
           icon: 'error',
           title: 'Delete Failed',
@@ -141,9 +149,17 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
         title: 'Transaction deleted'
       });
 
-      dispatchAppEvent('transaction-updated', {
-        transactionId: recordId,
-      });
+      window.dispatchEvent(
+        new CustomEvent('transaction-updated', {
+          detail: {
+            action: 'delete',
+            data: {
+              id: recordId,
+              ...(pairedTransaction && { pairedId: pairedTransaction.id }),
+            },
+          },
+        })
+      );
     }
   }, [transactions]);
 
