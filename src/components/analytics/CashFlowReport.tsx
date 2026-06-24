@@ -28,6 +28,9 @@ interface CashFlowReportProps {
   searchTerm?: string;
   minAmount?: number;
   maxAmount?: number;
+  transferOption?: string;
+  debtOption?: string;
+  selectedLabelIds?: string[];
 }
 
 const formatNumberAbbreviation = (value: number): string => {
@@ -55,6 +58,9 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
   searchTerm,
   minAmount,
   maxAmount,
+  transferOption,
+  debtOption,
+  selectedLabelIds,
   selectedCategories,
   selectedAccounts,
   selectedCurrencies,
@@ -104,6 +110,9 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
           category_ids?: string[];
           account_ids?: string[];
           currencies?: string[];
+          transfer_option?: string;
+          debt_option?: string;
+          label_ids?: string[];
         } = {};
         if (startDate) params.start_date = startDate;
         if (endDate) params.end_date = endDate;
@@ -113,6 +122,9 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
         if (selectedCategories?.length) params.category_ids = selectedCategories;
         if (selectedAccounts?.length) params.account_ids = selectedAccounts;
         if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
+        if (transferOption) params.transfer_option = transferOption;
+        if (debtOption) params.debt_option = debtOption;
+        if (selectedLabelIds?.length) params.label_ids = selectedLabelIds;
 
         const response = await analyticsService.fetchCashFlowReport(params);
         setData(response);
@@ -124,7 +136,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
     };
 
     fetchData();
-  }, [startDate, endDate, searchTerm, minAmount, maxAmount, selectedCategories, selectedAccounts, selectedCurrencies]);
+  }, [startDate, endDate, searchTerm, minAmount, maxAmount, transferOption, debtOption, selectedLabelIds, selectedCategories, selectedAccounts, selectedCurrencies]);
 
   // Get current data based on selected currency
   const currentData = useMemo(() => {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Table, Dropdown, Form, Placeholder } from 'react-bootstrap';
 import { FaListUl, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
@@ -8,10 +8,16 @@ import { Icon } from '@/utils/iconResolver';
 import { type CategoryReport, type CurrencyReport } from '@/services/analyticsService';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import { useIncomeExpenseData } from '@/hooks/useIncomeExpenseData';
+import type { SortValue } from '@/hooks/useFilterData';
 import CategoryTransactionsModal from './CategoryTransactionsModal';
+import { AnalyticsToolbar } from './AnalyticsToolbar';
 
 type PeriodType = 'month' | 'week' | 'year' | 'custom';
 
+// TODO: Remove unused filter props (selectedCategories, selectedCurrencies, minAmount,
+// maxAmount, transferOption, debtOption, selectedLabelIds) from this component's interface
+// since they are no longer shown in the analytics sidebar. Keep only: selectedAccounts,
+// searchTerm/sortTerm callbacks, sortOption, and numberOfColumns.
 interface IncomesExpensesReportProps {
   startDate?: string;
   endDate?: string;
@@ -19,6 +25,15 @@ interface IncomesExpensesReportProps {
   selectedCategories?: string[];
   selectedAccounts?: string[];
   selectedCurrencies?: string[];
+  searchTerm?: string;
+  onSearchTermChange?: (value: string) => void;
+  minAmount?: number;
+  maxAmount?: number;
+  transferOption?: string;
+  debtOption?: string;
+  selectedLabelIds?: string[];
+  sortOption?: SortValue;
+  onSortOptionChange?: (value: SortValue) => void;
   numberOfColumns?: number;
   onNumberOfColumnsChange?: (val: number) => void;
 }
@@ -34,8 +49,6 @@ interface SelectedCategory {
   accountIds?: string[]; // forwarded from the report's account filter
 }
 
-type SortOption = 'default' | 'amount_asc' | 'amount_desc';
-
 const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   startDate,
   endDate,
@@ -43,13 +56,21 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   selectedCategories,
   selectedAccounts,
   selectedCurrencies,
+  searchTerm,
+  onSearchTermChange,
+  minAmount,
+  maxAmount,
+  transferOption,
+  debtOption,
+  selectedLabelIds,
+  sortOption: externalSortOption = 'timeDesc',
+  onSortOptionChange,
   numberOfColumns = 2,
   onNumberOfColumnsChange
 }) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
-  const [sortOption, setSortOption] = useState<SortOption>('default');
   const [showPercentageDiff, setShowPercentageDiff] = useState(false);
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const { formatCurrency } = useFormattedCurrency();
@@ -62,6 +83,12 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       selectedCategories,
       selectedAccounts,
       selectedCurrencies,
+      searchTerm,
+      minAmount,
+      maxAmount,
+      transferOption,
+      debtOption,
+      selectedLabelIds,
       numberOfColumns,
     });
 
@@ -156,22 +183,26 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     setSelectedCategory(null);
   };
 
-  const sortCategories = useMemo(() => {
-    return (categories: CategoryReport[]): CategoryReport[] => {
-      if (sortOption === 'default') return categories;
+  const sortCategories = useCallback((categories: CategoryReport[]): CategoryReport[] => {
+    if (externalSortOption === 'timeDesc' || externalSortOption === 'timeAsc') return categories;
 
-      return [...categories].sort((a, b) => {
-        const aTotal = a.amounts.reduce((sum, amt) => sum + amt, 0);
-        const bTotal = b.amounts.reduce((sum, amt) => sum + amt, 0);
+    return [...categories].sort((a, b) => {
+      // Sort by the most recent period (first index in amounts array, i.e. current month)
+      const aAmount = Math.abs(a.amounts[0] ?? 0);
+      const bAmount = Math.abs(b.amounts[0] ?? 0);
 
-        if (sortOption === 'amount_asc') {
-          return aTotal - bTotal;
-        } else {
-          return bTotal - aTotal;
-        }
-      });
-    };
-  }, [sortOption]);
+      if (externalSortOption === 'amountAsc') {
+        return aAmount - bAmount;
+      } else if (externalSortOption === 'amountDesc') {
+        return bAmount - aAmount;
+      } else if (externalSortOption === 'absAmountAsc') {
+        return a.name.localeCompare(b.name);
+      } else if (externalSortOption === 'absAmountDesc') {
+        return b.name.localeCompare(a.name);
+      }
+      return 0;
+    });
+  }, [externalSortOption]);
 
   const calculatePercentageDiff = (current: number, previous: number): string | null => {
     if (!showPercentageDiff || previous === 0) return null;
@@ -248,15 +279,23 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             </td>
           ))}
         </tr>
-        {hasChildren && isExpanded && category.subItems?.map((subItem) =>
-          renderCategoryRow(subItem, type, currency, true)
-        )}
+        {hasChildren && isExpanded && (() => {
+          const sortedSubs = sortCategories(category.subItems ?? []);
+          console.log('[DEBUG] Sub-items sort', { parent: category.name, sortOption: externalSortOption, subItems: category.subItems?.map(s => ({ name: s.name, amounts: s.amounts })), sortedSubs: sortedSubs.map(s => ({ name: s.name, amounts: s.amounts })) });
+          return sortedSubs.map((subItem) =>
+            renderCategoryRow(subItem, type, currency, true)
+          );
+        })()}
       </React.Fragment>
     );
   };
 
   const renderReport = (currencyData: CurrencyReport, currency: string) => {
     const monthNames = data?.monthNames || [];
+
+    // Pre-sort categories to ensure sorted order is used in render
+    const sortedIncomeCategories = sortCategories(currencyData.incomeCategories);
+    const sortedExpenseCategories = sortCategories(currencyData.expenseCategories);
 
     const now = new Date();
     const currentLong = now.toLocaleString('default', { month: 'long' });
@@ -292,7 +331,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           </tr>
 
           {/* Income Categories */}
-          {sortCategories(currencyData.incomeCategories).map((category) => renderCategoryRow(category, 'income', currency))}
+          {sortedIncomeCategories.map((category) => renderCategoryRow(category, 'income', currency))}
 
           {/* Spacer Row */}
           <tr>
@@ -310,7 +349,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           </tr>
 
           {/* Expense Categories */}
-          {sortCategories(currencyData.expenseCategories).map((category) => renderCategoryRow(category, 'expense', currency))}
+          {sortedExpenseCategories.map((category) => renderCategoryRow(category, 'expense', currency))}
         </tbody>
       </Table>
     );
@@ -403,14 +442,22 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             {diffNode}
           </div>
         </div>
-        {hasChildren && isExpanded && category.subItems?.map((subItem) =>
-          renderMobileCategoryRow(subItem, type, currency, true)
-        )}
+        {hasChildren && isExpanded && (() => {
+          const sortedSubs = sortCategories(category.subItems ?? []);
+          console.log('[DEBUG MOBILE] Sub-items sort', { parent: category.name, sortOption: externalSortOption, subItems: category.subItems?.map(s => ({ name: s.name, amounts: s.amounts })), sortedSubs: sortedSubs.map(s => ({ name: s.name, amounts: s.amounts })) });
+          return sortedSubs.map((subItem) =>
+            renderMobileCategoryRow(subItem, type, currency, true)
+          );
+        })()}
       </React.Fragment>
     );
   };
 
   const renderMobileList = (currencyData: CurrencyReport, currency: string) => {
+    // Pre-sort categories to ensure sorted order is used in render
+    const sortedIncomeCategories = sortCategories(currencyData.incomeCategories);
+    const sortedExpenseCategories = sortCategories(currencyData.expenseCategories);
+
     return (
       <div className="d-flex flex-column mb-4 rounded border overflow-hidden shadow-sm">
         {/* Income Categories */}
@@ -444,7 +491,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           </div>
         </div>
         <div className="d-flex flex-column bg-white">
-          {sortCategories(currencyData.incomeCategories).map((category) => renderMobileCategoryRow(category, 'income', currency))}
+          {sortedIncomeCategories.map((category) => renderMobileCategoryRow(category, 'income', currency))}
         </div>
 
         {/* Expense Categories */}
@@ -479,7 +526,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           </div>
         </div>
         <div className="d-flex flex-column bg-white" style={{ borderBottom: 'none' }}>
-          {sortCategories(currencyData.expenseCategories).map((category) => renderMobileCategoryRow(category, 'expense', currency))}
+          {sortedExpenseCategories.map((category) => renderMobileCategoryRow(category, 'expense', currency))}
         </div>
       </div>
     );
@@ -700,8 +747,87 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     totalExpenses: new Array(data.monthNames?.length || numberOfColumns).fill(0),
   };
 
+  // TODO: Extract settingsDropdown into a separate <ReportSettingsDropdown /> component
+  // to reduce clutter in the main render method.
+  const settingsDropdown = (
+    <Dropdown
+      className="d-none d-md-block"
+      show={showSettingsDropdown}
+      onToggle={(isOpen) => setShowSettingsDropdown(isOpen ?? false)}
+    >
+      <Dropdown.Toggle
+        variant="outline-secondary"
+        size="sm"
+        className="d-flex align-items-center justify-content-center p-1"
+        style={{ width: '36px', height: '36px' }}
+        aria-label="Report settings"
+        title="Report settings"
+      >
+        <RiListSettingsLine size={18} />
+      </Dropdown.Toggle>
+
+      <Dropdown.Menu
+        align="end"
+        style={{
+          minWidth: '220px',
+          padding: '16px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 1.15)',
+          border: '1px solid #e5e7eb',
+          marginTop: '8px',
+        }}
+      >
+        <div style={{ marginBottom: '8px' }}>
+          <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+            Number of columns
+          </span>
+        </div>
+        <div className="d-flex align-items-center gap-2 mb-3">
+          <Form.Range
+            min={2}
+            max={6}
+            value={numberOfColumns}
+            onChange={(e) => onNumberOfColumnsChange?.(Number(e.target.value))}
+            style={{ flex: 1 }}
+          />
+          <div className="d-flex justify-content-between" style={{ width: '100%', position: 'absolute', left: '16px', right: '16px', bottom: '85px', pointerEvents: 'none' }}>
+          </div>
+        </div>
+        <div className="d-flex justify-content-between px-1" style={{ fontSize: '12px', color: '#6b7280', marginTop: '-8px', marginBottom: '12px' }}>
+          <span>2</span>
+          <span>3</span>
+          <span>4</span>
+          <span>5</span>
+          <span>6</span>
+        </div>
+
+        <hr style={{ margin: '12px 0', borderColor: '#e5e7eb' }} />
+
+        <Form.Check
+          type="switch"
+          id="show-percentage"
+          label="Show percentage difference"
+          checked={showPercentageDiff}
+          onChange={() => setShowPercentageDiff(!showPercentageDiff)}
+          style={{ fontSize: '14px' }}
+        />
+      </Dropdown.Menu>
+    </Dropdown>
+  );
+
   return (
     <div className="incomes-expenses-report">
+      {/* Toolbar: Search + Sort By */}
+      {onSearchTermChange && onSortOptionChange && (
+        <AnalyticsToolbar
+          searchTerm={searchTerm ?? ''}
+          onSearchTermChange={onSearchTermChange}
+          sortOption={externalSortOption}
+          onSortOptionChange={onSortOptionChange}
+          rightSlot={settingsDropdown}
+        />
+      )}
+
       <style>{`
         .incomes-expenses-report .table {
           margin-bottom: 0;
@@ -753,12 +879,11 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
         }
       `}</style>
 
-      {/* Header with Currency Pills and Settings */}
-      <div className="d-none d-md-flex align-items-center justify-content-between mb-3">
-        {/* Currency Pills - Left */}
-        <div className="d-flex gap-2 flex-wrap">
-          {sortedCurrencies.length > 1 ? (
-            sortedCurrencies.map((currency) => (
+      {/* Currency Pills (if multiple currencies) */}
+      {sortedCurrencies.length > 1 && (
+        <div className="d-none d-md-flex align-items-center mb-3">
+          <div className="d-flex gap-2 flex-wrap">
+            {sortedCurrencies.map((currency) => (
               <button
                 key={currency}
                 className={`currency-pill ${selectedCurrency === currency ? 'active' : ''}`}
@@ -766,125 +891,10 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
               >
                 {currency}
               </button>
-            ))
-          ) : null}
+            ))}
+          </div>
         </div>
-
-        {/* Settings Dropdown */}
-        <Dropdown
-          className="d-none d-md-block"
-          show={showSettingsDropdown}
-          onToggle={(isOpen) => setShowSettingsDropdown(isOpen ?? false)}
-        >
-          <Dropdown.Toggle
-            as="button"
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '8px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
-              e.currentTarget.style.backgroundColor = '#f3f4f6';
-            }}
-            onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-            aria-label="Report settings"
-            title="Report settings"
-          >
-            <RiListSettingsLine size={20} color="#6b7280" />
-          </Dropdown.Toggle>
-
-          <Dropdown.Menu
-            align="end"
-            style={{
-              minWidth: '220px',
-              padding: '16px',
-              borderRadius: '12px',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
-              border: '1px solid #e5e7eb',
-              marginTop: '8px',
-            }}
-          >
-            <div style={{ marginBottom: '12px' }}>
-              <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                Sort by
-              </span>
-            </div>
-            <Form.Check
-              type="radio"
-              id="sort-default"
-              name="sortOption"
-              label="Default"
-              checked={sortOption === 'default'}
-              onChange={() => setSortOption('default')}
-              style={{ marginBottom: '8px', fontSize: '14px' }}
-            />
-            <Form.Check
-              type="radio"
-              id="sort-amount-asc"
-              name="sortOption"
-              label="Amount (lowest first)"
-              checked={sortOption === 'amount_asc'}
-              onChange={() => setSortOption('amount_asc')}
-              style={{ marginBottom: '8px', fontSize: '14px' }}
-            />
-            <Form.Check
-              type="radio"
-              id="sort-amount-desc"
-              name="sortOption"
-              label="Amount (highest first)"
-              checked={sortOption === 'amount_desc'}
-              onChange={() => setSortOption('amount_desc')}
-              style={{ marginBottom: '8px', fontSize: '14px' }}
-            />
-
-            <hr style={{ margin: '12px 0', borderColor: '#e5e7eb' }} />
-
-            <div style={{ marginBottom: '8px' }}>
-              <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                Number of columns
-              </span>
-            </div>
-            <div className="d-flex align-items-center gap-2 mb-3">
-              <Form.Range
-                min={2}
-                max={6}
-                value={numberOfColumns}
-                onChange={(e) => onNumberOfColumnsChange?.(Number(e.target.value))}
-                style={{ flex: 1 }}
-              />
-              <div className="d-flex justify-content-between" style={{ width: '100%', position: 'absolute', left: '16px', right: '16px', bottom: '85px', pointerEvents: 'none' }}>
-              </div>
-            </div>
-            <div className="d-flex justify-content-between px-1" style={{ fontSize: '12px', color: '#6b7280', marginTop: '-8px', marginBottom: '12px' }}>
-              <span>2</span>
-              <span>3</span>
-              <span>4</span>
-              <span>5</span>
-              <span>6</span>
-            </div>
-
-            <hr style={{ margin: '12px 0', borderColor: '#e5e7eb' }} />
-
-            <Form.Check
-              type="switch"
-              id="show-percentage"
-              label="Show percentage difference"
-              checked={showPercentageDiff}
-              onChange={() => setShowPercentageDiff(!showPercentageDiff)}
-              style={{ fontSize: '14px' }}
-            />
-          </Dropdown.Menu>
-        </Dropdown>
-      </div>
+      )}
 
       {/* Desktop Report Table */}
       {currentCurrencyData && (

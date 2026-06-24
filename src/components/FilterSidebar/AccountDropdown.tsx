@@ -14,8 +14,6 @@ import type { IconType } from 'react-icons';
 import {
   useFloating,
   offset,
-  flip,
-  shift,
   autoUpdate,
 } from '@floating-ui/react';
 import { AccountDropdownItem } from './AccountDropdownItem';
@@ -77,12 +75,6 @@ export const AccountDropdown: React.FC<AccountDropdownProps> = ({
     onOpenChange: setIsOpen,
     middleware: [
       offset(4),
-      flip({
-        padding: 8,
-      }),
-      shift({
-        padding: 8,
-      }),
     ],
     whileElementsMounted: autoUpdate,
   });

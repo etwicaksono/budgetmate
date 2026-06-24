@@ -17,6 +17,12 @@ interface BalanceTrendReportProps {
   selectedCategories?: string[];
   selectedAccounts?: string[];
   selectedCurrencies?: string[];
+  searchTerm?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  transferOption?: string;
+  debtOption?: string;
+  selectedLabelIds?: string[];
 }
 
 const formatNumberAbbreviation = (value: number): string => {
@@ -69,6 +75,12 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
   selectedCategories,
   selectedAccounts,
   selectedCurrencies,
+  searchTerm,
+  minAmount,
+  maxAmount,
+  transferOption,
+  debtOption,
+  selectedLabelIds,
 }) => {
   const [data, setData] = useState<BalanceTrendResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,12 +117,24 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
           category_ids?: string[];
           account_ids?: string[];
           currencies?: string[];
+          search?: string;
+          min_amount?: number;
+          max_amount?: number;
+          transfer_option?: string;
+          debt_option?: string;
+          label_ids?: string[];
         } = {};
         if (startDate) params.start_date = startDate;
         if (endDate) params.end_date = endDate;
         if (selectedCategories?.length) params.category_ids = selectedCategories;
         if (selectedAccounts?.length) params.account_ids = selectedAccounts;
         if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
+        if (searchTerm) params.search = searchTerm;
+        if (minAmount && minAmount > 0) params.min_amount = minAmount;
+        if (maxAmount && maxAmount < 20000000) params.max_amount = maxAmount;
+        if (transferOption) params.transfer_option = transferOption;
+        if (debtOption) params.debt_option = debtOption;
+        if (selectedLabelIds?.length) params.label_ids = selectedLabelIds;
 
         const response = await analyticsService.fetchBalanceTrend(params);
         setData(response);
@@ -122,7 +146,19 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
     };
 
     fetchData();
-  }, [startDate, endDate, selectedCategories, selectedAccounts, selectedCurrencies]);
+  }, [
+    startDate,
+    endDate,
+    selectedCategories,
+    selectedAccounts,
+    selectedCurrencies,
+    searchTerm,
+    minAmount,
+    maxAmount,
+    transferOption,
+    debtOption,
+    selectedLabelIds,
+  ]);
 
   // Set default currency when data loads
   useEffect(() => {

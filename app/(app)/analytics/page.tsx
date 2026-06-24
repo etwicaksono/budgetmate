@@ -2,12 +2,12 @@
 
 import React, { useCallback, useState } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { Container, Row, Col, Nav, Offcanvas, Button, Dropdown } from 'react-bootstrap';
+import { Container, Row, Col, Nav, Dropdown, Button } from 'react-bootstrap';
 import { FaFilter } from 'react-icons/fa';
 import { useFilterData } from '@/hooks/useFilterData';
 import type { TransferOption, DebtOption, SortValue } from '@/hooks/useFilterData';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
-import { FilterSidebar } from '@/components/FilterSidebar';
+import { AnalyticsFilterSidebar } from './_components/AnalyticsFilterSidebar';
 import PeriodNavigation, {
   PeriodNavigationProvider,
   usePeriodNavigation,
@@ -54,6 +54,10 @@ function AnalyticsContent(): React.ReactElement {
     state: { dateRange, periodLabel, activePeriod, customRangeDraft },
   } = usePeriodNavigation();
 
+  // TODO: Create useAnalyticsFilterData() hook that only manages accounts filter state.
+  // Remove unused search, sort, categories, labels, currencies, amountRange, transfers,
+  // debts, and drafts state from analytics page since they are no longer in the sidebar.
+  const filterData = useFilterData();
   const {
     searchTerm,
     setSearchTerm,
@@ -63,7 +67,6 @@ function AnalyticsContent(): React.ReactElement {
     setSelectedAccounts,
     selectedCurrencies,
     setSelectedCurrencies,
-    availableCurrencies,
     sortOption,
     setSortOption,
     transferOption,
@@ -76,30 +79,21 @@ function AnalyticsContent(): React.ReactElement {
     setMinAmount,
     maxAmount,
     setMaxAmount,
-    filterVisibility,
-    setFilterVisibility,
-    allCategories,
-    selectableAccounts,
-    parentCategoryColors,
-    categoryTree,
-    categoryIcons,
-    accountColors,
-    accountIcons,
     categories,
     apiAccounts,
     selectedLabelIds,
     setSelectedLabelIds,
-    labels,
     numberOfColumns,
     setNumberOfColumns,
-  } = useFilterData();
+  } = filterData;
 
-  const { savedFilters, activeFilterId, loading: savedFiltersLoading, saveCurrentFilter, loadFilter, deleteFilter, renameFilter, clearActiveFilter, reorderFilter } = useSavedFilters({
+  const savedFiltersData = useSavedFilters({
     categories,
     accounts: apiAccounts,
     current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption, transferOption, debtOption, draftOption },
     dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption, setTransferOption, setDebtOption, setDraftOption },
   });
+  const { savedFilters, activeFilterId } = savedFiltersData;
 
   // Map selected names to IDs for API calls
   const selectedCategoryIds = React.useMemo(() => {
@@ -190,6 +184,15 @@ function AnalyticsContent(): React.ReactElement {
             selectedCurrencies={selectedCurrencies}
             numberOfColumns={numberOfColumns}
             onNumberOfColumnsChange={setNumberOfColumns}
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            {...(minAmount > 0 && { minAmount })}
+            {...(maxAmount < 20000000 && { maxAmount })}
+            transferOption={transferOption}
+            debtOption={debtOption}
+            selectedLabelIds={selectedLabelIds}
+            sortOption={sortOption}
+            onSortOptionChange={setSortOption}
           />
         );
       }
@@ -204,6 +207,12 @@ function AnalyticsContent(): React.ReactElement {
             selectedCategories={selectedCategoryIds}
             selectedAccounts={selectedAccountIds}
             selectedCurrencies={selectedCurrencies}
+            {...(searchTerm && { searchTerm })}
+            {...(minAmount > 0 && { minAmount })}
+            {...(maxAmount < 20000000 && { maxAmount })}
+            transferOption={transferOption}
+            debtOption={debtOption}
+            selectedLabelIds={selectedLabelIds}
           />
         );
       }
@@ -221,6 +230,9 @@ function AnalyticsContent(): React.ReactElement {
             selectedCategories={selectedCategoryIds}
             selectedAccounts={selectedAccountIds}
             selectedCurrencies={selectedCurrencies}
+            transferOption={transferOption}
+            debtOption={debtOption}
+            selectedLabelIds={selectedLabelIds}
           />
         );
       }
@@ -237,6 +249,9 @@ function AnalyticsContent(): React.ReactElement {
             selectedCategories={selectedCategoryIds}
             selectedAccounts={selectedAccountIds}
             selectedCurrencies={selectedCurrencies}
+            transferOption={transferOption}
+            debtOption={debtOption}
+            selectedLabelIds={selectedLabelIds}
           />
         );
       }
@@ -248,111 +263,15 @@ function AnalyticsContent(): React.ReactElement {
   return (
     <Container fluid>
       <Row>
-        {/* Desktop Filter Sidebar */}
-        <Col lg={3} className="mb-3 d-none d-lg-block">
-          <FilterSidebar
-            title="Analytics"
-            filterVisibility={filterVisibility}
-            onFilterVisibilityChange={setFilterVisibility}
-            searchTerm={searchTerm}
-            onSearchTermChange={setSearchTerm}
-            sortOption={sortOption}
-            onSortOptionChange={setSortOption}
-            transferOption={transferOption}
-            onTransferOptionChange={setTransferOption}
-            debtOption={debtOption}
-            onDebtOptionChange={setDebtOption}
-            selectedCategories={selectedCategories}
-            onSelectedCategoriesChange={setSelectedCategories}
-            allCategories={allCategories}
-            categoryTree={categoryTree}
-            parentCategoryColors={parentCategoryColors}
-            categoryIcons={categoryIcons}
-            selectedAccounts={selectedAccounts}
-            onSelectedAccountsChange={setSelectedAccounts}
-            selectableAccounts={selectableAccounts}
-            accountColors={accountColors}
-            accountIcons={accountIcons}
-            minAmount={minAmount}
-            maxAmount={maxAmount}
-            onMinAmountChange={setMinAmount}
-            onMaxAmountChange={setMaxAmount}
-            selectedCurrencies={selectedCurrencies}
-            onSelectedCurrenciesChange={setSelectedCurrencies}
-            availableCurrencies={availableCurrencies}
-            savedFilters={savedFilters}
-            activeFilterId={activeFilterId}
-            savedFiltersLoading={savedFiltersLoading}
-            onSaveFilter={saveCurrentFilter}
-            onLoadFilter={loadFilter}
-            onDeleteFilter={deleteFilter}
-            onRenameFilter={renameFilter}
-            onClearActiveFilter={clearActiveFilter}
-            onReorderFilter={reorderFilter}
-            disableDraftFilter={true}
-          />
-        </Col>
+        <AnalyticsFilterSidebar
+          filterData={filterData}
+          savedFiltersData={savedFiltersData}
+          showMobile={showMobileFilters}
+          onHideMobile={() => setShowMobileFilters(false)}
+        />
 
         {/* Main Content */}
         <Col lg={9} className="p-0">
-          {/* Mobile Filter Offcanvas */}
-          <Offcanvas
-            show={showMobileFilters}
-            onHide={() => setShowMobileFilters(false)}
-            placement="end"
-            className="d-lg-none"
-          >
-            <Offcanvas.Header closeButton className="border-bottom">
-              <Offcanvas.Title className="fw-bold">Filters</Offcanvas.Title>
-            </Offcanvas.Header>
-            <Offcanvas.Body className="p-0">
-              <FilterSidebar
-                title="Analytics"
-                filterVisibility={filterVisibility}
-                onFilterVisibilityChange={setFilterVisibility}
-                searchTerm={searchTerm}
-                onSearchTermChange={setSearchTerm}
-                sortOption={sortOption}
-                onSortOptionChange={setSortOption}
-                transferOption={transferOption}
-                onTransferOptionChange={setTransferOption}
-                debtOption={debtOption}
-                onDebtOptionChange={setDebtOption}
-                selectedCategories={selectedCategories}
-                onSelectedCategoriesChange={setSelectedCategories}
-                allCategories={allCategories}
-                categoryTree={categoryTree}
-                parentCategoryColors={parentCategoryColors}
-                categoryIcons={categoryIcons}
-                selectedAccounts={selectedAccounts}
-                onSelectedAccountsChange={setSelectedAccounts}
-                selectableAccounts={selectableAccounts}
-                accountColors={accountColors}
-                accountIcons={accountIcons}
-                selectedLabelIds={selectedLabelIds}
-                onSelectedLabelIdsChange={setSelectedLabelIds}
-                labels={labels}
-                availableCurrencies={availableCurrencies}
-                selectedCurrencies={selectedCurrencies}
-                onSelectedCurrenciesChange={setSelectedCurrencies}
-                minAmount={minAmount}
-                maxAmount={maxAmount}
-                onMinAmountChange={setMinAmount}
-                onMaxAmountChange={setMaxAmount}
-                savedFilters={savedFilters}
-                activeFilterId={activeFilterId}
-                savedFiltersLoading={savedFiltersLoading}
-                onSaveFilter={saveCurrentFilter}
-                onLoadFilter={loadFilter}
-                onDeleteFilter={deleteFilter}
-                onRenameFilter={renameFilter}
-                onClearActiveFilter={clearActiveFilter}
-                onReorderFilter={reorderFilter}
-                disableDraftFilter={true}
-              />
-            </Offcanvas.Body>
-          </Offcanvas>
-
           {/* Mobile Page Title + Filter Toggle */}
           <div className="d-flex justify-content-between align-items-center mb-2 d-lg-none">
             <h2 className="page-mobile-title">Analytics</h2>

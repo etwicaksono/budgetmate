@@ -14,6 +14,12 @@ interface UseIncomeExpenseDataParams {
   selectedAccounts?: string[] | undefined;
   selectedCurrencies?: string[] | undefined;
   numberOfColumns: number;
+  searchTerm?: string | undefined;
+  minAmount?: number | undefined;
+  maxAmount?: number | undefined;
+  transferOption?: string | undefined;
+  debtOption?: string | undefined;
+  selectedLabelIds?: string[] | undefined;
 }
 
 interface UseIncomeExpenseDataResult {
@@ -34,6 +40,12 @@ export function useIncomeExpenseData({
   selectedAccounts,
   selectedCurrencies,
   numberOfColumns,
+  searchTerm,
+  minAmount,
+  maxAmount,
+  transferOption,
+  debtOption,
+  selectedLabelIds,
 }: UseIncomeExpenseDataParams): UseIncomeExpenseDataResult {
   const [data, setData] = useState<IncomeExpenseReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,6 +82,12 @@ export function useIncomeExpenseData({
           category_ids?: string[];
           account_ids?: string[];
           currencies?: string[];
+          search?: string;
+          min_amount?: number;
+          max_amount?: number;
+          transfer_option?: string;
+          debt_option?: string;
+          label_ids?: string[];
         } = {
           period_type: periodType,
           periods: numberOfColumns,
@@ -79,6 +97,12 @@ export function useIncomeExpenseData({
         if (selectedCategories?.length) params.category_ids = selectedCategories;
         if (selectedAccounts?.length) params.account_ids = selectedAccounts;
         if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
+        if (searchTerm) params.search = searchTerm;
+        if (minAmount && minAmount > 0) params.min_amount = minAmount;
+        if (maxAmount && maxAmount < 20000000) params.max_amount = maxAmount;
+        if (transferOption) params.transfer_option = transferOption;
+        if (debtOption) params.debt_option = debtOption;
+        if (selectedLabelIds?.length) params.label_ids = selectedLabelIds;
 
         const reportData = await analyticsService.fetchIncomeExpenseReport(params);
         setData(reportData);
@@ -89,7 +113,7 @@ export function useIncomeExpenseData({
       }
     };
     fetchData();
-  }, [startDate, endDate, numberOfColumns, periodType, selectedCategories, selectedAccounts, selectedCurrencies]);
+  }, [startDate, endDate, numberOfColumns, periodType, selectedCategories, selectedAccounts, selectedCurrencies, searchTerm, minAmount, maxAmount, transferOption, debtOption, selectedLabelIds]);
 
   // Set default currency when data loads
   useEffect(() => {

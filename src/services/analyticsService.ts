@@ -311,14 +311,21 @@ class AnalyticsService {
     end_date?: string;
     period_type?: 'month' | 'week' | 'year' | 'custom';
     periods?: number;
-    category_ids?: string[]; // Added from instruction
-    account_ids?: string[]; // Added from instruction
-    currencies?: string[]; // Added from instruction
+    category_ids?: string[];
+    account_ids?: string[];
+    currencies?: string[];
+    search?: string;
+    min_amount?: number;
+    max_amount?: number;
+    transfer_option?: string;
+    debt_option?: string;
+    label_ids?: string[];
   }): Promise<IncomeExpenseReport> {
-    const queryParams: Record<string, string | number | string[]> = { ...params };
+    const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
     if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
+    if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: IncomeExpenseReport }>(
       '/analytics/income-expense-report',
@@ -330,15 +337,22 @@ class AnalyticsService {
   async fetchBalanceTrend(params?: {
     start_date?: string;
     end_date?: string;
-    period_type?: 'month' | 'week' | 'year' | 'custom'; // Added from instruction
-    category_ids?: string[]; // Added from instruction
-    account_ids?: string[]; // Added from instruction
-    currencies?: string[]; // Added from instruction
-  }): Promise<BalanceTrendResponse> { // Kept original return type BalanceTrendResponse
-    const queryParams: Record<string, string | number | string[]> = { ...params };
+    period_type?: 'month' | 'week' | 'year' | 'custom';
+    category_ids?: string[];
+    account_ids?: string[];
+    currencies?: string[];
+    search?: string;
+    min_amount?: number;
+    max_amount?: number;
+    transfer_option?: string;
+    debt_option?: string;
+    label_ids?: string[];
+  }): Promise<BalanceTrendResponse> {
+    const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
     if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
+    if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: BalanceTrendResponse }>(
       '/analytics/balance-trend',
@@ -356,11 +370,15 @@ class AnalyticsService {
     category_ids?: string[];
     account_ids?: string[];
     currencies?: string[];
+    transfer_option?: string;
+    debt_option?: string;
+    label_ids?: string[];
   }): Promise<CashFlowResponse> {
-    const queryParams: Record<string, string | number | string[]> = { ...params };
+    const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
     if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
+    if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: CashFlowResponse }>(
       '/analytics/cashflow',
@@ -378,14 +396,18 @@ class AnalyticsService {
     search?: string;
     min_amount?: number;
     max_amount?: number;
-    category_ids?: string[]; // Added from instruction
-    account_ids?: string[]; // Added from instruction
-    currencies?: string[]; // Added from instruction
-  }): Promise<AdvancedChartsResponse> { // Kept original return type AdvancedChartsResponse
-    const queryParams: Record<string, string | number | string[]> = { ...params };
+    category_ids?: string[];
+    account_ids?: string[];
+    currencies?: string[];
+    transfer_option?: string;
+    debt_option?: string;
+    label_ids?: string[];
+  }): Promise<AdvancedChartsResponse> {
+    const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
     if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
+    if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: AdvancedChartsResponse }>(
       '/analytics/advanced-charts',

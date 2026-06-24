@@ -36,6 +36,9 @@ export interface AdvancedChartsReportProps {
   searchTerm?: string;
   minAmount?: number;
   maxAmount?: number;
+  transferOption?: string;
+  debtOption?: string;
+  selectedLabelIds?: string[];
 }
 
 const formatNumberAbbreviation = (value: number): string => {
@@ -65,6 +68,9 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
   searchTerm,
   minAmount,
   maxAmount,
+  transferOption,
+  debtOption,
+  selectedLabelIds,
   selectedCategories,
   selectedAccounts,
   selectedCurrencies,
@@ -120,6 +126,9 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
           search?: string;
           min_amount?: number;
           max_amount?: number;
+          transfer_option?: string;
+          debt_option?: string;
+          label_ids?: string[];
           category_ids?: string[];
           account_ids?: string[];
           currencies?: string[];
@@ -133,6 +142,9 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
         if (searchTerm) params.search = searchTerm;
         if (minAmount !== undefined) params.min_amount = minAmount;
         if (maxAmount !== undefined) params.max_amount = maxAmount;
+        if (transferOption) params.transfer_option = transferOption;
+        if (debtOption) params.debt_option = debtOption;
+        if (selectedLabelIds?.length) params.label_ids = selectedLabelIds;
         if (selectedCategories?.length) params.category_ids = selectedCategories;
         if (selectedAccounts?.length) params.account_ids = selectedAccounts;
         if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
@@ -147,7 +159,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
     };
 
     fetchData();
-  }, [startDate, endDate, dataType, granularity, groupBy, searchTerm, minAmount, maxAmount, selectedCategories, selectedAccounts, selectedCurrencies]);
+  }, [startDate, endDate, dataType, granularity, groupBy, searchTerm, minAmount, maxAmount, transferOption, debtOption, selectedLabelIds, selectedCategories, selectedAccounts, selectedCurrencies]);
 
   // Get current chart data based on selected currency
   const currentChartData = useMemo(() => {

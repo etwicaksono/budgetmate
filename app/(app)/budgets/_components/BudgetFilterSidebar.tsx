@@ -98,7 +98,17 @@ function BudgetFilterPanel({
   };
 
   return (
-    <Card className="desktop-filter-sidebar shadow-sm border-0">
+    <Card
+      className="desktop-filter-sidebar shadow-sm border-0"
+      style={{
+        position: 'sticky',
+        top: '85px',
+        height: 'calc(100vh - 105px)',
+        maxHeight: 'calc(100vh - 105px)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* ── Header ── */}
       <Card.Header className="d-flex align-items-center justify-content-between bg-white border-bottom">
         <span className="h4 mb-0 fw-bold">Budgets</span>
@@ -122,7 +132,7 @@ function BudgetFilterPanel({
       </Card.Header>
 
       {/* ── Body ── */}
-      <Card.Body className="overflow-auto pb-2" style={{ flex: '1 1 auto' }}>
+      <Card.Body className="pb-2" style={{ flex: '1 1 auto' }}>
         {/* Saved presets */}
         <SavedFiltersManager {...savedFilterProps} handleResetFilters={handleReset} />
 
