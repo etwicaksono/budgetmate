@@ -92,9 +92,6 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
 
     if (dataRes.ok) {
       const json = await dataRes.json();
-      const urlStr = apiUrl.toString();
-      console.log('[DEBUG_SERVER_LOG] Analytics API URL:', urlStr.length > 200 ? urlStr.substring(0, 200) + '... (truncated)' : urlStr);
-      console.log('[DEBUG_SERVER_LOG] Analytics API Response data:', JSON.stringify(json.data ?? json, null, 2));
 
       const filterLabel = [
         context.periodLabel,
@@ -124,10 +121,6 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
 
   // ── Agentic loop & Streaming ──────────────────────────────────────────────
   const provider = createLLMProvider(body.provider, body.model);
-
-  console.log('\n[DEBUG_SERVER_LOG] ==================================================');
-  console.log('[DEBUG_SERVER_LOG] User Input:', userContent);
-  console.log('[DEBUG_SERVER_LOG] Payload to LLM length (Messages):', messages.length);
 
   const stream = new ReadableStream({
     async start(controller) {

@@ -29,8 +29,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
   const month = monthParam ? parseInt(monthParam, 10) : now.getMonth() + 1; // 1-based
 
-  console.log('API /budgets params:', { yearParam, monthParam, year, month });
-
   try {
     const budgets = await prisma.categoryBudget.findMany({
       where: {
