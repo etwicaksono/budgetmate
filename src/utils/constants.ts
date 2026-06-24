@@ -44,39 +44,6 @@ export const APP_CONFIG = {
   }
 };
 
-export const TRANSACTION_TYPES = {
-  INCOME: 'income',
-  EXPENSE: 'expense',
-  TRANSFER: 'transfer',
-  DEBT_IN: 'debt_in',
-  DEBT_OUT: 'debt_out',
-} as const;
-
-export const ACCOUNT_TYPES = {
-  CHECKING: 'checking',
-  SAVINGS: 'savings',
-  CREDIT_CARD: 'credit_card',
-  CASH: 'cash',
-  INVESTMENT: 'investment',
-  LOAN: 'loan'
-} as const;
-
-export const DEBT_TYPES = {
-  LEND: 'lend',
-  BORROW: 'borrow'
-} as const;
-
-export const DEBT_STATUSES = {
-  ACTIVE: 'active',
-  SETTLED: 'settled',
-} as const;
-
-export const CATEGORY_NATURES = {
-  WANT: 'WANT',
-  NEED: 'NEED',
-  MUST: 'MUST'
-} as const;
-
 export const PAYMENT_METHODS = {
   CASH: 'Cash',
   CREDIT_CARD: 'Credit Card',

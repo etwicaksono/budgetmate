@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AccountType } from '@prisma/client';
 import { registry } from '../registry';
 
 export const AccountSchema = registry.register(
@@ -6,7 +7,7 @@ export const AccountSchema = registry.register(
   z.object({
       id: z.string().openapi({ example: 'clq1234560000000000000000' }),
       name: z.string().openapi({ example: 'Main Checking' }),
-      account_type: z.enum(['checking', 'savings', 'credit_card', 'cash', 'investment', 'loan']).openapi({ example: 'checking' }),
+      account_type: z.nativeEnum(AccountType).openapi({ example: AccountType.checking }),
       icon: z.string().openapi({ example: 'wallet' }),
       color: z.string().openapi({ example: '#4F46E5' }),
       initial_balance: z.number().openapi({ example: 1000 }),
@@ -23,7 +24,7 @@ export const CreateAccountSchema = registry.register(
   'CreateAccountRequest',
   z.object({
     name: z.string().min(1).max(100).openapi({ example: 'Main Checking' }),
-    account_type: z.enum(['checking', 'savings', 'credit_card', 'cash', 'investment', 'loan']).openapi({ example: 'checking' }),
+    account_type: z.nativeEnum(AccountType).openapi({ example: AccountType.checking }),
     icon: z.string().openapi({ example: 'wallet' }),
     color: z.string().regex(/^#[0-9A-F]{6}$/i).openapi({ example: '#4F46E5' }),
     initial_balance: z.number().default(0).openapi({ example: 1000 }),

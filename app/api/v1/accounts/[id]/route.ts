@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { Prisma, AccountType } from '@prisma/client';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db/prisma';
@@ -12,7 +12,7 @@ import { balanceService } from '@/services/balanceService';
 
 const UpdateAccountSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  account_type: z.enum(['checking', 'savings', 'credit_card', 'cash', 'investment', 'loan']).optional(),
+  account_type: z.nativeEnum(AccountType).optional(),
   icon: z.string().optional(),
   color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
   initial_balance: z.number().optional(),

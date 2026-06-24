@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fa';
 
 import { Debt } from '@/services/debtService';
-import { DEBT_TYPES, DEBT_STATUSES } from '@/utils/constants';
+import { DebtStatus, DebtType } from '@prisma/client';
 import { getIconComponent } from '@/utils/iconUtils';
 
 interface DebtDetailModalProps {
@@ -35,9 +35,9 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
 }) => {
    if (!debt) return null;
 
-   const isLend = debt.type === DEBT_TYPES.LEND;
-   const isActive = debt.status === DEBT_STATUSES.ACTIVE;
-   const isSettled = debt.status === DEBT_STATUSES.SETTLED;
+   const isLend = debt.type === DebtType.lend;
+   const isActive = debt.status === DebtStatus.active;
+   const isSettled = debt.status === DebtStatus.settled;
 
    const decimalScale = 2;
 

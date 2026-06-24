@@ -6,6 +6,7 @@ import { FaWallet, FaUniversity, FaPiggyBank, FaCreditCard, FaMoneyBillWave, FaS
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import { AmountInput } from '@/components/transaction/AmountInput';
+import { AccountType } from '@prisma/client';
 
 export interface AccountFormData {
   name: string;
@@ -26,11 +27,11 @@ interface AccountFormProps {
 }
 
 const ACCOUNT_TYPES = [
-  { value: 'cash', label: 'Cash', icon: FaMoneyBillWave },
-  { value: 'checking', label: 'Checking Account', icon: FaUniversity },
-  { value: 'savings', label: 'Savings Account', icon: FaPiggyBank },
-  { value: 'credit_card', label: 'Credit Card', icon: FaCreditCard },
-  { value: 'investment', label: 'Investment', icon: FaWallet },
+  { value: AccountType.cash, label: 'Cash', icon: FaMoneyBillWave },
+  { value: AccountType.checking, label: 'Checking Account', icon: FaUniversity },
+  { value: AccountType.savings, label: 'Savings Account', icon: FaPiggyBank },
+  { value: AccountType.credit_card, label: 'Credit Card', icon: FaCreditCard },
+  { value: AccountType.investment, label: 'Investment', icon: FaWallet },
 ];
 
 const ICON_OPTIONS = [

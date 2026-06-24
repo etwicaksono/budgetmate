@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 import { NumericFormat } from 'react-number-format';
 
 import { Debt } from '@/services/debtService';
-import { DEBT_TYPES, DEBT_STATUSES } from '@/utils/constants';
+import { DebtStatus, DebtType } from '@prisma/client';
 import { getIconComponent } from '@/utils/iconUtils';
 
 interface DebtCardProps {
@@ -36,9 +36,9 @@ export const DebtCard: React.FC<DebtCardProps> = ({
   onEditClick,
   onDeleteClick
 }) => {
-  const isLend = debt.type === DEBT_TYPES.LEND;
-  const isActive = debt.status === DEBT_STATUSES.ACTIVE;
-  const isSettled = debt.status === DEBT_STATUSES.SETTLED;
+  const isLend = debt.type === DebtType.lend;
+  const isActive = debt.status === DebtStatus.active;
+  const isSettled = debt.status === DebtStatus.settled;
 
   const totalAmount = debt.amount || 0;
   const remainingAmount = debt.remaining_amount || 0;

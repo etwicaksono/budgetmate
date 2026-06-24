@@ -1,4 +1,5 @@
 import { apiClient } from './api';
+import type { SavedFilterContext } from '@prisma/client';
 
 export interface SavedFilterPayload {
    selectedCategoryIds?: string[];
@@ -23,13 +24,13 @@ export interface SavedFilter {
 
 export interface CreateSavedFilterPayload {
    name: string;
-   context: 'transaction' | 'budget' | 'analytics';
+   context: SavedFilterContext | 'budget';
    filters: SavedFilterPayload;
 }
 
 export interface UpdateSavedFilterPayload {
    name?: string;
-   context?: 'transaction' | 'budget' | 'analytics';
+   context?: SavedFilterContext | 'budget';
    filters?: SavedFilterPayload;
 }
 
@@ -44,7 +45,7 @@ interface SavedFilterResponse {
 class SavedFilterService {
    private readonly basePath = '/saved-filters';
 
-   async fetchSavedFilters(context?: 'transaction' | 'budget' | 'analytics'): Promise<SavedFilter[]> {
+   async fetchSavedFilters(context?: SavedFilterContext | 'budget'): Promise<SavedFilter[]> {
       const url = context ? `${this.basePath}?context=${context}` : this.basePath;
       const response = await apiClient.get<SavedFiltersResponse>(url);
       return response.data.data;

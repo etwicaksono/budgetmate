@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import type { AccountType } from '@prisma/client';
 import { accountService, Account } from '@/services/accountService';
 
 export interface AccountFormData {
@@ -59,7 +60,7 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
       if (modalMode === 'add') {
         const createdAccount = await accountService.createAccount({
           name: formData.name,
-          account_type: formData.account_type,
+          account_type: formData.account_type as AccountType,
           icon: formData.icon,
           color: formData.color,
           initial_balance: parseFloat(formData.initial_balance) || 0,
@@ -74,7 +75,7 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
       } else if (editingAccount) {
         const updatedAccount = await accountService.updateAccount(editingAccount.id, {
           name: formData.name,
-          account_type: formData.account_type,
+          account_type: formData.account_type as AccountType,
           icon: formData.icon,
           color: formData.color,
           initial_balance: parseFloat(formData.initial_balance) || 0,

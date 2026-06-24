@@ -5,7 +5,7 @@ import { Row, Col, Card, Button, Spinner } from 'react-bootstrap';
 import { FaHandshake, FaPlus } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { debtService, Debt } from '@/services/debtService';
-import { DEBT_STATUSES } from '@/utils/constants';
+import { DebtStatus, DebtType } from '@prisma/client';
 import { useDebt } from '@/context/DebtContext';
 import { DebtCard } from './DebtCard';
 import { DebtSkeleton } from './DebtSkeleton';
@@ -20,7 +20,7 @@ const Toast = Swal.mixin({
 });
 
 export interface DebtTabPaneProps {
-  debtType: 'lend' | 'borrow';
+  debtType: DebtType;
   statusFilter: string;
   counterpartyFilter: string;
   sortBy: string;
@@ -154,7 +154,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
   };
 
   const handleOpenRepay = (debt: Debt) => {
-    if (debt.status !== DEBT_STATUSES.ACTIVE) return;
+    if (debt.status !== DebtStatus.active) return;
     openRepaymentModal(debt);
   };
 
@@ -177,7 +177,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
       html: `
         <p>Are you sure you want to delete this debt?</p>
         <div class="text-start mt-3 border p-2 rounded bg-light">
-          <strong>${debt.type === 'lend' ? 'Lend to' : 'Borrow from'} ${debt.counterparty}</strong><br>
+          <strong>${debt.type === DebtType.lend ? 'Lend to' : 'Borrow from'} ${debt.counterparty}</strong><br>
           <small class="text-muted">Will also delete all associated transactions and repayments.</small>
         </div>
       `,
@@ -226,7 +226,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
                     <FaHandshake size={32} style={{ color: '#94a3b8' }} />
                   </div>
                   <h3 className="fw-bold text-dark mb-2">
-                    No {debtType === 'lend' ? 'credits' : 'debits'} found
+                    No {debtType === DebtType.lend ? 'credits' : 'debits'} found
                   </h3>
                   <p className="text-muted mb-4 mx-auto" style={{ maxWidth: '400px' }}>
                     {debtType === 'lend'

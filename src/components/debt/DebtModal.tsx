@@ -7,7 +7,7 @@ import { NumericFormat } from 'react-number-format';
 import { format } from 'date-fns';
 
 import { Debt, CreateDebtPayload, UpdateDebtPayload } from '@/services/debtService';
-import { DEBT_TYPES, DEBT_STATUSES } from '@/utils/constants';
+import { DebtStatus, DebtType } from '@prisma/client';
 import { DebtTypeToggle } from './DebtTypeToggle';
 import { AccountSelect } from '@/components/transaction/AccountSelect';
 import { Account } from '@/services/accountService';
@@ -19,7 +19,7 @@ interface DebtModalProps {
   onSave: (data: CreateDebtPayload | UpdateDebtPayload) => Promise<void>;
   editDebt?: Debt | null;
   accounts: Account[];
-  defaultType?: typeof DEBT_TYPES.LEND | typeof DEBT_TYPES.BORROW;
+  defaultType?: DebtType;
 }
 
 export const DebtModal: React.FC<DebtModalProps> = ({
@@ -34,13 +34,13 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [type, setType] = useState<typeof DEBT_TYPES.LEND | typeof DEBT_TYPES.BORROW>(DEBT_TYPES.LEND);
+  const [type, setType] = useState<DebtType>(DebtType.lend);
   const [counterparty, setCounterparty] = useState('');
   const [accountId, setAccountId] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<typeof DEBT_STATUSES.ACTIVE | typeof DEBT_STATUSES.SETTLED>(DEBT_STATUSES.ACTIVE);
+  const [status, setStatus] = useState<DebtStatus>(DebtStatus.active);
 
   const counterpartyInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -68,13 +68,13 @@ export const DebtModal: React.FC<DebtModalProps> = ({
         setDescription(editDebt.description || '');
         setStatus(editDebt.status);
       } else {
-        setType(defaultType ?? DEBT_TYPES.LEND);
+        setType(defaultType ?? DebtType.lend);
         setCounterparty('');
         setAccountId('');
         setAmount('');
         setDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
         setDescription('');
-        setStatus(DEBT_STATUSES.ACTIVE);
+        setStatus(DebtStatus.active);
         setError(null);
       }
     }
@@ -140,7 +140,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
     <Modal show={show} onHide={onHide} size="lg" centered backdrop="static">
       <Form onSubmit={(e) => handleSubmit(e, false)}>
         <Modal.Header closeButton>
-          <Modal.Title>{isEdit ? (type === DEBT_TYPES.LEND ? 'Edit Credit' : 'Edit Debit') : (type === DEBT_TYPES.LEND ? 'New Credit' : 'New Debit')}</Modal.Title>
+          <Modal.Title>{isEdit ? (type === DebtType.lend ? 'Edit Credit' : 'Edit Debit') : (type === DebtType.lend ? 'New Credit' : 'New Debit')}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {error && <div className="alert alert-danger py-2">{error}</div>}
@@ -237,11 +237,11 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                   <Form.Label>Status</Form.Label>
                   <Form.Select 
                      value={status} 
-                     onChange={(e) => setStatus(e.target.value as 'active' | 'settled')}
+                     onChange={(e) => setStatus(e.target.value as DebtStatus)}
                      disabled={isSubmitting}
                   >
-                     <option value={DEBT_STATUSES.ACTIVE}>Active</option>
-                     <option value={DEBT_STATUSES.SETTLED}>Settled</option>
+                     <option value={DebtStatus.active}>Active</option>
+                     <option value={DebtStatus.settled}>Settled</option>
                   </Form.Select>
                </Col>
             )}
@@ -281,7 +281,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
           </Button>
           {!isEdit && (
              <Button
-                variant={type === DEBT_TYPES.LEND ? "outline-danger" : "outline-success"}
+                variant={type === DebtType.lend ? "outline-danger" : "outline-success"}
                 onClick={(e) => handleSubmit(e, true)}
                 disabled={isSubmitting}
                 className="d-flex align-items-center justify-content-center"
@@ -289,7 +289,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                 {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Save & Create Another'}
              </Button>
           )}
-          <Button type="submit" variant={type === DEBT_TYPES.LEND ? "danger" : "success"} disabled={isSubmitting} className="d-flex align-items-center justify-content-center">
+          <Button type="submit" variant={type === DebtType.lend ? "danger" : "success"} disabled={isSubmitting} className="d-flex align-items-center justify-content-center">
              {isSubmitting ? <Spinner as="span" animation="border" size="sm" /> : 'Save'}
           </Button>
         </Modal.Footer>

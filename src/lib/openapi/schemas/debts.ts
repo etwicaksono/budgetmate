@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DebtStatus, DebtType } from '@prisma/client';
 import { registry } from '../registry';
 import { CreateDebtSchema, UpdateDebtSchema, CreateRepaymentSchema } from '@/lib/validation/debt';
 
@@ -6,7 +7,7 @@ export const DebtSchema = registry.register(
   'Debt',
   z.object({
     id: z.string().openapi({ example: 'clq1234560000000000000000' }),
-    type: z.enum(['lend', 'borrow']).openapi({ example: 'borrow' }),
+    type: z.nativeEnum(DebtType).openapi({ example: DebtType.borrow }),
     counterparty: z.string().openapi({ example: 'John Doe' }),
     description: z.string().nullable().openapi({ example: 'Loan for car repair' }),
     account_id: z.string().openapi({ example: 'clqaccount123456000000000' }),
@@ -16,7 +17,7 @@ export const DebtSchema = registry.register(
     expected_amount: z.number().openapi({ example: 100000 }),
     remaining_amount: z.number().openapi({ example: 50000 }),
     settled_amount: z.number().openapi({ example: 50000 }),
-    status: z.enum(['active', 'settled', 'cancelled']).openapi({ example: 'active' }),
+    status: z.nativeEnum(DebtStatus).openapi({ example: DebtStatus.active }),
     initial_transaction_id: z.string().nullable().openapi({ example: 'clqtx1234' }),
     created_at: z.date().openapi({ example: '2023-12-01T00:00:00Z' }),
     updated_at: z.date().openapi({ example: '2023-12-01T00:00:00Z' })

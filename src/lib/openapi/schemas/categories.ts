@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CategoryNature, CategoryType } from '@prisma/client';
 import { registry } from '../registry';
 import { CreateCategorySchema, UpdateCategorySchema } from '@/lib/validation/category';
 
@@ -7,8 +8,8 @@ export const CategorySchema = registry.register(
   z.object({
     id: z.string().openapi({ example: 'clq1234560000000000000000' }),
     name: z.string().openapi({ example: 'Groceries' }),
-    type: z.string().openapi({ example: 'expense' }),
-    nature: z.string().openapi({ example: 'NEED' }),
+    type: z.union([z.nativeEnum(CategoryType), z.literal('both')]).openapi({ example: CategoryType.expense }),
+    nature: z.nativeEnum(CategoryNature).openapi({ example: CategoryNature.NEED }),
     icon: z.string().openapi({ example: 'shopping-cart' }),
     color: z.string().openapi({ example: '#10B981' }),
     is_system: z.boolean().openapi({ example: false }),
@@ -42,7 +43,7 @@ registry.registerPath({
   summary: 'List Categories',
   tags: ['Categories'],
   parameters: [
-    { name: 'type', in: 'query', schema: { type: 'string' }, required: false },
+    { name: 'type', in: 'query', schema: { type: 'string', enum: [CategoryType.income, CategoryType.expense, 'both'] }, required: false },
     { name: 'parent_id', in: 'query', schema: { type: 'string' }, required: false },
     { name: 'is_system', in: 'query', schema: { type: 'boolean' }, required: false },
     { name: 'is_active', in: 'query', schema: { type: 'boolean' }, required: false },
@@ -183,7 +184,7 @@ registry.registerPath({
   summary: 'List Category Tree',
   tags: ['Categories'],
   parameters: [
-    { name: 'type', in: 'query', schema: { type: 'string' }, required: false },
+    { name: 'type', in: 'query', schema: { type: 'string', enum: [CategoryType.income, CategoryType.expense, 'both'] }, required: false },
     { name: 'include_counts', in: 'query', schema: { type: 'boolean' }, required: false },
     { name: 'is_active', in: 'query', schema: { type: 'boolean' }, required: false },
   ],

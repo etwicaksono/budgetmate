@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { savedFilterService, type SavedFilter, type SavedFilterPayload } from '@/services/savedFilterService';
+import type { SavedFilterContext } from '@prisma/client';
 import type { SortValue, TransferOption, DebtOption, DraftOption } from '@/hooks/useFilterData';
 import type { Category } from '@/services/categoryService';
 import type { Account } from '@/services/accountService';
@@ -34,7 +35,7 @@ interface UseSavedFiltersOptions {
    /** Dispatchers to apply a loaded filter */
    dispatchers: LoadFilterCallback;
    /** Optional context tag to scope presets (default: 'transaction') */
-   context?: 'transaction' | 'budget' | 'analytics';
+   context?: SavedFilterContext | 'budget';
 }
 
 export function useSavedFilters({

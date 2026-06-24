@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import type { DebtType } from '@prisma/client';
 import { Debt } from '@/services/debtService';
 
 export type DebtModalType = 'debt' | 'repayment' | 'increase';
@@ -10,10 +11,10 @@ export interface DebtContextValue {
   mode: DebtMode;
   initialData: Debt | null;
   editTransaction: import('@/services/transactionService').Transaction | null;
-  defaultDebtType: 'lend' | 'borrow';
-  activeDebtTab: 'lend' | 'borrow';
-  setActiveDebtTab: (tab: 'lend' | 'borrow') => void;
-  openAddDebtModal: (defaultType?: 'lend' | 'borrow') => void;
+  defaultDebtType: DebtType;
+  activeDebtTab: DebtType;
+  setActiveDebtTab: (tab: DebtType) => void;
+  openAddDebtModal: (defaultType?: DebtType) => void;
   openEditDebtModal: (debt: Debt) => void;
   openRepaymentModal: (debt: Debt, transaction?: import('@/services/transactionService').Transaction) => void;
   openIncreaseModal: (debt: Debt, transaction?: import('@/services/transactionService').Transaction) => void;
@@ -32,10 +33,10 @@ export const DebtProvider: React.FC<DebtProviderProps> = ({ children }) => {
   const [mode, setMode] = useState<DebtMode>('add');
   const [initialData, setInitialData] = useState<Debt | null>(null);
   const [editTransaction, setEditTransaction] = useState<import('@/services/transactionService').Transaction | null>(null);
-  const [defaultDebtType, setDefaultDebtType] = useState<'lend' | 'borrow'>('lend');
-  const [activeDebtTab, setActiveDebtTab] = useState<'lend' | 'borrow'>('lend');
+  const [defaultDebtType, setDefaultDebtType] = useState<DebtType>('lend' as DebtType);
+  const [activeDebtTab, setActiveDebtTab] = useState<DebtType>('lend' as DebtType);
 
-  const openAddDebtModal = useCallback((defaultType: 'lend' | 'borrow' = 'lend') => {
+  const openAddDebtModal = useCallback((defaultType: DebtType = 'lend' as DebtType) => {
     setModalType('debt');
     setMode('add');
     setDefaultDebtType(defaultType);

@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { DebtStatus, DebtType } from '@prisma/client';
 import { Account } from './accountService';
 import { Transaction } from './transactionService';
 
@@ -6,11 +7,11 @@ export interface Debt {
    id: string;
    user_id: string;
    date: string;
-   type: 'lend' | 'borrow';
+   type: DebtType;
    account_id: string;
    counterparty: string;
    description?: string;
-   status: 'active' | 'settled';
+   status: DebtStatus;
    parent_debt_id?: string;
    amount: number;
    remaining_amount: number;
@@ -33,7 +34,7 @@ export interface DebtsResponse {
 
 export interface CreateDebtPayload {
    date: string;
-   type: 'lend' | 'borrow';
+   type: DebtType;
    account_id: string;
    amount: number;
    counterparty: string;
@@ -42,12 +43,12 @@ export interface CreateDebtPayload {
 
 export interface UpdateDebtPayload {
    date?: string;
-   type?: 'lend' | 'borrow';
+   type?: DebtType;
    account_id?: string;
    amount?: number;
    counterparty?: string;
    description?: string;
-   status?: 'active' | 'settled' | 'cancelled';
+   status?: DebtStatus;
 }
 
 export interface CreateRepaymentPayload {
