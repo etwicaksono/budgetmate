@@ -14,7 +14,7 @@ import { NumericFormat } from 'react-number-format';
 
 import './Debts.css';
 import { debtService } from '@/services/debtService';
-import { DEBT_STATUSES } from '@/utils/constants';
+import { DebtStatus } from '@prisma/client';
 import { DebtTabPane } from '@/components/debt';
 import { useDebt } from '@/context/DebtContext';
 import { ClearButton } from '@/components/common/ClearButton';
@@ -131,7 +131,7 @@ function DebtSortDropdown({ sortBy, sortOrder, onSortChange }: DebtSortDropdownP
 
 export default function DebtsPage() {
   // Shared filters
-  const [statusFilter, setStatusFilter] = useState<string>(DEBT_STATUSES.ACTIVE);
+  const [statusFilter, setStatusFilter] = useState<string>(DebtStatus.active);
   const [counterpartyFilter, setCounterpartyFilter] = useState('');
   const counterpartyInputRef = useRef<HTMLInputElement>(null);
 
@@ -156,7 +156,7 @@ export default function DebtsPage() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const allActive = await debtService.fetchDebts({ limit: -1, status: 'active' });
+      const allActive = await debtService.fetchDebts({ limit: -1, status: DebtStatus.active });
       let lentOut = 0;
       let borrowIn = 0;
       allActive.data.forEach((d) => {
@@ -175,12 +175,12 @@ export default function DebtsPage() {
     fetchSummary();
   }, [fetchSummary]);
 
-  const hasActiveFilter = statusFilter !== DEBT_STATUSES.ACTIVE || counterpartyFilter !== '';
+  const hasActiveFilter = statusFilter !== DebtStatus.active || counterpartyFilter !== '';
 
   // Render Filter Form
   const handleResetFilters = () => {
     setCounterpartyFilter('');
-    setStatusFilter(DEBT_STATUSES.ACTIVE);
+    setStatusFilter(DebtStatus.active);
     setSortBy('date');
     setSortOrder('desc');
   };
@@ -236,8 +236,8 @@ export default function DebtsPage() {
               className="shadow-none border-secondary-subtle"
             >
               <option value="all">All Statuses</option>
-              <option value={DEBT_STATUSES.ACTIVE}>Active</option>
-              <option value={DEBT_STATUSES.SETTLED}>Settled</option>
+              <option value={DebtStatus.active}>Active</option>
+              <option value={DebtStatus.settled}>Settled</option>
             </Form.Select>
           </Form.Group>
         </Form>

@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { AccountType, CategoryNature, CategoryType, TransactionType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { commonErrors } from '@/lib/api/response';
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
                 where: { id: existing.id },
                 data: {
                   name: account.name,
-                  account_type: account.account_type,
+                  account_type: account.account_type as AccountType,
                   initial_balance: account.initial_balance,
                   icon: account.icon,
                   color: account.color,
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
                   id: newId,
                   user_id: userId,
                   name: account.name,
-                  account_type: account.account_type,
+                  account_type: account.account_type as AccountType,
                   initial_balance: account.initial_balance,
                   icon: account.icon,
                   color: account.color,
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
                 id: newId,
                 user_id: userId,
                 name: account.name,
-                account_type: account.account_type,
+                account_type: account.account_type as AccountType,
                 initial_balance: account.initial_balance,
                 icon: account.icon,
                 color: account.color,
@@ -171,8 +172,8 @@ export async function POST(request: NextRequest) {
                   where: { id: existing.id },
                   data: {
                     name: category.name,
-                    type: category.type,
-                    nature: category.nature,
+                    type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                    nature: category.nature as CategoryNature,
                     icon: category.icon,
                     color: category.color ?? null,
                     is_system: false,
@@ -190,8 +191,8 @@ export async function POST(request: NextRequest) {
                     id: newId,
                     user_id: userId,
                     name: category.name,
-                    type: category.type,
-                    nature: category.nature,
+                    type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                    nature: category.nature as CategoryNature,
                     icon: category.icon,
                     color: category.color ?? null,
                     is_system: false,
@@ -210,8 +211,8 @@ export async function POST(request: NextRequest) {
                   id: newId,
                   user_id: userId,
                   name: category.name,
-                  type: category.type,
-                  nature: category.nature,
+                  type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                  nature: category.nature as CategoryNature,
                   icon: category.icon,
                   color: category.color ?? null,
                   is_system: false,
@@ -245,8 +246,8 @@ export async function POST(request: NextRequest) {
                 data: {
                   parent_id: newParentId || null,
                   name: category.name,
-                  type: category.type,
-                  nature: category.nature,
+                  type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                  nature: category.nature as CategoryNature,
                   icon: category.icon,
                   color: category.color ?? null,
                   is_system: false,
@@ -264,8 +265,8 @@ export async function POST(request: NextRequest) {
                   user_id: userId,
                   parent_id: newParentId || null,
                   name: category.name,
-                  type: category.type,
-                  nature: category.nature,
+                  type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                  nature: category.nature as CategoryNature,
                   icon: category.icon,
                   color: category.color ?? null,
                   is_system: false,
@@ -284,8 +285,8 @@ export async function POST(request: NextRequest) {
                 user_id: userId,
                 parent_id: newParentId || null,
                 name: category.name,
-                type: category.type,
-                nature: category.nature,
+                type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                nature: category.nature as CategoryNature,
                 icon: category.icon,
                 color: category.color ?? null,
                 is_system: false,
@@ -417,6 +418,8 @@ export async function POST(request: NextRequest) {
         }
 
         // 5. Import Transactions
+        // Build a transaction ID map for label re-association
+        const transactionIdMap = new Map<string, string>();
         const createdTransactions = [];
         for (const transaction of backupData.data.transactions) {
           const newAccountId = accountIdMap.get(transaction.account_id);
@@ -442,7 +445,7 @@ export async function POST(request: NextRequest) {
                   data: {
                     account_id: newAccountId,
                     category_id: newCategoryId ?? null,
-                    type: transaction.type,
+                    type: transaction.type as TransactionType,
                     amount: transaction.amount,
                     date: new Date(transaction.date),
                     description: transaction.description ?? null,
@@ -453,6 +456,7 @@ export async function POST(request: NextRequest) {
                   },
                 });
 
+                transactionIdMap.set(transaction.id, existing.id);
                 createdTransactions.push(updated);
               } else {
                 const newId = createId();
@@ -462,7 +466,7 @@ export async function POST(request: NextRequest) {
                     user_id: userId,
                     account_id: newAccountId,
                     category_id: newCategoryId ?? null,
-                    type: transaction.type,
+                    type: transaction.type as TransactionType,
                     amount: transaction.amount,
                     date: new Date(transaction.date),
                     description: transaction.description ?? null,
@@ -473,6 +477,7 @@ export async function POST(request: NextRequest) {
                   },
                 });
 
+                transactionIdMap.set(transaction.id, newId);
                 createdTransactions.push(created);
               }
             } else {
@@ -483,7 +488,7 @@ export async function POST(request: NextRequest) {
                   user_id: userId,
                   account_id: newAccountId,
                   category_id: newCategoryId ?? null,
-                  type: transaction.type,
+                  type: transaction.type as TransactionType,
                   amount: transaction.amount,
                   date: new Date(transaction.date),
                   description: transaction.description ?? null,
@@ -494,6 +499,7 @@ export async function POST(request: NextRequest) {
                 },
               });
 
+              transactionIdMap.set(transaction.id, newId);
               createdTransactions.push(created);
             }
           }
@@ -502,20 +508,16 @@ export async function POST(request: NextRequest) {
         // 6. Import Transaction-Label relationships
         let createdTransactionLabels = 0;
         for (const tl of backupData.data.transactionLabels) {
-          // Find new transaction and label IDs from created records
-          const transaction = createdTransactions.find((t) => {
-            const originalTx = backupData.data.transactions.find((tx) => tx.id === tl.transaction_id);
-            return originalTx && accountIdMap.get(originalTx.account_id) === t.account_id;
-          });
-
+          // Use the transaction ID map to find the new transaction ID
+          const newTransactionId = transactionIdMap.get(tl.transaction_id);
           const newLabelId = labelIdMap.get(tl.label_id);
 
-          if (transaction && newLabelId) {
+          if (newTransactionId && newLabelId) {
             if (mode === 'merge') {
               // Check if relationship already exists
               const existing = await tx.transactionLabel.findFirst({
                 where: {
-                  transaction_id: transaction.id,
+                  transaction_id: newTransactionId,
                   label_id: newLabelId,
                 },
               });
@@ -524,7 +526,7 @@ export async function POST(request: NextRequest) {
                 await tx.transactionLabel.create({
                   data: {
                     id: createId(),
-                    transaction_id: transaction.id,
+                    transaction_id: newTransactionId,
                     label_id: newLabelId,
                   },
                 });
@@ -534,7 +536,7 @@ export async function POST(request: NextRequest) {
               await tx.transactionLabel.create({
                 data: {
                   id: createId(),
-                  transaction_id: transaction.id,
+                  transaction_id: newTransactionId,
                   label_id: newLabelId,
                 },
               });

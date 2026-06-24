@@ -117,7 +117,7 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
       // Background delete
       transactionService.deleteTransaction(recordId).catch(error => {
         console.error('Failed to delete transaction in background:', error);
-        
+
         // Revert optimistic update
         const deletedTransaction = transactions.find((t) => t.id === recordId);
         if (deletedTransaction) {
@@ -127,7 +127,7 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
             })
           );
         }
-        
+
         Swal.fire({
           icon: 'error',
           title: 'Delete Failed',
@@ -201,13 +201,13 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
       });
 
       const optimisticData = { ...transaction, is_draft: false };
-      
+
       window.dispatchEvent(
         new CustomEvent('transaction-updated', {
           detail: { action: 'edit', data: optimisticData },
         })
       );
-      
+
       Toast.fire({
         icon: 'success',
         title: 'Transaction Confirmed'

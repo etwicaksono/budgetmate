@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { AccountType, CategoryNature, CategoryType, PrismaClient, TransactionType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import defaultCategories from '../src/data/default_categories.json';
 import defaultAccounts from '../src/data/default_accounts.json';
@@ -19,6 +19,12 @@ interface ParentCategoryData {
   children: CategoryData[];
 }
 
+const normalizeCategoryNature = (nature?: string): CategoryNature => {
+  if (nature === 'NEED') return CategoryNature.NEED;
+  if (nature === 'MUST') return CategoryNature.MUST;
+  return CategoryNature.WANT;
+};
+
 async function createDefaultDataForUser(userId: string): Promise<Map<string, string>> {
   console.info('Creating default data for user:', userId);
 
@@ -31,9 +37,8 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
         data: {
           user_id: userId,
           name: category.name,
-          type: 'income',
-          analytic_flag: 'income',
-          nature: category.nature || 'WANT',
+          type: CategoryType.income,
+          nature: normalizeCategoryNature(category.nature),
           icon: category.icon,
           color: category.color,
           is_system: true,
@@ -53,9 +58,8 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
         data: {
           user_id: userId,
           name: parentName,
-          type: 'expense',
-          analytic_flag: 'expense',
-          nature: data.nature || 'WANT',
+          type: CategoryType.expense,
+          nature: normalizeCategoryNature(data.nature),
           icon: data.icon,
           color: data.color,
           is_system: true,
@@ -73,9 +77,8 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
               user_id: userId,
               parent_id: parent.id,
               name: child.name,
-              type: 'expense',
-              analytic_flag: 'expense',
-              nature: child.nature || data.nature || 'WANT',
+              type: CategoryType.expense,
+              nature: normalizeCategoryNature(child.nature ?? data.nature),
               icon: child.icon,
               color: data.color, // Inherit parent color
               is_system: true,
@@ -96,7 +99,7 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
         data: {
           user_id: userId,
           name: account.name,
-          account_type: account.account_type,
+          account_type: account.account_type as AccountType,
           icon: account.icon,
           color: account.color,
           initial_balance: account.initial_balance || 0,
@@ -136,7 +139,7 @@ async function createSampleTransactions(
 
     for (let i = 0; i < numTransactions; i++) {
       const isIncome = Math.random() < 0.1; // 10% chance of income
-      const type = isIncome ? 'income' : 'expense';
+      const type = isIncome ? TransactionType.income : TransactionType.expense;
 
       // Select random account
       const accountId = accountIds[Math.floor(Math.random() * accountIds.length)];
@@ -183,8 +186,8 @@ async function createSampleTransactions(
         user_id: userId,
         account_id: accountId,
         category_id: categoryId,
-        type: type,
-        amount: type === 'expense' ? -amount : amount, // Negative for expenses
+        type,
+        amount: type === TransactionType.expense ? -amount : amount, // Negative for expenses
         date: date,
         description: `Sample ${type} transaction`,
         payment_method: 'Cash',

@@ -61,7 +61,7 @@ dev d: ## Start development server
 .PHONY: build b
 build b: ## Build for production
 	@echo [BUILD] Building for production...
-	@npm run build
+	@npm run build:migrate
 
 .PHONY: start
 start: ## Start production server

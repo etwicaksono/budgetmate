@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { Prisma, DebtStatus, DebtType, TransactionType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
@@ -29,8 +29,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       user_id: user.user_id,
    };
 
-   if (status) where.status = status;
-   if (type) where.type = type;
+   if (status) where.status = status as DebtStatus;
+   if (type) where.type = type as DebtType;
    if (counterparty) {
       where.counterparty = {
          contains: counterparty,
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
    // Define include structure to fetch linked transactions to compute amounts
    const nestedInclude = {
-      account_rel: {
+      account: {
          select: { name: true, icon: true, color: true }
       },
       transactions: {
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
          const allTxs = debt.transactions || [];
 
          // 1. Identify all initial debt transactions based on type (for increases)
-         const initialTxType = debt.type === 'lend' ? 'debt_out' : 'debt_in';
+         const initialTxType = debt.type === DebtType.lend ? TransactionType.debt_out : TransactionType.debt_in;
          const initialTxs = allTxs.filter((tx: typeof allTxs[0]) => tx.type === initialTxType);
          let initialAmount = 0;
          if (initialTxs.length > 0) {
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
          }
 
          // 2. Identify all repayment transactions (the opposite direction)
-         const repaymentTxType = debt.type === 'lend' ? 'debt_in' : 'debt_out';
+         const repaymentTxType = debt.type === DebtType.lend ? TransactionType.debt_in : TransactionType.debt_out;
          const repaymentTxs = allTxs.filter((tx: typeof allTxs[0]) => tx.type === repaymentTxType);
 
          let totalRepaid = 0;
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             status: debt.status,
             amount: initialAmount,
             remaining_amount: remainingAmount,
-            account: debt.account_rel,
+            account: debt.account,
             account_id: debt.account_id,
             repayments: repaymentTxs.map((tx: typeof allTxs[0]) => ({
                id: tx.id,
@@ -210,9 +210,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Determine transaction logical amount based on type
       // LEND = money leaves account (debt_out, negative amount)
       // BORROW = money enters account (debt_in, positive amount)
-      const txType = data.type === 'lend' ? 'debt_out' : 'debt_in';
+      const txType = data.type === DebtType.lend ? TransactionType.debt_out : TransactionType.debt_in;
       // Negative if lending, positive if borrowing
-      const dbAmount = data.type === 'lend' ? -Math.abs(data.amount) : Math.abs(data.amount);
+      const dbAmount = data.type === DebtType.lend ? -Math.abs(data.amount) : Math.abs(data.amount);
 
       // Perform database operations in transaction
       const newDebt = await prisma.$transaction(async (tx) => {
@@ -221,11 +221,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             data: {
                user_id: user.user_id,
                date: new Date(data.date),
-               type: data.type,
+               type: data.type as DebtType,
                account_id: data.account_id,
                counterparty: data.counterparty,
                ...(data.description !== undefined ? { description: data.description } : {}),
-               status: 'active',
+               status: DebtStatus.active,
                created_by: user.user_id,
             }
          });
@@ -250,7 +250,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
          return await tx.debt.findUnique({
             where: { id: debtEntry.id },
             include: {
-               account_rel: { select: { name: true, icon: true, color: true } },
+               account: { select: { name: true, icon: true, color: true } },
                transactions: { orderBy: { created_at: 'asc' } }
             }
          });

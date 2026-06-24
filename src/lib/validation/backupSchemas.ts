@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { AccountType, CategoryNature, CategoryType, TransactionType } from '@prisma/client';
 
 // =============================================================================
 // Entity Schemas
@@ -14,7 +15,7 @@ import { z } from 'zod';
 const BackupAccountSchema = z.object({
   id: z.string(),
   name: z.string().min(1).max(100),
-  account_type: z.string().min(1).max(50),
+  account_type: z.nativeEnum(AccountType),
   initial_balance: z.number(),
   icon: z.string().min(1).max(50),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
@@ -28,8 +29,8 @@ const BackupCategorySchema = z.object({
   id: z.string(),
   parent_id: z.string().nullable().optional(),
   name: z.string().min(1).max(100),
-  type: z.enum(['income', 'expense', 'both']),
-  nature: z.enum(['WANT', 'NEED', 'MUST']),
+  type: z.union([z.nativeEnum(CategoryType), z.literal('both')]),
+  nature: z.nativeEnum(CategoryNature),
   icon: z.string().min(1).max(50),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(),
   is_system: z.boolean(),
@@ -42,7 +43,7 @@ const BackupTransactionSchema = z.object({
   id: z.string(),
   account_id: z.string(),
   category_id: z.string().nullable().optional(),
-  type: z.enum(['income', 'expense', 'transfer_in', 'transfer_out']),
+  type: z.nativeEnum(TransactionType),
   amount: z.number(),
   date: z.string().datetime(),
   description: z.string().nullable().optional(),

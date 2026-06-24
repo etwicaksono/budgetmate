@@ -11,7 +11,7 @@
  * - TRANSFER_IN transactions MUST have POSITIVE amounts
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, TransactionType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -27,7 +27,12 @@ interface ValidationResult {
 async function checkCurrentState(): Promise<ValidationResult[]> {
   console.log('\n📊 Checking current state...\n');
 
-  const types = ['expense', 'income', 'transfer_out', 'transfer_in'];
+  const types: TransactionType[] = [
+    TransactionType.expense,
+    TransactionType.income,
+    TransactionType.transfer_out,
+    TransactionType.transfer_in
+  ];
   const results: ValidationResult[] = [];
 
   for (const type of types) {

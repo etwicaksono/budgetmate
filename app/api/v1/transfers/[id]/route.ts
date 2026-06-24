@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, commonErrors } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { resolveRouteParam } from '@/lib/api/params';
 
 interface RouteParams {
@@ -258,18 +259,10 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       const firstError = error.errors[0];
       return errorResponse('VALIDATION_ERROR', firstError?.message || 'Validation error', 400);
     }
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return errorResponse('NOT_FOUND', 'Transfer not found', 404);
-      }
-      if (error.code === 'P2002') {
-        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-      }
-      console.error('Prisma error in transfer update:', { code: error.code, message: error.message, meta: error.meta, transferId: id, userId: user.user_id });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
-    console.error('Transfer update error:', { transferId: id, userId: user.user_id, error });
-    return errorResponse('INTERNAL_ERROR', 'Failed to update transfer', 500);
+    const prismaError = handlePrismaError(error, 'Transfer', 'update');
+    if (prismaError) return prismaError;
+    console.error('Unexpected error:', error);
+    return commonErrors.serverError();
   }
 }
 
@@ -321,17 +314,9 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
     return successResponse(null, { message: 'Transfer deleted successfully' });
 
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return errorResponse('NOT_FOUND', 'Transfer not found', 404);
-      }
-      if (error.code === 'P2002') {
-        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-      }
-      console.error('Prisma error in transfer delete:', { code: error.code, message: error.message, meta: error.meta, transferId: id, userId: user.user_id });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
-    console.error('Transfer deletion error:', { transferId: id, userId: user.user_id, error });
-    return errorResponse('INTERNAL_ERROR', 'Failed to delete transfer', 500);
+    const prismaError = handlePrismaError(error, 'Transfer', 'delete');
+    if (prismaError) return prismaError;
+    console.error('Unexpected error:', error);
+    return commonErrors.serverError();
   }
 }

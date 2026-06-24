@@ -1,11 +1,12 @@
 import { api } from './api';
+import type { CategoryNature, CategoryType } from '@prisma/client';
 
 export interface Category {
   id: string;
   name: string;
-  type: 'income' | 'expense' | 'both';
+  type: CategoryType | 'both';
   analytic_flag: 'income' | 'expense';
-  nature: 'WANT' | 'NEED' | 'MUST';
+  nature: CategoryNature;
   icon: string;
   color: string | null;
   is_system: boolean;
@@ -20,7 +21,7 @@ export interface Category {
 }
 
 export interface CategoryFilters {
-  type?: 'income' | 'expense' | 'both';
+  type?: CategoryType | 'both';
   parent_id?: string | null;
   is_system?: boolean;
   is_active?: boolean;
@@ -29,9 +30,9 @@ export interface CategoryFilters {
 
 export interface CreateCategoryPayload {
   name: string;
-  type: 'income' | 'expense' | 'both';
+  type: CategoryType | 'both';
   analytic_flag?: 'income' | 'expense';
-  nature?: 'WANT' | 'NEED' | 'MUST';
+  nature?: CategoryNature;
   icon?: string;
   color?: string;
   parent_id?: string | null;
@@ -40,9 +41,9 @@ export interface CreateCategoryPayload {
 
 export interface UpdateCategoryPayload {
   name?: string;
-  type?: 'income' | 'expense' | 'both';
+  type?: CategoryType | 'both';
   analytic_flag?: 'income' | 'expense';
-  nature?: 'WANT' | 'NEED' | 'MUST';
+  nature?: CategoryNature;
   icon?: string;
   color?: string;
   parent_id?: string | null;

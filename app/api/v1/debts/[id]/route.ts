@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { Prisma, DebtStatus, DebtType, TransactionType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { UpdateDebtSchema } from '@/lib/validation/debt';
 
 export async function GET(
@@ -25,7 +26,7 @@ export async function GET(
             user_id: authResult.user.user_id,
          },
          include: {
-            account_rel: {
+            account: {
                select: { name: true, icon: true, color: true },
             },
             transactions: {
@@ -43,14 +44,14 @@ export async function GET(
 
       const allTxs = debt.transactions || [];
 
-      const initialTxType = debt.type === 'lend' ? 'debt_out' : 'debt_in';
+      const initialTxType = debt.type === DebtType.lend ? TransactionType.debt_out : TransactionType.debt_in;
       const initialTxs = allTxs.filter((tx) => tx.type === initialTxType);
       let initialAmount = 0;
       if (initialTxs.length > 0) {
          initialAmount = initialTxs.reduce((acc: number, tx) => acc + Math.abs(Number(tx.amount)), 0);
       }
 
-      const repaymentTxType = debt.type === 'lend' ? 'debt_in' : 'debt_out';
+      const repaymentTxType = debt.type === DebtType.lend ? TransactionType.debt_in : TransactionType.debt_out;
       const repaymentTxs = allTxs.filter((tx) => tx.type === repaymentTxType);
 
       let totalRepaid = 0;
@@ -69,7 +70,7 @@ export async function GET(
          status: debt.status,
          amount: initialAmount,
          remaining_amount: remainingAmount,
-         account: debt.account_rel,
+         account: debt.account,
          account_id: debt.account_id,
          repayments: repaymentTxs.map((tx) => ({
             id: tx.id,
@@ -134,11 +135,11 @@ export async function PUT(
 
       const allTxs = existingDebt.transactions || [];
 
-      const initialTxType = existingDebt.type === 'lend' ? 'debt_out' : 'debt_in';
+      const initialTxType = existingDebt.type === DebtType.lend ? TransactionType.debt_out : TransactionType.debt_in;
       const linkedTransaction = allTxs.find((tx) => tx.type === initialTxType) || null;
 
       // Compute repaid total to ensure new amount doesn't go below what's already repaid
-      const repaymentTxType = existingDebt.type === 'lend' ? 'debt_in' : 'debt_out';
+      const repaymentTxType = existingDebt.type === DebtType.lend ? TransactionType.debt_in : TransactionType.debt_out;
       const repaymentTxs = allTxs.filter((tx) => tx.type === repaymentTxType);
 
       let totalRepaid = 0;
@@ -154,16 +155,16 @@ export async function PUT(
       const dbAmount = data.amount
          ? (updateType === 'lend' ? -Math.abs(data.amount) : Math.abs(data.amount))
          : undefined;
-      const txType = updateType === 'lend' ? 'debt_out' : 'debt_in';
+      const txType = updateType === DebtType.lend ? TransactionType.debt_out : TransactionType.debt_in;
 
       const updatedDebt = await prisma.$transaction(async (tx) => {
          const updateData: Prisma.DebtUpdateInput = { updated_by: authResult.user.user_id };
          if (data.date) updateData.date = new Date(data.date);
-         if (data.type) updateData.type = data.type;
-         if (data.account_id) updateData.account_rel = { connect: { id: data.account_id } };
+         if (data.type) updateData.type = data.type as DebtType;
+         if (data.account_id) updateData.account = { connect: { id: data.account_id } };
          if (data.counterparty) updateData.counterparty = data.counterparty;
          if (data.description !== undefined) updateData.description = data.description;
-         if (data.status) updateData.status = data.status;
+         if (data.status) updateData.status = data.status as DebtStatus;
 
          // Update Debt entry
          const updated = await tx.debt.update({
@@ -204,17 +205,9 @@ export async function PUT(
 
       return successResponse(updatedDebt, { message: 'Debt updated successfully' });
    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-         if (error.code === 'P2025') {
-            return errorResponse('NOT_FOUND', 'Debt not found', 404);
-         }
-         if (error.code === 'P2002') {
-            return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-         }
-         console.error('Prisma error in debt update:', { code: error.code, message: error.message, meta: error.meta, debtId, userId: authResult.user.user_id });
-         return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-      }
-      console.error('Update debt error:', { debtId, userId: authResult.user.user_id, error });
+      const prismaError = handlePrismaError(error, 'Debt', 'update');
+      if (prismaError) return prismaError;
+      console.error('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to update debt', 500);
    }
 }
@@ -261,17 +254,9 @@ export async function DELETE(
 
       return successResponse(null, { message: 'Debt deleted successfully' });
    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-         if (error.code === 'P2025') {
-            return errorResponse('NOT_FOUND', 'Debt not found', 404);
-         }
-         if (error.code === 'P2002') {
-            return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-         }
-         console.error('Prisma error in debt delete:', { code: error.code, message: error.message, meta: error.meta, debtId, userId: authResult.user.user_id });
-         return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-      }
-      console.error('Delete debt error:', { debtId, userId: authResult.user.user_id, error });
+      const prismaError = handlePrismaError(error, 'Debt', 'delete');
+      if (prismaError) return prismaError;
+      console.error('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to delete debt', 500);
    }
 }

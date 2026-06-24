@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TransactionType } from '@prisma/client';
 import { registry } from '../registry';
 import { CreateTransactionSchema, UpdateTransactionSchema } from '@/lib/validation/transaction';
 
@@ -10,7 +11,7 @@ export const TransactionSchema = registry.register(
     account_id: z.string().openapi({ example: 'clqaccount123456000000000' }),
     category_id: z.string().openapi({ example: 'clqcategory12345600000000' }),
     amount: z.number().openapi({ example: -150000 }), // Negative for expense
-    type: z.enum(['income', 'expense', 'transfer_in', 'transfer_out', 'debt_in', 'debt_out']).openapi({ example: 'expense' }),
+    type: z.nativeEnum(TransactionType).openapi({ example: TransactionType.expense }),
     description: z.string().nullable().openapi({ example: 'Grocery shopping' }),
     payee: z.string().nullable().openapi({ example: 'Supermarket' }),
     payment_method: z.string().nullable().openapi({ example: 'Credit Card' }),
@@ -58,7 +59,7 @@ registry.registerPath({
     { name: 'limit', in: 'query', schema: { type: 'integer', default: 50 }, required: false },
     { name: 'account_id', in: 'query', schema: { type: 'string' }, required: false },
     { name: 'category_id', in: 'query', schema: { type: 'string' }, required: false },
-    { name: 'type', in: 'query', schema: { type: 'string', enum: ['income', 'expense'] }, required: false },
+    { name: 'type', in: 'query', schema: { type: 'string', enum: [TransactionType.income, TransactionType.expense] }, required: false },
     { name: 'start_date', in: 'query', schema: { type: 'string', format: 'date-time' }, required: false },
     { name: 'end_date', in: 'query', schema: { type: 'string', format: 'date-time' }, required: false },
     { name: 'keyword', in: 'query', schema: { type: 'string' }, required: false },

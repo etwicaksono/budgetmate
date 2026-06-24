@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { NumericFormat } from 'react-number-format';
 
 import { Debt, CreateRepaymentPayload } from '@/services/debtService';
-import { DEBT_TYPES } from '@/utils/constants';
+import { DebtType } from '@prisma/client';
 import { AccountSelect } from '@/components/transaction/AccountSelect';
 import { Account } from '@/services/accountService';
 import { ClearButton } from '@/components/common/ClearButton';
@@ -71,7 +71,7 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
 
   if (!debt) return null;
 
-  const isLend = debt.type === DEBT_TYPES.LEND;
+  const isLend = debt.type === DebtType.lend;
   const remaining = debt.remaining_amount || 0;
 
   const handleSubmit = async (e: React.FormEvent) => {

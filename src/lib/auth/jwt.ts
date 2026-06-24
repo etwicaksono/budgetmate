@@ -2,11 +2,12 @@ import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { NextRequest } from 'next/server';
 
 // Convert secrets to Uint8Array for jose library
+// Fail fast if secrets are not configured — no insecure fallbacks
 const JWT_ACCESS_SECRET = new TextEncoder().encode(
-  process.env['JWT_ACCESS_SECRET'] || 'your-secret-key-change-in-production'
+  process.env['JWT_ACCESS_SECRET'] || (() => { throw new Error('JWT_ACCESS_SECRET environment variable is required'); })()
 );
 const JWT_REFRESH_SECRET = new TextEncoder().encode(
-  process.env['JWT_REFRESH_SECRET'] || 'your-refresh-secret-change-in-production'
+  process.env['JWT_REFRESH_SECRET'] || (() => { throw new Error('JWT_REFRESH_SECRET environment variable is required'); })()
 );
 
 // Token expiry times

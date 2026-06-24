@@ -8,6 +8,7 @@
  * then formats the result as human-readable text before returning it to the LLM.
  */
 
+import { Prisma, TransactionType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import type { ToolDefinition, ContextSnapshot } from './types';
 
@@ -115,6 +116,13 @@ export async function toolExecutor(
       const sortBy = (args['sort_by'] as string | undefined) ?? 'date';
       const sortOrder = (args['sort_order'] as string | undefined) ?? 'desc';
 
+      const typeCondition =
+        typeFilter === 'all'
+          ? undefined
+          : typeFilter === 'transfer'
+            ? { in: [TransactionType.transfer_in, TransactionType.transfer_out] }
+            : { equals: typeFilter as TransactionType };
+
       const txns = await prisma.transaction.findMany({
         where: {
           user_id: userId,
@@ -132,12 +140,12 @@ export async function toolExecutor(
           }),
           ...(minAmount !== undefined && minAmount > 0 && { amount: { gte: minAmount } }),
           ...(maxAmount !== undefined && maxAmount < 20000000 && { amount: { lte: maxAmount } }),
-          ...(typeFilter !== 'all' && { type: typeFilter }),
+          ...(typeCondition && { type: typeCondition }),
         },
         include: { category: true, account: true },
         orderBy: { [sortBy]: sortOrder },
         take: limit,
-      });
+      }) as Array<Prisma.TransactionGetPayload<{ include: { category: true; account: true } }>>;
 
       if (txns.length === 0) return '[Tool: get_transactions]\nTidak ada transaksi ditemukan.';
 
@@ -159,7 +167,7 @@ export async function toolExecutor(
         where: {
           user_id: userId,
           deleted_at: null,
-          type: { in: ['income', 'expense'] },
+          type: { in: [TransactionType.income, TransactionType.expense] },
           ...(startDate && { date: { gte: new Date(startDate) } }),
           ...(endDate && { date: { lte: new Date(endDate) } }),
           ...(categoryIds.length > 0 && { category_id: { in: categoryIds } }),

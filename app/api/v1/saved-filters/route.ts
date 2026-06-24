@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { SavedFilterContext } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
@@ -10,7 +11,13 @@ export async function GET(request: NextRequest) {
 
    const { user } = authResult;
    const { searchParams } = new URL(request.url);
-   const context = searchParams.get('context') ?? undefined;
+   const contextParam = searchParams.get('context') ?? undefined;
+
+   // Validate context against enum values
+   const validContexts = Object.values(SavedFilterContext) as string[];
+   const context = contextParam && validContexts.includes(contextParam)
+      ? (contextParam as SavedFilterContext)
+      : undefined;
 
    try {
       const savedFilters = await prisma.savedFilter.findMany({

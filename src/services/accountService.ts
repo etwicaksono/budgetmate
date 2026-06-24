@@ -1,9 +1,10 @@
 import { api } from './api';
+import type { AccountType } from '@prisma/client';
 
 export interface Account {
   id: string;
   name: string;
-  account_type: 'checking' | 'savings' | 'credit_card' | 'cash' | 'investment' | 'loan';
+  account_type: AccountType;
   icon: string;
   color: string;
   initial_balance: number;
@@ -17,7 +18,7 @@ export interface Account {
 
 export interface CreateAccountRequest {
   name: string;
-  account_type: string;
+  account_type: AccountType;
   icon: string;
   color: string;
   initial_balance?: number;

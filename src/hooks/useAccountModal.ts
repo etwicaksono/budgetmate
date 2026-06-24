@@ -5,7 +5,9 @@
  */
 
 import { useState, useCallback } from 'react';
+import type { AccountType } from '@prisma/client';
 import { accountService, Account } from '@/services/accountService';
+import { dispatchAppEvent } from '@/lib/eventBus';
 
 export interface AccountFormData {
   name: string;
@@ -59,7 +61,7 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
       if (modalMode === 'add') {
         const createdAccount = await accountService.createAccount({
           name: formData.name,
-          account_type: formData.account_type,
+          account_type: formData.account_type as AccountType,
           icon: formData.icon,
           color: formData.color,
           initial_balance: parseFloat(formData.initial_balance) || 0,
@@ -68,13 +70,13 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
         });
 
         // Dispatch event for other components to listen
-        window.dispatchEvent(new CustomEvent('account-created', {
-          detail: { account: createdAccount }
-        }));
+        dispatchAppEvent('account-created', {
+          accountId: createdAccount.id,
+        });
       } else if (editingAccount) {
-        const updatedAccount = await accountService.updateAccount(editingAccount.id, {
+        await accountService.updateAccount(editingAccount.id, {
           name: formData.name,
-          account_type: formData.account_type,
+          account_type: formData.account_type as AccountType,
           icon: formData.icon,
           color: formData.color,
           initial_balance: parseFloat(formData.initial_balance) || 0,
@@ -83,9 +85,9 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
         });
 
         // Dispatch event for other components to listen
-        window.dispatchEvent(new CustomEvent('account-updated', {
-          detail: { accountId: editingAccount.id, account: updatedAccount }
-        }));
+        dispatchAppEvent('account-updated', {
+          accountId: editingAccount.id,
+        });
       }
 
       // Call success callback to refresh accounts

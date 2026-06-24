@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { Prisma, CategoryNature, CategoryType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, commonErrors } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { resolveRouteParam } from '@/lib/api/params';
 import { UpdateCategorySchema } from '@/lib/validation/category';
 
@@ -12,6 +13,10 @@ interface RouteParams {
     id?: string;
   };
 }
+
+const normalizeCategoryType = (type?: string): CategoryType => {
+  return type === 'income' ? CategoryType.income : CategoryType.expense;
+};
 
 // GET - Fetch single category
 export async function GET(request: NextRequest, context: RouteParams): Promise<NextResponse> {
@@ -65,7 +70,6 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       id: category.id,
       name: category.name,
       type: category.type,
-      analytic_flag: category.analytic_flag,
       nature: category.nature,
       icon: category.icon,
       color: category.color,
@@ -157,9 +161,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
           return errorResponse('INVALID_PARENT', 'Parent category not found', 404);
         }
 
-        // Verify parent type matches (a parent of type 'both' accepts any child type)
-        const targetType = data.type !== undefined ? data.type : existingCategory.type;
-        if (parent.type !== 'both' && parent.type !== targetType) {
+        // Verify parent type matches the category type
+        const targetType = data.type !== undefined ? normalizeCategoryType(data.type) : existingCategory.type;
+        if (parent.type !== targetType) {
           return errorResponse(
             'TYPE_MISMATCH',
             `Parent category type '${parent.type}' does not match category type '${targetType}'`,
@@ -186,23 +190,12 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     };
 
     if (data.name !== undefined) updateData['name'] = data.name;
-    if (data.type !== undefined) updateData['type'] = data.type;
+    if (data.type !== undefined) updateData['type'] = normalizeCategoryType(data.type);
     if (data.parent_id !== undefined) updateData['parent_id'] = data.parent_id;
-    if (data.nature !== undefined) updateData['nature'] = data.nature;
+    if (data.nature !== undefined) updateData['nature'] = data.nature as CategoryNature;
     if (data.icon !== undefined) updateData['icon'] = data.icon;
     if (data.color !== undefined) updateData['color'] = data.color;
     if (data.is_active !== undefined) updateData['is_active'] = data.is_active;
-
-    let explicitType = data.type !== undefined ? data.type : existingCategory.type;
-    if (explicitType === 'income') {
-      updateData['analytic_flag'] = 'income';
-    } else if (explicitType === 'expense') {
-      updateData['analytic_flag'] = 'expense';
-    } else if (explicitType === 'both') {
-      if (data.analytic_flag !== undefined) {
-        updateData['analytic_flag'] = data.analytic_flag;
-      }
-    }
 
     const updated = await prisma.category.update({
       where: {
@@ -222,10 +215,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       const childUpdateData: Prisma.CategoryUpdateManyMutationInput = {};
 
       if (data.color !== undefined) childUpdateData.color = data.color;
-      if (data.type !== undefined) childUpdateData.type = data.type;
-      if (updateData['analytic_flag'] !== undefined) {
-        childUpdateData.analytic_flag = updateData['analytic_flag'] as string;
-      }
+      if (data.type !== undefined) childUpdateData.type = normalizeCategoryType(data.type);
 
       if (Object.keys(childUpdateData).length > 0) {
         childUpdateData.updated_at = new Date();
@@ -245,7 +235,6 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       id: updated.id,
       name: updated.name,
       type: updated.type,
-      analytic_flag: updated.analytic_flag,
       nature: updated.nature,
       icon: updated.icon,
       color: updated.color,
@@ -259,23 +248,10 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     return successResponse(response, { message: 'Category updated successfully' });
 
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return errorResponse('NOT_FOUND', 'Category not found', 404);
-      }
-      if (error.code === 'P2003') {
-        return errorResponse('CONFLICT', 'Cannot update category: it is referenced by other records', 409);
-      }
-      if (error.code === 'P2002') {
-        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-      }
-      console.error('Prisma error in category update:', { code: error.code, message: error.message, meta: error.meta, categoryId: id, userId: user.user_id });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
-    console.error('Category update error:', { categoryId: id, userId: user.user_id, error });
-    const errorMessage = error instanceof Error ? error.message : 'Failed to update category';
-    console.error('Error details:', errorMessage);
-    return errorResponse('INTERNAL_ERROR', errorMessage, 500);
+    const prismaError = handlePrismaError(error, 'Category', 'update');
+    if (prismaError) return prismaError;
+    console.error('Unexpected error:', error);
+    return commonErrors.serverError();
   }
 }
 
@@ -363,21 +339,10 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
     return successResponse(null, { message: 'Category deleted successfully' });
 
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return errorResponse('NOT_FOUND', 'Category not found', 404);
-      }
-      if (error.code === 'P2003') {
-        return errorResponse('CONFLICT', 'Cannot delete category: it is referenced by other records', 409);
-      }
-      if (error.code === 'P2002') {
-        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-      }
-      console.error('Prisma error in category delete:', { code: error.code, message: error.message, meta: error.meta, categoryId: id, userId: user.user_id });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
-    console.error('Category deletion error:', { categoryId: id, userId: user.user_id, error });
-    return errorResponse('INTERNAL_ERROR', 'Failed to delete category', 500);
+    const prismaError = handlePrismaError(error, 'Category', 'delete');
+    if (prismaError) return prismaError;
+    console.error('Unexpected error:', error);
+    return commonErrors.serverError();
   }
 }
 

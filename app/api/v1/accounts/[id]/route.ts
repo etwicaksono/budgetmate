@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { AccountType } from '@prisma/client';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, commonErrors } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { resolveRouteParam } from '@/lib/api/params';
 import { balanceService } from '@/services/balanceService';
 
@@ -12,7 +13,7 @@ import { balanceService } from '@/services/balanceService';
 
 const UpdateAccountSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  account_type: z.enum(['checking', 'savings', 'credit_card', 'cash', 'investment', 'loan']).optional(),
+  account_type: z.nativeEnum(AccountType).optional(),
   icon: z.string().optional(),
   color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
   initial_balance: z.number().optional(),
@@ -192,21 +193,10 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     return successResponse(response, { message: 'Account updated successfully' });
 
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return errorResponse('NOT_FOUND', 'Account not found', 404);
-      }
-      if (error.code === 'P2003') {
-        return errorResponse('CONFLICT', 'Cannot update account: it is referenced by other records', 409);
-      }
-      if (error.code === 'P2002') {
-        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-      }
-      console.error('Prisma error in account update:', { code: error.code, message: error.message, meta: error.meta, accountId: id, userId: user.user_id });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
-    console.error('Account update error:', { accountId: id, userId: user.user_id, error });
-    return errorResponse('INTERNAL_ERROR', 'Failed to update account', 500);
+    const prismaError = handlePrismaError(error, 'Account', 'update');
+    if (prismaError) return prismaError;
+    console.error('Unexpected error:', error);
+    return commonErrors.serverError();
   }
 }
 
@@ -274,20 +264,9 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
     return successResponse(null, { message: 'Account deleted successfully' });
 
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return errorResponse('NOT_FOUND', 'Account not found', 404);
-      }
-      if (error.code === 'P2003') {
-        return errorResponse('CONFLICT', 'Cannot delete account: it is referenced by other records', 409);
-      }
-      if (error.code === 'P2002') {
-        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-      }
-      console.error('Prisma error in account delete:', { code: error.code, message: error.message, meta: error.meta, accountId: id, userId: user.user_id });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
-    console.error('Account deletion error:', { accountId: id, userId: user.user_id, error });
-    return errorResponse('INTERNAL_ERROR', 'Failed to delete account', 500);
+    const prismaError = handlePrismaError(error, 'Account', 'delete');
+    if (prismaError) return prismaError;
+    console.error('Unexpected error:', error);
+    return commonErrors.serverError();
   }
 }

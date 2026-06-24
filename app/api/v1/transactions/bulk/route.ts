@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/middleware";
 import { errorResponse, successResponse } from "@/lib/api/response";
@@ -71,33 +71,32 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
 
         if (filters.type && filters.type !== "all") {
           // Map frontend type to database enum format
-          const typeMapping: Record<string, string> = {
-            income: 'INCOME',
-            expense: 'EXPENSE',
-            transfer: 'TRANSFER',
-            transfer_in: 'TRANSFER',
-            transfer_out: 'TRANSFER',
-            debt_in: 'DEBT_IN',
-            debt_out: 'DEBT_OUT'
+          const typeMapping: Record<string, TransactionType> = {
+            income: TransactionType.income,
+            expense: TransactionType.expense,
+            transfer_in: TransactionType.transfer_in,
+            transfer_out: TransactionType.transfer_out,
+            debt_in: TransactionType.debt_in,
+            debt_out: TransactionType.debt_out
           };
           const mappedType = typeMapping[filters.type];
           if (mappedType) {
             whereClause.type = mappedType;
           }
         } else {
-          const includeTypes: string[] = [];
-          const excludeTypes: string[] = [];
+          const includeTypes: TransactionType[] = [];
+          const excludeTypes: TransactionType[] = [];
 
           if (filters.transfer_option === 'only') {
-            includeTypes.push('transfer', 'transfer_in', 'transfer_out');
+            includeTypes.push(TransactionType.transfer_in, TransactionType.transfer_out);
           } else if (filters.transfer_option === 'exclude') {
-            excludeTypes.push('transfer', 'transfer_in', 'transfer_out');
+            excludeTypes.push(TransactionType.transfer_in, TransactionType.transfer_out);
           }
 
           if (filters.debt_option === 'only') {
-            includeTypes.push('debt_in', 'debt_out');
+            includeTypes.push(TransactionType.debt_in, TransactionType.debt_out);
           } else if (filters.debt_option === 'exclude') {
-            excludeTypes.push('debt_in', 'debt_out');
+            excludeTypes.push(TransactionType.debt_in, TransactionType.debt_out);
           }
 
           if (includeTypes.length > 0) {

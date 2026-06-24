@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TransactionType } from '@prisma/client';
 
 // CUID validation regex (sortable IDs)
 const cuidRegex = /^[a-z][a-z0-9]{8,}$/;
@@ -9,7 +10,7 @@ export const CreateTransactionSchema = z.object({
   account_id: z.string().regex(cuidRegex, 'Invalid account ID'),
   category_id: z.string().regex(cuidRegex, 'Invalid category ID'),
   amount: z.number().positive(),
-  type: z.enum(['income', 'expense']),
+  type: z.enum([TransactionType.income, TransactionType.expense]),
   description: z.string().optional(),
   payee: z.string().optional(),
   payment_method: z.string().optional(),
@@ -26,7 +27,7 @@ export const UpdateTransactionSchema = z.object({
   account_id: z.string().regex(cuidRegex, 'Invalid account ID').optional(),
   category_id: z.string().regex(cuidRegex, 'Invalid category ID').optional(),
   amount: z.number().positive().optional(),
-  type: z.enum(['income', 'expense']).optional(),
+  type: z.enum([TransactionType.income, TransactionType.expense]).optional(),
   description: z.string().optional(),
   payee: z.string().optional(),
   payment_method: z.string().optional(),
@@ -45,7 +46,7 @@ export const TransactionFilterSchema = z.object({
   account_ids: z.string().optional(), // comma-separated CUIDs
   category_id: z.string().regex(cuidRegex, 'Invalid category ID').optional(),
   category_ids: z.string().optional(), // comma-separated CUIDs
-  type: z.enum(['income', 'expense']).optional(),
+  type: z.enum([TransactionType.income, TransactionType.expense]).optional(),
   start_date: z.string().datetime().optional(),
   end_date: z.string().datetime().optional(),
   min_amount: z.coerce.number().optional(),

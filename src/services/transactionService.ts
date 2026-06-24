@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { TransactionType } from '@prisma/client';
 
 export interface Transaction {
   id: string;
@@ -19,7 +20,7 @@ export interface Transaction {
     type: string;
   };
   amount: number;
-  type: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out' | 'debt_in' | 'debt_out';
+  type: TransactionType | 'transfer';
   description?: string;
   debt_id?: string;
   payee?: string;
@@ -46,7 +47,7 @@ export interface CreateTransactionRequest {
   account_id: string;
   category_id?: string;
   amount: number;
-  type: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out' | 'debt_in' | 'debt_out';
+  type: TransactionType | 'transfer';
   description?: string;
   payee?: string;
   payment_method?: string;
@@ -62,7 +63,7 @@ export interface TransactionFilters {
   limit?: number;
   account_id?: string;
   category_id?: string;
-  type?: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out' | 'debt_in' | 'debt_out';
+  type?: TransactionType | 'transfer';
   start_date?: string;
   end_date?: string;
   min_amount?: number;

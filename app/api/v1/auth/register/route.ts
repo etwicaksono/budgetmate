@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { AccountType, CategoryNature, CategoryType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { hashPassword, validatePasswordStrength } from '@/lib/auth/password';
 import { generateTokenPair } from '@/lib/auth/jwt';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { RegisterSchema } from '@/lib/validation/auth';
 import defaultCategories from '@/data/default_categories.json';
 import defaultAccounts from '@/data/default_accounts.json';
@@ -23,6 +24,17 @@ interface ParentCategoryData {
   nature: string;
   children: CategoryData[];
 }
+
+const normalizeCategoryNature = (nature?: string): CategoryNature => {
+  switch (nature) {
+    case 'NEED':
+      return CategoryNature.NEED;
+    case 'MUST':
+      return CategoryNature.MUST;
+    default:
+      return CategoryNature.WANT;
+  }
+};
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let email = '';
@@ -112,9 +124,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           data: {
             user_id: user.id,
             name: incomeCategory.name,
-            type: 'income',
-            analytic_flag: 'income',
-            nature: incomeCategory.nature || 'WANT',
+            type: CategoryType.income,
+            nature: normalizeCategoryNature(incomeCategory.nature || 'WANT'),
             icon: incomeCategory.icon,
             color: incomeCategory.color,
             is_system: true,
@@ -130,9 +141,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 user_id: user.id,
                 parent_id: incomeParent.id,
                 name: child.name,
-                type: 'income',
-                analytic_flag: 'income',
-                nature: child.nature || incomeCategory.nature || 'WANT',
+                type: CategoryType.income,
+                    nature: normalizeCategoryNature(child.nature || incomeCategory.nature || 'WANT'),
                 icon: child.icon,
                 color: incomeCategory.color, // Inherit parent color
                 is_system: true,
@@ -152,9 +162,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           data: {
             user_id: user.id,
             name: parentName,
-            type: 'expense',
-            analytic_flag: 'expense',
-            nature: data.nature || 'WANT',
+            type: CategoryType.expense,
+            nature: normalizeCategoryNature(data.nature || 'WANT'),
             icon: data.icon,
             color: data.color,
             is_system: true,
@@ -170,9 +179,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 user_id: user.id,
                 parent_id: parent.id,
                 name: child.name,
-                type: 'expense',
-                analytic_flag: 'expense',
-                nature: child.nature || data.nature || 'WANT',
+                type: CategoryType.expense,
+                    nature: normalizeCategoryNature(child.nature || data.nature || 'WANT'),
                 icon: child.icon,
                 color: data.color, // Inherit parent color
                 is_system: true,
@@ -193,9 +201,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             data: {
               user_id: user.id,
               name: parentName,
-              type: 'both',
-              analytic_flag: 'expense',
-              nature: data.nature || 'WANT',
+              type: CategoryType.expense,
+                nature: normalizeCategoryNature(data.nature || 'WANT'),
               icon: data.icon,
               color: data.color,
               is_system: true,
@@ -211,9 +218,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                   user_id: user.id,
                   parent_id: parent.id,
                   name: child.name,
-                  type: 'both',
-                  analytic_flag: 'expense',
-                  nature: child.nature || data.nature || 'WANT',
+                  type: CategoryType.expense,
+                        nature: normalizeCategoryNature(child.nature || data.nature || 'WANT'),
                   icon: child.icon,
                   color: data.color, // Inherit parent color
                   is_system: true,
@@ -231,7 +237,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           data: {
             user_id: user.id,
             name: account.name,
-            account_type: account.account_type,
+            account_type: account.account_type as AccountType,
             icon: account.icon,
             color: account.color,
 
@@ -274,56 +280,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
   } catch (error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        const target = error.meta?.['target'];
-        const fields = Array.isArray(target)
-          ? target
-          : typeof target === 'string'
-            ? [target]
-            : [];
-        const conflictField = fields.includes('email')
-          ? 'email'
-          : fields.includes('username')
-            ? 'username'
-            : fields[0] ?? 'field';
+    const prismaError = handlePrismaError(error, 'User', 'register');
+    if (prismaError) return prismaError;
 
-        console.error('Prisma duplicate key error during registration:', {
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-          email,
-          username,
-          conflictField,
-        });
-
-        return errorResponse(
-          'USER_EXISTS',
-          `User with this ${conflictField} already exists`,
-          409
-        );
-      }
-
-      console.error('Prisma error during registration:', {
-        code: error.code,
-        message: error.message,
-        meta: error.meta,
-        email,
-        username,
-      });
-
-      return errorResponse(
-        'DATABASE_ERROR',
-        `Database operation failed: ${error.code}`,
-        500
-      );
-    }
-
-    console.error('Unexpected error during registration:', error);
-    return errorResponse(
-      'INTERNAL_ERROR',
-      'An error occurred during registration',
-      500
-    );
+    console.error('Unexpected registration error:', error);
+    return errorResponse('INTERNAL_ERROR', 'Registration failed', 500);
   }
 }

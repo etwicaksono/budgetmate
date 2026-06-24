@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { categoryService, Category } from '@/services/categoryService';
 import { useToast } from '@/context/ToastContext';
+import { onAppEvent } from '@/lib/eventBus';
 
 interface UseCategoriesResult {
   categories: Category[];
@@ -50,15 +51,15 @@ export function useCategories(): UseCategoriesResult {
     const handleCategoryEvent = () => {
       void fetchCategories();
     };
-    
-    window.addEventListener('category-created', handleCategoryEvent);
-    window.addEventListener('category-updated', handleCategoryEvent);
-    window.addEventListener('category-deleted', handleCategoryEvent);
-    
+
+    const unsubscribeCreated = onAppEvent('category-created', handleCategoryEvent);
+    const unsubscribeUpdated = onAppEvent('category-updated', handleCategoryEvent);
+    const unsubscribeDeleted = onAppEvent('category-deleted', handleCategoryEvent);
+
     return () => {
-      window.removeEventListener('category-created', handleCategoryEvent);
-      window.removeEventListener('category-updated', handleCategoryEvent);
-      window.removeEventListener('category-deleted', handleCategoryEvent);
+      unsubscribeCreated();
+      unsubscribeUpdated();
+      unsubscribeDeleted();
     };
   }, [fetchCategories]);
   
