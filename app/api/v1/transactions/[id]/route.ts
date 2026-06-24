@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { Prisma, TransactionType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
@@ -179,7 +179,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     // If updating category, verify it belongs to user and matches type
     if (data.category_id || data.type) {
       const categoryId = data.category_id ?? existingTransaction.category_id;
-      const type = data.type ?? existingTransaction.type;
+      const type = (data.type ?? existingTransaction.type) as TransactionType;
 
       if (categoryId) {
         const category = await prisma.category.findFirst({
@@ -194,7 +194,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
           return errorResponse('INVALID_CATEGORY', 'Category not found or inactive', 404);
         }
 
-        if (category.type !== type && category.type !== "both") {
+        if (category.type !== type) {
           return errorResponse(
             'CATEGORY_TYPE_MISMATCH',
             `Category type '${category.type}' does not match transaction type '${type}'`,
@@ -208,8 +208,8 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     let finalAmount: number | undefined;
     if (data.amount !== undefined || data.type !== undefined) {
       const amount = data.amount ?? Math.abs(existingTransaction.amount.toNumber());
-      const type = data.type ?? existingTransaction.type;
-      finalAmount = type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
+      const type = (data.type ?? existingTransaction.type) as TransactionType;
+      finalAmount = type === TransactionType.expense ? -Math.abs(amount) : Math.abs(amount);
     }
 
     // Build update data
@@ -220,7 +220,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       ...(data.account_id !== undefined && { account_id: data.account_id }),
       ...(data.category_id !== undefined && { category_id: data.category_id }),
       ...(finalAmount !== undefined && { amount: finalAmount }),
-      ...(data.type !== undefined && { type: data.type }),
+      ...(data.type !== undefined && { type: data.type as TransactionType }),
       ...(data.description !== undefined && { description: data.description || null }),
       ...(data.payee !== undefined && { payee: data.payee || null }),
       ...(data.payment_method !== undefined && { payment_method: data.payment_method || null }),

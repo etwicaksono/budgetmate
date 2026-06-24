@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { SavedFilterContext } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
       const savedFilters = await prisma.savedFilter.findMany({
          where: {
             user_id: user.user_id,
-            ...(context ? { context } : {}),
+            ...(context ? { context: context as SavedFilterContext } : {}),
          },
          orderBy: [
             { sort_order: 'asc' },
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
          data: {
             user_id: user.user_id,
             name: name.trim(),
-            context,
+            context: context as SavedFilterContext,
             filters,
          },
       });

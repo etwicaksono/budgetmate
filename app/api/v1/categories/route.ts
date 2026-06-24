@@ -1,9 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { CategoryNature, CategoryType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { CreateCategorySchema, CategoryFilterSchema } from '@/lib/validation/category';
+
+const normalizeCategoryType = (type?: string): CategoryType => {
+  return type === 'income' ? CategoryType.income : CategoryType.expense;
+};
+
+const normalizeCategoryNature = (nature?: string): CategoryNature => {
+  switch (nature) {
+    case 'NEED':
+      return CategoryNature.NEED;
+    case 'MUST':
+      return CategoryNature.MUST;
+    default:
+      return CategoryNature.WANT;
+  }
+};
 
 // GET - Fetch all categories (flat list)
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -36,7 +52,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     };
 
     if (filters.type) {
-      where['type'] = filters.type;
+      where['type'] = filters.type as CategoryType;
     }
 
     if (filters.parent_id !== undefined) {
@@ -86,7 +102,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       id: category.id,
       name: category.name,
       type: category.type,
-      analytic_flag: category.analytic_flag,
       nature: category.nature,
       icon: category.icon,
       color: category.color,
@@ -151,7 +166,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
 
       // Verify parent type matches
-      if (parent.type !== 'both' && parent.type !== data.type) {
+      if (parent.type !== normalizeCategoryType(data.type)) {
         return errorResponse(
           'TYPE_MISMATCH',
           `Parent category type '${parent.type}' does not match new category type '${data.type}'`,
@@ -165,20 +180,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    let analytic_flag = data.type === 'income' ? 'income' : 'expense';
-    if (data.type === 'both' && data.analytic_flag) {
-      analytic_flag = data.analytic_flag;
-    }
+    const categoryType = normalizeCategoryType(data.type);
 
     // Create category
     const category = await prisma.category.create({
       data: {
         user_id: user.user_id,
         name: data.name,
-        type: data.type,
-        analytic_flag,
+        type: categoryType,
         parent_id: data.parent_id ?? null,
-        nature: data.nature,
+        nature: normalizeCategoryNature(data.nature),
         icon: data.icon,
         color: data.color ?? null,
         is_system: false, // User-created categories are not system
@@ -196,7 +207,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       id: category.id,
       name: category.name,
       type: category.type,
-      analytic_flag: category.analytic_flag,
       nature: category.nature,
       icon: category.icon,
       color: category.color,

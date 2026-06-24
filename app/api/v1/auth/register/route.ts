@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { Prisma, AccountType, CategoryNature, CategoryType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { hashPassword, validatePasswordStrength } from '@/lib/auth/password';
@@ -23,6 +23,17 @@ interface ParentCategoryData {
   nature: string;
   children: CategoryData[];
 }
+
+const normalizeCategoryNature = (nature?: string): CategoryNature => {
+  switch (nature) {
+    case 'NEED':
+      return CategoryNature.NEED;
+    case 'MUST':
+      return CategoryNature.MUST;
+    default:
+      return CategoryNature.WANT;
+  }
+};
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let email = '';
@@ -112,9 +123,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           data: {
             user_id: user.id,
             name: incomeCategory.name,
-            type: 'income',
-            analytic_flag: 'income',
-            nature: incomeCategory.nature || 'WANT',
+            type: CategoryType.income,
+            nature: normalizeCategoryNature(incomeCategory.nature || 'WANT'),
             icon: incomeCategory.icon,
             color: incomeCategory.color,
             is_system: true,
@@ -130,9 +140,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 user_id: user.id,
                 parent_id: incomeParent.id,
                 name: child.name,
-                type: 'income',
-                analytic_flag: 'income',
-                nature: child.nature || incomeCategory.nature || 'WANT',
+                type: CategoryType.income,
+                    nature: normalizeCategoryNature(child.nature || incomeCategory.nature || 'WANT'),
                 icon: child.icon,
                 color: incomeCategory.color, // Inherit parent color
                 is_system: true,
@@ -152,9 +161,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           data: {
             user_id: user.id,
             name: parentName,
-            type: 'expense',
-            analytic_flag: 'expense',
-            nature: data.nature || 'WANT',
+            type: CategoryType.expense,
+            nature: normalizeCategoryNature(data.nature || 'WANT'),
             icon: data.icon,
             color: data.color,
             is_system: true,
@@ -170,9 +178,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 user_id: user.id,
                 parent_id: parent.id,
                 name: child.name,
-                type: 'expense',
-                analytic_flag: 'expense',
-                nature: child.nature || data.nature || 'WANT',
+                type: CategoryType.expense,
+                    nature: normalizeCategoryNature(child.nature || data.nature || 'WANT'),
                 icon: child.icon,
                 color: data.color, // Inherit parent color
                 is_system: true,
@@ -193,9 +200,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             data: {
               user_id: user.id,
               name: parentName,
-              type: 'both',
-              analytic_flag: 'expense',
-              nature: data.nature || 'WANT',
+              type: CategoryType.expense,
+                nature: normalizeCategoryNature(data.nature || 'WANT'),
               icon: data.icon,
               color: data.color,
               is_system: true,
@@ -211,9 +217,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                   user_id: user.id,
                   parent_id: parent.id,
                   name: child.name,
-                  type: 'both',
-                  analytic_flag: 'expense',
-                  nature: child.nature || data.nature || 'WANT',
+                  type: CategoryType.expense,
+                        nature: normalizeCategoryNature(child.nature || data.nature || 'WANT'),
                   icon: child.icon,
                   color: data.color, // Inherit parent color
                   is_system: true,
@@ -231,7 +236,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           data: {
             user_id: user.id,
             name: account.name,
-            account_type: account.account_type,
+            account_type: account.account_type as AccountType,
             icon: account.icon,
             color: account.color,
 

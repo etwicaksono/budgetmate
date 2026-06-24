@@ -1,5 +1,5 @@
 // This is your Prisma schema file
-// 
+//
 // IDs use CUID2 for sortable, collision-resistant identifiers
 // Generated in application code using @paralleldrive/cuid2
 
@@ -10,6 +10,59 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ==================== ENUMS ====================
+
+enum AccountType {
+  checking
+  savings
+  credit_card
+  cash
+  investment
+  loan
+}
+
+enum CategoryType {
+  income
+  expense
+}
+
+enum CategoryNature {
+  WANT
+  NEED
+  MUST
+}
+
+enum TransactionType {
+  income
+  expense
+  transfer_in
+  transfer_out
+  debt_in
+  debt_out
+}
+
+enum DebtType {
+  lend
+  borrow
+}
+
+enum DebtStatus {
+  active
+  settled
+  cancelled
+}
+
+enum SavedFilterContext {
+  transaction
+  analytics
+}
+
+enum AiChatRole {
+  user
+  assistant
+  tool
 }
 
 // ==================== USER MODEL ====================
@@ -36,55 +89,53 @@ model User {
   debts         Debt[]
   transfers     Transfer[]
   labels        Label[]
-  @@index([email])
-  @@index([username])
+  savedFilters  SavedFilter[]
+  aiSessions    AiChatSession[]
 }
 
 // ==================== ACCOUNT MODEL ====================
 model Account {
-  id                   String    @id @default(cuid())
+  id                   String      @id @default(cuid())
   user_id              String
-  name                 String    @db.VarChar(100)
-  account_type         String    @db.VarChar(50) // checking, savings, credit_card, cash, investment, loan
-  initial_balance      Decimal   @default(0) @db.Decimal(15, 2)
+  name                 String      @db.VarChar(100)
+  account_type         AccountType @default(checking)
+  initial_balance      Decimal     @default(0) @db.Decimal(15, 2)
   // current_balance removed - now calculated on-demand via BalanceService
-  icon                 String    @db.VarChar(50)
-  color                String    @db.VarChar(7)
-  is_active            Boolean   @default(true)
-  is_included_in_total Boolean   @default(true)
-  order                Int       @default(0)
-  created_at           DateTime  @default(now()) @db.Timestamptz
-  updated_at           DateTime  @updatedAt @db.Timestamptz
-  deleted_at           DateTime? @db.Timestamptz
-  created_by           String?   @db.VarChar(64)
-  updated_by           String?   @db.VarChar(64)
+  icon                 String      @db.VarChar(50)
+  color                String      @db.VarChar(7)
+  is_active            Boolean     @default(true)
+  is_included_in_total Boolean     @default(true)
+  order                Int         @default(0)
+  created_at           DateTime    @default(now()) @db.Timestamptz
+  updated_at           DateTime    @updatedAt @db.Timestamptz
+  deleted_at           DateTime?   @db.Timestamptz
+  created_by           String?     @db.VarChar(64)
+  updated_by           String?     @db.VarChar(64)
 
   // Relations
   user           User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   transactions   Transaction[]
   debts          Debt[]
 
-  @@index([user_id])
   @@index([user_id, deleted_at, order, created_at])
 }
 
 // ==================== CATEGORY MODEL ====================
 model Category {
-  id         String   @id @default(cuid())
+  id         String         @id @default(cuid())
   user_id    String
   parent_id  String?
-  name       String   @db.VarChar(100)
-  type       String   @db.VarChar(20) // income, expense
-  analytic_flag String @default("expense") @db.VarChar(20) // income, expense
-  nature     String   @default("WANT") @db.VarChar(8) // WANT, NEED, MUST
-  icon       String   @db.VarChar(50)
-  color      String?  @db.VarChar(7)
-  is_system  Boolean  @default(false)
-  is_active  Boolean  @default(true)
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
-  created_by String?  @db.VarChar(64)
-  updated_by String?  @db.VarChar(64)
+  name       String         @db.VarChar(100)
+  type       CategoryType
+  nature     CategoryNature @default(WANT)
+  icon       String         @db.VarChar(50)
+  color      String?        @db.VarChar(7)
+  is_system  Boolean        @default(false)
+  is_active  Boolean        @default(true)
+  created_at DateTime       @default(now()) @db.Timestamptz
+  updated_at DateTime       @updatedAt @db.Timestamptz
+  created_by String?        @db.VarChar(64)
+  updated_by String?        @db.VarChar(64)
 
   // Relations
   user         User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -99,25 +150,25 @@ model Category {
 
 // ==================== TRANSACTION MODEL ====================
 model Transaction {
-  id               String    @id @default(cuid())
+  id               String          @id @default(cuid())
   user_id          String
   account_id       String
   category_id      String?
-  type             String    @db.VarChar(20) // income, expense, transfer_in, transfer_out
-  amount           Decimal   @db.Decimal(15, 2)
-  date             DateTime  @db.Timestamptz
-  description      String?   @db.Text
-  payee            String?   @db.VarChar(255)
-  payment_method   String?   @db.VarChar(50)
-  payment_status   String?   @db.VarChar(32)
+  type             TransactionType
+  amount           Decimal         @db.Decimal(15, 2)
+  date             DateTime        @db.Timestamptz
+  description      String?         @db.Text
+  payee            String?         @db.VarChar(255)
+  payment_method   String?         @db.VarChar(50)
+  payment_status   String?         @db.VarChar(32)
   transfer_id      String?
   debt_id          String?
-  is_draft         Boolean   @default(false)
-  created_at       DateTime  @default(now()) @db.Timestamptz
-  updated_at       DateTime  @updatedAt @db.Timestamptz
-  deleted_at       DateTime? @db.Timestamptz
-  created_by       String?   @db.VarChar(64)
-  updated_by       String?   @db.VarChar(64)
+  is_draft         Boolean          @default(false)
+  created_at       DateTime        @default(now()) @db.Timestamptz
+  updated_at       DateTime        @updatedAt @db.Timestamptz
+  deleted_at       DateTime?       @db.Timestamptz
+  created_by       String?         @db.VarChar(64)
+  updated_by       String?         @db.VarChar(64)
 
   // Relations
   user        User                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -154,8 +205,8 @@ model Transfer {
   updated_by   String?  @db.VarChar(64)
 
   // Relations
-  user             User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  transactions     Transaction[]
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
   @@index([user_id])
   @@index([from_account])
@@ -212,43 +263,43 @@ model CategoryBudget {
 
 // ==================== DEBT MODEL ====================
 model Debt {
-  id             String   @id @default(cuid())
+  id             String     @id @default(cuid())
   user_id        String
-  date           DateTime @db.Timestamptz
-  type           String   @db.VarChar(20) // "lend" or "borrow"
+  date           DateTime   @db.Timestamptz
+  type           DebtType
   account_id     String
-  counterparty   String   @db.VarChar(255) // Person/entity name
+  counterparty   String     @db.VarChar(255) // Person/entity name
   // NOTE: No amount field - amount is stored in the linked Transaction record
-  description    String?  @db.Text
-  status         String   @default("active") @db.VarChar(20) // "active", "settled", "cancelled"
-  created_at     DateTime @default(now()) @db.Timestamptz
-  updated_at     DateTime @updatedAt @db.Timestamptz
-  created_by     String?  @db.VarChar(64)
-  updated_by     String?  @db.VarChar(64)
+  description    String?    @db.Text
+  status         DebtStatus @default(active)
+  created_at     DateTime   @default(now()) @db.Timestamptz
+  updated_at     DateTime   @updatedAt @db.Timestamptz
+  created_by     String?    @db.VarChar(64)
+  updated_by     String?    @db.VarChar(64)
 
   // Relations
   user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  account_rel  Account       @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [account_id], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
   @@index([user_id])
   @@index([account_id])
-  @@index([counterparty])
   @@index([status])
 }
 
 // ==================== SAVED FILTER MODEL ====================
 model SavedFilter {
-  id         String   @id @default(cuid())
+  id         String             @id @default(cuid())
   user_id    String
-  name       String   @db.VarChar(100)
+  name       String             @db.VarChar(100)
   filters    Json
-  context    String   @default("transaction") @db.VarChar(50)
-  sort_order Int      @default(0)
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
+  context    SavedFilterContext @default(transaction)
+  sort_order Int                @default(0)
+  created_at DateTime           @default(now()) @db.Timestamptz
+  updated_at DateTime           @updatedAt @db.Timestamptz
 
   // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, name, context])
   @@index([user_id])
@@ -264,7 +315,9 @@ model AiChatSession {
   created_at       DateTime        @default(now()) @db.Timestamptz
   updated_at       DateTime        @updatedAt @db.Timestamptz
 
-  messages         AiChatMessage[]
+  // Relations
+  user    User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  messages AiChatMessage[]
 
   @@index([user_id])
   @@index([user_id, created_at(sort: Desc)])
@@ -272,13 +325,14 @@ model AiChatSession {
 
 // ==================== AI CHAT MESSAGE MODEL ====================
 model AiChatMessage {
-  id         String        @id @default(cuid())
+  id         String      @id @default(cuid())
   session_id String
-  role       String        @db.VarChar(20)
-  content    String        @db.Text
-  created_at DateTime      @default(now()) @db.Timestamptz
+  role       AiChatRole
+  content    String      @db.Text
+  created_at DateTime    @default(now()) @db.Timestamptz
 
-  session    AiChatSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  // Relations
+  session AiChatSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
 
   @@index([session_id])
   @@index([session_id, created_at])

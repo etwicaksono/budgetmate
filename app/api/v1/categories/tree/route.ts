@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { CategoryType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
@@ -7,8 +8,7 @@ import { successResponse, errorResponse } from '@/lib/api/response';
 interface CategoryNode {
   id: string;
   name: string;
-  type: string;
-  analytic_flag: string;
+  type: CategoryType;
   nature: string;
   icon: string;
   color: string | null;
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     };
 
     if (type) {
-      where['type'] = type;
+      where['type'] = type as CategoryType;
     }
 
     if (is_active !== null) {
@@ -87,7 +87,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         id: category.id,
         name: category.name,
         type: category.type,
-        analytic_flag: category.analytic_flag,
         nature: category.nature,
         icon: category.icon,
         color: category.color,

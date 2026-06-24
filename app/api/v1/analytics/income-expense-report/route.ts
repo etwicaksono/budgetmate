@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { Prisma, TransactionType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           gte: start,
           lte: end,
         },
-        type: { in: ['income', 'expense'] },
+        type: { in: [TransactionType.income, TransactionType.expense] },
       };
 
       if (categoryIds.length > 0) {
@@ -236,9 +236,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const expenseCategories: CategoryReport[] = [];
 
     parentCategories.forEach((parent) => {
-      if (parent.analytic_flag === 'income') {
+      if (parent.type === 'income') {
         incomeCategories.push(buildCategoryReport(parent, 1));
-      } else if (parent.analytic_flag === 'expense') {
+      } else if (parent.type === 'expense') {
         expenseCategories.push(buildCategoryReport(parent, -1));
       }
     });

@@ -1,5 +1,5 @@
 -- Phase 1: Drop unused tables
-DROP TABLE IF EXISTS "RecurringTransaction";
+DROP TABLE IF EXISTS "RecurringTransaction" CASCADE;
 DROP TABLE IF EXISTS "Goal";
 DROP TABLE IF EXISTS "AuditLog";
 
@@ -24,3 +24,4 @@ ALTER TABLE "Account" DROP COLUMN IF EXISTS "interest_rate";
 -- Drop reference_number and is_recurring from Transaction
 ALTER TABLE "Transaction" DROP COLUMN IF EXISTS "reference_number";
 ALTER TABLE "Transaction" DROP COLUMN IF EXISTS "is_recurring";
+ALTER TABLE "Transaction" DROP COLUMN IF EXISTS "recurring_id";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { Prisma, TransactionType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
@@ -71,15 +71,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     if (filters.type) {
-      where.type = filters.type;
+      where.type = filters.type as TransactionType;
     } else {
-      const includeTypes: string[] = [];
-      const excludeTypes: string[] = [];
+      const includeTypes: TransactionType[] = [];
+      const excludeTypes: TransactionType[] = [];
 
       if (filters.transfer_option === 'only') {
-        includeTypes.push('transfer', 'transfer_in', 'transfer_out');
+        includeTypes.push(TransactionType.transfer_in, TransactionType.transfer_out);
       } else if (filters.transfer_option === 'exclude') {
-        excludeTypes.push('transfer', 'transfer_in', 'transfer_out');
+        excludeTypes.push(TransactionType.transfer_in, TransactionType.transfer_out);
       }
 
       if (filters.debt_option === 'only') {
@@ -91,16 +91,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             400
           );
         }
-        includeTypes.push('debt_in', 'debt_out');
+        includeTypes.push(TransactionType.debt_in, TransactionType.debt_out);
       } else if (filters.debt_option === 'exclude') {
-        excludeTypes.push('debt_in', 'debt_out');
+        excludeTypes.push(TransactionType.debt_in, TransactionType.debt_out);
       }
 
       if (includeTypes.length > 0 && excludeTypes.length > 0) {
         // e.g. transfer_option=only + debt_option=exclude: keep only transfers, then remove debt types
         // (debt types wouldn't be in includeTypes anyway, but this handles future combinations cleanly)
         const filtered = includeTypes.filter(t => !excludeTypes.includes(t));
-        if (filtered.length > 0) where.type = { in: filtered };
+        if (filtered.length > 0) where.type = { in: filtered as TransactionType[] };
       } else if (includeTypes.length > 0) {
         where.type = { in: includeTypes };
       } else if (excludeTypes.length > 0) {
@@ -318,10 +318,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const data = validation.data;
+    const transactionType = data.type as TransactionType;
 
     // CRITICAL: Amount sign convention
     // Expenses are NEGATIVE, income is POSITIVE
-    const finalAmount = data.type === 'expense'
+    const finalAmount = transactionType === TransactionType.expense
       ? -Math.abs(data.amount)
       : Math.abs(data.amount);
 
@@ -354,7 +355,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Verify category type matches transaction type
-    if (category.type !== data.type && category.type !== "both") {
+    if (category.type !== transactionType) {
       return errorResponse(
         'CATEGORY_TYPE_MISMATCH',
         `Category type '${category.type}' does not match transaction type '${data.type}'`,
@@ -371,7 +372,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           account_id: data.account_id,
           category_id: data.category_id,
           amount: finalAmount,
-          type: data.type,
+          type: transactionType,
           description: data.description ?? null,
           payee: data.payee ?? null,
           payment_method: data.payment_method ?? null,
