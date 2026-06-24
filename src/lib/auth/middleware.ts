@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken, extractTokenFromHeader } from './jwt';
+import { errorResponse } from '@/lib/api/response';
 import { prisma } from '@/lib/db/prisma';
 
 // Auth result types
@@ -25,16 +26,7 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult | Au
     
     if (!token) {
       return {
-        error: NextResponse.json(
-          { 
-            success: false, 
-            error: { 
-              code: 'AUTH_REQUIRED', 
-              message: 'Authentication required' 
-            } 
-          },
-          { status: 401 }
-        )
+        error: errorResponse('AUTH_REQUIRED', 'Authentication required', 401)
       };
     }
     
@@ -57,16 +49,7 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult | Au
     
     if (!user) {
       return {
-        error: NextResponse.json(
-          { 
-            success: false, 
-            error: { 
-              code: 'USER_NOT_FOUND', 
-              message: 'User not found or has been deactivated' 
-            } 
-          },
-          { status: 401 }
-        )
+        error: errorResponse('USER_NOT_FOUND', 'User not found or has been deactivated', 401)
       };
     }
     
@@ -85,32 +68,14 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult | Au
       // This is expected behavior, no need to log as error
       if (error.name === 'TokenExpiredError' || error.message?.includes('expired')) {
         return {
-          error: NextResponse.json(
-            { 
-              success: false, 
-              error: { 
-                code: 'TOKEN_EXPIRED', 
-                message: 'Access token has expired' 
-              } 
-            },
-            { status: 401 }
-          )
+          error: errorResponse('TOKEN_EXPIRED', 'Access token has expired', 401)
         };
       }
       
       // Invalid token (wrong signature, malformed, etc.)
       if (error.name === 'JsonWebTokenError' || error.message?.includes('Invalid')) {
         return {
-          error: NextResponse.json(
-            { 
-              success: false, 
-              error: { 
-                code: 'TOKEN_INVALID', 
-                message: 'Invalid authentication token' 
-              } 
-            },
-            { status: 401 }
-          )
+          error: errorResponse('TOKEN_INVALID', 'Invalid authentication token', 401)
         };
       }
     }
@@ -120,16 +85,7 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult | Au
     
     // Generic auth error
     return {
-      error: NextResponse.json(
-        { 
-          success: false, 
-          error: { 
-            code: 'AUTH_FAILED', 
-            message: 'Authentication failed' 
-          } 
-        },
-        { status: 401 }
-      )
+      error: errorResponse('AUTH_FAILED', 'Authentication failed', 401)
     };
   }
 }

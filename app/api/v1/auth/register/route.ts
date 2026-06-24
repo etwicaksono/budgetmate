@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma, AccountType, CategoryNature, CategoryType } from '@prisma/client';
+import { AccountType, CategoryNature, CategoryType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { hashPassword, validatePasswordStrength } from '@/lib/auth/password';
 import { generateTokenPair } from '@/lib/auth/jwt';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { RegisterSchema } from '@/lib/validation/auth';
 import defaultCategories from '@/data/default_categories.json';
 import defaultAccounts from '@/data/default_accounts.json';
@@ -279,56 +280,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
   } catch (error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        const target = error.meta?.['target'];
-        const fields = Array.isArray(target)
-          ? target
-          : typeof target === 'string'
-            ? [target]
-            : [];
-        const conflictField = fields.includes('email')
-          ? 'email'
-          : fields.includes('username')
-            ? 'username'
-            : fields[0] ?? 'field';
+    const prismaError = handlePrismaError(error, 'User', 'register');
+    if (prismaError) return prismaError;
 
-        console.error('Prisma duplicate key error during registration:', {
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-          email,
-          username,
-          conflictField,
-        });
-
-        return errorResponse(
-          'USER_EXISTS',
-          `User with this ${conflictField} already exists`,
-          409
-        );
-      }
-
-      console.error('Prisma error during registration:', {
-        code: error.code,
-        message: error.message,
-        meta: error.meta,
-        email,
-        username,
-      });
-
-      return errorResponse(
-        'DATABASE_ERROR',
-        `Database operation failed: ${error.code}`,
-        500
-      );
-    }
-
-    console.error('Unexpected error during registration:', error);
-    return errorResponse(
-      'INTERNAL_ERROR',
-      'An error occurred during registration',
-      500
-    );
+    console.error('Unexpected registration error:', error);
+    return errorResponse('INTERNAL_ERROR', 'Registration failed', 500);
   }
 }

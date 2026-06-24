@@ -4,6 +4,7 @@ import { Prisma, TransactionType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, commonErrors } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { resolveRouteParam } from '@/lib/api/params';
 import { UpdateTransactionSchema } from '@/lib/validation/transaction';
 
@@ -228,74 +229,63 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       ...(data.is_draft !== undefined && { is_draft: data.is_draft }),
     };
 
-    let updated;
-    try {
-      updated = await prisma.transaction.update({
-        where: { id: transactionId },
-        data: updateData,
-        include: {
-          category: {
-            select: { name: true, icon: true, color: true }
-          },
-          account: {
-            select: { name: true, icon: true, color: true }
-          }
+    // If label_ids provided, verify they belong to user before the transaction
+    if (data.label_ids !== undefined && data.label_ids.length > 0) {
+      const labels = await prisma.label.findMany({
+        where: {
+          id: { in: data.label_ids },
+          user_id: user.user_id
         }
       });
-    } catch (prismaError: unknown) {
-      if (prismaError instanceof Prisma.PrismaClientKnownRequestError) {
-        console.error('Prisma update error:', prismaError.code, prismaError.message);
-        if (prismaError.code === 'P2025') {
-          return commonErrors.notFound('Transaction');
-        }
-        if (prismaError.code === 'P2003') {
-          const field = (prismaError.meta?.['field_name'] as string | undefined) ?? '';
-          if (field.includes('account_id')) {
-            return errorResponse('INVALID_ACCOUNT', 'Account not found or inactive', 404);
-          }
-          if (field.includes('category_id')) {
-            return errorResponse('INVALID_CATEGORY', 'Category not found or inactive', 404);
-          }
-        }
-      } else {
-        console.error('Prisma update unknown error:', prismaError);
+
+      if (labels.length !== data.label_ids.length) {
+        return errorResponse('INVALID_LABEL', 'One or more labels not found', 404);
       }
-      throw prismaError;
     }
 
-    // Handle label updates if provided
-    if (data.label_ids !== undefined) {
-      try {
-        // Remove existing labels
-        await prisma.transactionLabel.deleteMany({
-          where: { transaction_id: transactionId }
+    // Execute transaction update + label update atomically
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        // Update transaction
+        const result = await tx.transaction.update({
+          where: { id: transactionId },
+          data: updateData,
+          include: {
+            category: {
+              select: { name: true, icon: true, color: true }
+            },
+            account: {
+              select: { name: true, icon: true, color: true }
+            }
+          }
         });
 
-        // Add new labels
-        if (data.label_ids.length > 0) {
-          // Verify labels belong to user
-          const labels = await prisma.label.findMany({
-            where: {
-              id: { in: data.label_ids },
-              user_id: user.user_id
-            }
+        // Handle label updates atomically if provided
+        if (data.label_ids !== undefined) {
+          // Remove existing labels
+          await tx.transactionLabel.deleteMany({
+            where: { transaction_id: transactionId }
           });
 
-          if (labels.length !== data.label_ids.length) {
-            return errorResponse('INVALID_LABEL', 'One or more labels not found', 404);
+          // Add new labels
+          if (data.label_ids.length > 0) {
+            await tx.transactionLabel.createMany({
+              data: data.label_ids.map(label_id => ({
+                transaction_id: transactionId,
+                label_id
+              }))
+            });
           }
-
-          await prisma.transactionLabel.createMany({
-            data: data.label_ids.map(label_id => ({
-              transaction_id: transactionId,
-              label_id
-            }))
-          });
         }
-      } catch (labelError) {
-        console.error('Label update error:', labelError);
-        // Continue anyway - label update failure shouldn't fail the whole update
-      }
+
+        return result;
+      });
+    } catch (prismaError: unknown) {
+      const prismaResponse = handlePrismaError(prismaError, 'Transaction', 'update');
+      if (prismaResponse) return prismaResponse;
+      console.error('Unexpected error:', prismaError);
+      return commonErrors.serverError();
     }
 
     const response = {

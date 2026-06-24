@@ -418,6 +418,8 @@ export async function POST(request: NextRequest) {
         }
 
         // 5. Import Transactions
+        // Build a transaction ID map for label re-association
+        const transactionIdMap = new Map<string, string>();
         const createdTransactions = [];
         for (const transaction of backupData.data.transactions) {
           const newAccountId = accountIdMap.get(transaction.account_id);
@@ -454,6 +456,7 @@ export async function POST(request: NextRequest) {
                   },
                 });
 
+                transactionIdMap.set(transaction.id, existing.id);
                 createdTransactions.push(updated);
               } else {
                 const newId = createId();
@@ -474,6 +477,7 @@ export async function POST(request: NextRequest) {
                   },
                 });
 
+                transactionIdMap.set(transaction.id, newId);
                 createdTransactions.push(created);
               }
             } else {
@@ -495,6 +499,7 @@ export async function POST(request: NextRequest) {
                 },
               });
 
+              transactionIdMap.set(transaction.id, newId);
               createdTransactions.push(created);
             }
           }
@@ -503,20 +508,16 @@ export async function POST(request: NextRequest) {
         // 6. Import Transaction-Label relationships
         let createdTransactionLabels = 0;
         for (const tl of backupData.data.transactionLabels) {
-          // Find new transaction and label IDs from created records
-          const transaction = createdTransactions.find((t) => {
-            const originalTx = backupData.data.transactions.find((tx) => tx.id === tl.transaction_id);
-            return originalTx && accountIdMap.get(originalTx.account_id) === t.account_id;
-          });
-
+          // Use the transaction ID map to find the new transaction ID
+          const newTransactionId = transactionIdMap.get(tl.transaction_id);
           const newLabelId = labelIdMap.get(tl.label_id);
 
-          if (transaction && newLabelId) {
+          if (newTransactionId && newLabelId) {
             if (mode === 'merge') {
               // Check if relationship already exists
               const existing = await tx.transactionLabel.findFirst({
                 where: {
-                  transaction_id: transaction.id,
+                  transaction_id: newTransactionId,
                   label_id: newLabelId,
                 },
               });
@@ -525,7 +526,7 @@ export async function POST(request: NextRequest) {
                 await tx.transactionLabel.create({
                   data: {
                     id: createId(),
-                    transaction_id: transaction.id,
+                    transaction_id: newTransactionId,
                     label_id: newLabelId,
                   },
                 });
@@ -535,7 +536,7 @@ export async function POST(request: NextRequest) {
               await tx.transactionLabel.create({
                 data: {
                   id: createId(),
-                  transaction_id: transaction.id,
+                  transaction_id: newTransactionId,
                   label_id: newLabelId,
                 },
               });

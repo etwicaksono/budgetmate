@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
-import { Prisma } from '@prisma/client';
 
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { errorResponse, successResponse } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { isValidLocale } from '@/config/locales';
 
 /**
@@ -36,20 +36,8 @@ export async function GET(request: NextRequest) {
 
     return successResponse(userSettings);
   } catch (error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma error while fetching user settings:', {
-        code: error.code,
-        message: error.message,
-        meta: error.meta,
-        userId: user.user_id,
-      });
-
-      return errorResponse(
-        'DATABASE_ERROR',
-        `Database operation failed: ${error.code}`,
-        500
-      );
-    }
+    const prismaError = handlePrismaError(error, 'User settings', 'fetch');
+    if (prismaError) return prismaError;
 
     console.error('Unexpected error while fetching user settings:', {
       userId: user.user_id,
@@ -59,7 +47,7 @@ export async function GET(request: NextRequest) {
     return errorResponse(
       'INTERNAL_ERROR',
       'Failed to fetch user settings',
-      500
+      500,
     );
   }
 }
@@ -113,33 +101,8 @@ export async function PUT(request: NextRequest) {
 
     return successResponse(updatedUser);
   } catch (error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        console.error('Prisma not-found error while updating user settings:', {
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-          userId: user.user_id,
-          updateData,
-        });
-
-        return errorResponse('NOT_FOUND', 'User settings not found', 404);
-      }
-
-      console.error('Prisma error while updating user settings:', {
-        code: error.code,
-        message: error.message,
-        meta: error.meta,
-        userId: user.user_id,
-        updateData,
-      });
-
-      return errorResponse(
-        'DATABASE_ERROR',
-        `Database operation failed: ${error.code}`,
-        500
-      );
-    }
+    const prismaError = handlePrismaError(error, 'User settings', 'update');
+    if (prismaError) return prismaError;
 
     console.error('Unexpected error while updating user settings:', {
       userId: user.user_id,
@@ -150,7 +113,7 @@ export async function PUT(request: NextRequest) {
     return errorResponse(
       'INTERNAL_ERROR',
       'Failed to update user settings',
-      500
+      500,
     );
   }
 }

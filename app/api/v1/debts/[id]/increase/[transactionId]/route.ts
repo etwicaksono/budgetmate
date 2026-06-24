@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { CreateRepaymentSchema } from '@/lib/validation/debt';
 
 /**
@@ -100,17 +101,9 @@ export async function PUT(
       return successResponse(updatedTx, { message: 'Debt increase updated successfully' });
 
    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-         if (error.code === 'P2025') {
-            return errorResponse('NOT_FOUND', 'Debt increase transaction not found', 404);
-         }
-         if (error.code === 'P2002') {
-            return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-         }
-         console.error('Prisma error in debt increase update:', { code: error.code, message: error.message, meta: error.meta, debtId, transactionId, userId: user.user_id });
-         return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-      }
-      console.error('Update debt increase error:', { debtId, transactionId, userId: user.user_id, error });
+      const prismaError = handlePrismaError(error, 'Debt increase transaction', 'update');
+      if (prismaError) return prismaError;
+      console.error('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to update debt increase', 500);
    }
 }
@@ -161,17 +154,9 @@ export async function DELETE(
       return successResponse(null, { message: 'Debt increase deleted successfully' });
 
    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-         if (error.code === 'P2025') {
-            return errorResponse('NOT_FOUND', 'Debt increase transaction not found', 404);
-         }
-         if (error.code === 'P2002') {
-            return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-         }
-         console.error('Prisma error in debt increase delete:', { code: error.code, message: error.message, meta: error.meta, debtId, transactionId, userId: user.user_id });
-         return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-      }
-      console.error('Delete debt increase error:', { debtId, transactionId, userId: user.user_id, error });
+      const prismaError = handlePrismaError(error, 'Debt increase transaction', 'delete');
+      if (prismaError) return prismaError;
+      console.error('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to delete debt increase', 500);
    }
 }

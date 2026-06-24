@@ -13,16 +13,16 @@
  */
 
 import { NextRequest } from 'next/server';
-import { Prisma } from '@prisma/client';
+
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { errorResponse } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { createLLMProvider } from '@/lib/ai/factory';
 import { ANALYTICS_TOOLS, toolExecutor } from '@/lib/ai/tools';
 import { buildSystemPrompt, formatIncomeExpenseReport } from '@/lib/ai/formatters';
 import type { ChatMessage, ContextSnapshot, ToolCall } from '@/lib/ai/types';
 
-const PrismaClientKnownRequestError = Prisma.PrismaClientKnownRequestError;
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -46,38 +46,8 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
       },
     });
   } catch (error) {
-    if (error instanceof PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        console.error('Failed to validate AI chat session ownership:', {
-          operation: 'findFirst',
-          entity: 'aiChatSession',
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-        });
-        return errorResponse('NOT_FOUND', 'AI chat session not found', 404);
-      }
-
-      if (error.code === 'P2002') {
-        console.error('Failed to validate AI chat session ownership:', {
-          operation: 'findFirst',
-          entity: 'aiChatSession',
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-        });
-        return errorResponse('DUPLICATE', 'A session with this title already exists', 409);
-      }
-
-      console.error('Prisma error while validating AI chat session ownership:', {
-        operation: 'findFirst',
-        entity: 'aiChatSession',
-        code: error.code,
-        message: error.message,
-        meta: error.meta,
-      });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
+    const prismaError = handlePrismaError(error, 'AI chat session', 'find');
+    if (prismaError) return prismaError;
 
     console.error('Unexpected error while validating AI chat session ownership:', error);
     return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);
@@ -235,15 +205,8 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
             data: { updated_at: new Date() },
           });
         } catch (error) {
-          if (error instanceof PrismaClientKnownRequestError) {
-            console.error('Failed to persist AI chat messages:', {
-              operation: 'createMany/update',
-              entity: 'aiChatMessage/aiChatSession',
-              code: error.code,
-              message: error.message,
-              meta: error.meta,
-            });
-          } else {
+          const prismaError = handlePrismaError(error, 'AI chat message', 'persist');
+          if (!prismaError) {
             console.error('Unexpected error while persisting AI chat messages:', error);
           }
           sendEvent('error', 'Terjadi kesalahan pada sistem saat memproses pesan.');
@@ -304,29 +267,8 @@ async function generateSessionTitle(
   try {
     await prisma.aiChatSession.update({ where: { id: sessionId }, data: { title: finalTitle } });
   } catch (error) {
-    if (error instanceof PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        console.error('Failed to set AI chat session title (session not found):', {
-          operation: 'update',
-          entity: 'aiChatSession',
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-          sessionId,
-          usedFallback: !aiTitle,
-        });
-        return;
-      }
-
-      console.error('Prisma error while setting AI chat session title:', {
-        operation: 'update',
-        entity: 'aiChatSession',
-        code: error.code,
-        message: error.message,
-        meta: error.meta,
-        sessionId,
-        usedFallback: !aiTitle,
-      });
+    const prismaError = handlePrismaError(error, 'AI chat session title', 'update');
+    if (prismaError) {
       return;
     }
 

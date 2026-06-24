@@ -4,12 +4,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 
-const PrismaClientKnownRequestError = Prisma.PrismaClientKnownRequestError;
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -36,38 +36,8 @@ export async function GET(request: NextRequest, { params }: RouteParams): Promis
 
     return successResponse(session);
   } catch (error) {
-    if (error instanceof PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        console.error('Failed to fetch AI chat session:', {
-          operation: 'findFirst',
-          entity: 'aiChatSession',
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-        });
-        return errorResponse('NOT_FOUND', 'AI chat session not found', 404);
-      }
-
-      if (error.code === 'P2002') {
-        console.error('Failed to fetch AI chat session:', {
-          operation: 'findFirst',
-          entity: 'aiChatSession',
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-        });
-        return errorResponse('DUPLICATE', 'A session with this title already exists', 409);
-      }
-
-      console.error('Prisma error while fetching AI chat session:', {
-        operation: 'findFirst',
-        entity: 'aiChatSession',
-        code: error.code,
-        message: error.message,
-        meta: error.meta,
-      });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
+    const prismaError = handlePrismaError(error, 'AI chat session', 'find');
+    if (prismaError) return prismaError;
 
     console.error('Unexpected error while fetching AI chat session:', error);
     return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);
@@ -105,38 +75,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams): Prom
 
     return successResponse(updated);
   } catch (error) {
-    if (error instanceof PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        console.error('Failed to rename AI chat session:', {
-          operation: 'update',
-          entity: 'aiChatSession',
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-        });
-        return errorResponse('NOT_FOUND', 'AI chat session not found', 404);
-      }
-
-      if (error.code === 'P2002') {
-        console.error('Failed to rename AI chat session:', {
-          operation: 'update',
-          entity: 'aiChatSession',
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-        });
-        return errorResponse('DUPLICATE', 'A session with this title already exists', 409);
-      }
-
-      console.error('Prisma error while renaming AI chat session:', {
-        operation: 'update',
-        entity: 'aiChatSession',
-        code: error.code,
-        message: error.message,
-        meta: error.meta,
-      });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
+    const prismaError = handlePrismaError(error, 'AI chat session', 'update');
+    if (prismaError) return prismaError;
 
     console.error('Unexpected error while renaming AI chat session:', error);
     return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);
@@ -166,38 +106,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams): Pro
 
     return successResponse({ deleted: true });
   } catch (error) {
-    if (error instanceof PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        console.error('Failed to delete AI chat session:', {
-          operation: 'delete',
-          entity: 'aiChatSession',
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-        });
-        return errorResponse('NOT_FOUND', 'AI chat session not found', 404);
-      }
-
-      if (error.code === 'P2002') {
-        console.error('Failed to delete AI chat session:', {
-          operation: 'delete',
-          entity: 'aiChatSession',
-          code: error.code,
-          message: error.message,
-          meta: error.meta,
-        });
-        return errorResponse('DUPLICATE', 'A session with this title already exists', 409);
-      }
-
-      console.error('Prisma error while deleting AI chat session:', {
-        operation: 'delete',
-        entity: 'aiChatSession',
-        code: error.code,
-        message: error.message,
-        meta: error.meta,
-      });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
+    const prismaError = handlePrismaError(error, 'AI chat session', 'delete');
+    if (prismaError) return prismaError;
 
     console.error('Unexpected error while deleting AI chat session:', error);
     return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);

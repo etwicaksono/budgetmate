@@ -4,6 +4,7 @@ import { Prisma, DebtStatus, DebtType, TransactionType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { UpdateDebtSchema } from '@/lib/validation/debt';
 
 export async function GET(
@@ -204,17 +205,9 @@ export async function PUT(
 
       return successResponse(updatedDebt, { message: 'Debt updated successfully' });
    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-         if (error.code === 'P2025') {
-            return errorResponse('NOT_FOUND', 'Debt not found', 404);
-         }
-         if (error.code === 'P2002') {
-            return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-         }
-         console.error('Prisma error in debt update:', { code: error.code, message: error.message, meta: error.meta, debtId, userId: authResult.user.user_id });
-         return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-      }
-      console.error('Update debt error:', { debtId, userId: authResult.user.user_id, error });
+      const prismaError = handlePrismaError(error, 'Debt', 'update');
+      if (prismaError) return prismaError;
+      console.error('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to update debt', 500);
    }
 }
@@ -261,17 +254,9 @@ export async function DELETE(
 
       return successResponse(null, { message: 'Debt deleted successfully' });
    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-         if (error.code === 'P2025') {
-            return errorResponse('NOT_FOUND', 'Debt not found', 404);
-         }
-         if (error.code === 'P2002') {
-            return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-         }
-         console.error('Prisma error in debt delete:', { code: error.code, message: error.message, meta: error.meta, debtId, userId: authResult.user.user_id });
-         return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-      }
-      console.error('Delete debt error:', { debtId, userId: authResult.user.user_id, error });
+      const prismaError = handlePrismaError(error, 'Debt', 'delete');
+      if (prismaError) return prismaError;
+      console.error('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to delete debt', 500);
    }
 }

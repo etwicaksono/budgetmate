@@ -4,6 +4,7 @@ import { Prisma, CategoryNature, CategoryType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, commonErrors } from '@/lib/api/response';
+import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { resolveRouteParam } from '@/lib/api/params';
 import { UpdateCategorySchema } from '@/lib/validation/category';
 
@@ -247,23 +248,10 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     return successResponse(response, { message: 'Category updated successfully' });
 
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return errorResponse('NOT_FOUND', 'Category not found', 404);
-      }
-      if (error.code === 'P2003') {
-        return errorResponse('CONFLICT', 'Cannot update category: it is referenced by other records', 409);
-      }
-      if (error.code === 'P2002') {
-        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-      }
-      console.error('Prisma error in category update:', { code: error.code, message: error.message, meta: error.meta, categoryId: id, userId: user.user_id });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
-    console.error('Category update error:', { categoryId: id, userId: user.user_id, error });
-    const errorMessage = error instanceof Error ? error.message : 'Failed to update category';
-    console.error('Error details:', errorMessage);
-    return errorResponse('INTERNAL_ERROR', errorMessage, 500);
+    const prismaError = handlePrismaError(error, 'Category', 'update');
+    if (prismaError) return prismaError;
+    console.error('Unexpected error:', error);
+    return commonErrors.serverError();
   }
 }
 
@@ -351,21 +339,10 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
     return successResponse(null, { message: 'Category deleted successfully' });
 
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return errorResponse('NOT_FOUND', 'Category not found', 404);
-      }
-      if (error.code === 'P2003') {
-        return errorResponse('CONFLICT', 'Cannot delete category: it is referenced by other records', 409);
-      }
-      if (error.code === 'P2002') {
-        return errorResponse('DUPLICATE', 'Duplicate entry', 409);
-      }
-      console.error('Prisma error in category delete:', { code: error.code, message: error.message, meta: error.meta, categoryId: id, userId: user.user_id });
-      return errorResponse('DATABASE_ERROR', `Database operation failed: ${error.code}`, 500);
-    }
-    console.error('Category deletion error:', { categoryId: id, userId: user.user_id, error });
-    return errorResponse('INTERNAL_ERROR', 'Failed to delete category', 500);
+    const prismaError = handlePrismaError(error, 'Category', 'delete');
+    if (prismaError) return prismaError;
+    console.error('Unexpected error:', error);
+    return commonErrors.serverError();
   }
 }
 
