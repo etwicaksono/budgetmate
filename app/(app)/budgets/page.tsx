@@ -18,6 +18,7 @@ import { FaSortAlphaDown, FaSortAlphaUpAlt, FaSortAmountDown, FaSortAmountUp } f
 import type { SortOption } from '@/components/common/SortDropdown';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
+import { SavedFilterContext } from '@prisma/client';
 import type { DraftOption, SortValue } from '@/hooks/useFilterData';
 import { BudgetFilterSidebar } from './_components/BudgetFilterSidebar';
 import { BudgetToolbar } from './_components/BudgetToolbar';
@@ -192,7 +193,7 @@ function BudgetsPageContent(): React.ReactElement {
       setDebtOption: () => {},
       setDraftOption,
     },
-    context: 'budget',
+    context: SavedFilterContext.budget,
   });
 
   const combinedData = useMemo(() => {

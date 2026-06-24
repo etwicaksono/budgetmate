@@ -293,4 +293,14 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS "Debt_status_idx" ON "Debt"("status");
 CREATE INDEX IF NOT EXISTS "SavedFilter_user_id_context_idx" ON "SavedFilter"("user_id", "context");
+
+-- Deduplicate SavedFilter rows before creating unique index
+-- Keep the most recently updated row per (user_id, name, context) tuple
+DELETE FROM "SavedFilter"
+WHERE id NOT IN (
+  SELECT DISTINCT ON ("user_id", "name", "context") id
+  FROM "SavedFilter"
+  ORDER BY "user_id", "name", "context", "updated_at" DESC
+);
+
 CREATE UNIQUE INDEX IF NOT EXISTS "SavedFilter_user_id_name_context_key" ON "SavedFilter"("user_id", "name", "context");

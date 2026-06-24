@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { SavedFilterContext } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
@@ -43,7 +42,7 @@ export async function PUT(request: NextRequest, context: RouteParams) {
          where: { id: filterId },
          data: {
             ...(name !== undefined && { name: name.trim() }),
-            ...(context !== undefined && { context: context as SavedFilterContext }),
+            ...(context !== undefined && { context }),
             ...(filters !== undefined && { filters }),
          },
       });

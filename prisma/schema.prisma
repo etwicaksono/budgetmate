@@ -57,6 +57,7 @@ enum DebtStatus {
 enum SavedFilterContext {
   transaction
   analytics
+  budget
 }
 
 enum AiChatRole {

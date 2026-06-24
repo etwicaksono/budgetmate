@@ -35,7 +35,7 @@ interface UseSavedFiltersOptions {
    /** Dispatchers to apply a loaded filter */
    dispatchers: LoadFilterCallback;
    /** Optional context tag to scope presets (default: 'transaction') */
-   context?: SavedFilterContext | 'budget';
+   context?: SavedFilterContext;
 }
 
 export function useSavedFilters({

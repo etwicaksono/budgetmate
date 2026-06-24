@@ -11,13 +11,19 @@ export async function GET(request: NextRequest) {
 
    const { user } = authResult;
    const { searchParams } = new URL(request.url);
-   const context = searchParams.get('context') ?? undefined;
+   const contextParam = searchParams.get('context') ?? undefined;
+
+   // Validate context against enum values
+   const validContexts = Object.values(SavedFilterContext) as string[];
+   const context = contextParam && validContexts.includes(contextParam)
+      ? (contextParam as SavedFilterContext)
+      : undefined;
 
    try {
       const savedFilters = await prisma.savedFilter.findMany({
          where: {
             user_id: user.user_id,
-            ...(context ? { context: context as SavedFilterContext } : {}),
+            ...(context ? { context } : {}),
          },
          orderBy: [
             { sort_order: 'asc' },
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest) {
          data: {
             user_id: user.user_id,
             name: name.trim(),
-            context: context as SavedFilterContext,
+            context,
             filters,
          },
       });

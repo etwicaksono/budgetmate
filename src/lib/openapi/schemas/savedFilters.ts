@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { SavedFilterContext } from '@prisma/client';
 import { registry } from '../registry';
 
-export const FilterContextSchema = z.union([z.nativeEnum(SavedFilterContext), z.literal('budget')]);
+export const FilterContextSchema = z.nativeEnum(SavedFilterContext);
 export type FilterContext = z.infer<typeof FilterContextSchema>;
 
 export const FiltersSchema = z.object({
