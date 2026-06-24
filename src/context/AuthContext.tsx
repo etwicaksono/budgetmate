@@ -14,7 +14,6 @@ interface User {
   username: string;
   full_name?: string;
   timezone: string;
-  currency: string;
   has_ai_access?: boolean;
 }
 

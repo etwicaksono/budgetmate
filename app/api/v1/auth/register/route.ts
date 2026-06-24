@@ -84,7 +84,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           full_name: full_name ?? null,
           email_verified: false,
           timezone: 'UTC',
-          currency: 'USD'
+
         }
       });
 
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             account_type: account.account_type,
             icon: account.icon,
             color: account.color,
-            currency: account.currency || 'USD',
+
             initial_balance: account.initial_balance || 0,
             // current_balance removed - calculated on-demand
             is_active: account.is_active,

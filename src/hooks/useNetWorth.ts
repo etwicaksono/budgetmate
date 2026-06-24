@@ -4,15 +4,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { accountService, type Account } from '@/services/accountService';
 import { debtService } from '@/services/debtService';
 
-export interface CurrencyNetWorth {
-  currency: string;
-  accountBalance: number;
-  totalCredit: number;  // piutang (lend)
-  totalDebt: number;    // hutang (borrow)
-}
-
 export interface UseNetWorthReturn {
-  data: CurrencyNetWorth[];
+  data: number;
+  accountBalance: number;
+  totalCredit: number;
+  totalDebt: number;
   isLoading: boolean;
   error: string | null;
   refresh: () => void;
@@ -20,8 +16,8 @@ export interface UseNetWorthReturn {
 
 export function useNetWorth(includeDraft: boolean = false): UseNetWorthReturn {
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [creditByCurrency, setCreditByCurrency] = useState<Record<string, number>>({});
-  const [debtByCurrency, setDebtByCurrency] = useState<Record<string, number>>({});
+  const [totalCredit, setTotalCredit] = useState(0);
+  const [totalDebt, setTotalDebt] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,25 +34,11 @@ export function useNetWorth(includeDraft: boolean = false): UseNetWorthReturn {
 
       setAccounts(accountsData);
 
-      // Group credit (piutang) by account currency
-      const creditMap: Record<string, number> = {};
-      lendData.data.forEach((debt) => {
-        const currency = debt.account?.currency;
-        if (currency) {
-          creditMap[currency] = (creditMap[currency] || 0) + (debt.remaining_amount || 0);
-        }
-      });
-      setCreditByCurrency(creditMap);
+      const creditTotal = lendData.data.reduce((sum, debt) => sum + (debt.remaining_amount || 0), 0);
+      const debtTotalValue = borrowData.data.reduce((sum, debt) => sum + (debt.remaining_amount || 0), 0);
 
-      // Group debt (hutang) by account currency
-      const debtMap: Record<string, number> = {};
-      borrowData.data.forEach((debt) => {
-        const currency = debt.account?.currency;
-        if (currency) {
-          debtMap[currency] = (debtMap[currency] || 0) + (debt.remaining_amount || 0);
-        }
-      });
-      setDebtByCurrency(debtMap);
+      setTotalCredit(creditTotal);
+      setTotalDebt(debtTotalValue);
     } catch (err) {
       console.error('Failed to fetch net worth data:', err);
       setError('Failed to load net worth data');
@@ -98,35 +80,22 @@ export function useNetWorth(includeDraft: boolean = false): UseNetWorthReturn {
     };
   }, [fetchData]);
 
-  // Merge data: only currencies that exist in accounts
-  const data = useMemo<CurrencyNetWorth[]>(() => {
-    // Group account balances by currency (only is_included_in_total)
-    const balanceMap: Record<string, number> = {};
-    const accountCurrencies = new Set<string>();
+  const accountBalance = useMemo(() => {
+    return accounts.reduce((sum, account) => {
+      if (!account.is_included_in_total) return sum;
+      return sum + account.current_balance;
+    }, 0);
+  }, [accounts]);
 
-    accounts.forEach((account) => {
-      accountCurrencies.add(account.currency);
-      if (account.is_included_in_total) {
-        balanceMap[account.currency] = (balanceMap[account.currency] || 0) + account.current_balance;
-      }
-    });
-
-    // Build result only for currencies used by accounts
-    const result: CurrencyNetWorth[] = Array.from(accountCurrencies).map((currency) => ({
-      currency,
-      accountBalance: balanceMap[currency] || 0,
-      totalCredit: creditByCurrency[currency] || 0,
-      totalDebt: debtByCurrency[currency] || 0,
-    }));
-
-    // Sort by account balance descending
-    result.sort((a, b) => b.accountBalance - a.accountBalance);
-
-    return result;
-  }, [accounts, creditByCurrency, debtByCurrency]);
+  const data = useMemo(() => {
+    return accountBalance + totalCredit - totalDebt;
+  }, [accountBalance, totalCredit, totalDebt]);
 
   return {
     data,
+    accountBalance,
+    totalCredit,
+    totalDebt,
     isLoading,
     error,
     refresh: fetchData,

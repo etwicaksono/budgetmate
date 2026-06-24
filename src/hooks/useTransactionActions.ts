@@ -54,18 +54,13 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
     const { fromAccountId, toAccountId } = mapTransferAccounts(transaction);
 
     const sourceAmount = Math.abs(transaction.amount);
-    const sourceCurrency = transaction.type === 'transfer_in'
-      ? transaction.transfer_currency || transaction.currency
-      : transaction.currency;
-    const destAmount = transaction.to_amount ? Math.abs(transaction.to_amount) : Math.abs(transaction.amount);
-    const destCurrency = transaction.to_currency || transaction.currency;
 
     const modalData = {
       id: transaction.id,
       date: transaction.date,
       account_id: fromAccountId,
       category_id: transaction.category_id || '',
-      amount: transaction.type === 'transfer_in' ? destAmount : sourceAmount,
+      amount: sourceAmount,
       type: modalType,
       description: transaction.description || '',
       payee: transaction.payee || '',
@@ -74,9 +69,6 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
       ...(isTransfer && {
         transfer_id: transaction.transfer_id,
         to_account_id: toAccountId,
-        to_amount: transaction.type === 'transfer_in' ? sourceAmount : destAmount,
-        to_currency: destCurrency,
-        currency: sourceCurrency,
       }),
     };
 
@@ -94,7 +86,7 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
         <p>Are you sure you want to delete this transaction?</p>
         <div class="text-start mt-3">
           <strong>${transaction.description || 'No description'}</strong><br>
-          <small class="text-muted">${transaction.currency || 'USD'} ${Math.abs(transaction.amount).toLocaleString()}</small>
+          <small class="text-muted">Rp ${Math.abs(transaction.amount).toLocaleString()}</small>
         </div>
       `,
       showCancelButton: true,

@@ -86,7 +86,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           username: user.username,
           full_name: user.full_name,
           timezone: user.timezone,
-          currency: user.currency,
+
           has_ai_access: user.has_ai_access
         },
         access_token: accessToken,

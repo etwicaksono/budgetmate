@@ -10,5 +10,4 @@ export * from './debts';
 export * from './auth';
 export * from './settings';
 export * from './analytics';
-export * from './sync';
 export * from './backup';

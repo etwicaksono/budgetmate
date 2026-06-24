@@ -5,7 +5,6 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, commonErrors } from '@/lib/api/response';
 import { resolveRouteParam } from '@/lib/api/params';
-import { getTransferDestination } from '@/utils/transferUtils';
 
 interface RouteParams {
   params?: {
@@ -41,27 +40,18 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
 
     const from_account_rel = await prisma.account.findUnique({
       where: { id: transfer.from_account },
-      select: { id: true, name: true, icon: true, color: true, currency: true, account_type: true }
+      select: { id: true, name: true, icon: true, color: true, account_type: true }
     });
 
     const to_account_rel = await prisma.account.findUnique({
       where: { id: transfer.to_account },
-      select: { id: true, name: true, icon: true, color: true, currency: true, account_type: true }
+      select: { id: true, name: true, icon: true, color: true, account_type: true }
     });
 
     const transactions_rel = await prisma.transaction.findMany({
       where: { transfer_id: transfer.id },
       select: { id: true, type: true, amount: true, account_id: true, created_at: true },
       orderBy: { type: 'desc' }
-    });
-
-    // Use helper to compute destination values
-    const destination = getTransferDestination({
-      id: transfer.id,
-      amount: transfer.amount.toNumber(),
-      to_amount: transfer.to_amount?.toNumber() ?? null,
-      currency: transfer.currency,
-      to_currency: transfer.to_currency ?? null
     });
 
     const response = {
@@ -72,10 +62,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       to_account_id: transfer.to_account,
       to_account: to_account_rel,
       amount: transfer.amount.toNumber(),
-      to_amount: destination.amount,
       description: transfer.description,
-      currency: transfer.currency,
-      to_currency: destination.currency,
       transactions: transactions_rel.map((t) => ({
         id: t.id,
         type: t.type,
@@ -101,10 +88,7 @@ const UpdateTransferSchema = z.object({
   from_account_id: z.string().optional(),
   to_account_id: z.string().optional(),
   amount: z.number().optional(),
-  to_amount: z.number().optional(),
-  description: z.string().optional(),
-  currency: z.string().optional(),
-  to_currency: z.string().optional()
+  description: z.string().optional()
 });
 
 // PUT - Update transfer and its linked transactions
@@ -182,10 +166,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         from_account?: string;
         to_account?: string;
         amount?: number;
-        to_amount?: number | null;
         description?: string | null;
-        currency?: string;
-        to_currency?: string | null;
       } = {
         updated_at: new Date(),
         updated_by: user.user_id
@@ -195,10 +176,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       if (data.from_account_id) transferUpdateData.from_account = data.from_account_id;
       if (data.to_account_id) transferUpdateData.to_account = data.to_account_id;
       if (data.amount !== undefined) transferUpdateData.amount = data.amount;
-      if (data.to_amount !== undefined) transferUpdateData.to_amount = data.to_amount;
       if (data.description !== undefined) transferUpdateData.description = data.description;
-      if (data.currency) transferUpdateData.currency = data.currency;
-      if (data.to_currency !== undefined) transferUpdateData.to_currency = data.to_currency;
 
       // Update transfer record
       const transfer = await tx.transfer.update({
@@ -211,10 +189,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       const finalFromAccount = data.from_account_id || existingTransfer.from_account;
       const finalToAccount = data.to_account_id || existingTransfer.to_account;
       const finalAmount = data.amount !== undefined ? data.amount : existingTransfer.amount.toNumber();
-      const finalToAmount = data.to_amount !== undefined ? data.to_amount : (existingTransfer.to_amount?.toNumber() || null);
       const finalDescription = data.description !== undefined ? data.description : existingTransfer.description;
-      const finalCurrency = data.currency || existingTransfer.currency;
-      const finalToCurrency = data.to_currency !== undefined ? data.to_currency : existingTransfer.to_currency;
 
       // Update linked transactions
       // Find the source and destination transactions
@@ -229,7 +204,6 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
             date: finalDate,
             account_id: finalFromAccount,
             amount: -Math.abs(finalAmount), // Negative for source
-            currency: finalCurrency,
             description: finalDescription,
             updated_at: new Date(),
             updated_by: user.user_id
@@ -238,15 +212,12 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       }
 
       if (destTransaction) {
-        // For destination amount: use to_amount if specified and > 0, otherwise use source amount
-        const destAmount = (finalToAmount !== null && finalToAmount > 0) ? finalToAmount : finalAmount;
         await tx.transaction.update({
           where: { id: destTransaction.id },
           data: {
             date: finalDate,
             account_id: finalToAccount,
-            amount: Math.abs(destAmount), // Positive for destination
-            currency: finalToCurrency || finalCurrency,
+            amount: Math.abs(finalAmount), // Positive for destination
             description: finalDescription,
             updated_at: new Date(),
             updated_by: user.user_id
@@ -272,12 +243,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       from_account: result.from_account,
       to_account: result.to_account,
       amount: result.amount.toNumber(),
-      to_amount: result.to_amount?.toNumber() || null,
       description: result.description,
-      currency: result.currency,
-      to_currency: result.to_currency,
-      from_account_data: await prisma.account.findUnique({ where: { id: result.from_account }, select: { id: true, name: true, icon: true, color: true, currency: true } }),
-      to_account_data: await prisma.account.findUnique({ where: { id: result.to_account }, select: { id: true, name: true, icon: true, color: true, currency: true } }),
+      from_account_data: await prisma.account.findUnique({ where: { id: result.from_account }, select: { id: true, name: true, icon: true, color: true } }),
+      to_account_data: await prisma.account.findUnique({ where: { id: result.to_account }, select: { id: true, name: true, icon: true, color: true } }),
       created_at: result.created_at,
       updated_at: result.updated_at
     };

@@ -9,7 +9,6 @@ export interface User {
   username: string;
   full_name?: string;
   timezone: string;
-  currency: string;
 }
 
 export interface AuthTokens {

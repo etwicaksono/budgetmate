@@ -10,7 +10,6 @@ import { Debt, CreateRepaymentPayload } from '@/services/debtService';
 import { DEBT_TYPES } from '@/utils/constants';
 import { AccountSelect } from '@/components/transaction/AccountSelect';
 import { Account } from '@/services/accountService';
-import { getCurrencyPrefix } from '@/utils/formatters';
 import { ClearButton } from '@/components/common/ClearButton';
 
 interface DebtIncreaseModalProps {
@@ -74,7 +73,6 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
   if (!debt) return null;
 
   const isLend = debt.type === DEBT_TYPES.LEND;
-  const currencyPrefix = getCurrencyPrefix(debt.account?.currency);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +123,7 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
                 {isLend ? 'Lend more to' : 'Borrow more from'} {debt.counterparty}
              </div>
              <div className="small d-flex justify-content-between text-muted">
-                <span>Current Total: <NumericFormat value={debt.amount} displayType="text" thousandSeparator prefix={currencyPrefix} /></span>
+                <span>Current Total: <NumericFormat value={debt.amount} displayType="text" thousandSeparator prefix="Rp " /></span>
              </div>
           </Alert>
 
@@ -152,7 +150,7 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
                    getInputRef={amountInputRef}
                    customInput={Form.Control as React.ComponentType<unknown>}
                    thousandSeparator={true}
-                   prefix={currencyPrefix}
+                   prefix="Rp "
                    decimalScale={2}
                    value={amount}
                    onValueChange={(values) => setAmount(values.floatValue || '')}

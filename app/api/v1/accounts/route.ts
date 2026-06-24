@@ -18,7 +18,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
 
   const is_active = searchParams.get('is_active');
-  const group_id = searchParams.get('group_id');
   const include_balance = searchParams.get('include_balance') !== 'false';
   const include_draft = searchParams.get('include_draft') === 'true';
 
@@ -32,9 +31,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where['is_active'] = is_active === 'true';
     }
 
-    if (group_id) {
-      where['group_id'] = group_id;
-    }
 
     const accounts = await prisma.account.findMany({
       where,
@@ -42,11 +38,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         { order: 'asc' },
         { created_at: 'asc' }
       ],
-      include: {
-        group: {
-          select: { name: true, icon: true, color: true }
-        }
-      },
     });
 
     // Calculate current balances for all accounts if requested (single query)
@@ -62,15 +53,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       account_type: account.account_type,
       icon: account.icon,
       color: account.color,
-      currency: account.currency,
+
       initial_balance: account.initial_balance.toNumber(),
       ...(include_balance ? { current_balance: balances.get(account.id) ?? account.initial_balance.toNumber() } : {}),
-      credit_limit: account.credit_limit?.toNumber() ?? null,
-      interest_rate: account.interest_rate?.toNumber() ?? null,
       is_active: account.is_active,
       is_included_in_total: account.is_included_in_total,
       order: account.order,
-      group: account.group,
       created_at: account.created_at,
       updated_at: account.updated_at
     }));
@@ -126,12 +114,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         account_type: data.account_type,
         icon: data.icon,
         color: data.color,
-        currency: data.currency,
+
         initial_balance: data.initial_balance,
         // current_balance removed - calculated on-demand
-        credit_limit: data.credit_limit ?? null,
-        interest_rate: data.interest_rate ?? null,
-        group_id: data.group_id ?? null,
         is_active: data.is_active,
         is_included_in_total: data.is_included_in_total
       }
@@ -143,11 +128,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       account_type: account.account_type,
       icon: account.icon,
       color: account.color,
-      currency: account.currency,
+
       initial_balance: account.initial_balance.toNumber(),
       current_balance: data.initial_balance, // ✅ New account balance = initial_balance
-      credit_limit: account.credit_limit?.toNumber() ?? null,
-      interest_rate: account.interest_rate?.toNumber() ?? null,
       is_active: account.is_active,
       is_included_in_total: account.is_included_in_total,
       order: account.order,

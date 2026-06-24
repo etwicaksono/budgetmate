@@ -40,9 +40,7 @@ export function AnalyticsToolbar({
 
   // Sync local input with parent when searchTerm changes from outside (e.g., filter reset)
   useEffect(() => {
-    if (searchTerm !== inputValue) {
-      setInputValue(searchTerm);
-    }
+    setInputValue(prev => (prev !== searchTerm ? searchTerm : prev));
   }, [searchTerm]);
 
   // Cleanup pending debounce on unmount

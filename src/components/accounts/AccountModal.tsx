@@ -25,7 +25,6 @@ const AccountModal: React.FC<AccountModalProps> = ({
     icon: 'FaUniversity',
     color: '#0891b2',
     initial_balance: '',
-    currency: 'IDR',
     is_active: true,
     is_included_in_total: true,
   });
@@ -45,8 +44,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
           icon: 'FaUniversity',
           color: '#0891b2',
           initial_balance: '',
-          currency: 'IDR',
-          is_active: true,
+                is_active: true,
           is_included_in_total: true,
         });
       }

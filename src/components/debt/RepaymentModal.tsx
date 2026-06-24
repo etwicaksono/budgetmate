@@ -73,7 +73,6 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
 
   const isLend = debt.type === DEBT_TYPES.LEND;
   const remaining = debt.remaining_amount || 0;
-  const currencyPrefix = debt.account?.currency === 'IDR' ? 'Rp ' : '$ ';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,8 +125,8 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
                 {isLend ? 'Lend to' : 'Borrow from'} {debt.counterparty}
              </div>
              <div className="small d-flex justify-content-between text-muted">
-                <span>Total: <NumericFormat value={debt.amount} displayType="text" thousandSeparator prefix={currencyPrefix} /></span>
-                <span>Remaining: <NumericFormat value={remaining} displayType="text" thousandSeparator prefix={currencyPrefix} className="text-dark fw-bold" /></span>
+                <span>Total: <NumericFormat value={debt.amount} displayType="text" thousandSeparator prefix="Rp " /></span>
+                <span>Remaining: <NumericFormat value={remaining} displayType="text" thousandSeparator prefix="Rp " className="text-dark fw-bold" /></span>
              </div>
           </Alert>
 
@@ -174,7 +173,7 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
                 )}
               </div>
               <Form.Text className="text-muted">
-                 Max: <NumericFormat value={remaining} displayType="text" thousandSeparator prefix={currencyPrefix} />
+                 Max: <NumericFormat value={remaining} displayType="text" thousandSeparator prefix="Rp " />
               </Form.Text>
             </Col>
 

@@ -1,5 +1,4 @@
 import { api } from './api';
-import { USE_MOCK_DATA, mockDataService } from '@/mocks/mockData';
 
 export interface Account {
   id: string;
@@ -7,20 +6,11 @@ export interface Account {
   account_type: 'checking' | 'savings' | 'credit_card' | 'cash' | 'investment' | 'loan';
   icon: string;
   color: string;
-  currency: string;
   initial_balance: number;
   current_balance: number;
-  credit_limit?: number;
-  interest_rate?: number;
   is_active: boolean;
   is_included_in_total: boolean;
   order?: number;
-  group_id?: string;
-  group?: {
-    name: string;
-    icon: string;
-    color: string;
-  };
   created_at: string;
   updated_at: string;
 }
@@ -30,9 +20,7 @@ export interface CreateAccountRequest {
   account_type: string;
   icon: string;
   color: string;
-  currency?: string;
   initial_balance?: number;
-  group_id?: string;
   is_active?: boolean;
   is_included_in_total?: boolean;
 }
@@ -49,21 +37,14 @@ export interface AccountsResponse {
 class AccountService {
   async fetchAccounts(params?: {
     is_active?: boolean;
-    group_id?: string;
     include_balance?: boolean;
     include_draft?: boolean;
   }): Promise<Account[]> {
-    if (USE_MOCK_DATA) {
-      return mockDataService.fetchAccounts();
-    }
     const response = await api.get<AccountsResponse>('/accounts', { params });
     return response.data;
   }
 
   async fetchAccountById(id: string): Promise<Account> {
-    if (USE_MOCK_DATA) {
-      return mockDataService.fetchAccountById(id);
-    }
     const response = await api.get<{ success: boolean; data: Account }>(`/accounts/${id}`);
     return response.data;
   }

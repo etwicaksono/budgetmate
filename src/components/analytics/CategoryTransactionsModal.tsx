@@ -16,8 +16,7 @@ interface CategoryTransactionsModalProps {
   monthName: string;
   startDate?: string;
   endDate?: string;
-  currency?: string;
-  accountIds?: string[]; // forward account filter from parent report
+  accountIds?: string[];
 }
 
 const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
@@ -28,7 +27,6 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
   monthName,
   startDate,
   endDate,
-  currency,
   accountIds,
 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -49,7 +47,6 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
 
       if (startDate) filters['start_date'] = startDate;
       if (endDate) filters['end_date'] = endDate;
-      if (currency) filters['currencies'] = currency;
       if (accountIds && accountIds.length > 0) filters['account_ids'] = accountIds.join(',');
 
       const result = await transactionService.fetchTransactions(filters);
@@ -59,7 +56,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [categoryIds, startDate, endDate, currency, accountIds]);
+  }, [categoryIds, startDate, endDate, accountIds]);
 
   useEffect(() => {
     if (show && categoryIds && categoryIds.length > 0) {
@@ -101,9 +98,7 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
         accountName: txn.account?.name || '',
         description: txn.description || '',
         amount: txn.amount,
-        currency: txn.currency,
         type: txn.type.toUpperCase() as 'INCOME' | 'EXPENSE' | 'TRANSFER',
-        // Forward IDs so the edit modal can pre-fill account and category selects
         ...(txn.account_id && { account_id: txn.account_id }),
         ...(txn.category_id && { category_id: txn.category_id }),
         ...(txn.category?.icon && { categoryIcon: txn.category.icon }),
@@ -135,23 +130,19 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
       <Modal.Body className="p-0 p-md-3">
         {loading && (
           <div>
-            {/* Skeleton for 2 date groups */}
             {[0, 1].map((groupIndex) => (
               <div key={groupIndex} className="mb-4">
-                {/* Date header skeleton */}
                 <div className="mb-2">
                   <Placeholder animation="glow">
                     <Placeholder xs={4} className="rounded" style={{ height: 20 }} />
                   </Placeholder>
                 </div>
 
-                {/* Transaction rows skeleton */}
                 {[0, 1, 2].map((rowIndex) => (
                   <div
                     key={rowIndex}
                     className="d-flex align-items-center gap-3 py-2 border-bottom"
                   >
-                    {/* Icon placeholder */}
                     <Placeholder animation="glow">
                       <Placeholder
                         className="rounded-circle"
@@ -159,7 +150,6 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
                       />
                     </Placeholder>
 
-                    {/* Category and description */}
                     <div className="flex-grow-1">
                       <Placeholder animation="glow">
                         <Placeholder xs={rowIndex % 2 === 0 ? 5 : 4} className="d-block mb-1" />
@@ -169,7 +159,6 @@ const CategoryTransactionsModal: React.FC<CategoryTransactionsModalProps> = ({
                       </Placeholder>
                     </div>
 
-                    {/* Amount placeholder */}
                     <div className="text-end">
                       <Placeholder animation="glow">
                         <Placeholder style={{ width: 80 }} />

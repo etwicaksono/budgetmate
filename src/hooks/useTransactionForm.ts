@@ -8,7 +8,6 @@ export interface TransactionFormData {
   account_id: string;
   category_id: string;
   to_account_id: string;
-  to_amount: string;
   description: string;
   payee: string;
   payment_method: string;
@@ -48,7 +47,6 @@ const getDefaultFormData = (): TransactionFormData => {
     account_id: '',
     category_id: '',
     to_account_id: '',
-    to_amount: '',
     description: '',
     payee: '',
     payment_method: 'Cash',
@@ -133,10 +131,9 @@ export function useTransactionForm(): TransactionFormHookResult {
       return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
-    const transactionWithLabelIds = transaction as Transaction & { 
-      label_ids?: string[]; 
-      to_account_id?: string; 
-      to_amount?: number;
+    const transactionWithLabelIds = transaction as Transaction & {
+      label_ids?: string[];
+      to_account_id?: string;
       is_draft?: boolean;
     };
     
@@ -154,7 +151,6 @@ export function useTransactionForm(): TransactionFormHookResult {
       account_id: transaction.account_id,
       category_id: transaction.category_id || '',
       to_account_id: transactionWithLabelIds.to_account_id || '',
-      to_amount: transactionWithLabelIds.to_amount?.toString() || '',
       description: transaction.description || '',
       payee: transaction.payee || '',
       payment_method: transaction.payment_method || 'Cash',

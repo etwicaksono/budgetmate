@@ -17,7 +17,6 @@ import { NumericFormat } from 'react-number-format';
 
 import { Debt } from '@/services/debtService';
 import { DEBT_TYPES, DEBT_STATUSES } from '@/utils/constants';
-import { getCurrencyPrefix } from '@/utils/formatters';
 import { getIconComponent } from '@/utils/iconUtils';
 
 interface DebtCardProps {
@@ -113,7 +112,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
               value={remainingAmount}
               displayType={'text'}
               thousandSeparator={true}
-              prefix={getCurrencyPrefix(debt.account?.currency)}
+              prefix="Rp "
               decimalScale={2}
             />
           </div>
@@ -123,7 +122,7 @@ export const DebtCard: React.FC<DebtCardProps> = ({
                 value={totalAmount}
                 displayType={'text'}
                 thousandSeparator={true}
-                prefix={getCurrencyPrefix(debt.account?.currency)}
+                prefix="Rp "
                 decimalScale={2}
               /> repaid
             </div>

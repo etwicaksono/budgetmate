@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Table, Dropdown, Form, Placeholder } from 'react-bootstrap';
+import { Card, Table, Dropdown, Form, Placeholder } from 'react-bootstrap';
 import { FaListUl, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
 import { Icon } from '@/utils/iconResolver';
-import { type CategoryReport, type CurrencyReport } from '@/services/analyticsService';
+import { type CategoryReport, type IncomeExpenseReport } from '@/services/analyticsService';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 import { useIncomeExpenseData } from '@/hooks/useIncomeExpenseData';
 import type { SortValue } from '@/hooks/useFilterData';
@@ -14,23 +14,19 @@ import { AnalyticsToolbar } from './AnalyticsToolbar';
 
 type PeriodType = 'month' | 'week' | 'year' | 'custom';
 
-// TODO: Remove unused filter props (selectedCategories, selectedCurrencies, minAmount,
-// maxAmount, transferOption, debtOption, selectedLabelIds) from this component's interface
-// since they are no longer shown in the analytics sidebar. Keep only: selectedAccounts,
-// searchTerm/sortTerm callbacks, sortOption, and numberOfColumns.
 interface IncomesExpensesReportProps {
   startDate?: string;
   endDate?: string;
   periodType?: PeriodType;
   selectedCategories?: string[];
   selectedAccounts?: string[];
-  selectedCurrencies?: string[];
   searchTerm?: string;
   onSearchTermChange?: (value: string) => void;
   minAmount?: number;
   maxAmount?: number;
   transferOption?: string;
   debtOption?: string;
+  draftOption?: string;
   selectedLabelIds?: string[];
   sortOption?: SortValue;
   onSortOptionChange?: (value: SortValue) => void;
@@ -40,13 +36,13 @@ interface IncomesExpensesReportProps {
 
 interface SelectedCategory {
   id: string;
-  ids: string[]; // Include parent + all children IDs
+  ids: string[];
   name: string;
   monthType: 'current' | 'previous';
   monthName: string;
   monthStartDate: string;
   monthEndDate: string;
-  accountIds?: string[]; // forwarded from the report's account filter
+  accountIds?: string[];
 }
 
 const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
@@ -55,18 +51,18 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   periodType = 'month',
   selectedCategories,
   selectedAccounts,
-  selectedCurrencies,
   searchTerm,
   onSearchTermChange,
   minAmount,
   maxAmount,
   transferOption,
   debtOption,
+  draftOption,
   selectedLabelIds,
   sortOption: externalSortOption = 'timeDesc',
   onSortOptionChange,
   numberOfColumns = 2,
-  onNumberOfColumnsChange
+  onNumberOfColumnsChange,
 }) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
@@ -75,22 +71,23 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const { formatCurrency } = useFormattedCurrency();
 
-  const { data, loading, error, sortedCurrencies, selectedCurrency, setSelectedCurrency, defaultCurrency } =
-    useIncomeExpenseData({
-      startDate,
-      endDate,
-      periodType,
-      selectedCategories,
-      selectedAccounts,
-      selectedCurrencies,
-      searchTerm,
-      minAmount,
-      maxAmount,
-      transferOption,
-      debtOption,
-      selectedLabelIds,
-      numberOfColumns,
-    });
+  const { data, loading, error } = useIncomeExpenseData({
+    startDate,
+    endDate,
+    periodType,
+    selectedCategories,
+    selectedAccounts,
+    searchTerm,
+    minAmount,
+    maxAmount,
+    transferOption,
+    debtOption,
+    draftOption,
+    selectedLabelIds,
+    numberOfColumns,
+  });
+
+  const reportData = data ?? null;
 
   const toggleCategory = (categoryId: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -105,7 +102,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const collectCategoryIds = (category: CategoryReport): string[] => {
     const ids = [category.id];
     if (category.subItems && category.subItems.length > 0) {
-      category.subItems.forEach(child => {
+      category.subItems.forEach((child) => {
         ids.push(...collectCategoryIds(child));
       });
     }
@@ -115,14 +112,13 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const handleShowTransactions = (
     category: CategoryReport,
     periodIndex: number,
-    event: React.MouseEvent
+    event: React.MouseEvent,
   ) => {
     event.stopPropagation();
     const periodNames = data?.monthNames || [];
     const periodName = periodNames[periodIndex] || '';
     const categoryIds = collectCategoryIds(category);
 
-    // Calculate date range based on period type
     const now = new Date();
     let periodStart: Date;
     let periodEnd: Date;
@@ -151,7 +147,6 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       periodStart = new Date(year, 0, 1, 0, 0, 0);
       periodEnd = new Date(year, 11, 31, 23, 59, 59);
     } else {
-      // Custom - use start/end dates divided by periods
       const customStart = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
       const customEnd = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
@@ -187,22 +182,32 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     if (externalSortOption === 'timeDesc' || externalSortOption === 'timeAsc') return categories;
 
     return [...categories].sort((a, b) => {
-      // Sort by the most recent period (first index in amounts array, i.e. current month)
       const aAmount = Math.abs(a.amounts[0] ?? 0);
       const bAmount = Math.abs(b.amounts[0] ?? 0);
 
-      if (externalSortOption === 'amountAsc') {
-        return aAmount - bAmount;
-      } else if (externalSortOption === 'amountDesc') {
-        return bAmount - aAmount;
-      } else if (externalSortOption === 'absAmountAsc') {
-        return a.name.localeCompare(b.name);
-      } else if (externalSortOption === 'absAmountDesc') {
-        return b.name.localeCompare(a.name);
-      }
+      if (externalSortOption === 'amountAsc') return aAmount - bAmount;
+      if (externalSortOption === 'amountDesc') return bAmount - aAmount;
+      if (externalSortOption === 'absAmountAsc') return a.name.localeCompare(b.name);
+      if (externalSortOption === 'absAmountDesc') return b.name.localeCompare(a.name);
       return 0;
     });
   }, [externalSortOption]);
+
+  // Filter categories by search term (recursive — matches parent or any child)
+  const filterCategoriesBySearch = useCallback((categories: CategoryReport[], term: string): CategoryReport[] => {
+    if (!term || !term.trim()) return categories;
+    const lower = term.toLowerCase().trim();
+    return categories.reduce((acc: CategoryReport[], cat) => {
+      const nameMatches = cat.name.toLowerCase().includes(lower);
+      const matchingSubs = cat.subItems?.filter(sub => sub.name.toLowerCase().includes(lower)) ?? [];
+      if (nameMatches) {
+        acc.push(cat);
+      } else if (matchingSubs.length > 0) {
+        acc.push({ ...cat, subItems: matchingSubs, hasSubItems: true });
+      }
+      return acc;
+    }, []);
+  }, []);
 
   const calculatePercentageDiff = (current: number, previous: number): string | null => {
     if (!showPercentageDiff || previous === 0) return null;
@@ -213,8 +218,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const renderCategoryRow = (
     category: CategoryReport,
     type: 'income' | 'expense',
-    currency: string,
-    isChild = false
+    isChild = false,
   ) => {
     const hasChildren = category.hasSubItems && category.subItems && category.subItems.length > 0;
     const isExpanded = expandedCategories.has(category.id);
@@ -261,7 +265,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 )}
                 <span className={Object.is(amount, -0) || amount < 0 ? (type === 'income' ? 'text-danger' : 'text-success') : ''}>
                   {type === 'expense' ? (amount >= 0 ? '-' : '+') : (amount < 0 ? '-' : '')}
-                  {formatCurrency(Math.abs(amount), currency)}
+                  {formatCurrency(Math.abs(amount))}
                 </span>
                 {monthIndex === 0 && (() => {
                   const pctDiff = calculatePercentageDiff(category.amounts[0] || 0, category.amounts[1] || 0);
@@ -281,21 +285,19 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
         </tr>
         {hasChildren && isExpanded && (() => {
           const sortedSubs = sortCategories(category.subItems ?? []);
-          console.log('[DEBUG] Sub-items sort', { parent: category.name, sortOption: externalSortOption, subItems: category.subItems?.map(s => ({ name: s.name, amounts: s.amounts })), sortedSubs: sortedSubs.map(s => ({ name: s.name, amounts: s.amounts })) });
-          return sortedSubs.map((subItem) =>
-            renderCategoryRow(subItem, type, currency, true)
-          );
+          return sortedSubs.map((subItem) => renderCategoryRow(subItem, type, true));
         })()}
       </React.Fragment>
     );
   };
 
-  const renderReport = (currencyData: CurrencyReport, currency: string) => {
+  const renderReport = (reportData: IncomeExpenseReport) => {
     const monthNames = data?.monthNames || [];
-
-    // Pre-sort categories to ensure sorted order is used in render
-    const sortedIncomeCategories = sortCategories(currencyData.incomeCategories);
-    const sortedExpenseCategories = sortCategories(currencyData.expenseCategories);
+    const search = searchTerm ?? '';
+    const filteredIncome = filterCategoriesBySearch(reportData.incomeCategories, search);
+    const filteredExpense = filterCategoriesBySearch(reportData.expenseCategories, search);
+    const sortedIncomeCategories = sortCategories(filteredIncome);
+    const sortedExpenseCategories = sortCategories(filteredExpense);
 
     const now = new Date();
     const currentLong = now.toLocaleString('default', { month: 'long' });
@@ -320,36 +322,31 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           </tr>
         </thead>
         <tbody>
-          {/* Total Income Row */}
           <tr className="total-row">
             <td><strong>Total Income</strong></td>
-            {currencyData.totalIncomes.map((total, idx) => (
+            {reportData.totalIncomes.map((total, idx) => (
               <td key={idx} className="text-end total-income">
-                {total < 0 ? '-' : ''}{formatCurrency(Math.abs(total), currency)}
+                {total < 0 ? '-' : ''}{formatCurrency(Math.abs(total))}
               </td>
             ))}
           </tr>
 
-          {/* Income Categories */}
-          {sortedIncomeCategories.map((category) => renderCategoryRow(category, 'income', currency))}
+          {sortedIncomeCategories.map((category) => renderCategoryRow(category, 'income'))}
 
-          {/* Spacer Row */}
           <tr>
             <td colSpan={monthNames.length + 1} style={{ height: '1rem', padding: 0, border: 'none' }}></td>
           </tr>
 
-          {/* Total Expense Row */}
           <tr className="total-row">
             <td><strong>Total Expense</strong></td>
-            {currencyData.totalExpenses.map((total, idx) => (
+            {reportData.totalExpenses.map((total, idx) => (
               <td key={idx} className="text-end total-expense">
-                {total >= 0 ? '-' : '+'}{formatCurrency(Math.abs(total), currency)}
+                {total >= 0 ? '-' : '+'}{formatCurrency(Math.abs(total))}
               </td>
             ))}
           </tr>
 
-          {/* Expense Categories */}
-          {sortedExpenseCategories.map((category) => renderCategoryRow(category, 'expense', currency))}
+          {sortedExpenseCategories.map((category) => renderCategoryRow(category, 'expense'))}
         </tbody>
       </Table>
     );
@@ -358,18 +355,16 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const renderMobileCategoryRow = (
     category: CategoryReport,
     type: 'income' | 'expense',
-    currency: string,
-    isChild = false
+    isChild = false,
   ) => {
     const hasChildren = category.hasSubItems && category.subItems && category.subItems.length > 0;
     const isExpanded = expandedCategories.has(category.id);
-    const iconSize = '24px'; // Uniformly smaller container for both parent and child
+    const iconSize = '24px';
 
     const currentAmount = category.amounts[0] || 0;
     const prevAmount = category.amounts[1] || 0;
     const prefix = type === 'expense' ? (currentAmount >= 0 ? '-' : '+') : (currentAmount < 0 ? '-' : '');
 
-    // Always calculate trend for mobile
     const diffNode = (() => {
       if (prevAmount === 0 && currentAmount !== 0) {
         return (
@@ -382,10 +377,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
 
       const diff = ((currentAmount - prevAmount) / Math.abs(prevAmount)) * 100;
       const pctStr = diff >= 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
-
-      // Incomes: + is good (success), - is bad (danger)
-      // Expenses: + is usually bad (danger), but taking absolute math, so we'll match desktop behavior
-      const isPositive = type === 'income' ? diff >= 0 : diff < 0; // if expense decreased, it's good (success)
+      const isPositive = type === 'income' ? diff >= 0 : diff < 0;
 
       return (
         <span className={`ms-1 ${isPositive ? 'text-success' : 'text-danger'}`} style={{ fontSize: '11px', fontWeight: 600 }}>
@@ -414,7 +406,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 height: iconSize,
                 backgroundColor: category.color,
                 color: '#fff',
-                marginLeft: (!isChild && !hasChildren) ? '20px' : '0' // align with children if no chevron
+                marginLeft: (!isChild && !hasChildren) ? '20px' : '0',
               }}
             >
               <Icon name={category.icon} size={10} />
@@ -437,47 +429,44 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 if (currentAmount !== 0) handleShowTransactions(category, 0, e);
               }}
             >
-              {prefix}{formatCurrency(Math.abs(currentAmount), currency)}
+              {prefix}{formatCurrency(Math.abs(currentAmount))}
             </span>
             {diffNode}
           </div>
         </div>
         {hasChildren && isExpanded && (() => {
           const sortedSubs = sortCategories(category.subItems ?? []);
-          console.log('[DEBUG MOBILE] Sub-items sort', { parent: category.name, sortOption: externalSortOption, subItems: category.subItems?.map(s => ({ name: s.name, amounts: s.amounts })), sortedSubs: sortedSubs.map(s => ({ name: s.name, amounts: s.amounts })) });
-          return sortedSubs.map((subItem) =>
-            renderMobileCategoryRow(subItem, type, currency, true)
-          );
+          return sortedSubs.map((subItem) => renderMobileCategoryRow(subItem, type, true));
         })()}
       </React.Fragment>
     );
   };
 
-  const renderMobileList = (currencyData: CurrencyReport, currency: string) => {
-    // Pre-sort categories to ensure sorted order is used in render
-    const sortedIncomeCategories = sortCategories(currencyData.incomeCategories);
-    const sortedExpenseCategories = sortCategories(currencyData.expenseCategories);
+  const renderMobileList = (reportData: IncomeExpenseReport) => {
+    const search = searchTerm ?? '';
+    const filteredIncome = filterCategoriesBySearch(reportData.incomeCategories, search);
+    const filteredExpense = filterCategoriesBySearch(reportData.expenseCategories, search);
+    const sortedIncomeCategories = sortCategories(filteredIncome);
+    const sortedExpenseCategories = sortCategories(filteredExpense);
 
     return (
       <div className="d-flex flex-column mb-4 rounded border overflow-hidden shadow-sm">
-        {/* Income Categories */}
         <div className="px-3 py-2 bg-light border-bottom text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
           Income Breakdown
         </div>
         <div className="bg-white p-3 border-bottom">
-          {/* Income Summary */}
           <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#ECFDF5', border: '1px solid #D1FAE5' }}>
             <span style={{ fontSize: '12px', fontWeight: 600, color: '#065F46', marginBottom: '4px' }}>Total Income</span>
             <span className="text-truncate" style={{ fontSize: '16px', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
               {(() => {
-                const total = currencyData.totalIncomes[0] || 0;
-                return `${total < 0 ? '-' : ''}${formatCurrency(Math.abs(total), currency)}`;
+                const total = reportData.totalIncomes[0] || 0;
+                return `${total < 0 ? '-' : ''}${formatCurrency(Math.abs(total))}`;
               })()}
             </span>
             {(() => {
-              const prev = currencyData.totalIncomes[1] || 0;
+              const prev = reportData.totalIncomes[1] || 0;
               if (prev === 0) return null;
-              const diff = (((currencyData.totalIncomes[0] || 0) - prev) / prev) * 100;
+              const diff = (((reportData.totalIncomes[0] || 0) - prev) / prev) * 100;
               const isPositive = diff >= 0;
               return (
                 <div className="d-flex align-items-center flex-wrap gap-1 mt-1">
@@ -491,32 +480,29 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           </div>
         </div>
         <div className="d-flex flex-column bg-white">
-          {sortedIncomeCategories.map((category) => renderMobileCategoryRow(category, 'income', currency))}
+          {sortedIncomeCategories.map((category) => renderMobileCategoryRow(category, 'income'))}
         </div>
 
-        {/* Expense Categories */}
         <div className="px-3 py-2 bg-light border-bottom border-top text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
           Expense Breakdown
         </div>
         <div className="bg-white p-3 border-bottom">
-          {/* Expense Summary */}
           <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FEE2E2' }}>
             <span style={{ fontSize: '12px', fontWeight: 600, color: '#991B1B', marginBottom: '4px' }}>Total Expense</span>
             <span className="text-truncate" style={{ fontSize: '16px', fontWeight: 700, color: '#DC2626', whiteSpace: 'nowrap' }}>
               {(() => {
-                const total = currencyData.totalExpenses[0] || 0;
-                return `${total >= 0 ? '-' : '+'}${formatCurrency(Math.abs(total), currency)}`;
+                const total = reportData.totalExpenses[0] || 0;
+                return `${total >= 0 ? '-' : '+'}${formatCurrency(Math.abs(total))}`;
               })()}
             </span>
             {(() => {
-              const prev = Math.abs(currencyData.totalExpenses[1] || 0);
+              const prev = reportData.totalExpenses[1] || 0;
               if (prev === 0) return null;
-              const current = Math.abs(currencyData.totalExpenses[0] || 0);
-              const diff = ((current - prev) / prev) * 100;
-              const expenseDecreased = diff < 0;
+              const diff = (((reportData.totalExpenses[0] || 0) - prev) / Math.abs(prev)) * 100;
+              const isPositive = diff <= 0;
               return (
-                <div className="d-flex align-items-center gap-1 mt-1">
-                  <span style={{ fontSize: '12px', color: expenseDecreased ? '#059669' : '#DC2626', fontWeight: 600 }}>
+                <div className="d-flex align-items-center flex-wrap gap-1 mt-1">
+                  <span style={{ fontSize: '12px', color: isPositive ? '#059669' : '#DC2626', fontWeight: 600 }}>
                     {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
                   </span>
                   <span style={{ fontSize: '11px', color: '#6B7280' }}>vs prev</span>
@@ -526,229 +512,38 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           </div>
         </div>
         <div className="d-flex flex-column bg-white" style={{ borderBottom: 'none' }}>
-          {sortedExpenseCategories.map((category) => renderMobileCategoryRow(category, 'expense', currency))}
+          {sortedExpenseCategories.map((category) => renderMobileCategoryRow(category, 'expense'))}
         </div>
       </div>
-    );
-  };
-
-  // Skeleton loading component
-  const renderSkeleton = () => {
-    const skeletonRows = Array.from({ length: 8 }, (_, i) => i);
-    const skeletonCols = Array.from({ length: numberOfColumns }, (_, i) => i);
-
-    return (
-      <React.Fragment>
-        {/* Desktop Skeleton */}
-        <div className="d-none d-md-block">
-          {/* Currency pills skeleton */}
-          <div className="d-flex justify-content-center align-items-center gap-2 mb-3">
-            <Placeholder animation="glow">
-              <Placeholder className="rounded-pill" style={{ width: 60, height: 32 }} />
-            </Placeholder>
-            <Placeholder animation="glow">
-              <Placeholder className="rounded-pill" style={{ width: 60, height: 32 }} />
-            </Placeholder>
-          </div>
-
-          {/* Table skeleton */}
-          <Table responsive bordered>
-            <thead>
-              <tr>
-                <th style={{ width: '30%' }}>
-                  <Placeholder animation="glow">
-                    <Placeholder xs={4} />
-                  </Placeholder>
-                </th>
-                {skeletonCols.map((i) => (
-                  <th key={i} className="text-center">
-                    <Placeholder animation="glow">
-                      <Placeholder xs={8} />
-                    </Placeholder>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {/* Total Income skeleton */}
-              <tr className="total-row">
-                <td>
-                  <Placeholder animation="glow">
-                    <Placeholder xs={6} />
-                  </Placeholder>
-                </td>
-                {skeletonCols.map((i) => (
-                  <td key={i} className="text-end">
-                    <Placeholder animation="glow">
-                      <Placeholder xs={8} />
-                    </Placeholder>
-                  </td>
-                ))}
-              </tr>
-
-              {/* Income category skeletons */}
-              {skeletonRows.slice(0, 4).map((i) => (
-                <tr key={`income-${i}`}>
-                  <td>
-                    <div className="d-flex align-items-center gap-2">
-                      <Placeholder animation="glow">
-                        <Placeholder className="rounded" style={{ width: 20, height: 20 }} />
-                      </Placeholder>
-                      <Placeholder animation="glow" className="flex-grow-1">
-                        <Placeholder xs={i % 2 === 0 ? 7 : 5} />
-                      </Placeholder>
-                    </div>
-                  </td>
-                  {skeletonCols.map((j) => (
-                    <td key={j} className="text-end">
-                      <Placeholder animation="glow">
-                        <Placeholder xs={6} />
-                      </Placeholder>
-                    </td>
-                  ))}
-                </tr>
-              ))}
-
-              {/* Spacer */}
-              <tr>
-                <td colSpan={numberOfColumns + 1} style={{ height: '1rem', padding: 0, border: 'none' }}></td>
-              </tr>
-
-              {/* Total Expense skeleton */}
-              <tr className="total-row">
-                <td>
-                  <Placeholder animation="glow">
-                    <Placeholder xs={6} />
-                  </Placeholder>
-                </td>
-                {skeletonCols.map((i) => (
-                  <td key={i} className="text-end">
-                    <Placeholder animation="glow">
-                      <Placeholder xs={8} />
-                    </Placeholder>
-                  </td>
-                ))}
-              </tr>
-
-              {/* Expense category skeletons */}
-              {skeletonRows.slice(0, 4).map((i) => (
-                <tr key={`expense-${i}`}>
-                  <td>
-                    <div className="d-flex align-items-center gap-2">
-                      <Placeholder animation="glow">
-                        <Placeholder className="rounded" style={{ width: 20, height: 20 }} />
-                      </Placeholder>
-                      <Placeholder animation="glow" className="flex-grow-1">
-                        <Placeholder xs={i % 2 === 0 ? 6 : 8} />
-                      </Placeholder>
-                    </div>
-                  </td>
-                  {skeletonCols.map((j) => (
-                    <td key={j} className="text-end">
-                      <Placeholder animation="glow">
-                        <Placeholder xs={5} />
-                      </Placeholder>
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
-
-        {/* Mobile Skeleton */}
-        <div className="d-md-none">
-          <div className="d-flex flex-column mb-4 rounded border overflow-hidden shadow-sm">
-            {/* Income Breakdown Header */}
-            <div className="px-3 py-2 bg-light border-bottom text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
-              <Placeholder animation="glow"><Placeholder xs={4} /></Placeholder>
-            </div>
-
-            <div className="bg-white p-3 border-bottom">
-              <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#ECFDF5', border: '1px solid #D1FAE5' }}>
-                <Placeholder animation="glow" className="mb-2"><Placeholder xs={3} size="sm" /></Placeholder>
-                <Placeholder animation="glow" className="mb-1"><Placeholder xs={6} size="lg" /></Placeholder>
-                <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
-              </div>
-            </div>
-
-            <div className="d-flex flex-column bg-white">
-              {skeletonRows.slice(0, 3).map((i) => (
-                <div key={`mob-inc-${i}`} className="d-flex align-items-center justify-content-between p-3 border-bottom flex-nowrap gap-2">
-                  <div className="d-flex align-items-center gap-2 flex-grow-1">
-                    <Placeholder animation="glow"><Placeholder className="rounded-circle" style={{ width: '24px', height: '24px' }} /></Placeholder>
-                    <div className="d-flex flex-column flex-grow-1">
-                      <Placeholder animation="glow"><Placeholder xs={8} /></Placeholder>
-                      <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
-                    </div>
-                  </div>
-                  <div className="d-flex flex-column align-items-end flex-shrink-0">
-                    <Placeholder animation="glow"><Placeholder xs={12} style={{ width: '60px' }} /></Placeholder>
-                    <Placeholder animation="glow"><Placeholder xs={12} size="sm" style={{ width: '40px' }} /></Placeholder>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Expense Breakdown Header */}
-            <div className="px-3 py-2 bg-light border-bottom border-top text-uppercase" style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em' }}>
-              <Placeholder animation="glow"><Placeholder xs={4} /></Placeholder>
-            </div>
-
-            <div className="bg-white p-3 border-bottom">
-              <div className="d-flex flex-column p-3 rounded w-100" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FEE2E2' }}>
-                <Placeholder animation="glow" className="mb-2"><Placeholder xs={3} size="sm" /></Placeholder>
-                <Placeholder animation="glow" className="mb-1"><Placeholder xs={6} size="lg" /></Placeholder>
-                <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
-              </div>
-            </div>
-
-            <div className="d-flex flex-column bg-white" style={{ borderBottom: 'none' }}>
-              {skeletonRows.slice(0, 4).map((i) => (
-                <div key={`mob-exp-${i}`} className="d-flex align-items-center justify-content-between p-3 border-bottom flex-nowrap gap-2">
-                  <div className="d-flex align-items-center gap-2 flex-grow-1">
-                    <Placeholder animation="glow"><Placeholder className="rounded-circle" style={{ width: '24px', height: '24px' }} /></Placeholder>
-                    <div className="d-flex flex-column flex-grow-1">
-                      <Placeholder animation="glow"><Placeholder xs={8} /></Placeholder>
-                      <Placeholder animation="glow"><Placeholder xs={4} size="sm" /></Placeholder>
-                    </div>
-                  </div>
-                  <div className="d-flex flex-column align-items-end flex-shrink-0">
-                    <Placeholder animation="glow"><Placeholder xs={12} style={{ width: '60px' }} /></Placeholder>
-                    <Placeholder animation="glow"><Placeholder xs={12} size="sm" style={{ width: '40px' }} /></Placeholder>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </React.Fragment>
     );
   };
 
   if (loading) {
-    return renderSkeleton();
-  }
-
-  if (error || !data) {
     return (
-      <div className="alert alert-danger" role="alert">
-        {error ?? 'Failed to load income and expense report'}
+      <div>
+        <Placeholder animation="glow" className="mb-4">
+          <Placeholder xs={4} style={{ height: '2rem' }} />
+        </Placeholder>
+        <Card className="mb-4" style={{ height: 350 }}>
+          <Card.Body>
+            <Placeholder animation="glow" className="h-100 d-flex align-items-center justify-content-center">
+              <div className="text-muted">Loading report...</div>
+            </Placeholder>
+          </Card.Body>
+        </Card>
       </div>
     );
   }
 
-  const displayCurrency = selectedCurrency || defaultCurrency;
-  // Provide an empty fallback if no data exists
-  const currentCurrencyData = data.data[displayCurrency] || {
-    incomeCategories: [],
-    expenseCategories: [],
-    totalIncomes: new Array(data.monthNames?.length || numberOfColumns).fill(0),
-    totalExpenses: new Array(data.monthNames?.length || numberOfColumns).fill(0),
-  };
+  if (error || !reportData) {
+    return (
+      <div className="alert alert-danger" role="alert">
+        {error ?? 'Failed to load report'}
+      </div>
+    );
+  }
 
-  // TODO: Extract settingsDropdown into a separate <ReportSettingsDropdown /> component
-  // to reduce clutter in the main render method.
+  // Settings dropdown (restored from main branch styling)
   const settingsDropdown = (
     <Dropdown
       className="d-none d-md-block"
@@ -772,7 +567,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           minWidth: '220px',
           padding: '16px',
           borderRadius: '12px',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 1.15)',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
           border: '1px solid #e5e7eb',
           marginTop: '8px',
         }}
@@ -790,8 +585,6 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             onChange={(e) => onNumberOfColumnsChange?.(Number(e.target.value))}
             style={{ flex: 1 }}
           />
-          <div className="d-flex justify-content-between" style={{ width: '100%', position: 'absolute', left: '16px', right: '16px', bottom: '85px', pointerEvents: 'none' }}>
-          </div>
         </div>
         <div className="d-flex justify-content-between px-1" style={{ fontSize: '12px', color: '#6b7280', marginTop: '-8px', marginBottom: '12px' }}>
           <span>2</span>
@@ -817,17 +610,6 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
 
   return (
     <div className="incomes-expenses-report">
-      {/* Toolbar: Search + Sort By */}
-      {onSearchTermChange && onSortOptionChange && (
-        <AnalyticsToolbar
-          searchTerm={searchTerm ?? ''}
-          onSearchTermChange={onSearchTermChange}
-          sortOption={externalSortOption}
-          onSortOptionChange={onSortOptionChange}
-          rightSlot={settingsDropdown}
-        />
-      )}
-
       <style>{`
         .incomes-expenses-report .table {
           margin-bottom: 0;
@@ -858,71 +640,38 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
         .incomes-expenses-report .child-row {
           background-color: #fafbfc;
         }
-        .incomes-expenses-report .currency-pill {
-          padding: 0.375rem 0.75rem;
-          border-radius: 9999px;
-          font-size: 0.875rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.15s ease-in-out;
-          border: 1px solid #dee2e6;
-          background-color: #fff;
-          color: #6c757d;
-        }
-        .incomes-expenses-report .currency-pill:hover {
-          background-color: #f8f9fa;
-        }
-        .incomes-expenses-report .currency-pill.active {
-          background-color: #212529;
-          color: #fff;
-          border-color: #212529;
-        }
       `}</style>
 
-      {/* Currency Pills (if multiple currencies) */}
-      {sortedCurrencies.length > 1 && (
-        <div className="d-none d-md-flex align-items-center mb-3">
-          <div className="d-flex gap-2 flex-wrap">
-            {sortedCurrencies.map((currency) => (
-              <button
-                key={currency}
-                className={`currency-pill ${selectedCurrency === currency ? 'active' : ''}`}
-                onClick={() => setSelectedCurrency(currency)}
-              >
-                {currency}
-              </button>
-            ))}
-          </div>
-        </div>
+      {onSearchTermChange && onSortOptionChange && (
+        <AnalyticsToolbar
+          searchTerm={searchTerm ?? ''}
+          onSearchTermChange={onSearchTermChange}
+          sortOption={externalSortOption}
+          onSortOptionChange={onSortOptionChange}
+          rightSlot={settingsDropdown}
+        />
       )}
 
-      {/* Desktop Report Table */}
-      {currentCurrencyData && (
-        <div className="d-none d-md-block">
-          {renderReport(currentCurrencyData, displayCurrency)}
-        </div>
-      )}
+      <div className="d-none d-md-block">
+        {renderReport(reportData)}
+      </div>
+      <div className="d-md-none">
+        {renderMobileList(reportData)}
+      </div>
 
-      {/* Mobile Report List (1 column focus) */}
-      {currentCurrencyData && (
-        <div className="d-md-none">
-          {renderMobileList(currentCurrencyData, displayCurrency)}
-        </div>
+      {selectedCategory && (
+        <CategoryTransactionsModal
+          show={showModal}
+          onHide={handleCloseModal}
+          categoryIds={selectedCategory.ids}
+          categoryName={selectedCategory.name}
+          monthType={selectedCategory.monthType}
+          monthName={selectedCategory.monthName}
+          startDate={selectedCategory.monthStartDate}
+          endDate={selectedCategory.monthEndDate}
+          {...(selectedCategory.accountIds ? { accountIds: selectedCategory.accountIds } : {})}
+        />
       )}
-
-      {/* Category Transactions Modal */}
-      <CategoryTransactionsModal
-        show={showModal}
-        onHide={handleCloseModal}
-        categoryIds={selectedCategory?.ids ?? null}
-        categoryName={selectedCategory?.name ?? ''}
-        monthType={selectedCategory?.monthType ?? 'current'}
-        monthName={selectedCategory?.monthName ?? ''}
-        {...(selectedCategory?.monthStartDate && { startDate: selectedCategory.monthStartDate })}
-        {...(selectedCategory?.monthEndDate && { endDate: selectedCategory.monthEndDate })}
-        {...(selectedCurrency && { currency: selectedCurrency })}
-        {...(selectedCategory?.accountIds && { accountIds: selectedCategory.accountIds })}
-      />
     </div>
   );
 };

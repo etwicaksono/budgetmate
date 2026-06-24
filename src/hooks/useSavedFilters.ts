@@ -7,7 +7,6 @@ import type { Account } from '@/services/accountService';
 export interface FilterSnapshot {
    selectedCategories: string[];   // names (what useFilterData holds)
    selectedAccounts: string[];     // names
-   selectedCurrencies: string[];
    selectedLabelIds: string[];
    sortOption: SortValue;
    transferOption: string;
@@ -18,7 +17,6 @@ export interface FilterSnapshot {
 export interface LoadFilterCallback {
    setSelectedCategories: React.Dispatch<React.SetStateAction<string[]>>;
    setSelectedAccounts: React.Dispatch<React.SetStateAction<string[]>>;
-   setSelectedCurrencies: React.Dispatch<React.SetStateAction<string[]>>;
    setSelectedLabelIds: React.Dispatch<React.SetStateAction<string[]>>;
    setSortOption: React.Dispatch<React.SetStateAction<SortValue>>;
    setTransferOption: React.Dispatch<React.SetStateAction<TransferOption>>;
@@ -36,7 +34,7 @@ interface UseSavedFiltersOptions {
    /** Dispatchers to apply a loaded filter */
    dispatchers: LoadFilterCallback;
    /** Optional context tag to scope presets (default: 'transaction') */
-   context?: 'transaction' | 'budget';
+   context?: 'transaction' | 'budget' | 'analytics';
 }
 
 export function useSavedFilters({
@@ -113,7 +111,6 @@ export function useSavedFilters({
          const filters: SavedFilterPayload = {
             selectedCategoryIds: categoryNamesToIds(current.selectedCategories),
             selectedAccountIds: accountNamesToIds(current.selectedAccounts),
-            selectedCurrencies: current.selectedCurrencies,
             selectedLabelIds: current.selectedLabelIds,
             sortOption: current.sortOption,
             transferOption: current.transferOption,
@@ -144,9 +141,6 @@ export function useSavedFilters({
          }
          if (filters.selectedAccountIds) {
             dispatchers.setSelectedAccounts(accountIdsToNames(filters.selectedAccountIds));
-         }
-         if (filters.selectedCurrencies) {
-            dispatchers.setSelectedCurrencies(filters.selectedCurrencies);
          }
          if (filters.selectedLabelIds) {
             dispatchers.setSelectedLabelIds(filters.selectedLabelIds);
@@ -206,7 +200,6 @@ export function useSavedFilters({
          const filters: SavedFilterPayload = {
             selectedCategoryIds: categoryNamesToIds(current.selectedCategories),
             selectedAccountIds: accountNamesToIds(current.selectedAccounts),
-            selectedCurrencies: current.selectedCurrencies,
             selectedLabelIds: current.selectedLabelIds,
             sortOption: current.sortOption,
             transferOption: current.transferOption,

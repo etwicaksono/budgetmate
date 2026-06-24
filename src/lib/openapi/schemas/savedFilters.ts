@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { registry } from '../registry';
 
-export const FilterContextSchema = z.enum(['transaction', 'budget']);
+export const FilterContextSchema = z.enum(['transaction', 'budget', 'analytics']);
 export type FilterContext = z.infer<typeof FilterContextSchema>;
 
 export const FiltersSchema = z.object({

@@ -13,7 +13,6 @@ async function checkTransactionAmounts() {
         date: true,
         type: true,
         amount: true,
-        currency: true,
         description: true,
       },
       orderBy: {
@@ -28,7 +27,7 @@ async function checkTransactionAmounts() {
       console.log(`Date: ${tx.date.toISOString().split('T')[0]}`);
       console.log(`Type: ${tx.type}`);
       console.log(`Amount: ${tx.amount} (typeof: ${typeof tx.amount})`);
-      console.log(`Currency: ${tx.currency}`);
+      console.log('Currency: IDR');
       console.log(`Description: ${tx.description || 'N/A'}`);
       console.log(`Amount as Number: ${Number(tx.amount)}`);
       console.log(`Is negative: ${Number(tx.amount) < 0}`);

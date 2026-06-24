@@ -47,12 +47,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
    // Define include structure to fetch linked transactions to compute amounts
    const nestedInclude = {
       account_rel: {
-         select: { name: true, icon: true, color: true, currency: true }
+         select: { name: true, icon: true, color: true }
       },
       transactions: {
          orderBy: { created_at: 'asc' },
          include: {
-            account: { select: { name: true, icon: true, color: true, currency: true } }
+            account: { select: { name: true, icon: true, color: true } }
          }
       }
    } satisfies Prisma.DebtInclude;
@@ -237,7 +237,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                account_id: data.account_id,
                type: txType,
                amount: new Prisma.Decimal(dbAmount),
-               currency: account.currency, // Use the currency of the account
                date: new Date(data.date),
                ...(data.description !== undefined
                   ? { description: data.description }

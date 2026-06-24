@@ -1,10 +1,8 @@
 import { api } from './api';
-import { USE_MOCK_DATA, mockDataService } from '@/mocks/mockData';
 
 export interface CategoryBudget {
   id: string;
   category_id: string;
-  currency: string;
   basic_monthly_amount: string | number;
   extend_monthly_amount: string | number;
   basic_annual_amount: string | number;
@@ -32,7 +30,6 @@ export interface BudgetStatus {
   total_budget: number;
   percentage: number;
   status: 'success' | 'warning' | 'danger';
-  currency: string;
 }
 
 export interface SetCategoryBudgetRequest {
@@ -53,9 +50,6 @@ export interface BudgetFilterParams {
 
 class BudgetService {
   async fetchBudgets(params?: BudgetFilterParams): Promise<CategoryBudget[]> {
-    if (USE_MOCK_DATA) {
-      throw new Error('Not implemented in mock data');
-    }
     let url = '/budgets';
     if (params) {
       const q = new URLSearchParams();
@@ -77,10 +71,6 @@ class BudgetService {
     limit?: number;
     drafts?: string;
   }): Promise<BudgetStatus[]> {
-    if (USE_MOCK_DATA) {
-      // Might want to update mock data eventually, but let it fail or use existing fallback
-      return mockDataService.fetchBudgetStatus() as unknown as BudgetStatus[];
-    }
     const response = await api.get<{ success: boolean; data: BudgetStatus[] }>(
       '/budgets/status',
       { params }
@@ -89,9 +79,6 @@ class BudgetService {
   }
 
   async getCategoryBudget(categoryId: string): Promise<CategoryBudget | null> {
-    if (USE_MOCK_DATA) {
-      throw new Error('Not implemented in mock data');
-    }
     const response = await api.get<{ success: boolean; data: CategoryBudget | null }>(`/budgets/${categoryId}`);
     return response.data;
   }

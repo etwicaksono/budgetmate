@@ -1,45 +1,57 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FaCheck, FaWallet, FaHandHoldingUsd, FaMoneyBillWave, FaFileAlt } from 'react-icons/fa';
-import type { CurrencyNetWorth } from '@/hooks/useNetWorth';
 import './NetWorthWidget.css';
 
 const STORAGE_KEY = 'net-worth-toggle-state';
 
-interface ToggleState {
+type ToggleState = {
   credit: boolean;
   debt: boolean;
-}
+};
 
-const DEFAULT_TOGGLE: ToggleState = { credit: true, debt: true };
+const DEFAULT_TOGGLE: ToggleState = {
+  credit: true,
+  debt: true,
+};
 
 function loadToggleState(): ToggleState {
   if (typeof window === 'undefined') return DEFAULT_TOGGLE;
+
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored);
+      const parsed = JSON.parse(stored) as Partial<ToggleState>;
       return {
         credit: typeof parsed.credit === 'boolean' ? parsed.credit : true,
         debt: typeof parsed.debt === 'boolean' ? parsed.debt : true,
       };
     }
-  } catch { /* ignore */ }
+  } catch {
+    // Ignore malformed storage and fall back to defaults.
+  }
+
   return DEFAULT_TOGGLE;
 }
 
 function saveToggleState(state: ToggleState): void {
   if (typeof window === 'undefined') return;
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch { /* ignore */ }
+  } catch {
+    // Ignore storage write failures.
+  }
 }
 
 export interface NetWorthWidgetProps {
-  data: CurrencyNetWorth[];
+  data: number;
+  accountBalance: number;
+  totalCredit: number;
+  totalDebt: number;
   isLoading: boolean;
-  formatCurrencyValue: (value: number, currency: string) => string;
+  formatCurrencyValue: (value: number) => string;
   compact?: boolean;
   includeDraft?: boolean;
   onToggleDraft?: (val: boolean) => void;
@@ -47,6 +59,9 @@ export interface NetWorthWidgetProps {
 
 export const NetWorthWidget: React.FC<NetWorthWidgetProps> = ({
   data,
+  accountBalance,
+  totalCredit,
+  totalDebt,
   isLoading,
   formatCurrencyValue,
   compact = false,
@@ -55,28 +70,23 @@ export const NetWorthWidget: React.FC<NetWorthWidgetProps> = ({
 }) => {
   const [toggle, setToggle] = useState<ToggleState>(DEFAULT_TOGGLE);
 
-  // Load from localStorage on mount
   useEffect(() => {
     setToggle(loadToggleState());
   }, []);
 
   const handleToggle = useCallback((key: 'credit' | 'debt') => {
     setToggle((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
+      const next = {
+        ...prev,
+        [key]: !prev[key],
+      };
       saveToggleState(next);
       return next;
     });
   }, []);
 
-  const computeNetWorth = useCallback(
-    (item: CurrencyNetWorth): number => {
-      let total = item.accountBalance;
-      if (toggle.credit) total += item.totalCredit;
-      if (toggle.debt) total -= item.totalDebt;
-      return total;
-    },
-    [toggle]
-  );
+  const visibleNetWorth = accountBalance + (toggle.credit ? totalCredit : 0) - (toggle.debt ? totalDebt : 0);
+  const isNegative = visibleNetWorth < 0;
 
   if (isLoading) {
     return (
@@ -94,26 +104,19 @@ export const NetWorthWidget: React.FC<NetWorthWidgetProps> = ({
     );
   }
 
-  if (data.length === 0) {
-    return (
-      <div className="text-center py-4 text-muted">
-        No account data available
-      </div>
-    );
+  if (data === 0 && accountBalance === 0 && totalCredit === 0 && totalDebt === 0) {
+    return <div className="text-center py-4 text-muted">No account data available</div>;
   }
 
   return (
     <div className={`net-worth-widget ${compact ? 'net-worth-widget--compact' : ''}`}>
-      {/* Toggle Chips */}
       <div className="net-worth-chips">
-        {/* Saldo - always on, locked */}
         <div className="net-worth-chip net-worth-chip--locked" title="Saldo selalu aktif">
           <FaWallet size={12} />
           <span>Saldo</span>
           <FaCheck className="net-worth-chip__check" />
         </div>
 
-        {/* Piutang toggle */}
         <button
           type="button"
           className={`net-worth-chip net-worth-chip--credit ${toggle.credit ? 'net-worth-chip--active' : ''}`}
@@ -125,7 +128,6 @@ export const NetWorthWidget: React.FC<NetWorthWidgetProps> = ({
           {toggle.credit && <FaCheck className="net-worth-chip__check" />}
         </button>
 
-        {/* Hutang toggle */}
         <button
           type="button"
           className={`net-worth-chip net-worth-chip--debt ${toggle.debt ? 'net-worth-chip--active' : ''}`}
@@ -137,18 +139,17 @@ export const NetWorthWidget: React.FC<NetWorthWidgetProps> = ({
           {toggle.debt && <FaCheck className="net-worth-chip__check" />}
         </button>
 
-        {/* Optional Draft toggle (passed from parent) */}
         {includeDraft !== undefined && onToggleDraft && (
           <button
             type="button"
             className={`net-worth-chip ${includeDraft ? 'net-worth-chip--active' : ''}`}
             onClick={() => onToggleDraft(!includeDraft)}
             title={includeDraft ? 'Exclude draft transactions' : 'Include draft transactions'}
-            style={{ 
+            style={{
               borderColor: includeDraft ? '#f59e0b' : '#e5e7eb',
               backgroundColor: includeDraft ? '#f59e0b' : '#fff',
               color: includeDraft ? '#fff' : '#9ca3af',
-              marginLeft: 'auto' // push to the right
+              marginLeft: 'auto',
             }}
           >
             <FaFileAlt size={12} />
@@ -158,50 +159,33 @@ export const NetWorthWidget: React.FC<NetWorthWidgetProps> = ({
         )}
       </div>
 
-      {/* Currency List */}
-      <div className="net-worth-currency-list">
-        {data.map((item) => {
-          const netWorth = computeNetWorth(item);
-          const isNegative = netWorth < 0;
+      <div className="net-worth-summary-list">
+        <div className="net-worth-summary-section">
+          <div className={`net-worth-amount ${isNegative ? 'net-worth-amount--negative' : ''}`}>
+            {formatCurrencyValue(visibleNetWorth)}
+          </div>
 
-          return (
-            <div key={item.currency} className="net-worth-currency-section">
-              {/* Currency Label removed as it's redundant with formatCurrencyValue prefix */}
-
-              {/* Main Amount */}
-              <div className={`net-worth-amount ${isNegative ? 'net-worth-amount--negative' : ''}`}>
-                {formatCurrencyValue(netWorth, item.currency)}
-              </div>
-
-              {/* Breakdown */}
-              <div className="net-worth-breakdown">
-                {/* Saldo Akun - always visible */}
-                <div className="net-worth-breakdown-line">
-                  <span className="net-worth-breakdown-label">Saldo Akun</span>
-                  <span className="net-worth-breakdown-value">
-                    {formatCurrencyValue(item.accountBalance, item.currency)}
-                  </span>
-                </div>
-
-                {/* Piutang */}
-                <div className={`net-worth-breakdown-line ${!toggle.credit ? 'net-worth-breakdown-line--muted' : ''}`}>
-                  <span className="net-worth-breakdown-label">+ Piutang</span>
-                  <span className={`net-worth-breakdown-value ${toggle.credit ? 'net-worth-breakdown-value--credit' : ''}`}>
-                    {formatCurrencyValue(item.totalCredit, item.currency)}
-                  </span>
-                </div>
-
-                {/* Hutang */}
-                <div className={`net-worth-breakdown-line ${!toggle.debt ? 'net-worth-breakdown-line--muted' : ''}`}>
-                  <span className="net-worth-breakdown-label">− Hutang</span>
-                  <span className={`net-worth-breakdown-value ${toggle.debt ? 'net-worth-breakdown-value--debt' : ''}`}>
-                    {formatCurrencyValue(item.totalDebt, item.currency)}
-                  </span>
-                </div>
-              </div>
+          <div className="net-worth-breakdown">
+            <div className="net-worth-breakdown-line">
+              <span className="net-worth-breakdown-label">Saldo Akun</span>
+              <span className="net-worth-breakdown-value">{formatCurrencyValue(accountBalance)}</span>
             </div>
-          );
-        })}
+
+            <div className={`net-worth-breakdown-line ${!toggle.credit ? 'net-worth-breakdown-line--muted' : ''}`}>
+              <span className="net-worth-breakdown-label">+ Piutang</span>
+              <span className={`net-worth-breakdown-value ${toggle.credit ? 'net-worth-breakdown-value--credit' : ''}`}>
+                {formatCurrencyValue(totalCredit)}
+              </span>
+            </div>
+
+            <div className={`net-worth-breakdown-line ${!toggle.debt ? 'net-worth-breakdown-line--muted' : ''}`}>
+              <span className="net-worth-breakdown-label">− Hutang</span>
+              <span className={`net-worth-breakdown-value ${toggle.debt ? 'net-worth-breakdown-value--debt' : ''}`}>
+                {formatCurrencyValue(totalDebt)}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

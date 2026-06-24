@@ -52,7 +52,6 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
             name: true,
             icon: true,
             color: true,
-            currency: true,
             account_type: true
           }
         },
@@ -73,10 +72,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
             from_account: true,
             to_account: true,
             amount: true,
-            to_amount: true,
-            description: true,
-            currency: true,
-            to_currency: true
+            description: true
           }
         }
       }
@@ -96,13 +92,9 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       amount: transaction.amount.toNumber(),
       type: transaction.type,
       description: transaction.description,
-      currency: transaction.currency,
-      exchange_rate: transaction.exchange_rate.toNumber(),
       payee: transaction.payee,
       payment_method: transaction.payment_method,
       payment_status: transaction.payment_status,
-      reference_number: transaction.reference_number,
-      is_recurring: transaction.is_recurring,
       transfer_id: transaction.transfer_id,
       labels: transaction.labels.map(l => l.label),
       is_draft: transaction.is_draft,
@@ -114,11 +106,8 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
     const response = transaction.transfer ? {
       ...baseResponse,
       to_account_id: transaction.transfer.to_account,
-      to_amount: transaction.transfer.to_amount?.toNumber() || transaction.transfer.amount.toNumber(),
       from_account_id: transaction.transfer.from_account,
       transfer_description: transaction.transfer.description,
-      transfer_currency: transaction.transfer.currency,
-      to_currency: transaction.transfer.to_currency || transaction.transfer.currency,
       transfer: transaction.transfer
     } : baseResponse;
 
@@ -236,7 +225,6 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       ...(data.payee !== undefined && { payee: data.payee || null }),
       ...(data.payment_method !== undefined && { payment_method: data.payment_method || null }),
       ...(data.payment_status !== undefined && { payment_status: data.payment_status || null }),
-      ...(data.reference_number !== undefined && { reference_number: data.reference_number || null }),
       ...(data.is_draft !== undefined && { is_draft: data.is_draft }),
     };
 
@@ -320,11 +308,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       amount: updated.amount.toNumber(),
       type: updated.type,
       description: updated.description,
-      currency: updated.currency,
       payee: updated.payee,
       payment_method: updated.payment_method,
       payment_status: updated.payment_status,
-      reference_number: updated.reference_number,
       is_draft: updated.is_draft,
       updated_at: updated.updated_at
     };

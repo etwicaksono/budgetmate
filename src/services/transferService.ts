@@ -6,10 +6,7 @@ export interface Transfer {
   from_account: string;
   to_account: string;
   amount: number;
-  to_amount?: number;
   description?: string;
-  currency: string;
-  to_currency?: string;
   created_at: string;
   updated_at: string;
 }
@@ -19,10 +16,7 @@ export interface CreateTransferRequest {
   from_account_id: string;
   to_account_id: string;
   amount: number;
-  to_amount?: number;
   description?: string;
-  currency?: string;
-  to_currency?: string;
 }
 
 class TransferService {

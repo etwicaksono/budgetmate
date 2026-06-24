@@ -31,9 +31,8 @@ export function GeneralSection(): React.ReactElement {
     }
   };
 
-  // Preview amounts in different currencies
+  // Preview amount in IDR-only formatting
   const previewAmount = 1234.56;
-  const previewCurrencies = ['USD', 'EUR', 'GBP', 'JPY'];
 
   return (
     <div>
@@ -44,8 +43,8 @@ export function GeneralSection(): React.ReactElement {
         <Card.Body>
           <h5 className="mb-3">Number Format</h5>
           <p className="text-muted mb-4">
-            Choose how numbers and currencies should be displayed throughout the application.
-            All currencies will use the same formatting style for consistency.
+            Choose how numbers should be displayed throughout the application.
+            Currency formatting is fixed to IDR.
           </p>
 
           <Form.Group as={Row} className="mb-3">
@@ -74,17 +73,21 @@ export function GeneralSection(): React.ReactElement {
           <div className="mt-4 p-3 bg-light rounded">
             <h6 className="mb-3">Preview:</h6>
             <Row>
-              {previewCurrencies.map((currency) => (
-                <Col key={currency} xs={6} md={3} className="mb-2">
-                  <div className="text-muted small">{currency}</div>
-                  <div className="fw-bold">
-                    {formatCurrency(previewAmount, currency)}
-                  </div>
-                </Col>
-              ))}
+              <Col xs={12} md={6} className="mb-2">
+                <div className="text-muted small">IDR</div>
+                <div className="fw-bold">
+                  {formatCurrency(previewAmount)}
+                </div>
+              </Col>
+              <Col xs={12} md={6} className="mb-2">
+                <div className="text-muted small">Rp</div>
+                <div className="fw-bold">
+                  Rp {previewAmount.toLocaleString('id-ID')}
+                </div>
+              </Col>
             </Row>
             <div className="mt-3 text-muted small">
-              <strong>Note:</strong> All currencies will use the same number format (
+              <strong>Note:</strong> Number formatting follows (
               {availableLocales.find(l => l.code === selectedLocale)?.numberFormat}
               ) for visual consistency.
             </div>

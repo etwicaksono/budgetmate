@@ -16,33 +16,37 @@ export function useFormattedCurrency() {
 
   // Memoized format function that uses user's locale
   const formatCurrency = useCallback(
-    (amount: number, currencyCode: string, options?: FormatOptions) => {
-      return currencyFormatService.formatCurrency(amount, currencyCode, {
-        forceDecimals: 2, // Force 2 decimals for all currencies for consistency
-        ...options,
-        locale, // Always use user's locale
+    (amount: number, optionsOrLegacy?: FormatOptions | string, maybeOptions?: FormatOptions) => {
+      const options = typeof optionsOrLegacy === 'string' ? maybeOptions : optionsOrLegacy;
+      return currencyFormatService.formatCurrency(amount, {
+        forceDecimals: 0,
+        ...(options ?? {}),
+        locale,
       });
     },
     [locale]
   );
 
   const formatCompact = useCallback(
-    (amount: number, currencyCode: string) => {
-      return currencyFormatService.formatCompact(amount, currencyCode);
+    (amount: number, _legacy?: unknown) => {
+      return currencyFormatService.formatCompact(amount);
     },
     []
   );
 
   const formatWithSign = useCallback(
-    (amount: number, currencyCode: string, type: 'income' | 'expense' | 'transfer') => {
-      return currencyFormatService.formatWithSign(amount, currencyCode, type);
+    (amount: number, typeOrLegacy?: 'income' | 'expense' | 'transfer' | string, maybeType?: 'income' | 'expense' | 'transfer') => {
+      const type = typeOrLegacy === 'income' || typeOrLegacy === 'expense' || typeOrLegacy === 'transfer'
+        ? typeOrLegacy
+        : maybeType || 'transfer';
+      return currencyFormatService.formatWithSign(amount, type);
     },
     []
   );
 
   const formatShort = useCallback(
-    (amount: number, currencyCode: string) => {
-      return currencyFormatService.formatShort(amount, currencyCode);
+    (amount: number, _legacy?: unknown) => {
+      return currencyFormatService.formatShort(amount);
     },
     []
   );
@@ -55,8 +59,8 @@ export function useFormattedCurrency() {
     locale,
     // Expose other service methods
     parseAmount: currencyFormatService.parseAmount.bind(currencyFormatService),
-    getSymbol: currencyFormatService.getSymbol.bind(currencyFormatService),
-    getName: currencyFormatService.getName.bind(currencyFormatService),
-    getDecimalDigits: currencyFormatService.getDecimalDigits.bind(currencyFormatService),
+    getSymbol: () => 'Rp',
+    getName: () => 'Indonesian Rupiah',
+    getDecimalDigits: () => 0,
   };
 }

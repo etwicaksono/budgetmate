@@ -6,13 +6,8 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, commonErrors } from '@/lib/api/response';
 import { resolveRouteParam } from '@/lib/api/params';
 import { balanceService } from '@/services/balanceService';
-import { getCurrencyCodes } from '@/config/currencies';
 
-// CUID validation regex (sortable IDs)
-const cuidRegex = /^[a-z][a-z0-9]{8,}$/;
 
-// Get valid currency codes from config
-const VALID_CURRENCIES = getCurrencyCodes();
 
 const UpdateAccountSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -20,13 +15,8 @@ const UpdateAccountSchema = z.object({
   icon: z.string().optional(),
   color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
   initial_balance: z.number().optional(),
-  currency: z.string().refine(
-    (code) => VALID_CURRENCIES.includes(code),
-    { message: 'Invalid currency code' }
-  ).optional(),
-  credit_limit: z.number().optional(),
-  interest_rate: z.number().optional(),
-  group_id: z.string().regex(cuidRegex, 'Invalid group ID').nullable().optional(),
+
+
   is_active: z.boolean().optional(),
   is_included_in_total: z.boolean().optional()
 });
@@ -59,11 +49,6 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
         user_id: user.user_id,
         deleted_at: null
       },
-      include: {
-        group: {
-          select: { name: true, icon: true, color: true }
-        }
-      }
     });
 
     if (!account) {
@@ -97,14 +82,11 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       account_type: account.account_type,
       icon: account.icon,
       color: account.color,
-      currency: account.currency,
+
       initial_balance: account.initial_balance.toNumber(),
       current_balance: currentBalance, // ✅ Use calculated balance
-      credit_limit: account.credit_limit?.toNumber() ?? null,
-      interest_rate: account.interest_rate?.toNumber() ?? null,
       is_active: account.is_active,
       is_included_in_total: account.is_included_in_total,
-      group: account.group,
       created_at: account.created_at,
       updated_at: account.updated_at,
       statistics: {
@@ -179,10 +161,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     if (data.icon !== undefined) updateData['icon'] = data.icon;
     if (data.color !== undefined) updateData['color'] = data.color;
     if (data.initial_balance !== undefined) updateData['initial_balance'] = data.initial_balance;
-    if (data.currency !== undefined) updateData['currency'] = data.currency;
-    if (data.credit_limit !== undefined) updateData['credit_limit'] = data.credit_limit;
-    if (data.interest_rate !== undefined) updateData['interest_rate'] = data.interest_rate;
-    if (data.group_id !== undefined) updateData['group_id'] = data.group_id;
+
     if (data.is_active !== undefined) updateData['is_active'] = data.is_active;
     if (data.is_included_in_total !== undefined) updateData['is_included_in_total'] = data.is_included_in_total;
 
@@ -200,11 +179,9 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       account_type: updated.account_type,
       icon: updated.icon,
       color: updated.color,
-      currency: updated.currency,
+
       initial_balance: updated.initial_balance.toNumber(),
       current_balance: updatedBalance, // ✅ Calculated balance
-      credit_limit: updated.credit_limit?.toNumber() ?? null,
-      interest_rate: updated.interest_rate?.toNumber() ?? null,
       is_active: updated.is_active,
       is_included_in_total: updated.is_included_in_total,
       created_at: updated.created_at,

@@ -9,10 +9,7 @@ export const TransferSchema = registry.register(
     from_account: z.string().openapi({ example: 'clqaccount1' }),
     to_account: z.string().openapi({ example: 'clqaccount2' }),
     amount: z.number().openapi({ example: 500000 }),
-    to_amount: z.number().nullable().optional().openapi({ example: null }),
     description: z.string().nullable().openapi({ example: 'Moving funds to savings' }),
-    currency: z.string().openapi({ example: 'IDR' }),
-    to_currency: z.string().nullable().optional().openapi({ example: null }),
     created_at: z.date().openapi({ example: '2023-12-01T00:00:00Z' }),
     updated_at: z.date().openapi({ example: '2023-12-01T00:00:00Z' }),
   })

@@ -42,11 +42,6 @@ export const ANALYTICS_TOOLS: ToolDefinition[] = [
           items: { type: 'string' },
           description: 'Filter berdasarkan account ID. Kosong = semua akun.',
         },
-        currencies: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Filter berdasarkan mata uang, e.g. ["IDR", "USD"].',
-        },
         limit: {
           type: 'number',
           description: 'Jumlah transaksi yang dikembalikan. Maks 20. Default 10.',
@@ -89,11 +84,6 @@ export const ANALYTICS_TOOLS: ToolDefinition[] = [
           items: { type: 'string' },
           description: 'Filter berdasarkan account. Kosong = semua.',
         },
-        currencies: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Filter berdasarkan mata uang.',
-        },
       },
     },
   },
@@ -113,7 +103,6 @@ export async function toolExecutor(
   const endDate = (args['end_date'] as string | undefined) ?? context.endDate;
   const categoryIds = (args['category_ids'] as string[] | undefined) ?? context.categoryIds;
   const accountIds = (args['account_ids'] as string[] | undefined) ?? context.accountIds;
-  const currencies = (args['currencies'] as string[] | undefined) ?? context.currencies;
   const searchTerm = context.searchTerm;
   const minAmount = context.minAmount;
   const maxAmount = context.maxAmount;
@@ -134,7 +123,6 @@ export async function toolExecutor(
           ...(endDate && { date: { lte: new Date(endDate) } }),
           ...(categoryIds.length > 0 && { category_id: { in: categoryIds } }),
           ...(accountIds.length > 0 && { account_id: { in: accountIds } }),
-          ...(currencies.length > 0 && { currency: { in: currencies } }),
           ...(labelIds && labelIds.length > 0 && { labels: { some: { label_id: { in: labelIds } } } }),
           ...(searchTerm && {
             OR: [
@@ -159,7 +147,7 @@ export async function toolExecutor(
         const category = t.category?.name ?? 'Tanpa kategori';
         const account = t.account?.name ?? 'Tanpa akun';
         const desc = t.description ?? t.payee ?? '-';
-        return `${i + 1}. ${desc} | ${category} | ${account} | ${date} | ${t.currency} ${amount}`;
+        return `${i + 1}. ${desc} | ${category} | ${account} | ${date} | IDR ${amount}`;
       });
 
       return `[Tool: get_transactions — ${txns.length} transaksi]\n${lines.join('\n')}`;
@@ -167,7 +155,7 @@ export async function toolExecutor(
 
     case 'get_category_summary': {
       const groups = await prisma.transaction.groupBy({
-        by: ['category_id', 'currency', 'type'],
+        by: ['category_id', 'type'],
         where: {
           user_id: userId,
           deleted_at: null,
@@ -176,7 +164,6 @@ export async function toolExecutor(
           ...(endDate && { date: { lte: new Date(endDate) } }),
           ...(categoryIds.length > 0 && { category_id: { in: categoryIds } }),
           ...(accountIds.length > 0 && { account_id: { in: accountIds } }),
-          ...(currencies.length > 0 && { currency: { in: currencies } }),
           ...(labelIds && labelIds.length > 0 && { labels: { some: { label_id: { in: labelIds } } } }),
           ...(searchTerm && {
             OR: [
@@ -200,7 +187,7 @@ export async function toolExecutor(
       const lines = groups.map((g) => {
         const name = g.category_id ? (catMap.get(g.category_id) ?? g.category_id) : 'Tanpa kategori';
         const total = Math.abs(Number(g._sum.amount ?? 0)).toLocaleString('id-ID');
-        return `- ${name} (${g.type}): ${g.currency} ${total}`;
+        return `- ${name} (${g.type}): IDR ${total}`;
       });
 
       return `[Tool: get_category_summary]\n${lines.join('\n')}`;

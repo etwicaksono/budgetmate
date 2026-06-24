@@ -99,7 +99,6 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
           account_type: account.account_type,
           icon: account.icon,
           color: account.color,
-          currency: account.currency || 'USD',
           initial_balance: account.initial_balance || 0,
           // current_balance removed - calculated on-demand
           is_active: account.is_active,
@@ -186,7 +185,6 @@ async function createSampleTransactions(
         category_id: categoryId,
         type: type,
         amount: type === 'expense' ? -amount : amount, // Negative for expenses
-        currency: 'USD',
         date: date,
         description: `Sample ${type} transaction`,
         payment_method: 'Cash',
@@ -226,8 +224,7 @@ async function main(): Promise<void> {
           password_hash: hashedPassword,
           full_name: 'Demo User',
           email_verified: true,
-          timezone: 'UTC',
-          currency: 'USD'
+          timezone: 'UTC'
         }
       });
     }

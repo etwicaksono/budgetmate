@@ -14,7 +14,6 @@ import { BudgetProgressBar } from '@/components/budgets/BudgetProgressBar';
 import CategoryTransactionsModal from '@/components/analytics/CategoryTransactionsModal';
 import PeriodNavigation, { PeriodNavigationProvider, usePeriodNavigation } from '@/components/period/PeriodNavigation';
 import MonthYearSelector from '@/components/period/MonthYearSelector';
-import { useAuth } from '@/context/AuthContext';
 import { FaSortAlphaDown, FaSortAlphaUpAlt, FaSortAmountDown, FaSortAmountUp } from 'react-icons/fa';
 import type { SortOption } from '@/components/common/SortDropdown';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
@@ -44,7 +43,6 @@ function BudgetsPageContent(): React.ReactElement {
     monthName: string;
     startDate: string;
     endDate: string;
-    currency: string;
     accountIds?: string[];
   }
 
@@ -62,7 +60,6 @@ function BudgetsPageContent(): React.ReactElement {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showProjections, setShowProjections] = useState<boolean>(false);
 
-  const { user } = useAuth();
   const { formatCurrency, formatShort } = useFormattedCurrency();
   const { state: { activePeriod, periodLabel, dateRange } } = usePeriodNavigation();
   const selectedMonth = activePeriod.month !== undefined ? activePeriod.month + 1 : new Date().getMonth() + 1;
@@ -161,7 +158,6 @@ function BudgetsPageContent(): React.ReactElement {
     current: {
       selectedCategories: [],
       selectedAccounts,
-      selectedCurrencies: [],
       selectedLabelIds: [],
       sortOption: sortBy as SortValue,
       transferOption: 'include',
@@ -171,7 +167,6 @@ function BudgetsPageContent(): React.ReactElement {
     dispatchers: {
       setSelectedCategories: () => {},
       setSelectedAccounts,
-      setSelectedCurrencies: () => {},
       setSelectedLabelIds: () => {},
       setSortOption: setSortBy as React.Dispatch<React.SetStateAction<SortValue>>,
       setTransferOption: () => {},
@@ -270,14 +265,14 @@ function BudgetsPageContent(): React.ReactElement {
         overlay={
           <Tooltip id={summaryTooltipId}>
             <div className="text-start" style={{ fontSize: '12px', lineHeight: 1.6 }}>
-              <div>Basic: <strong>{formatCurrency(basicLimit, 'IDR')}</strong></div>
+              <div>Basic: <strong>{formatCurrency(basicLimit)}</strong></div>
               {extendLimit > 0 && (
-                <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit, 'IDR')}</strong></div>
+                <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit)}</strong></div>
               )}
               <hr className="my-1 border-secondary opacity-50" />
-              <div>Total budget: <strong>{formatCurrency(budget, 'IDR')}</strong></div>
+              <div>Total budget: <strong>{formatCurrency(budget)}</strong></div>
               <div style={budget - absSpent < 0 ? { color: '#f87171' } : {}}>
-                Remaining: <strong>{formatCurrency(budget - absSpent, 'IDR')}</strong>
+                Remaining: <strong>{formatCurrency(budget - absSpent)}</strong>
               </div>
               {isProjection && (
                 <div className="mt-1 pt-1 border-top border-secondary border-opacity-50 text-info fst-italic" style={{ fontSize: '10px' }}>
@@ -298,9 +293,9 @@ function BudgetsPageContent(): React.ReactElement {
     const limitsCompact = (
       <div className="d-flex flex-wrap align-items-baseline gap-1" style={{ fontSize: '12px' }}>
         <span className="text-muted opacity-75">/</span>
-        <span className="text-secondary">{formatShort(basicLimit, 'IDR')}</span>
+        <span className="text-secondary">{formatShort(basicLimit)}</span>
         {extendLimit > 0 && (
-          <span style={{ color: '#d97706', fontWeight: 500 }}>+ {formatShort(extendLimit, 'IDR')}</span>
+          <span style={{ color: '#d97706', fontWeight: 500 }}>+ {formatShort(extendLimit)}</span>
         )}
         {infoIcon}
       </div>
@@ -315,7 +310,7 @@ function BudgetsPageContent(): React.ReactElement {
             {badge}
           </div>
           <div className={`fw-bold mb-1 ${isOver ? 'text-danger' : 'text-dark'}`} style={{ fontSize: '1.15rem' }}>
-            {formatShort(absSpent, 'IDR')}
+            {formatShort(absSpent)}
           </div>
           <div className="mb-2">{limitsCompact}</div>
           {progressBar}
@@ -327,11 +322,11 @@ function BudgetsPageContent(): React.ReactElement {
             <div>
               <div className="text-muted fw-bold text-uppercase mb-1" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>{label}</div>
               <div className="fs-5 fw-bold text-dark d-flex align-items-baseline gap-2">
-                <span className={isOver ? 'text-danger' : ''}>{formatCurrency(absSpent, 'IDR')}</span>
+                <span className={isOver ? 'text-danger' : ''}>{formatCurrency(absSpent)}</span>
                 <span className="text-muted fs-6 fw-normal">/</span>
-                <span className="fs-6 text-secondary">{formatCurrency(basicLimit, 'IDR')}</span>
+                <span className="fs-6 text-secondary">{formatCurrency(basicLimit)}</span>
                 {extendLimit > 0 && (
-                  <span className="fs-6" style={{ color: '#d97706', fontWeight: 500 }}>+ {formatCurrency(extendLimit, 'IDR')}</span>
+                  <span className="fs-6" style={{ color: '#d97706', fontWeight: 500 }}>+ {formatCurrency(extendLimit)}</span>
                 )}
                 {infoIcon}
               </div>
@@ -533,7 +528,6 @@ function BudgetsPageContent(): React.ReactElement {
   }, [categories]);
 
   const handleShowTransactions = useCallback((item: CombinedBudgetItem) => {
-    const currency = user?.currency || 'IDR';
     // dateRange values from the period context are ISO date strings (YYYY-MM-DD).
     // The transactions API expects full ISO datetimes, so append start/end-of-day times.
     const startDate = dateRange.start
@@ -556,11 +550,10 @@ function BudgetsPageContent(): React.ReactElement {
       monthName: periodLabel,
       startDate,
       endDate,
-      currency,
       ...(resolvedAccountIds && { accountIds: resolvedAccountIds }),
     });
     setShowTransactionsModal(true);
-  }, [collectCategoryIds, periodLabel, dateRange, selectedYear, selectedAccounts, user?.currency]);
+  }, [collectCategoryIds, periodLabel, dateRange, selectedYear, selectedAccounts]);
 
   const handleModalHide = () => {
     setShowModal(false);
@@ -578,7 +571,6 @@ function BudgetsPageContent(): React.ReactElement {
   const renderBudgetItem = (item: CombinedBudgetItem, isChild = false) => {
     const IconComponent = getIconComponent(item.category.icon || 'FaGift');
     const categoryColor = item.category.color || '#6c757d';
-    const currency = user?.currency || 'IDR';
     const hasChildren = !isChild && item.children && item.children.length > 0;
 
     const chevron = (
@@ -668,8 +660,8 @@ function BudgetsPageContent(): React.ReactElement {
           </div>
           {/* Progress bars stacked */}
           <div className={isChild ? 'ps-0' : 'ps-4'}>
-            <BudgetProgressBar spent={item.spentMonthly} basicLimit={item.basicMonthly} extendLimit={item.extendMonthly} currency={currency} label="Monthly Pace" isParent={!isChild} />
-            <BudgetProgressBar spent={showProjections ? item.projectedAnnual : item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} currency={currency} label={showProjections ? "Projected Annual Pace" : "Annual Pace"} isParent={!isChild} isProjection={showProjections} />
+            <BudgetProgressBar spent={item.spentMonthly} basicLimit={item.basicMonthly} extendLimit={item.extendMonthly} label="Monthly Pace" isParent={!isChild} />
+            <BudgetProgressBar spent={showProjections ? item.projectedAnnual : item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} label={showProjections ? "Projected Annual Pace" : "Annual Pace"} isParent={!isChild} isProjection={showProjections} />
           </div>
         </div>
 
@@ -710,8 +702,8 @@ function BudgetsPageContent(): React.ReactElement {
           </div>
 
           <div className="flex-grow-1 px-4 d-flex gap-4 align-items-center">
-            <BudgetProgressBar spent={item.spentMonthly} basicLimit={item.basicMonthly} extendLimit={item.extendMonthly} currency={currency} label="Monthly Pace" isParent={!isChild} />
-            <BudgetProgressBar spent={showProjections ? item.projectedAnnual : item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} currency={currency} label={showProjections ? "Projected Annual Pace" : "Annual Pace"} isParent={!isChild} isProjection={showProjections} />
+            <BudgetProgressBar spent={item.spentMonthly} basicLimit={item.basicMonthly} extendLimit={item.extendMonthly} label="Monthly Pace" isParent={!isChild} />
+            <BudgetProgressBar spent={showProjections ? item.projectedAnnual : item.spentAnnual} basicLimit={item.basicAnnual} extendLimit={item.extendAnnual} label={showProjections ? "Projected Annual Pace" : "Annual Pace"} isParent={!isChild} isProjection={showProjections} />
           </div>
 
           <div className="d-flex justify-content-end align-items-center gap-2 pe-3" style={{ width: '88px' }}>
@@ -814,7 +806,6 @@ function BudgetsPageContent(): React.ReactElement {
             {viewMode === 'table' ? (
               <BudgetTableMode 
                 data={parentItems} 
-                currency={user?.currency || 'IDR'} 
                 onRefresh={refreshBudgets} 
               />
             ) : (
@@ -899,7 +890,6 @@ function BudgetsPageContent(): React.ReactElement {
         monthName={selectedBudgetCategory?.monthName ?? ''}
         {...(selectedBudgetCategory?.startDate && { startDate: selectedBudgetCategory.startDate })}
         {...(selectedBudgetCategory?.endDate && { endDate: selectedBudgetCategory.endDate })}
-        {...(selectedBudgetCategory?.currency && { currency: selectedBudgetCategory.currency })}
         {...(selectedBudgetCategory?.accountIds?.length && { accountIds: selectedBudgetCategory.accountIds })}
       />
     </Container>

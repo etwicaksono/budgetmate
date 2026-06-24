@@ -13,7 +13,6 @@ export interface AccountFormData {
   icon: string;
   color: string;
   initial_balance: string; // String for formatted input compatibility
-  currency: string;
   is_active: boolean;
   is_included_in_total: boolean;
 }
@@ -64,7 +63,6 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
           icon: formData.icon,
           color: formData.color,
           initial_balance: parseFloat(formData.initial_balance) || 0,
-          currency: formData.currency,
           is_active: formData.is_active,
           is_included_in_total: formData.is_included_in_total,
         });
@@ -80,7 +78,6 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
           icon: formData.icon,
           color: formData.color,
           initial_balance: parseFloat(formData.initial_balance) || 0,
-          currency: formData.currency,
           is_active: formData.is_active,
           is_included_in_total: formData.is_included_in_total,
         });
@@ -110,7 +107,6 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
       icon: editingAccount.icon,
       color: editingAccount.color,
       initial_balance: String(editingAccount.initial_balance),
-      currency: editingAccount.currency,
       is_active: editingAccount.is_active,
       is_included_in_total: editingAccount.is_included_in_total,
     }

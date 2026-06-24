@@ -11,11 +11,9 @@ export const CreateTransactionSchema = z.object({
   amount: z.number().positive(),
   type: z.enum(['income', 'expense']),
   description: z.string().optional(),
-  // currency is intentionally excluded: it is always derived from the account on the server
   payee: z.string().optional(),
   payment_method: z.string().optional(),
   payment_status: z.string().optional(),
-  reference_number: z.string().optional(),
   label_ids: z.array(z.string().regex(cuidRegex, 'Invalid label ID')).optional(),
   is_draft: z.boolean().optional()
 });
@@ -33,7 +31,6 @@ export const UpdateTransactionSchema = z.object({
   payee: z.string().optional(),
   payment_method: z.string().optional(),
   payment_status: z.string().optional(),
-  reference_number: z.string().optional(),
   label_ids: z.array(z.string().regex(cuidRegex, 'Invalid label ID')).optional(),
   is_draft: z.boolean().optional()
 });
@@ -56,7 +53,6 @@ export const TransactionFilterSchema = z.object({
   keyword: z.string().trim().min(2, 'Search term must be at least 2 characters').optional(),
   search: z.string().trim().min(2, 'Search term must be at least 2 characters').optional(), // alias for keyword
   label_ids: z.string().optional(), // comma-separated
-  currencies: z.string().optional(), // comma-separated currency codes (e.g., 'USD,IDR')
   sort_by: z.enum(['date', 'amount', 'created_at']).default('date'),
   sort_order: z.enum(['asc', 'desc']).default('desc'),
   transfer_option: z.enum(['include', 'only', 'exclude']).optional(),

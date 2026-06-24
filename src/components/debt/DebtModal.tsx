@@ -11,7 +11,6 @@ import { DEBT_TYPES, DEBT_STATUSES } from '@/utils/constants';
 import { DebtTypeToggle } from './DebtTypeToggle';
 import { AccountSelect } from '@/components/transaction/AccountSelect';
 import { Account } from '@/services/accountService';
-import { getCurrencyPrefix } from '@/utils/formatters';
 import { ClearButton } from '@/components/common/ClearButton';
 
 interface DebtModalProps {
@@ -81,8 +80,6 @@ export const DebtModal: React.FC<DebtModalProps> = ({
     }
   }, [show, isEdit, editDebt, defaultType]);
 
-  const selectedAccount = accounts.find(a => a.id === accountId);
-  const currencyPrefix = getCurrencyPrefix(selectedAccount?.currency);
   const decimalScale = 2;
 
   const handleSubmit = async (e: React.FormEvent, createAnother: boolean = false) => {
@@ -197,7 +194,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                    getInputRef={amountInputRef}
                    customInput={Form.Control as React.ComponentType<unknown>}
                    thousandSeparator={true}
-                   prefix={currencyPrefix}
+                   prefix="Rp "
                    decimalScale={decimalScale}
                    value={amount}
                    onValueChange={(values) => setAmount(values.floatValue || '')}

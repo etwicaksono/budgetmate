@@ -45,19 +45,10 @@ export const GlobalTransactionModal: React.FC = () => {
               date: transactionData.date || new Date().toISOString(),
               amount: typeof transactionData.amount === 'number' ? transactionData.amount : parseFloat(String(transactionData.amount || 0)),
               description: transactionData.description || '',
-              currency: transactionData.currency || 'USD',
             };
 
             if (transactionData.account_id) transferData['from_account_id'] = transactionData.account_id;
             if (transactionData.to_account_id) transferData['to_account_id'] = transactionData.to_account_id;
-            if (transactionData.to_currency) transferData['to_currency'] = transactionData.to_currency;
-
-            const isMultiCurrency = transactionData.to_currency && transactionData.to_currency !== transactionData.currency;
-            const hasDifferentAmount = transactionData.to_amount && transactionData.to_amount !== transactionData.amount;
-            if (isMultiCurrency || hasDifferentAmount) {
-              const toAmountValue = transactionData.to_amount ? (typeof transactionData.to_amount === 'number' ? transactionData.to_amount : parseFloat(transactionData.to_amount as string)) : transactionData.amount;
-              if (typeof toAmountValue === 'number' && !isNaN(toAmountValue)) transferData['to_amount'] = toAmountValue;
-            }
             
             const handleError = (error: unknown) => {
               console.error('Background update failed:', error);
@@ -101,10 +92,7 @@ export const GlobalTransactionModal: React.FC = () => {
               from_account_id: transactionData.account_id || '',
               to_account_id: transactionData.to_account_id || '',
               amount: typeof transactionData.amount === 'number' ? transactionData.amount : parseFloat(String(transactionData.amount || 0)),
-              to_amount: transactionData.to_amount ? (typeof transactionData.to_amount === 'number' ? transactionData.to_amount : parseFloat(transactionData.to_amount as string)) : 0,
               description: transactionData.description || '',
-              currency: transactionData.currency || 'USD',
-              ...(transactionData.to_currency && { to_currency: transactionData.to_currency }),
             };
             resultData = await transferService.createTransfer(transferData);
           } else {
@@ -115,7 +103,6 @@ export const GlobalTransactionModal: React.FC = () => {
               amount: transactionData.amount || 0,
               type: (transactionData.type as 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out') || 'expense',
               ...(transactionData.category_id && { category_id: transactionData.category_id }),
-              ...(transactionData.currency && { currency: transactionData.currency }),
               ...(transactionData.label_ids && { label_ids: transactionData.label_ids }),
               ...(transactionData.is_draft !== undefined && { is_draft: transactionData.is_draft }),
               ...(transactionData.description && { description: transactionData.description }),

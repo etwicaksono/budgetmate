@@ -16,7 +16,6 @@ export interface TransactionRecord {
   description: string;
   payer?: string;
   amount: number;
-  currency: string;
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_IN' | 'DEBT_OUT';
   is_draft?: boolean;
   debt_id?: string;
@@ -133,17 +132,7 @@ export const RecordsList: React.FC<RecordsListProps> = ({
           });
         };
 
-        // Calculate daily total per currency
-        // All transaction amounts from database already have correct signs:
-        // - INCOME: positive
-        // - EXPENSE: negative (already stored as negative in DB)
-        // - transfer_in: positive
-        // - transfer_out: negative
-        const dayTotalsByCurrency: Record<string, number> = {};
-        dayTransactions.forEach((transaction) => {
-          const currency = transaction.currency || 'USD'; // Default to USD if undefined
-          dayTotalsByCurrency[currency] = (dayTotalsByCurrency[currency] || 0) + transaction.amount;
-        });
+        const dayTotal = dayTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
 
         return (
           <div key={dateKey} className="records-day-group">
@@ -164,17 +153,12 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                 <h6 className="mb-0 fw-bold">{dateKey}</h6>
               </div>
               <div className="records-day-header-right">
-                {Object.entries(dayTotalsByCurrency).map(([currency, total], index) => (
-                  <React.Fragment key={currency}>
-                    {index > 0 && <span className="mx-2">|</span>}
-                    <strong
-                      style={{ color: '#6C757D', whiteSpace: 'nowrap' }}
-                    >
-                      {total < 0 ? '-' : total > 0 ? '+' : ''}
-                      {formatCurrency(Math.abs(total), currency).replace(/\.00$/, '')}
-                    </strong>
-                  </React.Fragment>
-                ))}
+                <strong
+                  style={{ color: '#6C757D', whiteSpace: 'nowrap' }}
+                >
+                  {dayTotal < 0 ? '-' : dayTotal > 0 ? '+' : ''}
+                  {formatCurrency(Math.abs(dayTotal)).replace(/\.00$/, '')}
+                </strong>
               </div>
             </div>
 
@@ -347,7 +331,7 @@ export const RecordsList: React.FC<RecordsListProps> = ({
                             style={{ fontSize: '0.95rem' }}
                           >
                             {transaction.amount < 0 ? '-' : transaction.amount > 0 ? '+' : ''}
-                            {formatCurrency(Math.abs(transaction.amount), transaction.currency || 'USD').replace(/\.00$/, '')}
+                            {formatCurrency(Math.abs(transaction.amount)).replace(/\.00$/, '')}
                           </strong>
                         </div>
                         <div className="text-muted d-flex align-items-center justify-content-end" style={{ fontSize: '0.75rem', marginTop: '0.1rem' }}>

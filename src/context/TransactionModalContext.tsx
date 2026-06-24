@@ -25,7 +25,6 @@ interface Account {
   name: string;
   icon: string;
   color: string;
-  currency: string;
   current_balance: number;
 }
 

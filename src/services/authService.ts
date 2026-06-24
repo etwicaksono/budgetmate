@@ -23,7 +23,6 @@ export interface AuthResponse {
       username: string;
       full_name?: string;
       timezone: string;
-      currency: string;
     };
     access_token: string;
     refresh_token: string;

@@ -25,14 +25,12 @@ import {
   type AdvancedChartGroupBy,
 } from '@/services/analyticsService';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
-import { useAuth } from '@/context/AuthContext';
 
 export interface AdvancedChartsReportProps {
   startDate?: string;
   endDate?: string;
   selectedCategories?: string[];
   selectedAccounts?: string[];
-  selectedCurrencies?: string[];
   searchTerm?: string;
   minAmount?: number;
   maxAmount?: number;
@@ -45,15 +43,9 @@ const formatNumberAbbreviation = (value: number): string => {
   const absValue = Math.abs(value);
   const sign = value < 0 ? '-' : '';
 
-  if (absValue >= 1_000_000_000) {
-    return `${sign}${(absValue / 1_000_000_000).toFixed(1)}B`;
-  }
-  if (absValue >= 1_000_000) {
-    return `${sign}${(absValue / 1_000_000).toFixed(1)}M`;
-  }
-  if (absValue >= 1_000) {
-    return `${sign}${(absValue / 1_000).toFixed(0)}k`;
-  }
+  if (absValue >= 1_000_000_000) return `${sign}${(absValue / 1_000_000_000).toFixed(1)}B`;
+  if (absValue >= 1_000_000) return `${sign}${(absValue / 1_000_000).toFixed(1)}M`;
+  if (absValue >= 1_000) return `${sign}${(absValue / 1_000).toFixed(0)}k`;
   return `${sign}${absValue.toFixed(0)}`;
 };
 
@@ -73,43 +65,17 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
   selectedLabelIds,
   selectedCategories,
   selectedAccounts,
-  selectedCurrencies,
 }) => {
   const [data, setData] = useState<AdvancedChartsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Chart options
   const [dataType, setDataType] = useState<AdvancedChartDataType>('balance');
   const [graphType, setGraphType] = useState<AdvancedChartGraphType>('line');
   const [groupBy, setGroupBy] = useState<AdvancedChartGroupBy>('none');
   const [granularity, setGranularity] = useState<AdvancedChartGranularity>('day');
-  const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
 
   const { formatCurrency } = useFormattedCurrency();
-  const { user } = useAuth();
-  const defaultCurrency = user?.currency || 'USD';
-
-  // Sort currencies with default currency first
-  const sortedCurrencies = useMemo(() => {
-    if (!data) return [];
-    const currencies = [...data.currencies];
-    if (defaultCurrency && currencies.includes(defaultCurrency)) {
-      currencies.sort((a, b) => {
-        if (a === defaultCurrency) return -1;
-        if (b === defaultCurrency) return 1;
-        return 0;
-      });
-    }
-    return currencies;
-  }, [data, defaultCurrency]);
-
-  // Set default currency when data loads
-  useEffect(() => {
-    if (sortedCurrencies.length > 0 && !selectedCurrency) {
-      setSelectedCurrency(sortedCurrencies[0] ?? null);
-    }
-  }, [sortedCurrencies, selectedCurrency]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -131,7 +97,6 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
           label_ids?: string[];
           category_ids?: string[];
           account_ids?: string[];
-          currencies?: string[];
         } = {
           type: dataType,
           granularity,
@@ -147,7 +112,6 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
         if (selectedLabelIds?.length) params.label_ids = selectedLabelIds;
         if (selectedCategories?.length) params.category_ids = selectedCategories;
         if (selectedAccounts?.length) params.account_ids = selectedAccounts;
-        if (selectedCurrencies?.length) params.currencies = selectedCurrencies;
 
         const response = await analyticsService.fetchAdvancedCharts(params);
         setData(response);
@@ -159,18 +123,12 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
     };
 
     fetchData();
-  }, [startDate, endDate, dataType, granularity, groupBy, searchTerm, minAmount, maxAmount, transferOption, debtOption, selectedLabelIds, selectedCategories, selectedAccounts, selectedCurrencies]);
+  }, [startDate, endDate, dataType, granularity, groupBy, searchTerm, minAmount, maxAmount, transferOption, debtOption, selectedLabelIds, selectedCategories, selectedAccounts]);
 
-  // Get current chart data based on selected currency
   const currentChartData = useMemo(() => {
     if (!data) return { chartData: [], groupedData: [] };
-    if (selectedCurrency && data.dataByCurrency[selectedCurrency]) {
-      return data.dataByCurrency[selectedCurrency];
-    }
     return { chartData: data.chartData, groupedData: data.groupedData };
-  }, [data, selectedCurrency]);
-
-  const displayCurrency = selectedCurrency || defaultCurrency;
+  }, [data]);
 
   const CustomTooltip = ({ active, payload, label }: {
     active?: boolean;
@@ -183,7 +141,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
           <p className="mb-2 fw-bold">{label}</p>
           {payload.map((entry, index) => (
             <p key={index} className="mb-1" style={{ color: entry.color }}>
-              {entry.name || entry.dataKey}: {formatCurrency(entry.value, displayCurrency)}
+              {entry.name || entry.dataKey}: {formatCurrency(entry.value)}
             </p>
           ))}
         </div>
@@ -202,13 +160,10 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
     }
 
     const hasGroupedData = groupBy !== 'none' && currentChartData.groupedData.length > 0;
-
-    // Prepare data for grouped charts
     let chartDataForRender: Array<Record<string, number | string>> = [];
     let dataKeys: Array<{ key: string; color: string; name: string }> = [];
 
     if (hasGroupedData) {
-      // Merge grouped data into single array for recharts
       const dateMap = new Map<string, Record<string, number | string>>();
 
       currentChartData.groupedData.forEach((group, idx) => {
@@ -228,7 +183,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
 
       chartDataForRender = Array.from(dateMap.values());
     } else {
-      chartDataForRender = currentChartData.chartData.map(p => ({
+      chartDataForRender = currentChartData.chartData.map((p) => ({
         date: p.date,
         value: p.value,
       }));
@@ -265,14 +220,8 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
             <YAxis {...yAxisProps} />
             <Tooltip content={<CustomTooltip />} />
             {hasGroupedData && <Legend />}
-            {dataKeys.map(dk => (
-              <Bar
-                key={dk.key}
-                dataKey={dk.key}
-                name={dk.name}
-                fill={dk.color}
-                radius={[2, 2, 0, 0]}
-              />
+            {dataKeys.map((dk) => (
+              <Bar key={dk.key} dataKey={dk.key} name={dk.name} fill={dk.color} radius={[2, 2, 0, 0]} />
             ))}
           </BarChart>
         </ResponsiveContainer>
@@ -288,7 +237,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
             <YAxis {...yAxisProps} />
             <Tooltip content={<CustomTooltip />} />
             {hasGroupedData && <Legend />}
-            {dataKeys.map(dk => (
+            {dataKeys.map((dk) => (
               <Area
                 key={dk.key}
                 type="monotone"
@@ -304,7 +253,6 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
       );
     }
 
-    // Default: Line chart
     return (
       <ResponsiveContainer width="100%" height="100%">
         <LineChart {...commonProps}>
@@ -313,7 +261,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
           <YAxis {...yAxisProps} />
           <Tooltip content={<CustomTooltip />} />
           {hasGroupedData && <Legend />}
-          {dataKeys.map(dk => (
+          {dataKeys.map((dk) => (
             <Line
               key={dk.key}
               type="monotone"
@@ -331,16 +279,14 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
 
   const renderSkeleton = () => (
     <div>
-      {/* Options skeleton */}
       <div className="d-flex gap-3 mb-4 flex-wrap">
-        {[1, 2, 3, 4].map(i => (
+        {[1, 2, 3, 4].map((i) => (
           <Placeholder key={i} animation="glow" style={{ width: 150 }}>
             <Placeholder xs={12} style={{ height: 38 }} />
           </Placeholder>
         ))}
       </div>
 
-      {/* Chart skeleton */}
       <Card className="border-0 shadow-sm">
         <Card.Body style={{ height: 400 }}>
           <Placeholder animation="glow" className="h-100 d-flex align-items-center justify-content-center">
@@ -351,9 +297,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
     </div>
   );
 
-  if (loading && !data) {
-    return renderSkeleton();
-  }
+  if (loading && !data) return renderSkeleton();
 
   if (error) {
     return (
@@ -369,45 +313,9 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
         .advanced-charts-report .form-select {
           font-size: 0.875rem;
         }
-        .advanced-charts-report .currency-pill {
-          padding: 0.375rem 0.75rem;
-          border-radius: 9999px;
-          font-size: 0.875rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.15s ease-in-out;
-          border: 1px solid #dee2e6;
-          background-color: #fff;
-          color: #6c757d;
-        }
-        .advanced-charts-report .currency-pill:hover {
-          background-color: #f8f9fa;
-        }
-        .advanced-charts-report .currency-pill.active {
-          background-color: #212529;
-          color: #fff;
-          border-color: #212529;
-        }
       `}</style>
 
-      {/* Currency Pills */}
-      {sortedCurrencies.length > 1 && (
-        <div className="d-flex gap-2 mb-4 flex-wrap">
-          {sortedCurrencies.map((currency) => (
-            <button
-              key={currency}
-              className={`currency-pill ${selectedCurrency === currency ? 'active' : ''}`}
-              onClick={() => setSelectedCurrency(currency)}
-            >
-              {currency}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Chart Options */}
       <div className="d-flex gap-3 mb-4 flex-wrap align-items-end">
-        {/* Type */}
         <div>
           <Form.Label className="small text-muted mb-1">Type</Form.Label>
           <Form.Select
@@ -422,7 +330,6 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
           </Form.Select>
         </div>
 
-        {/* Graph Type */}
         <div>
           <Form.Label className="small text-muted mb-1">Graph type</Form.Label>
           <Form.Select
@@ -437,7 +344,6 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
           </Form.Select>
         </div>
 
-        {/* Group By */}
         <div>
           <Form.Label className="small text-muted mb-1">Group by</Form.Label>
           <Form.Select
@@ -449,11 +355,9 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
             <option value="none">None</option>
             <option value="accounts">Accounts</option>
             <option value="categories">Categories</option>
-            <option value="currencies">Currencies</option>
           </Form.Select>
         </div>
 
-        {/* Granularity */}
         <div>
           <Form.Label className="small text-muted mb-1">Granularity</Form.Label>
           <Form.Select
@@ -469,7 +373,6 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
         </div>
       </div>
 
-      {/* Chart */}
       <Card className="border-0 shadow-sm">
         <Card.Body style={{ height: 400 }}>
           {loading ? (

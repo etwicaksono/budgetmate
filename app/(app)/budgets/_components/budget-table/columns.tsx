@@ -4,12 +4,11 @@ import { Row } from './types';
 import { NameFormatter, CurrencyFormatter, PercentageFormatter, NumberEditor } from './formatters';
 
 interface UseBudgetColumnsProps {
-  currency: string;
   dirtyRowIds: Set<string>;
   toggleCollapse: (rowId: string) => void;
 }
 
-export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseBudgetColumnsProps) {
+export function useBudgetColumns({ dirtyRowIds, toggleCollapse }: UseBudgetColumnsProps) {
   const getEditableCellClass = (row: Row) => {
     if (row.isSummary) return 'fw-bold bg-light';
     if (row.isParent) return 'text-muted'; 
@@ -34,7 +33,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       headerCellClass: 'header-editable',
       sortable: true,
       renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : <NumberEditor {...props} />,
-      renderCell: (props) => <CurrencyFormatter currency={currency} value={props.row.basicMonthly} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
+      renderCell: (props) => <CurrencyFormatter value={props.row.basicMonthly} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
       key: 'extendMonthly', 
@@ -44,7 +43,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       headerCellClass: 'header-editable',
       sortable: true,
       renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : <NumberEditor {...props} />,
-      renderCell: (props) => <CurrencyFormatter currency={currency} value={props.row.extendMonthly} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
+      renderCell: (props) => <CurrencyFormatter value={props.row.extendMonthly} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
       key: 'spentMonthly', 
@@ -53,7 +52,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : '',
       headerCellClass: 'header-readonly',
       sortable: true,
-      renderCell: (props) => <CurrencyFormatter currency={currency} value={-Math.abs(props.row.spentMonthly)} />,
+      renderCell: (props) => <CurrencyFormatter value={-Math.abs(props.row.spentMonthly)} />,
     },
     { 
       key: 'periodicMargin', 
@@ -64,7 +63,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       sortable: true,
       renderCell: (props) => (
         <div className={`text-end h-100 d-flex align-items-center justify-content-end ${props.row.periodicMargin < 0 ? 'text-danger fw-bold' : 'text-success'}`}>
-          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(props.row.periodicMargin)}
+          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(props.row.periodicMargin)}
         </div>
       ),
     },
@@ -75,7 +74,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : '',
       headerCellClass: 'header-readonly',
       sortable: true,
-      renderCell: (props) => <CurrencyFormatter currency={currency} value={props.row.dailyBudget} />,
+      renderCell: (props) => <CurrencyFormatter value={props.row.dailyBudget} />,
     },
     { 
       key: 'periodicAvailablePercentage', 
@@ -94,7 +93,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       headerCellClass: 'header-editable',
       sortable: true,
       renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : <NumberEditor {...props} />,
-      renderCell: (props) => <CurrencyFormatter currency={currency} value={props.row.basicAnnual} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
+      renderCell: (props) => <CurrencyFormatter value={props.row.basicAnnual} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
       key: 'extendAnnual', 
@@ -104,7 +103,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       headerCellClass: 'header-editable',
       sortable: true,
       renderEditCell: (props) => props.row.isSummary || props.row.isParent ? null : <NumberEditor {...props} />,
-      renderCell: (props) => <CurrencyFormatter currency={currency} value={props.row.extendAnnual} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
+      renderCell: (props) => <CurrencyFormatter value={props.row.extendAnnual} isDirty={!props.row.isSummary && dirtyRowIds.has(props.row.id)} />,
     },
     { 
       key: 'spentAnnual', 
@@ -113,7 +112,7 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       cellClass: (row) => row.isSummary ? 'fw-bold bg-light' : '',
       headerCellClass: 'header-readonly',
       sortable: true,
-      renderCell: (props) => <CurrencyFormatter currency={currency} value={-Math.abs(props.row.spentAnnual)} />,
+      renderCell: (props) => <CurrencyFormatter value={-Math.abs(props.row.spentAnnual)} />,
     },
     { 
       key: 'annualMargin', 
@@ -124,11 +123,11 @@ export function useBudgetColumns({ currency, dirtyRowIds, toggleCollapse }: UseB
       sortable: true,
       renderCell: (props) => (
         <div className={`text-end h-100 d-flex align-items-center justify-content-end ${props.row.annualMargin < 0 ? 'text-danger fw-bold' : 'text-success'}`}>
-          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(props.row.annualMargin)}
+          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(props.row.annualMargin)}
         </div>
       ),
     },
-  ], [dirtyRowIds, currency, toggleCollapse]);
+  ], [dirtyRowIds, toggleCollapse]);
 
   return allColumns;
 }

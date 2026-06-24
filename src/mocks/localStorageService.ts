@@ -267,7 +267,6 @@ export const clearAuthTokens = (): boolean => {
 export interface UserPreferences {
   theme?: 'light' | 'dark' | 'auto';
   locale?: string;
-  currency?: string;
   dateFormat?: string;
   [key: string]: unknown;
 }
@@ -275,7 +274,6 @@ export interface UserPreferences {
 const DEFAULT_USER_PREFERENCES: UserPreferences = {
   theme: 'auto',
   locale: 'en-US',
-  currency: 'USD',
   dateFormat: 'MM/DD/YYYY',
 };
 

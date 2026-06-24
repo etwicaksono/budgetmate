@@ -13,7 +13,6 @@ import {
 
 import { Debt } from '@/services/debtService';
 import { DEBT_TYPES, DEBT_STATUSES } from '@/utils/constants';
-import { getCurrencyPrefix } from '@/utils/formatters';
 import { getIconComponent } from '@/utils/iconUtils';
 
 interface DebtDetailModalProps {
@@ -40,7 +39,6 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
    const isActive = debt.status === DEBT_STATUSES.ACTIVE;
    const isSettled = debt.status === DEBT_STATUSES.SETTLED;
 
-   const currencyPrefix = getCurrencyPrefix(debt.account?.currency);
    const decimalScale = 2;
 
    const totalAmount = debt.amount || 0;
@@ -87,7 +85,7 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
 
                   <div className="debt-detail-label mt-3">Total Amount:</div>
                   <div className={`debt-detail-value fs-5 ${isLend ? 'text-success' : 'text-danger'}`}>
-                     <NumericFormat value={totalAmount} displayType="text" thousandSeparator prefix={currencyPrefix} decimalScale={decimalScale} />
+                     <NumericFormat value={totalAmount} displayType="text" thousandSeparator prefix="Rp " decimalScale={decimalScale} />
                   </div>
                </Col>
                <Col md={6}>
@@ -99,7 +97,7 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
 
                   <div className="debt-detail-label mt-3">Remaining:</div>
                   <div className="debt-detail-value fs-5">
-                     <NumericFormat value={remainingAmount} displayType="text" thousandSeparator prefix={currencyPrefix} decimalScale={decimalScale} />
+                     <NumericFormat value={remainingAmount} displayType="text" thousandSeparator prefix="Rp " decimalScale={decimalScale} />
                   </div>
                </Col>
                <Col xs={12} className="mt-2">
@@ -110,7 +108,7 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
 
             <div className="mb-4">
                <div className="d-flex justify-content-between small fw-semibold text-muted mb-1">
-                  <span>Repaid: <NumericFormat value={repaidAmount} displayType="text" thousandSeparator prefix={currencyPrefix} decimalScale={decimalScale} /> of <NumericFormat value={totalAmount} displayType="text" thousandSeparator prefix={currencyPrefix} decimalScale={decimalScale} /> ({progressPercent}%)</span>
+                  <span>Repaid: <NumericFormat value={repaidAmount} displayType="text" thousandSeparator prefix="Rp " decimalScale={decimalScale} /> of <NumericFormat value={totalAmount} displayType="text" thousandSeparator prefix="Rp " decimalScale={decimalScale} /> ({progressPercent}%)</span>
                </div>
                <ProgressBar
                   variant={isLend ? "success" : "danger"}
@@ -163,7 +161,7 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
                                  )}
                               </Col>
                               <Col xs={5} className={`text-end fw-bold align-self-center ${displayAmountClass}`}>
-                                 {isIncrease ? '+' : '-'}<NumericFormat value={tx.amount} displayType="text" thousandSeparator prefix={currencyPrefix} decimalScale={decimalScale} />
+                                 {isIncrease ? '+' : '-'}<NumericFormat value={tx.amount} displayType="text" thousandSeparator prefix="Rp " decimalScale={decimalScale} />
                               </Col>
                            </Row>
                         </div>

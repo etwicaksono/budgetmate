@@ -17,11 +17,10 @@ import { BudgetToolbar } from './BudgetToolbar';
 
 interface BudgetTableModeProps {
   data: CombinedBudgetItem[];
-  currency: string;
   onRefresh: () => void;
 }
 
-export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModeProps) {
+export function BudgetTableMode({ data, onRefresh }: BudgetTableModeProps) {
   const gridRef = useRef<DataGridHandle>(null);
   const dirtyRowsRef = useRef<Record<string, Row>>({});
   const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped');
@@ -75,7 +74,7 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
     });
   }, [setCollapsedParents]);
 
-  const allColumns = useBudgetColumns({ currency, dirtyRowIds, toggleCollapse });
+  const allColumns = useBudgetColumns({ dirtyRowIds, toggleCollapse });
 
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
     if (typeof window !== 'undefined') {
@@ -326,10 +325,10 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
       let displayLabel = '';
       let displayValue = '';
       switch (selectedMetric) {
-        case 'sum': displayLabel = 'Sum'; displayValue = new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(selectionStats.sum); break;
-        case 'avg': displayLabel = 'Avg'; displayValue = new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(selectionStats.avg); break;
-        case 'min': displayLabel = 'Min'; displayValue = new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(selectionStats.min); break;
-        case 'max': displayLabel = 'Max'; displayValue = new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(selectionStats.max); break;
+        case 'sum': displayLabel = 'Sum'; displayValue = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectionStats.sum); break;
+        case 'avg': displayLabel = 'Avg'; displayValue = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectionStats.avg); break;
+        case 'min': displayLabel = 'Min'; displayValue = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectionStats.min); break;
+        case 'max': displayLabel = 'Max'; displayValue = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectionStats.max); break;
         case 'count': displayLabel = 'Count'; displayValue = selectionStats.count.toString(); break;
         case 'countNumbers': displayLabel = 'Count Numbers'; displayValue = selectionStats.countNumbers.toString(); break;
       }
@@ -369,10 +368,10 @@ export function BudgetTableMode({ data, currency, onRefresh }: BudgetTableModePr
             </Dropdown.Toggle>
 
             <Dropdown.Menu className="shadow-lg border-0 rounded-3 p-1" style={{ fontSize: '13px', minWidth: '220px' }}>
-              <MenuItem metric="sum" label="Sum" value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(selectionStats.sum)} />
-              <MenuItem metric="avg" label="Avg" value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(selectionStats.avg)} />
-              <MenuItem metric="min" label="Min" value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(selectionStats.min)} />
-              <MenuItem metric="max" label="Max" value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(selectionStats.max)} />
+              <MenuItem metric="sum" label="Sum" value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectionStats.sum)} />
+              <MenuItem metric="avg" label="Avg" value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectionStats.avg)} />
+              <MenuItem metric="min" label="Min" value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectionStats.min)} />
+              <MenuItem metric="max" label="Max" value={new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectionStats.max)} />
               <MenuItem metric="count" label="Count" value={selectionStats.count.toString()} />
               <MenuItem metric="countNumbers" label="Count Numbers" value={selectionStats.countNumbers.toString()} />
             </Dropdown.Menu>

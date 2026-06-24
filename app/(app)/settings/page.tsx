@@ -16,7 +16,7 @@ import {
   FaRobot,
   FaQuestionCircle,
   FaShieldAlt,
-  FaGoogle,
+
   FaDatabase,
 } from 'react-icons/fa';
 import type { IconType } from 'react-icons';
@@ -29,7 +29,7 @@ import {
   BillingSection,
   PrivacySection,
   HelpSection,
-  GoogleSheetsSection,
+
   BackupSection,
 } from './sections';
 import './Settings.css';
@@ -45,7 +45,7 @@ type SettingsSection =
   | 'billing'
   | 'privacy'
   | 'help'
-  | 'google-sheets'
+
   | 'backup';
 
 interface NavigationItem {
@@ -68,7 +68,7 @@ const navigationItems: NavigationSection[] = [
       { id: 'templates', label: 'Templates', icon: FaFileAlt },
       { id: 'labels', label: 'Labels', icon: FaTag },
       { id: 'automatic-rules', label: 'Automatic Rules', icon: FaRobot },
-      { id: 'google-sheets', label: 'Google Sheets Sync', icon: FaGoogle },
+
     ],
   },
   {
@@ -95,7 +95,7 @@ const isValidSection = (value: string | null): value is SettingsSection => {
     'billing',
     'privacy',
     'help',
-    'google-sheets',
+
     'backup',
   ];
   return validSections.includes(value as SettingsSection);
@@ -168,7 +168,7 @@ export default function SettingsPage(): React.ReactElement {
               {activeSection === 'templates' && <TemplatesSection />}
               {activeSection === 'labels' && <LabelsSection />}
               {activeSection === 'automatic-rules' && <AutomaticRulesSection />}
-              {activeSection === 'google-sheets' && <GoogleSheetsSection />}
+
               {activeSection === 'general' && <GeneralSection />}
               {activeSection === 'billing' && <BillingSection />}
               {activeSection === 'privacy' && <PrivacySection />}

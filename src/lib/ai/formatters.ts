@@ -15,7 +15,7 @@ interface CategoryReport {
   subItems?: CategoryReport[];
 }
 
-interface CurrencyReport {
+interface ReportData {
   incomeCategories: CategoryReport[];
   expenseCategories: CategoryReport[];
   totalIncomes: number[];
@@ -24,8 +24,7 @@ interface CurrencyReport {
 
 interface IncomeExpenseReport {
   monthNames: string[];
-  currencies: string[];
-  data: Record<string, CurrencyReport>;
+  data: ReportData;
 }
 
 /**
@@ -39,61 +38,55 @@ export function formatIncomeExpenseReport(
   const lines: string[] = [
     '## Income & Expenses Report',
     `Period: ${report.monthNames.join(' | ')}`,
+    'Currency: IDR',
     `Filters: ${filterLabel}`,
     '',
   ];
 
-  for (const currency of report.currencies) {
-    const data = report.data[currency];
-    if (!data) continue;
+  const data = report.data;
 
-    if (report.currencies.length > 1) {
-      lines.push(`--- Currency: ${currency} ---`);
-    }
-
-    // Income
-    lines.push('INCOME:');
-    for (const cat of data.incomeCategories) {
-      const hasValues = cat.amounts.some((a) => a !== 0);
-      if (!hasValues && !cat.subItems?.length) continue;
-      const amounts = cat.amounts.map((a) => a.toLocaleString('id-ID')).join(' | ');
-      lines.push(`- ${cat.name}: ${amounts}`);
-      if (cat.subItems) {
-        for (const sub of cat.subItems) {
-          const subAmounts = sub.amounts.map((a) => a.toLocaleString('id-ID')).join(' | ');
-          lines.push(`  - ${sub.name}: ${subAmounts}`);
-        }
+  // Income
+  lines.push('INCOME:');
+  for (const cat of data.incomeCategories) {
+    const hasValues = cat.amounts.some((a) => a !== 0);
+    if (!hasValues && !cat.subItems?.length) continue;
+    const amounts = cat.amounts.map((a) => a.toLocaleString('id-ID')).join(' | ');
+    lines.push(`- ${cat.name}: ${amounts}`);
+    if (cat.subItems) {
+      for (const sub of cat.subItems) {
+        const subAmounts = sub.amounts.map((a) => a.toLocaleString('id-ID')).join(' | ');
+        lines.push(`  - ${sub.name}: ${subAmounts}`);
       }
     }
-    const totalIncome = data.totalIncomes.map((a) => a.toLocaleString('id-ID')).join(' | ');
-    lines.push(`Total Income: ${totalIncome}`);
-    lines.push('');
-
-    // Expenses
-    lines.push('EXPENSES:');
-    for (const cat of data.expenseCategories) {
-      const hasValues = cat.amounts.some((a) => a !== 0);
-      if (!hasValues && !cat.subItems?.length) continue;
-      const amounts = cat.amounts.map((a) => a.toLocaleString('id-ID')).join(' | ');
-      lines.push(`- ${cat.name}: ${amounts}`);
-      if (cat.subItems) {
-        for (const sub of cat.subItems) {
-          const subAmounts = sub.amounts.map((a) => a.toLocaleString('id-ID')).join(' | ');
-          lines.push(`  - ${sub.name}: ${subAmounts}`);
-        }
-      }
-    }
-    const totalExpense = data.totalExpenses.map((a) => a.toLocaleString('id-ID')).join(' | ');
-    lines.push(`Total Expenses: ${totalExpense}`);
-    lines.push('');
-
-    // Net
-    const nets = data.totalIncomes.map((inc, i) =>
-      (inc - (data.totalExpenses[i] ?? 0)).toLocaleString('id-ID')
-    );
-    lines.push(`Net: ${nets.map((n) => (Number(n.replace(/\./g, '')) >= 0 ? `+${n}` : n)).join(' | ')}`);
-    lines.push('');
   }
+  const totalIncome = data.totalIncomes.map((a) => a.toLocaleString('id-ID')).join(' | ');
+  lines.push(`Total Income: ${totalIncome}`);
+  lines.push('');
+
+  // Expenses
+  lines.push('EXPENSES:');
+  for (const cat of data.expenseCategories) {
+    const hasValues = cat.amounts.some((a) => a !== 0);
+    if (!hasValues && !cat.subItems?.length) continue;
+    const amounts = cat.amounts.map((a) => a.toLocaleString('id-ID')).join(' | ');
+    lines.push(`- ${cat.name}: ${amounts}`);
+    if (cat.subItems) {
+      for (const sub of cat.subItems) {
+        const subAmounts = sub.amounts.map((a) => a.toLocaleString('id-ID')).join(' | ');
+        lines.push(`  - ${sub.name}: ${subAmounts}`);
+      }
+    }
+  }
+  const totalExpense = data.totalExpenses.map((a) => a.toLocaleString('id-ID')).join(' | ');
+  lines.push(`Total Expenses: ${totalExpense}`);
+  lines.push('');
+
+  // Net
+  const nets = data.totalIncomes.map((inc, i) =>
+    (inc - (data.totalExpenses[i] ?? 0)).toLocaleString('id-ID')
+  );
+  lines.push(`Net: ${nets.map((n) => (Number(n.replace(/\./g, '')) >= 0 ? `+${n}` : n)).join(' | ')}`);
+  lines.push('');
 
   return lines.join('\n').trim();
 }

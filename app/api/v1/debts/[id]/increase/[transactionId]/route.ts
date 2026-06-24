@@ -91,7 +91,6 @@ export async function PUT(
          data: {
             account_id: data.account_id,
             amount: new Prisma.Decimal(dbAmount),
-            currency: account.currency,
             date: new Date(data.date),
             description: data.description ?? existingTx.description,
             updated_by: user.user_id,

@@ -81,11 +81,6 @@ export function TransactionModal({
         return date.toISOString();
       };
 
-      // Get currency from selected account(s)
-      const fromAccount = accounts.find(a => a.id === formData.account_id);
-      const toAccount = accounts.find(a => a.id === formData.to_account_id);
-      const accountCurrency = fromAccount?.currency || 'USD';
-
       // Build transaction data based on mode (create vs update)
       const transactionData: Partial<Transaction> = isEditMode
         ? {
@@ -100,17 +95,8 @@ export function TransactionModal({
           ...(formData.payment_method !== undefined && { payment_method: formData.payment_method }),
           ...(formData.payment_status !== undefined && { payment_status: formData.payment_status }),
           label_ids: formData.label_ids,
-          // Include currency if account changed (so API can update it)
-          ...(formData.account_id && { currency: accountCurrency }),
-          // ✅ Include transfer-specific fields for updates
           ...(formData.type === 'transfer' && formData.to_account_id && {
             to_account_id: formData.to_account_id,
-          }),
-          ...(formData.type === 'transfer' && formData.to_amount && {
-            to_amount: parseFloat(formData.to_amount)
-          }),
-          ...(formData.type === 'transfer' && toAccount?.currency && {
-            to_currency: toAccount.currency
           }),
         }
         : {
@@ -119,20 +105,14 @@ export function TransactionModal({
           date: formatDateForAPI(formData.date),
           account_id: formData.account_id,
           ...(formData.type !== 'transfer' && formData.category_id && { category_id: formData.category_id }),
-          currency: accountCurrency, // ✅ Use account currency instead of hardcoded 'USD'
           label_ids: formData.label_ids,
           ...(isDraftOverride !== undefined ? { is_draft: isDraftOverride } : { is_draft: formData.is_draft }),
           ...(formData.description && { description: formData.description }),
           ...(formData.payee && { payee: formData.payee }),
           ...(formData.payment_method && { payment_method: formData.payment_method }),
           ...(formData.payment_status && { payment_status: formData.payment_status }),
-          // Transfer-specific fields with currency handling
           ...(formData.type === 'transfer' && formData.to_account_id && {
             to_account_id: formData.to_account_id,
-            ...(toAccount?.currency && { to_currency: toAccount.currency }), // ✅ Only send if we have destination currency
-          }),
-          ...(formData.type === 'transfer' && formData.to_amount && {
-            to_amount: parseFloat(formData.to_amount)
           }),
         };
 
@@ -154,7 +134,7 @@ export function TransactionModal({
         setIsSubmitting(false);
       }
     },
-    [formData, validateForm, onSave, onHide, resetForm, isEditMode, accounts]
+    [formData, validateForm, onSave, onHide, resetForm, isEditMode]
   );
 
 

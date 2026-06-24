@@ -136,12 +136,6 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
           }
         }
 
-        if (filters.currencies) {
-          const currenciesArray = typeof filters.currencies === 'string' ? filters.currencies.split(',').filter((c: string) => c) : [];
-          if (currenciesArray.length > 0) {
-            whereClause.currency = { in: currenciesArray };
-          }
-        }
       }
 
       // Execute bulk delete based on filter conditions

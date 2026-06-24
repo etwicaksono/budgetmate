@@ -8,8 +8,8 @@ import { currencyFormatService } from '@/services/currencyFormatService';
 /**
  * Format currency amount with sign based on transaction type
  */
-export function formatAmount(amount: number, type: 'income' | 'expense', currency: string = 'USD'): string {
-  return currencyFormatService.formatWithSign(amount, currency, type);
+export function formatAmount(amount: number, type: 'income' | 'expense', _currencyCode?: string): string {
+  return currencyFormatService.formatWithSign(amount, type);
 }
 
 /**
@@ -34,17 +34,17 @@ export function formatDateForInput(date: Date = new Date()): string {
 
 /**
  * Format currency for display (without sign)
- * Now powered by currencyFormatService with proper symbol and formatting
+ * IDR-only formatting is handled centrally by the currency format service
  */
-export function formatCurrency(amount: number, currency: string = 'USD'): string {
-  return currencyFormatService.formatCurrency(amount, currency);
+export function formatCurrency(amount: number, _currencyCode?: string): string {
+  return currencyFormatService.formatCurrency(amount);
 }
 
 /**
  * Format large numbers with K, M, B suffixes
  */
-export function formatCompactNumber(num: number, currency: string = 'USD'): string {
-  return currencyFormatService.formatCompact(num, currency);
+export function formatCompactNumber(num: number, _currencyCode?: string): string {
+  return currencyFormatService.formatCompact(num);
 }
 
 /**
@@ -65,8 +65,8 @@ export function getRelativeTime(dateString: string | Date): string {
 }
 
 /**
- * Get currency code as a prefix (e.g., "USD ", "IDR ")
+ * Get currency prefix for display (always Rp for IDR)
  */
-export function getCurrencyPrefix(currencyCode?: string): string {
-  return `${currencyCode || 'USD'} `;
+export function getCurrencyPrefix(_currencyCode?: string): string {
+  return `${currencyFormatService.getSymbol()} `;
 }

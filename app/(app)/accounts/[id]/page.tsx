@@ -108,7 +108,6 @@ const BalanceTab = ({ accountId }: { accountId: string }) => {
         data={data.chartData as import('@/components/widgets/BalanceTrendChart').TrendChartData[]} 
         totalBalance={data.totalBalance}
         percentChange={data.percentChange}
-        currencyBalances={data.currencyTotals}
         showSummary={false} 
         height={300} 
       />
@@ -124,9 +123,18 @@ const RecordsTab = ({ accountId }: { accountId: string }) => {
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [summaryTotals, setSummaryTotals] = useState<Record<string, { income: number; expense: number; net: number }>>({});
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
   const [isGlobalSelectAll, setIsGlobalSelectAll] = useState(false);
+  const netTotal = useMemo(() => transactions.reduce((sum, transaction) => sum + transaction.amount, 0), [transactions]);
+  const selectedNetTotal = useMemo(() => {
+    if (selectedTransactionIds.size > 0 && !isGlobalSelectAll) {
+      return transactions
+        .filter(transaction => selectedTransactionIds.has(transaction.id))
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
+    }
+
+    return netTotal;
+  }, [transactions, selectedTransactionIds, isGlobalSelectAll, netTotal]);
 
   const { formatCurrency } = useFormattedCurrency();
   const { parentCategoryColors, categoryTree } = useFilterData();
@@ -150,7 +158,6 @@ const RecordsTab = ({ accountId }: { accountId: string }) => {
 
       if (pageNum === 1) {
         setTransactions(result.transactions);
-        setSummaryTotals(result.meta.totals_by_currency ?? {});
         setTotalRecords(result.meta.total || 0);
       } else {
         setTransactions(prev => [...prev, ...result.transactions]);
@@ -238,7 +245,6 @@ const RecordsTab = ({ accountId }: { accountId: string }) => {
         description: transaction.description || 'No description',
         payer: transaction.payee,
         amount: transaction.amount,
-        currency: transaction.currency,
         type: isTransfer ? 'TRANSFER' : (transaction.type === 'debt_in' ? 'DEBT_IN' : transaction.type === 'debt_out' ? 'DEBT_OUT' : transaction.type === 'income' ? 'INCOME' : 'EXPENSE'),
         debt_id: transaction.debt_id,
         labels: transaction.labels || [],
@@ -272,26 +278,9 @@ const RecordsTab = ({ accountId }: { accountId: string }) => {
     transactions,
   });
 
-  const netTotalsByCurrency = useMemo(() => {
-    const hasSelection = selectedTransactionIds.size > 0;
-    if (!hasSelection || isGlobalSelectAll) return summaryTotals;
-    const totals: Record<string, { income: number; expense: number; net: number }> = {};
-    transactions.filter(t => selectedTransactionIds.has(t.id)).forEach((t) => {
-      const currency = t.currency || 'USD';
-      if (!totals[currency]) totals[currency] = { income: 0, expense: 0, net: 0 };
-      if (t.type === 'income' || t.type === 'debt_in') totals[currency]!.income += t.amount;
-      else if (t.type === 'expense' || t.type === 'debt_out') totals[currency]!.expense += t.amount;
-      totals[currency]!.net = totals[currency]!.income + totals[currency]!.expense;
-    });
-    return totals;
-  }, [transactions, selectedTransactionIds, summaryTotals, isGlobalSelectAll]);
-
-  const formatNetTotals = useCallback((totalsByCurrency: Record<string, { income: number; expense: number; net: number }>) => {
-    return Object.entries(totalsByCurrency).map(([currency, t]) => {
-      const net = t.net;
-      const formatted = formatCurrency(Math.abs(net), currency);
-      return `${net > 0 ? '+' : net < 0 ? '-' : ''}${formatted}`;
-    }).join(' | ');
+  const formatNetTotal = useCallback((net: number) => {
+    const formatted = formatCurrency(Math.abs(net));
+    return `${net > 0 ? '+' : net < 0 ? '-' : ''}${formatted}`;
   }, [formatCurrency]);
 
   return (
@@ -316,7 +305,7 @@ const RecordsTab = ({ accountId }: { accountId: string }) => {
                   onBulkEdit={() => {}} 
                   onBulkExport={() => {}} 
                   onBulkDelete={() => {}} 
-                  summaryText={formatNetTotals(netTotalsByCurrency)}
+                  summaryText={formatNetTotal(selectedNetTotal)}
                   showBulkActions
                   isGlobalSelectAll={isGlobalSelectAll}
                   onSelectGlobal={setIsGlobalSelectAll}

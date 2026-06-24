@@ -1,5 +1,4 @@
 import { api } from './api';
-import { USE_MOCK_DATA, mockDataService } from '@/mocks/mockData';
 
 export interface AnalyticsSummary {
   total_income: number;
@@ -44,12 +43,11 @@ export interface ExpenseByCategory {
   amount: number;
   percentage: number;
   color: string;
-  currency: string;
 }
 
 export interface ExpensesByCategoryResponse {
   expenses: ExpenseByCategory[];
-  currencies: string[];
+  currencies?: string[];
 }
 
 export interface IncomeExpenseData {
@@ -59,8 +57,7 @@ export interface IncomeExpenseData {
 }
 
 export interface IncomeVsExpensesResponse {
-  data: IncomeExpenseData[] | Record<string, IncomeExpenseData[]>;
-  currencies: string[];
+  data: IncomeExpenseData[];
 }
 
 export interface CategoryReport {
@@ -73,17 +70,12 @@ export interface CategoryReport {
   subItems?: CategoryReport[];
 }
 
-export interface CurrencyReport {
+export interface IncomeExpenseReport {
+  monthNames: string[];
   incomeCategories: CategoryReport[];
   expenseCategories: CategoryReport[];
   totalIncomes: number[];
   totalExpenses: number[];
-}
-
-export interface IncomeExpenseReport {
-  monthNames: string[];
-  currencies: string[];
-  data: Record<string, CurrencyReport>;
 }
 
 export interface BalanceDataPoint {
@@ -97,14 +89,7 @@ export interface AccountBalance {
   account_type: string;
   icon: string;
   color: string;
-  currency: string;
   balance: number;
-}
-
-export interface CurrencyTotal {
-  currency: string;
-  balance: number;
-  percentChange: number;
 }
 
 export interface BalanceTrendResponse {
@@ -112,10 +97,7 @@ export interface BalanceTrendResponse {
   totalBalance: number;
   percentChange: number;
   chartData: BalanceDataPoint[];
-  chartDataByCurrency: Record<string, BalanceDataPoint[]>;
   accounts: AccountBalance[];
-  currencyTotals: CurrencyTotal[];
-  currencies: string[];
 }
 
 export interface DailyCashFlow {
@@ -143,15 +125,6 @@ export interface ComparisonData {
   yearAgoPeriod: ComparisonDataPoint[];
 }
 
-export interface CurrencyCashFlowData {
-  summary: CashFlowSummary;
-  dailyData: DailyCashFlow[];
-  comparisonData: {
-    cashFlow: ComparisonData;
-    income: ComparisonData;
-    expense: ComparisonData;
-  };
-}
 export interface CashFlowResponse {
   periodLabel: string;
   summary: CashFlowSummary;
@@ -161,15 +134,13 @@ export interface CashFlowResponse {
     income: ComparisonData;
     expense: ComparisonData;
   };
-  dataByCurrency: Record<string, CurrencyCashFlowData>;
-  currencies: string[];
 }
 
 // Advanced Charts types
 export type AdvancedChartDataType = 'balance' | 'cashflow' | 'cumulative_cashflow';
 export type AdvancedChartGraphType = 'line' | 'bar' | 'area';
 export type AdvancedChartGranularity = 'day' | 'week' | 'month';
-export type AdvancedChartGroupBy = 'none' | 'accounts' | 'categories' | 'currencies';
+export type AdvancedChartGroupBy = 'none' | 'accounts' | 'categories';
 
 export interface AdvancedChartDataPoint {
   date: string;
@@ -190,11 +161,6 @@ export interface AdvancedChartsResponse {
   groupBy: AdvancedChartGroupBy;
   chartData: AdvancedChartDataPoint[];
   groupedData: GroupedChartData[];
-  currencies: string[];
-  dataByCurrency: Record<string, {
-    chartData: AdvancedChartDataPoint[];
-    groupedData: GroupedChartData[];
-  }>;
 }
 
 class AnalyticsService {
@@ -203,9 +169,6 @@ class AnalyticsService {
     start_date?: string;
     end_date?: string;
   }): Promise<AnalyticsSummary> {
-    if (USE_MOCK_DATA) {
-      throw new Error('Not implemented in mock data');
-    }
     const response = await api.get<{ success: boolean; data: AnalyticsSummary }>(
       '/analytics/summary',
       { params }
@@ -220,9 +183,6 @@ class AnalyticsService {
     start_date?: string;
     end_date?: string;
   }): Promise<TrendData> {
-    if (USE_MOCK_DATA) {
-      return mockDataService.fetchTrends();
-    }
     const response = await api.get<{ success: boolean; data: TrendData }>(
       '/analytics/trends',
       { params }
@@ -235,9 +195,6 @@ class AnalyticsService {
     end_date?: string;
     account_id?: string;
   }): Promise<CashFlow[]> {
-    if (USE_MOCK_DATA) {
-      return mockDataService.fetchCashFlow();
-    }
     const response = await api.get<{ success: boolean; data: CashFlow[] }>(
       '/analytics/cashflow',
       { params }
@@ -249,13 +206,7 @@ class AnalyticsService {
     start_date?: string;
     end_date?: string;
     limit?: number;
-    currency?: string;
   }): Promise<ExpensesByCategoryResponse> {
-    if (USE_MOCK_DATA) {
-      const expenses = await mockDataService.fetchExpensesByCategory();
-      const currencies = [...new Set(expenses.map(e => e.currency || 'USD'))];
-      return { expenses, currencies };
-    }
     const response = await api.get<{ success: boolean; data: ExpensesByCategoryResponse }>(
       '/analytics/expenses-by-category',
       { params }
@@ -297,7 +248,6 @@ class AnalyticsService {
   async fetchIncomeVsExpenses(params?: {
     start_date?: string;
     end_date?: string;
-    currency?: string;
   }): Promise<IncomeVsExpensesResponse> {
     const response = await api.get<{ success: boolean; data: IncomeVsExpensesResponse }>(
       '/analytics/income-vs-expenses',
@@ -313,18 +263,17 @@ class AnalyticsService {
     periods?: number;
     category_ids?: string[];
     account_ids?: string[];
-    currencies?: string[];
     search?: string;
     min_amount?: number;
     max_amount?: number;
     transfer_option?: string;
     debt_option?: string;
+    draft_option?: string;
     label_ids?: string[];
   }): Promise<IncomeExpenseReport> {
     const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
-    if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
     if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: IncomeExpenseReport }>(
@@ -340,7 +289,6 @@ class AnalyticsService {
     period_type?: 'month' | 'week' | 'year' | 'custom';
     category_ids?: string[];
     account_ids?: string[];
-    currencies?: string[];
     search?: string;
     min_amount?: number;
     max_amount?: number;
@@ -351,7 +299,6 @@ class AnalyticsService {
     const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
-    if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
     if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: BalanceTrendResponse }>(
@@ -369,7 +316,6 @@ class AnalyticsService {
     max_amount?: number;
     category_ids?: string[];
     account_ids?: string[];
-    currencies?: string[];
     transfer_option?: string;
     debt_option?: string;
     label_ids?: string[];
@@ -377,7 +323,6 @@ class AnalyticsService {
     const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
-    if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
     if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: CashFlowResponse }>(
@@ -398,7 +343,6 @@ class AnalyticsService {
     max_amount?: number;
     category_ids?: string[];
     account_ids?: string[];
-    currencies?: string[];
     transfer_option?: string;
     debt_option?: string;
     label_ids?: string[];
@@ -406,7 +350,6 @@ class AnalyticsService {
     const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
-    if (params?.currencies?.length) queryParams['currencies'] = params.currencies.join(',');
     if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: AdvancedChartsResponse }>(

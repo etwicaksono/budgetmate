@@ -8,7 +8,6 @@ interface AccountCardProps {
   name: string;
   balance: number;
   color: string;
-  currency?: string;
   icon?: React.ComponentType<{ size?: number }>;
   onClick?: () => void;
 }
@@ -17,8 +16,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   name,
   balance,
   color,
-  currency = 'USD',
-  onClick
+  onClick,
 }) => {
   const { formatCurrency } = useFormattedCurrency();
 
@@ -36,7 +34,7 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         <div className="account-card__details">
           <div className="account-card__name">{name}</div>
           <div className="account-card__balance">
-            {formatCurrency(balance, currency)}
+            {formatCurrency(balance)}
           </div>
         </div>
       </Card.Body>

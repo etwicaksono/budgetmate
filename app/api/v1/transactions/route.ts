@@ -171,17 +171,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Currency filter (max 20 currency codes)
-    if (filters.currencies) {
-      const currencies = filters.currencies.split(',').filter(Boolean).slice(0, 20);
-      if (currencies.length > 0) {
-        where.currency = { in: currencies };
-      }
-    }
 
-    // Execute all queries in parallel — single groupBy on [currency, type] covers all aggregation needs.
-    // Previously there were two separate groupBy calls (by currency, then by currency+type);
-    // the first was redundant and wasted a full DB round-trip.
+    // Execute all queries in parallel — single groupBy on type covers aggregation needs.
     const [transactions, total, typeGrouped] = await Promise.all([
       prisma.transaction.findMany({
         where,
@@ -200,8 +191,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               id: true,
               name: true,
               icon: true,
-              color: true,
-              currency: true
+              color: true
             }
           },
           labels: {
@@ -221,10 +211,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               from_account: true,
               to_account: true,
               amount: true,
-              to_amount: true,
-              description: true,
-              currency: true,
-              to_currency: true
+              description: true
             }
           }
         },
@@ -234,33 +221,29 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
       prisma.transaction.count({ where }),
       prisma.transaction.groupBy({
-        by: ['currency', 'type'],
+        by: ['type'],
         where,
         _sum: { amount: true }
       })
     ]);
 
-    // Aggregate income/expense per currency.
+    // Aggregate income/expense in IDR.
     // Transfers and debts are excluded from net intentionally — they net to zero across accounts.
-    const totals_by_currency: Record<string, { income: number; expense: number; net: number }> = {};
+    const totals: Record<string, { income: number; expense: number; net: number }> = {
+      IDR: { income: 0, expense: 0, net: 0 }
+    };
+    const idrTotals = totals['IDR']!;
     for (const row of typeGrouped) {
-      const currency = row.currency;
       const amount = row._sum.amount?.toNumber() ?? 0;
-      if (!totals_by_currency[currency]) {
-        totals_by_currency[currency] = { income: 0, expense: 0, net: 0 };
-      }
       if (row.type === 'income') {
-        totals_by_currency[currency]!.income += amount;
+        idrTotals.income += amount;
       } else if (row.type === 'expense') {
-        totals_by_currency[currency]!.expense += amount; // already negative
+        idrTotals.expense += amount; // already negative
       }
     }
 
     // Compute net = income + expense (expense is already negative)
-    for (const currency of Object.keys(totals_by_currency)) {
-      const t = totals_by_currency[currency]!;
-      t.net = t.income + t.expense;
-    }
+    idrTotals.net = idrTotals.income + idrTotals.expense;
 
 
     // Transform response
@@ -275,11 +258,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         amount: tx.amount.toNumber(),
         type: tx.type,
         description: tx.description,
-        currency: tx.currency,
         payee: tx.payee,
         payment_method: tx.payment_method,
         payment_status: tx.payment_status,
-        reference_number: tx.reference_number,
         labels: tx.labels.map(l => l.label),
         debt_id: tx.debt_id,
         is_draft: tx.is_draft,
@@ -287,24 +268,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         updated_at: tx.updated_at
       };
 
-      // Add transfer-specific fields if this is a transfer transaction
       if (tx.transfer) {
-        // For transfer_in: transaction shows DESTINATION, so to_amount should show SOURCE
-        // For transfer_out: transaction shows SOURCE, so to_amount should show DESTINATION
-        const isTransferIn = tx.type === 'transfer_in';
-        const sourceAmount = tx.transfer.amount.toNumber();
-        const destAmount = tx.transfer.to_amount?.toNumber() ?? tx.transfer.amount.toNumber();
-
         return {
           ...baseTransaction,
           transfer_id: tx.transfer.id,
           to_account_id: tx.transfer.to_account,
-          // If transfer_in, to_amount should be source amount; if transfer_out, destination amount
-          to_amount: isTransferIn ? sourceAmount : destAmount,
           from_account_id: tx.transfer.from_account,
-          transfer_description: tx.transfer.description,
-          transfer_currency: tx.transfer.currency,
-          to_currency: tx.transfer.to_currency ?? tx.transfer.currency
+          transfer_description: tx.transfer.description
         };
       }
 
@@ -315,7 +285,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       transformedTransactions,
       {
         ...paginationMeta(total, filters.page, filters.limit),
-        totals_by_currency,
+        totals,
       }
     );
 
@@ -403,11 +373,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           amount: finalAmount,
           type: data.type,
           description: data.description ?? null,
-          currency: account.currency,
           payee: data.payee ?? null,
           payment_method: data.payment_method ?? null,
           payment_status: data.payment_status ?? null,
-          reference_number: data.reference_number ?? null,
           is_draft: data.is_draft ?? false,
           created_by: user.user_id
         },
@@ -462,11 +430,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       amount: transaction.amount.toNumber(),
       type: transaction.type,
       description: transaction.description,
-      currency: transaction.currency,
       payee: transaction.payee,
       payment_method: transaction.payment_method,
       payment_status: transaction.payment_status,
-      reference_number: transaction.reference_number,
       is_draft: transaction.is_draft,
       created_at: transaction.created_at
     };

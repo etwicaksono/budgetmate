@@ -331,10 +331,6 @@ export function BudgetAccountFilter({
                           {account.name}
                         </span>
 
-                        <span style={{ fontSize: '10px', color: 'var(--bs-secondary)', opacity: 0.7 }}>
-                          {account.currency}
-                        </span>
-
                         {/* Checkbox */}
                         <div
                           style={{

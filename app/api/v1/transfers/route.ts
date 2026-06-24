@@ -5,10 +5,6 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, paginationMeta } from '@/lib/api/response';
 import { CreateTransferSchema } from '@/lib/validation/transfer';
-import {
-  getTransferDestination,
-  shouldUseNullForDestination
-} from '@/utils/transferUtils';
 
 // GET - Fetch all transfers
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -66,18 +62,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       prisma.transfer.count({ where })
     ]);
 
-    // Transform response using helper functions
+    // Transform response
     const transformedTransfers = await Promise.all(transfers.map(async transfer => {
-      const destination = getTransferDestination({
-        id: transfer.id,
-        amount: transfer.amount.toNumber(),
-        to_amount: transfer.to_amount?.toNumber() ?? null,
-        currency: transfer.currency,
-        to_currency: transfer.to_currency ?? null
-      });
-
-      const from_account_rel = await prisma.account.findUnique({ where: { id: transfer.from_account }, select: { id: true, name: true, icon: true, color: true, currency: true } });
-      const to_account_rel = await prisma.account.findUnique({ where: { id: transfer.to_account }, select: { id: true, name: true, icon: true, color: true, currency: true } });
+      const from_account_rel = await prisma.account.findUnique({ where: { id: transfer.from_account }, select: { id: true, name: true, icon: true, color: true } });
+      const to_account_rel = await prisma.account.findUnique({ where: { id: transfer.to_account }, select: { id: true, name: true, icon: true, color: true } });
       const transactions_rel = await prisma.transaction.findMany({ where: { transfer_id: transfer.id }, select: { id: true, type: true, account_id: true } });
 
       return {
@@ -88,10 +76,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         to_account_id: transfer.to_account,
         to_account: to_account_rel,
         amount: transfer.amount.toNumber(),
-        to_amount: destination.amount,
         description: transfer.description,
-        currency: transfer.currency,
-        to_currency: destination.currency,
         transactions: transactions_rel,
         created_at: transfer.created_at,
         updated_at: transfer.updated_at
@@ -161,19 +146,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return errorResponse('INVALID_TO_ACCOUNT', 'Destination account not found or inactive', 404);
     }
 
-    // Use to_amount if provided (for currency conversion), otherwise use amount
-    const destinationAmount = data.to_amount ?? data.amount;
-    const destinationCurrency = data.to_currency ?? fromAccount.currency;
-
-    // Optimization: Store NULL for to_amount and to_currency if same as source
-    // This reduces storage and clearly indicates same-currency transfers
-    const useNullForDestination = shouldUseNullForDestination(
-      fromAccount.currency,
-      destinationCurrency,
-      data.to_amount,
-      data.amount
-    );
-
+    // Create transfer amounts directly using the source amount.
     // Create transfer and linked transactions in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create transfer record with smart defaults
@@ -184,12 +157,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           from_account: data.from_account_id,
           to_account: data.to_account_id,
           amount: data.amount,
-          // Store NULL if same currency and same amount (optimization)
-          to_amount: useNullForDestination ? null : destinationAmount,
           description: data.description ?? null,
-          currency: fromAccount.currency, // Always use actual account currency
-          // Store NULL if same as source currency (optimization)
-          to_currency: useNullForDestination ? null : destinationCurrency,
           created_by: user.user_id
         }
       });
@@ -201,7 +169,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           account_id: data.from_account_id,
           type: 'transfer_out',
           amount: -Math.abs(data.amount), // Negative for expense
-          currency: fromAccount.currency,
           date: new Date(data.date),
           description: data.description ?? `Transfer from ${fromAccount.name} to ${toAccount.name}`,
           transfer_id: transfer.id,
@@ -215,8 +182,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           user_id: user.user_id,
           account_id: data.to_account_id,
           type: 'transfer_in',
-          amount: Math.abs(destinationAmount), // Positive for income
-          currency: toAccount.currency,
+          amount: Math.abs(data.amount), // Positive for income
           date: new Date(data.date),
           description: data.description ?? `Transfer from ${fromAccount.name} to ${toAccount.name}`,
           transfer_id: transfer.id,
@@ -244,17 +210,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       throw new Error('Failed to fetch created transfer');
     }
 
-    // Use helper to compute destination values
-    const destination = getTransferDestination({
-      id: createdTransfer.id,
-      amount: createdTransfer.amount.toNumber(),
-      to_amount: createdTransfer.to_amount?.toNumber() ?? null,
-      currency: createdTransfer.currency,
-      to_currency: createdTransfer.to_currency ?? null
-    });
-
-    const from_account_rel = await prisma.account.findUnique({ where: { id: createdTransfer.from_account }, select: { name: true, icon: true, color: true, currency: true } });
-    const to_account_rel = await prisma.account.findUnique({ where: { id: createdTransfer.to_account }, select: { name: true, icon: true, color: true, currency: true } });
+    const from_account_rel = await prisma.account.findUnique({ where: { id: createdTransfer.from_account }, select: { name: true, icon: true, color: true } });
+    const to_account_rel = await prisma.account.findUnique({ where: { id: createdTransfer.to_account }, select: { name: true, icon: true, color: true } });
     const transactions_rel = await prisma.transaction.findMany({ where: { transfer_id: createdTransfer.id }, select: { id: true, type: true, amount: true, account_id: true } });
 
     const response = {
@@ -265,10 +222,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       to_account_id: createdTransfer.to_account,
       to_account: to_account_rel,
       amount: createdTransfer.amount.toNumber(),
-      to_amount: destination.amount,
       description: createdTransfer.description,
-      currency: createdTransfer.currency,
-      to_currency: destination.currency,
       transactions: transactions_rel.map((t) => ({
         ...t,
         amount: Number(t.amount)

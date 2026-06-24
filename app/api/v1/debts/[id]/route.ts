@@ -26,12 +26,12 @@ export async function GET(
          },
          include: {
             account_rel: {
-               select: { name: true, icon: true, color: true, currency: true },
+               select: { name: true, icon: true, color: true },
             },
             transactions: {
                orderBy: { created_at: 'asc' },
                include: {
-                  account: { select: { name: true, icon: true, color: true, currency: true } }
+                  account: { select: { name: true, icon: true, color: true } }
                }
             },
          },

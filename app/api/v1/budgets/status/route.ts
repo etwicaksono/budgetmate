@@ -138,7 +138,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         total_budget: totalBudget,
         percentage: Math.round(percentage * 10) / 10,
         status,
-        currency: 'IDR',
       };
     });
 

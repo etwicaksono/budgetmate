@@ -1,6 +1,6 @@
 import React from 'react';
-import { Form, InputGroup, Dropdown, Button } from 'react-bootstrap';
-import { FaSearch, FaTags, FaWallet, FaCheck, FaExchangeAlt, FaHandHoldingUsd, FaMoneyBillWave, FaFileAlt } from 'react-icons/fa';
+import { Form, InputGroup, Dropdown } from 'react-bootstrap';
+import { FaSearch, FaTags, FaWallet, FaCheck, FaExchangeAlt, FaHandHoldingUsd, FaFileAlt } from 'react-icons/fa';
 import AmountRangeFilter from '../AmountRangeFilter';
 import { CategoryDropdown } from './CategoryDropdown';
 import { AccountDropdown } from './AccountDropdown';
@@ -39,9 +39,6 @@ type FilterInputsProps = Pick<
   | 'selectedLabelIds'
   | 'onSelectedLabelIdsChange'
   | 'labels'
-  | 'selectedCurrencies'
-  | 'onSelectedCurrenciesChange'
-  | 'availableCurrencies'
   | 'minAmount'
   | 'maxAmount'
   | 'onMinAmountChange'
@@ -57,7 +54,6 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
     categories: true,
     labels: true,
     amountRange: true,
-    currencies: true,
     transfers: true,
     debts: true,
   },
@@ -86,9 +82,6 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
   selectedLabelIds = [],
   onSelectedLabelIdsChange = () => {},
   labels = [],
-  selectedCurrencies = [],
-  onSelectedCurrenciesChange = () => {},
-  availableCurrencies = [],
   minAmount = 0,
   maxAmount = 20000000,
   onMinAmountChange = () => {},
@@ -195,81 +188,6 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
         </Form.Group>
       )}
 
-      {filterVisibility.currencies && availableCurrencies.length > 0 && (
-        <Form.Group className="mb-4" controlId="currencyFilter">
-          <Form.Label className="fw-semibold text-muted small">Currencies</Form.Label>
-          <Dropdown>
-            <Dropdown.Toggle
-              variant="outline-secondary"
-              className="w-100 d-flex align-items-center justify-content-between"
-              style={{ textAlign: 'left' }}
-            >
-              <span className="d-flex align-items-center gap-2">
-                {renderIcon(FaMoneyBillWave, { size: 14 })}
-                <span className="d-inline-flex align-items-center gap-1">
-                  {selectedCurrencies.length === 0
-                    ? 'All currencies'
-                    : selectedCurrencies.length === 1
-                      ? selectedCurrencies[0]
-                      : `${selectedCurrencies.length} currencies`}
-                  {selectedCurrencies.length > 0 && (
-                    <ClearButton
-                      size={12}
-                      ariaLabel="Clear currencies"
-                      onClick={() => onSelectedCurrenciesChange([])}
-                    />
-                  )}
-                </span>
-              </span>
-            </Dropdown.Toggle>
-            <Dropdown.Menu className="w-100 p-2">
-              {availableCurrencies.map((currency) => {
-                const isChecked = selectedCurrencies.includes(currency);
-                const toggle = () => {
-                  if (isChecked) {
-                    onSelectedCurrenciesChange(selectedCurrencies.filter((c) => c !== currency));
-                  } else {
-                    onSelectedCurrenciesChange([...selectedCurrencies, currency]);
-                  }
-                };
-                return (
-                  <div
-                    key={currency}
-                    className="d-flex align-items-center gap-2 px-2 py-1 rounded mb-1"
-                    style={{ cursor: 'pointer', userSelect: 'none' }}
-                    onClick={toggle}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      readOnly
-                      className="form-check-input m-0 flex-shrink-0"
-                      style={{ pointerEvents: 'none' }}
-                    />
-                    <span className="form-check-label mb-0">
-                      {currency}
-                    </span>
-                  </div>
-                );
-              })}
-              {selectedCurrencies.length > 0 && (
-                <>
-                  <Dropdown.Divider />
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="p-0 text-secondary text-decoration-none ms-4"
-                    onClick={() => onSelectedCurrenciesChange([])}
-                  >
-                    Clear selection
-                  </Button>
-                </>
-              )}
-            </Dropdown.Menu>
-          </Dropdown>
-        </Form.Group>
-      )}
-
       {filterVisibility.amountRange && (
         <Form.Group className="mb-4" controlId="amountFilter">
           <AmountRangeFilter
@@ -277,7 +195,6 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
             maxAmount={maxAmount}
             onMinAmountChange={onMinAmountChange}
             onMaxAmountChange={onMaxAmountChange}
-            currency="IDR"
             minLimit={0}
             maxLimit={20000000}
             step={100000}

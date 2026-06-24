@@ -127,7 +127,7 @@ const SortableAccountCard: React.FC<SortableAccountCardProps> = ({
           <div
             className={`accounts-list__balance ${account.current_balance < 0 ? 'accounts-list__balance--negative' : ''}`}
           >
-            {formatCurrency(account.current_balance, account.currency)}
+            {formatCurrency(account.current_balance)}
           </div>
         </div>
         {!isArchived && (
@@ -180,11 +180,11 @@ const AccountsPage: React.FC = () => {
   const router = useRouter();
 
   // Net Worth data for sidebar
-  const { data: netWorthData, isLoading: netWorthLoading } = useNetWorth(includeDraft);
+  const { data: netWorthData, accountBalance: netWorthAccountBalance, totalCredit: netWorthTotalCredit, totalDebt: netWorthTotalDebt, isLoading: netWorthLoading } = useNetWorth(includeDraft);
 
   const formatCurrencyValue = useCallback(
-    (value: number, currency: string = 'IDR'): string => {
-      const formatted = formatCurrency(Math.abs(value), currency);
+    (value: number): string => {
+      const formatted = formatCurrency(Math.abs(value));
       return `${value < 0 ? '-' : ''}${formatted}`;
     },
     [formatCurrency]
@@ -283,22 +283,12 @@ const AccountsPage: React.FC = () => {
     const archivedAccounts = accounts.filter((account) => !account.is_active);
     const visibleAccounts = showArchived ? accounts : activeAccounts;
 
-    // Group balances by currency
-    const balancesByCurrency: Record<string, number> = {};
-    visibleAccounts
+    const totalBalance = visibleAccounts
       .filter((a) => a.is_included_in_total)
-      .forEach((account) => {
-        const currency = account.currency || 'USD';
-        balancesByCurrency[currency] = (balancesByCurrency[currency] || 0) + account.current_balance;
-      });
-
-    // Convert to sorted array (by currency name)
-    const currencyBalances = Object.entries(balancesByCurrency)
-      .map(([currency, balance]) => ({ currency, balance }))
-      .sort((a, b) => a.currency.localeCompare(b.currency));
+      .reduce((sum, account) => sum + account.current_balance, 0);
 
     return {
-      currencyBalances,
+      totalBalance,
       activeCount: activeAccounts.length,
       archivedCount: archivedAccounts.length,
     };
@@ -395,6 +385,9 @@ const AccountsPage: React.FC = () => {
                       </div>
                       <NetWorthWidget
                         data={netWorthData}
+                        accountBalance={netWorthAccountBalance}
+                        totalCredit={netWorthTotalCredit}
+                        totalDebt={netWorthTotalDebt}
                         isLoading={netWorthLoading}
                         formatCurrencyValue={formatCurrencyValue}
                         compact={true}

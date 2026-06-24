@@ -5,7 +5,7 @@ import { isValidLocale } from '@/config/locales';
 
 /**
  * GET /api/v1/user/settings
- * Fetch user settings (timezone, currency, locale, etc.)
+ * Fetch user settings (timezone, locale, etc.)
  */
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       where: { id: user.user_id },
       select: {
         timezone: true,
-        currency: true,
+
         date_format: true,
         number_format: true,
         locale: true,
@@ -73,7 +73,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { timezone, currency, date_format, number_format, locale } = body;
+    const { timezone, date_format, number_format, locale } = body;
 
     // Validate locale if provided
     if (locale && !isValidLocale(locale)) {
@@ -92,14 +92,14 @@ export async function PUT(request: NextRequest) {
     // Build update data (only include provided fields)
     const updateData: {
       timezone?: string;
-      currency?: string;
+
       date_format?: string;
       number_format?: string;
       locale?: string;
     } = {};
 
     if (timezone !== undefined) updateData.timezone = timezone;
-    if (currency !== undefined) updateData.currency = currency;
+
     if (date_format !== undefined) updateData.date_format = date_format;
     if (number_format !== undefined) updateData.number_format = number_format;
     if (locale !== undefined) updateData.locale = locale;
@@ -109,7 +109,7 @@ export async function PUT(request: NextRequest) {
       data: updateData,
       select: {
         timezone: true,
-        currency: true,
+
         date_format: true,
         number_format: true,
         locale: true,

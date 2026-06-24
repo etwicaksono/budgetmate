@@ -65,8 +65,6 @@ function AnalyticsContent(): React.ReactElement {
     setSelectedCategories,
     selectedAccounts,
     setSelectedAccounts,
-    selectedCurrencies,
-    setSelectedCurrencies,
     sortOption,
     setSortOption,
     transferOption,
@@ -90,8 +88,9 @@ function AnalyticsContent(): React.ReactElement {
   const savedFiltersData = useSavedFilters({
     categories,
     accounts: apiAccounts,
-    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption, transferOption, debtOption, draftOption },
-    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSelectedLabelIds, setSortOption, setTransferOption, setDebtOption, setDraftOption },
+    context: 'analytics',
+    current: { selectedCategories, selectedAccounts, selectedLabelIds, sortOption, transferOption, debtOption, draftOption },
+    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedLabelIds, setSortOption, setTransferOption, setDebtOption, setDraftOption },
   });
   const { savedFilters, activeFilterId } = savedFiltersData;
 
@@ -119,7 +118,7 @@ function AnalyticsContent(): React.ReactElement {
       ...(dateRange.end ? { endDate: new Date(dateRange.end + 'T23:59:59').toISOString() } : {}),
       categoryIds: selectedCategoryIds,
       accountIds: selectedAccountIds,
-      currencies: selectedCurrencies,
+      currencies: ['IDR'],
       periodLabel,
       periodType: activePeriod.type,
       searchTerm,
@@ -134,7 +133,7 @@ function AnalyticsContent(): React.ReactElement {
       numberOfColumns,
     };
   }, [
-    activeTab, dateRange, selectedCategoryIds, selectedAccountIds, selectedCurrencies, 
+    activeTab, dateRange, selectedCategoryIds, selectedAccountIds, 
     periodLabel, activePeriod.type, searchTerm, minAmount, maxAmount, transferOption, 
     debtOption, sortOption, selectedLabelIds, activeFilterId, savedFilters, numberOfColumns
   ]);
@@ -155,9 +154,6 @@ function AnalyticsContent(): React.ReactElement {
     } else {
       setSelectedAccounts([]);
     }
-    // Restore currencies
-    setSelectedCurrencies(snapshot.currencies ?? []);
-    
     // Restore advanced filters
     if (snapshot.searchTerm !== undefined) setSearchTerm(snapshot.searchTerm);
     if (snapshot.minAmount !== undefined) setMinAmount(snapshot.minAmount);
@@ -167,7 +163,7 @@ function AnalyticsContent(): React.ReactElement {
     if (snapshot.sortOption) setSortOption(snapshot.sortOption as SortValue);
     if (snapshot.selectedLabelIds) setSelectedLabelIds(snapshot.selectedLabelIds);
     if (snapshot.numberOfColumns !== undefined) setNumberOfColumns(snapshot.numberOfColumns);
-  }, [categories, apiAccounts, setSelectedCategories, setSelectedAccounts, setSelectedCurrencies, setSearchTerm, setMinAmount, setMaxAmount, setTransferOption, setDebtOption, setSortOption, setSelectedLabelIds, setNumberOfColumns]);
+  }, [categories, apiAccounts, setSelectedCategories, setSelectedAccounts, setSearchTerm, setMinAmount, setMaxAmount, setTransferOption, setDebtOption, setSortOption, setSelectedLabelIds, setNumberOfColumns]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -181,7 +177,6 @@ function AnalyticsContent(): React.ReactElement {
             periodType={activePeriod.type}
             selectedCategories={selectedCategoryIds}
             selectedAccounts={selectedAccountIds}
-            selectedCurrencies={selectedCurrencies}
             numberOfColumns={numberOfColumns}
             onNumberOfColumnsChange={setNumberOfColumns}
             searchTerm={searchTerm}
@@ -190,6 +185,7 @@ function AnalyticsContent(): React.ReactElement {
             {...(maxAmount < 20000000 && { maxAmount })}
             transferOption={transferOption}
             debtOption={debtOption}
+            draftOption={draftOption}
             selectedLabelIds={selectedLabelIds}
             sortOption={sortOption}
             onSortOptionChange={setSortOption}
@@ -206,7 +202,6 @@ function AnalyticsContent(): React.ReactElement {
             periodLabel={periodLabel.toUpperCase()}
             selectedCategories={selectedCategoryIds}
             selectedAccounts={selectedAccountIds}
-            selectedCurrencies={selectedCurrencies}
             {...(searchTerm && { searchTerm })}
             {...(minAmount > 0 && { minAmount })}
             {...(maxAmount < 20000000 && { maxAmount })}
@@ -229,7 +224,6 @@ function AnalyticsContent(): React.ReactElement {
             periodLabel={periodLabel.toUpperCase()}
             selectedCategories={selectedCategoryIds}
             selectedAccounts={selectedAccountIds}
-            selectedCurrencies={selectedCurrencies}
             transferOption={transferOption}
             debtOption={debtOption}
             selectedLabelIds={selectedLabelIds}
@@ -248,7 +242,6 @@ function AnalyticsContent(): React.ReactElement {
             {...(maxAmount < 20000000 && { maxAmount })}
             selectedCategories={selectedCategoryIds}
             selectedAccounts={selectedAccountIds}
-            selectedCurrencies={selectedCurrencies}
             transferOption={transferOption}
             debtOption={debtOption}
             selectedLabelIds={selectedLabelIds}

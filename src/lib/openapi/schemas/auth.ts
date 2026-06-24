@@ -14,7 +14,6 @@ export const UserSchema = registry.register(
     email: z.string().openapi({ example: 'john@example.com' }),
     full_name: z.string().nullable().openapi({ example: 'John Doe' }),
     timezone: z.string().openapi({ example: 'America/New_York' }),
-    currency: z.string().openapi({ example: 'USD' }),
     locale: z.string().openapi({ example: 'en-US' }),
     created_at: z.date().openapi({ example: '2023-12-01T00:00:00Z' })
   })

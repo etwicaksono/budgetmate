@@ -5,8 +5,6 @@ import { Form, Row, Col, Button, Alert, InputGroup, Modal } from 'react-bootstra
 import { FaWallet, FaUniversity, FaPiggyBank, FaCreditCard, FaMoneyBillWave, FaSearch, FaEllipsisH } from 'react-icons/fa';
 import * as FaIcons from 'react-icons/fa';
 import type { IconType } from 'react-icons';
-import { CurrencyPicker } from '@/components/common/CurrencyPicker';
-import { currencyFormatService } from '@/services/currencyFormatService';
 import { AmountInput } from '@/components/transaction/AmountInput';
 
 export interface AccountFormData {
@@ -15,7 +13,6 @@ export interface AccountFormData {
   icon: string;
   color: string;
   initial_balance: string;
-  currency: string;
   is_active: boolean;
   is_included_in_total: boolean;
 }
@@ -102,6 +99,7 @@ export function AccountForm({
   };
 
   const IconPreview = getIconComponent(formData.icon);
+  const initialBalance = Number.parseFloat(formData.initial_balance) || 0;
 
   return (
     <>
@@ -143,18 +141,6 @@ export function AccountForm({
           </Form.Group>
         </Col>
 
-        {/* Currency */}
-        <Col md={6}>
-          <Form.Group className="mb-3">
-            <Form.Label>Currency</Form.Label>
-            <CurrencyPicker
-              value={formData.currency}
-              onChange={(currency) => onChange('currency', currency)}
-              disabled={loading}
-              showPopular={true}
-            />
-          </Form.Group>
-        </Col>
       </Row>
 
       {/* Initial Balance */}
@@ -163,11 +149,9 @@ export function AccountForm({
           <Form.Group className="mb-3">
             <Form.Label>
               Initial Balance
-              {formData.currency && (
-                <span className="text-muted ms-2" style={{ fontWeight: 'normal', fontSize: '0.9em' }}>
-                  ({formData.currency})
-                </span>
-              )}
+              <span className="text-muted ms-2" style={{ fontWeight: 'normal', fontSize: '0.9em' }}>
+                (IDR)
+              </span>
             </Form.Label>
             <AmountInput
               value={formData.initial_balance}
@@ -289,10 +273,7 @@ export function AccountForm({
               {formData.name || 'Account Name'}
             </div>
             <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>
-              {currencyFormatService.formatCurrency(
-                parseFloat(formData.initial_balance) || 0,
-                formData.currency
-              )}
+              Rp {initialBalance.toLocaleString('id-ID')}
             </div>
           </div>
         </div>

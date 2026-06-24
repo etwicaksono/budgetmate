@@ -1,5 +1,4 @@
 import { api } from './api';
-import { USE_MOCK_DATA, mockDataService } from '@/mocks/mockData';
 
 export interface Transaction {
   id: string;
@@ -23,7 +22,6 @@ export interface Transaction {
   type: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out' | 'debt_in' | 'debt_out';
   description?: string;
   debt_id?: string;
-  currency: string;
   payee?: string;
   payment_method?: string;
   payment_status?: string;
@@ -36,11 +34,8 @@ export interface Transaction {
   // Transfer-specific fields (populated when transaction is part of a transfer)
   transfer_id?: string;
   to_account_id?: string;
-  to_amount?: number;
   from_account_id?: string;
   transfer_description?: string;
-  transfer_currency?: string;
-  to_currency?: string;
   is_draft?: boolean;
   created_at: string;
   updated_at: string;
@@ -53,7 +48,6 @@ export interface CreateTransactionRequest {
   amount: number;
   type: 'income' | 'expense' | 'transfer' | 'transfer_in' | 'transfer_out' | 'debt_in' | 'debt_out';
   description?: string;
-  currency?: string;
   payee?: string;
   payment_method?: string;
   payment_status?: string;
@@ -61,7 +55,6 @@ export interface CreateTransactionRequest {
   is_draft?: boolean;
   // Transfer-specific fields
   to_account_id?: string;
-  to_amount?: number;
 }
 
 export interface TransactionFilters {
@@ -79,7 +72,6 @@ export interface TransactionFilters {
   label_ids?: string[] | string;
   account_ids?: string;
   category_ids?: string;
-  currencies?: string;
   transfer_option?: string;
   debt_option?: string;
   sort_by?: 'date' | 'amount';
@@ -98,7 +90,6 @@ export interface TransactionsResponse {
     totalPages?: number;
     hasNext?: boolean;
     hasPrev?: boolean;
-    totals_by_currency?: Record<string, { income: number; expense: number; net: number }>;
   };
 }
 
@@ -126,19 +117,6 @@ class TransactionService {
     transactions: Transaction[];
     meta: TransactionsResponse['meta'];
   }> {
-    if (USE_MOCK_DATA) {
-      const transactions = await mockDataService.fetchTransactions();
-      return {
-        transactions,
-        meta: {
-          page: 1,
-          per_page: 10,
-          total: transactions.length,
-          total_pages: 1,
-        }
-      };
-    }
-
     const params = filters ? {
       ...filters,
       // label_ids is already a comma-separated string from the caller

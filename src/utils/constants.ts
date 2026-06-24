@@ -37,11 +37,6 @@ export const APP_CONFIG = {
     maxPasswordLength: 128
   },
 
-  currency: {
-    default: 'USD',
-    decimals: 2
-  },
-
   dateFormat: {
     default: 'YYYY-MM-DD',
     display: 'MMM DD, YYYY',

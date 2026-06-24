@@ -12,11 +12,9 @@ export const TransactionSchema = registry.register(
     amount: z.number().openapi({ example: -150000 }), // Negative for expense
     type: z.enum(['income', 'expense', 'transfer_in', 'transfer_out', 'debt_in', 'debt_out']).openapi({ example: 'expense' }),
     description: z.string().nullable().openapi({ example: 'Grocery shopping' }),
-    currency: z.string().openapi({ example: 'IDR' }),
     payee: z.string().nullable().openapi({ example: 'Supermarket' }),
     payment_method: z.string().nullable().openapi({ example: 'Credit Card' }),
     payment_status: z.string().nullable().openapi({ example: 'COMPLETED' }),
-    reference_number: z.string().nullable().openapi({ example: 'REF-12345' }),
     debt_id: z.string().nullable().openapi({ example: null }),
     transfer_id: z.string().nullable().optional().openapi({ example: null }),
     labels: z.array(z.object({
@@ -26,8 +24,7 @@ export const TransactionSchema = registry.register(
     })).optional(),
     account: z.object({
       id: z.string(),
-      name: z.string(),
-      currency: z.string()
+      name: z.string()
     }).optional(),
     category: z.object({
       id: z.string(),
@@ -65,7 +62,6 @@ registry.registerPath({
     { name: 'start_date', in: 'query', schema: { type: 'string', format: 'date-time' }, required: false },
     { name: 'end_date', in: 'query', schema: { type: 'string', format: 'date-time' }, required: false },
     { name: 'keyword', in: 'query', schema: { type: 'string' }, required: false },
-    { name: 'currencies', in: 'query', schema: { type: 'string' }, required: false },
     { name: 'sort_by', in: 'query', schema: { type: 'string', default: 'date' }, required: false },
     { name: 'sort_order', in: 'query', schema: { type: 'string', enum: ['asc', 'desc'], default: 'desc' }, required: false },
   ],
@@ -83,12 +79,7 @@ registry.registerPath({
               limit: z.number(),
               total_pages: z.number(),
               has_next: z.boolean(),
-              has_prev: z.boolean(),
-              totals_by_currency: z.record(z.object({
-                income: z.number(),
-                expense: z.number(),
-                net: z.number()
-              }))
+              has_prev: z.boolean()
             })
           })
         }

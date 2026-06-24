@@ -72,10 +72,10 @@ export const NameFormatter = ({ row, toggleCollapse }: NameFormatterProps) => {
   );
 };
 
-export const CurrencyFormatter = ({ value, currency, isDirty }: { value: number, currency: string, isDirty?: boolean }) => {
+export const CurrencyFormatter = ({ value, isDirty }: { value: number, isDirty?: boolean }) => {
   return (
     <div className={`text-end h-100 d-flex align-items-center justify-content-end ${isDirty ? 'text-primary fw-bold' : ''}`}>
-      {new Intl.NumberFormat('id-ID', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(value)}
+      {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value)}
     </div>
   );
 };

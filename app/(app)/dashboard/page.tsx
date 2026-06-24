@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Row, Col, Dropdown, Form, Alert } from 'react-bootstrap';
 import { FaWallet, FaUniversity, FaPiggyBank, FaPencilAlt, FaFileAlt, FaCheck } from 'react-icons/fa';
@@ -40,7 +40,7 @@ import AccountModal from '@/components/accounts/AccountModal';
 import { useAccountModal } from '@/hooks/useAccountModal';
 import { accountService, type Account } from '@/services/accountService';
 import { analyticsService, type ExpenseByCategory } from '@/services/analyticsService';
-import { budgetService } from '@/services/budgetService';
+import { budgetService, type BudgetStatus } from '@/services/budgetService';
 import { transactionService, type Transaction as ApiTransaction } from '@/services/transactionService';
 import { localStorageService } from '@/mocks/localStorageService';
 import './Dashboard.css';
@@ -69,7 +69,6 @@ import {
   ExpensesByCategoryWidget,
   IncomeVsExpensesWidget,
   NetWorthWidget,
-  type BudgetStatusWithCurrency,
 } from '@/components/dashboard/widgets';
 
 function DashboardContent(): React.ReactElement {
@@ -79,6 +78,11 @@ function DashboardContent(): React.ReactElement {
   const [showControlPanel, setShowControlPanel] = useState(false);
   const [widgetVisibility, setWidgetVisibility] = useState(() => localStorageService.loadWidgetVisibility());
   const [includeDraft, setIncludeDraft] = useState<boolean>(() => localStorageService.loadIncludeDraft());
+
+  useEffect(() => {
+    localStorageService.saveIncludeDraft(includeDraft);
+  }, [includeDraft]);
+
   const [loading, setLoading] = useState(true);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,13 +90,10 @@ function DashboardContent(): React.ReactElement {
   // API data states
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<ExpenseByCategory[]>([]);
-  const [expenseCurrencies, setExpenseCurrencies] = useState<string[]>([]);
-  const [selectedCurrency, setSelectedCurrency] = useState<string>(''); // Shared across all widgets
   const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
-  const [budgets, setBudgets] = useState<BudgetStatusWithCurrency[]>([]);
+  const [budgets, setBudgets] = useState<BudgetStatus[]>([]);
   const [balanceTrend, setBalanceTrend] = useState<TrendChartData[]>([]);
-  const [incomeExpenseByCurrency, setIncomeExpenseByCurrency] = useState<Record<string, BarChartData[]>>({});
-  const [incomeExpenseCurrencies, setIncomeExpenseCurrencies] = useState<string[]>([]);
+  const [incomeExpenseData, setIncomeExpenseData] = useState<BarChartData[]>([]);
 
   // Infinite Scroll state for Recent Transactions
   const [transactionsPage, setTransactionsPage] = useState(1);
@@ -106,7 +107,7 @@ function DashboardContent(): React.ReactElement {
   const { formatCurrency } = useFormattedCurrency();
 
   // Net Worth data
-  const { data: netWorthData, isLoading: netWorthLoading } = useNetWorth(includeDraft);
+  const { data: netWorthData, accountBalance: netWorthAccountBalance, totalCredit: netWorthTotalCredit, totalDebt: netWorthTotalDebt, isLoading: netWorthLoading } = useNetWorth(includeDraft);
 
   const {
     state: { periodLabel, activePeriod, customRangeDraft, dateRange },
@@ -135,7 +136,7 @@ function DashboardContent(): React.ReactElement {
     try {
       setLoading(true);
       setError(null);
-      // Don't reset selected currency - let useEffect handle it based on available data
+      // Fetch dashboard data based on the active widget configuration
 
       // Determine date range directly from period navigation context
       const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
@@ -149,7 +150,7 @@ function DashboardContent(): React.ReactElement {
       // Build conditional promises based on widgetVisibility
       const expensesPromise = widgetVisibility.expensesByCategory
         ? analyticsService.fetchExpensesByCategory({ ...dateFilters })
-        : Promise.resolve({ expenses: [], currencies: [] });
+        : Promise.resolve({ expenses: [] as ExpenseByCategory[] });
 
       const transactionsPromise = (widgetVisibility.recentTransactions && !options?.preserveTransactions)
         ? transactionService.fetchTransactions({ ...dateFilters, limit: 10 })
@@ -157,7 +158,7 @@ function DashboardContent(): React.ReactElement {
 
       const budgetsPromise = widgetVisibility.budgetStatus
         ? budgetService.fetchBudgetStatus({ ...dateFilters })
-        : Promise.resolve([]);
+        : Promise.resolve([] as BudgetStatus[]);
 
       const trendsPromise = widgetVisibility.balanceTrend
         ? analyticsService.fetchTrends({
@@ -169,10 +170,9 @@ function DashboardContent(): React.ReactElement {
 
       const incomeExpensePromise = widgetVisibility.incomeVsExpenses
         ? analyticsService.fetchIncomeVsExpenses({ ...dateFilters })
-        : Promise.resolve({ data: {}, currencies: [] });
+        : Promise.resolve({ data: [] as BarChartData[] });
 
-      // Fetch widget data conditionally in parallel
-      const [expensesData, transactionsResponse, budgetsData, trendData, incomeExpenseData] = await Promise.all([
+      const [expensesData, transactionsResponse, budgetsData, trendData, incomeExpenseResponse] = await Promise.all([
         expensesPromise,
         transactionsPromise,
         budgetsPromise,
@@ -182,7 +182,6 @@ function DashboardContent(): React.ReactElement {
 
       if (widgetVisibility.expensesByCategory) {
         setExpenseCategories(expensesData.expenses);
-        setExpenseCurrencies(expensesData.currencies);
       }
 
       if (widgetVisibility.recentTransactions && !options?.preserveTransactions && transactionsResponse) {
@@ -194,45 +193,23 @@ function DashboardContent(): React.ReactElement {
       }
 
       if (widgetVisibility.budgetStatus) {
-        // Transform budget data to include currency from API
-        const budgetsWithCurrency: BudgetStatusWithCurrency[] = budgetsData.map(b => ({
-          ...b,
-          currency: (b as BudgetStatusWithCurrency).currency || 'IDR',
-        }));
-        setBudgets(budgetsWithCurrency);
+        setBudgets(budgetsData);
       }
 
       if (widgetVisibility.incomeVsExpenses) {
-        // Set income vs expense data from API
-        setIncomeExpenseCurrencies(incomeExpenseData.currencies || []);
-        if (Array.isArray(incomeExpenseData.data)) {
-          // Single currency response - wrap in object with first currency
-          const currency = incomeExpenseData.currencies[0] || 'IDR';
-          setIncomeExpenseByCurrency({ [currency]: incomeExpenseData.data as BarChartData[] });
-        } else if (typeof incomeExpenseData.data === 'object') {
-          // Multi-currency response
-          setIncomeExpenseByCurrency(incomeExpenseData.data as Record<string, BarChartData[]>);
-        }
+        const normalizedIncomeExpenseData = Array.isArray(incomeExpenseResponse.data)
+          ? incomeExpenseResponse.data
+          : [];
+        setIncomeExpenseData(normalizedIncomeExpenseData as BarChartData[]);
       }
 
-      if (widgetVisibility.balanceTrend) {
-        // Convert trend data to chart format with multi-currency support
-        if (trendData.labels && trendData.datasets && trendData.datasets.length > 0) {
-
-          const chartData: TrendChartData[] = trendData.labels.map((label: string, index: number) => {
-            const dataPoint: TrendChartData = { date: label };
-
-            // Add data for each currency
-            trendData.datasets.forEach((dataset: { label: string; data: number[] }) => {
-              const currency = dataset.label;
-              const value = dataset.data[index] ?? 0;
-              dataPoint[currency] = value;
-            });
-
-            return dataPoint;
-          });
-          setBalanceTrend(chartData);
-        }
+      if (widgetVisibility.balanceTrend && trendData.labels && trendData.datasets && trendData.datasets.length > 0) {
+        const dataset = trendData.datasets[0]?.data ?? [];
+        const chartData: TrendChartData[] = trendData.labels.map((label: string, index: number) => ({
+          date: label,
+          balance: dataset[index] ?? 0,
+        }));
+        setBalanceTrend(chartData);
       }
 
     } catch (err) {
@@ -344,72 +321,10 @@ function DashboardContent(): React.ReactElement {
     }));
   };
 
-  // Currency formatter (using USD as default for totals)
-  const formatCurrencyValue = (value: number, currency: string = 'USD'): string => {
-    const formatted = formatCurrency(Math.abs(value), currency);
-    return `${value < 0 ? '-' : ''}${formatted}`;
+  // IDR-only formatter for dashboard values
+  const formatCurrencyValue = (value: number): string => {
+    return value < 0 ? `-${formatCurrency(Math.abs(value))}` : formatCurrency(value);
   };
-
-  // Determine primary currency from accounts (most common or first active account's currency)
-  const primaryCurrency = useMemo(() => {
-    if (accounts.length === 0) return 'USD';
-    const currencyCounts = accounts.reduce((acc, account) => {
-      acc[account.currency] = (acc[account.currency] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    return Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'USD';
-  }, [accounts]);
-
-  // Calculate balance per currency from accounts
-  const currencyBalances = React.useMemo(() => {
-    const balanceMap = new Map<string, number>();
-
-    accounts.forEach(account => {
-      if (account.is_included_in_total) {
-        const current = balanceMap.get(account.currency) || 0;
-        balanceMap.set(account.currency, current + account.current_balance);
-      }
-    });
-
-    return Array.from(balanceMap.entries())
-      .map(([currency, balance]) => ({ currency, balance }))
-      .sort((a, b) => b.balance - a.balance); // Sort by balance descending
-  }, [accounts]);
-
-  // Set default selected currency from any available source when currencies are loaded
-  useEffect(() => {
-    if (!selectedCurrency) {
-      // Priority 1: Use primary currency if available in any data source
-      if (primaryCurrency) {
-        const isInExpenses = expenseCurrencies.includes(primaryCurrency);
-        const isInBalances = currencyBalances.some(cb => cb.currency === primaryCurrency);
-        const isInIncomeExpense = incomeExpenseCurrencies.includes(primaryCurrency);
-
-        if (isInExpenses || isInBalances || isInIncomeExpense) {
-          setSelectedCurrency(primaryCurrency);
-          return;
-        }
-      }
-
-      // Priority 2: Use first currency from balance trend (dashboard's main widget)
-      if (currencyBalances.length > 0 && currencyBalances[0]) {
-        setSelectedCurrency(currencyBalances[0].currency);
-        return;
-      }
-
-      // Priority 3: Use first expense currency
-      if (expenseCurrencies.length > 0 && expenseCurrencies[0]) {
-        setSelectedCurrency(expenseCurrencies[0]);
-        return;
-      }
-
-      // Priority 4: Use first income/expense currency
-      if (incomeExpenseCurrencies.length > 0 && incomeExpenseCurrencies[0]) {
-        setSelectedCurrency(incomeExpenseCurrencies[0]);
-        return;
-      }
-    }
-  }, [expenseCurrencies, primaryCurrency, selectedCurrency, currencyBalances, incomeExpenseCurrencies]);
 
 
 
@@ -440,7 +355,6 @@ function DashboardContent(): React.ReactElement {
       id: t.id,
       description: t.description || 'No description',
       amount: t.amount,
-      currency: t.currency,
       date: t.date,
       category: categoryName,
       type: t.type,
@@ -499,8 +413,13 @@ function DashboardContent(): React.ReactElement {
       component: (
         <NetWorthWidget
           data={netWorthData}
+          accountBalance={netWorthAccountBalance}
+          totalCredit={netWorthTotalCredit}
+          totalDebt={netWorthTotalDebt}
           isLoading={netWorthLoading}
           formatCurrencyValue={formatCurrencyValue}
+          includeDraft={includeDraft}
+          onToggleDraft={setIncludeDraft}
         />
       ),
     },
@@ -511,10 +430,7 @@ function DashboardContent(): React.ReactElement {
       ) : balanceTrend.length > 0 ? (
         <BalanceTrendWidget
           data={balanceTrend}
-          currencyBalances={currencyBalances}
           formatCurrencyValue={formatCurrencyValue}
-          selectedCurrency={selectedCurrency}
-          setSelectedCurrency={setSelectedCurrency}
         />
       ) : (
         <div className="text-center py-5 text-muted">No balance data available</div>
@@ -526,15 +442,8 @@ function DashboardContent(): React.ReactElement {
         <WidgetSkeleton height={350} />
       ) : (
         <ExpensesByCategoryWidget
-          expenseCurrencies={expenseCurrencies}
-          selectedCurrency={selectedCurrency}
-          setSelectedCurrency={setSelectedCurrency}
           allExpenseCategories={expenseCategories}
-          formatCurrencyValue={(val: number, curr?: string) => {
-            const isInt = val % 1 === 0;
-            const formatted = formatCurrency(Math.abs(val), curr || 'USD', isInt ? { forceDecimals: 0 } : undefined);
-            return `${val < 0 ? '-' : ''}${formatted}`;
-          }}
+          formatCurrencyValue={formatCurrencyValue}
         />
       ),
     },
@@ -542,13 +451,10 @@ function DashboardContent(): React.ReactElement {
       title: 'Income vs Expenses',
       component: loading ? (
         <WidgetSkeleton height={350} />
-      ) : incomeExpenseCurrencies.length > 0 ? (
+      ) : incomeExpenseData.length > 0 ? (
         <IncomeVsExpensesWidget
-          dataByCurrency={incomeExpenseByCurrency}
-          currencies={incomeExpenseCurrencies}
+          data={incomeExpenseData}
           formatCurrencyValue={formatCurrencyValue}
-          selectedCurrency={selectedCurrency}
-          setSelectedCurrency={setSelectedCurrency}
         />
       ) : (
         <div className="text-center py-5 text-muted">No income/expense data available</div>
@@ -579,8 +485,6 @@ function DashboardContent(): React.ReactElement {
         <BudgetStatusWidget
           budgets={budgets}
           formatCurrencyValue={formatCurrencyValue}
-          selectedCurrency={selectedCurrency}
-          setSelectedCurrency={setSelectedCurrency}
         />
       ),
     },
@@ -629,7 +533,6 @@ function DashboardContent(): React.ReactElement {
                       name={account.name}
                       balance={account.current_balance}
                       color={account.color}
-                      currency={account.currency}
                       icon={getIconComponent(account.icon)}
                       onClick={() => router.push(`/accounts/${account.id}`)}
                     />

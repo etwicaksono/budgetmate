@@ -1,7 +1,8 @@
 'use client';
 
-import { Button, Card, Col, Form, Offcanvas } from 'react-bootstrap';
+import { Button, Card, Col, Dropdown, Form, Offcanvas } from 'react-bootstrap';
 import { RiListSettingsLine } from 'react-icons/ri';
+import { FaFileAlt, FaCheck } from 'react-icons/fa';
 import { AccountDropdown } from '@/components/FilterSidebar/AccountDropdown';
 import { SavedFiltersManager } from '@/components/FilterSidebar/SavedFiltersManager';
 import '@/components/FilterSidebar/FilterSidebar.css';
@@ -29,6 +30,8 @@ function AnalyticsFilterPanel({
     selectableAccounts,
     accountColors,
     accountIcons,
+    draftOption,
+    setDraftOption,
   } = filterData;
 
   const {
@@ -46,6 +49,7 @@ function AnalyticsFilterPanel({
 
   const handleReset = () => {
     setSelectedAccounts([]);
+    setDraftOption('exclude');
     clearActiveFilter();
   };
 
@@ -117,6 +121,56 @@ function AnalyticsFilterPanel({
               searchPlaceholder="Search account"
               isSingleSelect={false}
             />
+          </Form.Group>
+
+          {/* Drafts Filter */}
+          <Form.Group className="mb-4" controlId="analyticsDraftFilter">
+            <Form.Label className="fw-semibold text-muted small">Drafts</Form.Label>
+            <Dropdown>
+              <Dropdown.Toggle
+                variant="outline-secondary"
+                className="w-100 d-flex align-items-center justify-content-between"
+                style={{ textAlign: 'left' }}
+              >
+                <span className="d-flex align-items-center gap-2">
+                  <FaFileAlt size={14} color="#adb5bd" />
+                  <span className="d-inline-flex align-items-center gap-1">
+                    {draftOption === 'include'
+                      ? 'Include drafts'
+                      : draftOption === 'only'
+                        ? 'Only drafts'
+                        : 'Exclude drafts'}
+                  </span>
+                </span>
+              </Dropdown.Toggle>
+              <Dropdown.Menu className="w-100 p-1">
+                {[
+                  { label: 'Include drafts', value: 'include' },
+                  { label: 'Only drafts', value: 'only' },
+                  { label: 'Exclude drafts', value: 'exclude' },
+                ].map((option) => {
+                  const isSelected = draftOption === option.value;
+                  return (
+                    <Dropdown.Item
+                      key={option.value}
+                      as="button"
+                      type="button"
+                      className={`d-flex align-items-center gap-2 w-100 bg-white ${isSelected ? 'selected' : ''}`}
+                      style={isSelected ? { backgroundColor: '#e9ecef' } : {}}
+                      onClick={() => setDraftOption(option.value as 'include' | 'only' | 'exclude')}
+                    >
+                      {isSelected && (
+                        <span className="d-inline-flex justify-content-center" style={{ width: '1.25rem' }}>
+                          <FaCheck className="text-success" />
+                        </span>
+                      )}
+                      {!isSelected && <span style={{ width: '1.25rem' }}></span>}
+                      <span className="flex-grow-1 text-start">{option.label}</span>
+                    </Dropdown.Item>
+                  );
+                })}
+              </Dropdown.Menu>
+            </Dropdown>
           </Form.Group>
         </Form>
       </Card.Body>

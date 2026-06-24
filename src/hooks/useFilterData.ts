@@ -48,8 +48,9 @@ export const useFilterData = () => {
   }, [searchTerm]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
-  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
+  const availableCurrencies = useMemo<string[]>(() => ['IDR'], []);
   const [sortOption, setSortOption] = useState<SortValue>('timeDesc');
   const [transferOption, setTransferOption] = useState<TransferOption>('include');
   const [debtOption, setDebtOption] = useState<DebtOption>('include');
@@ -62,8 +63,8 @@ export const useFilterData = () => {
     accounts: true,
     categories: true,
     labels: true,
-    amountRange: true,
     currencies: true,
+    amountRange: true,
     transfers: true,
     debts: true,
     drafts: true,
@@ -194,19 +195,6 @@ export const useFilterData = () => {
     return icons;
   }, [accounts]);
 
-  // Available currencies (from active accounts)
-  const availableCurrencies = useMemo<string[]>(() => {
-    const currencies = new Set<string>();
-    accounts
-      .filter((a) => a.is_active)
-      .forEach((account) => {
-        if (account.currency) {
-          currencies.add(account.currency);
-        }
-      });
-    return Array.from(currencies).sort();
-  }, [accounts]);
-
   // Helper to add category (for compatibility with old code)
   const addCategory = useCallback((
     name: string,
@@ -275,15 +263,13 @@ export const useFilterData = () => {
     accountColors,
     accountIcons,
 
-    // Currency data
-    selectedCurrencies,
-    setSelectedCurrencies,
-    availableCurrencies,
-
     // Label data
     labels,
     selectedLabelIds,
     setSelectedLabelIds,
+    selectedCurrencies,
+    setSelectedCurrencies,
+    availableCurrencies,
 
     // Loading state
     loading,

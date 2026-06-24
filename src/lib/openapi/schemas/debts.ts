@@ -11,7 +11,6 @@ export const DebtSchema = registry.register(
     description: z.string().nullable().openapi({ example: 'Loan for car repair' }),
     account_id: z.string().openapi({ example: 'clqaccount123456000000000' }),
     category_id: z.string().nullable().openapi({ example: null }),
-    currency: z.string().openapi({ example: 'IDR' }),
     date: z.date().openapi({ example: '2023-12-01T12:00:00Z' }),
     due_date: z.date().nullable().openapi({ example: '2024-12-01T12:00:00Z' }),
     expected_amount: z.number().openapi({ example: 100000 }),

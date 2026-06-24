@@ -17,7 +17,6 @@ export interface BackupData {
     email: string;
     settings: {
       timezone: string;
-      currency: string;
       locale: string;
       date_format: string;
       number_format: string;
@@ -52,10 +51,7 @@ export interface BackupAccount {
   id: string; // Original CUID
   name: string;
   account_type: string;
-  currency: string;
   initial_balance: number; // Converted from Decimal
-  credit_limit?: number | null;
-  interest_rate?: number | null;
   icon: string;
   color: string;
   is_active: boolean;
@@ -84,14 +80,11 @@ export interface BackupTransaction {
   category_id?: string | null; // Reference to category
   type: string; // 'income' | 'expense' | 'transfer_in' | 'transfer_out'
   amount: number;
-  currency: string;
-  exchange_rate: number;
   date: string; // ISO timestamp
   description?: string | null;
   payee?: string | null;
   payment_method?: string | null;
   payment_status?: string | null;
-  reference_number?: string | null;
   transfer_id?: string | null;
   created_at: string;
   updated_at: string;
@@ -103,10 +96,7 @@ export interface BackupTransfer {
   from_account: string; // Reference to account
   to_account: string; // Reference to account
   amount: number;
-  to_amount?: number | null;
   description?: string | null;
-  currency: string;
-  to_currency?: string | null;
   created_at: string;
   updated_at: string;
 }

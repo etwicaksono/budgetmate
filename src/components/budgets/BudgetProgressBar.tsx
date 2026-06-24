@@ -6,13 +6,12 @@ interface BudgetProgressBarProps {
     spent: number;
     basicLimit: number;
     extendLimit: number;
-    currency: string;
     label: string;
     isParent?: boolean;
     isProjection?: boolean;
 }
 
-export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, label, isParent = false, isProjection = false }: BudgetProgressBarProps) {
+export function BudgetProgressBar({ spent, basicLimit, extendLimit, label, isParent = false, isProjection = false }: BudgetProgressBarProps) {
     const { formatCurrency, formatShort } = useFormattedCurrency();
 
     const absSpent = Math.abs(spent);
@@ -76,17 +75,17 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                 ) : (
                     <div className="d-flex flex-wrap align-items-baseline gap-1 mb-1" style={{ fontSize: '11px' }}>
                         <span className={isOver ? 'text-danger fw-semibold' : 'fw-semibold'}>
-                            {formatShort(absSpent, currency)}
+                            {formatShort(absSpent)}
                         </span>
                         {limit > 0 && (
                             <>
                                 <span className="text-muted opacity-50">/</span>
-                                <span className="text-muted">{formatShort(basicLimit, currency)}</span>
+                                <span className="text-muted">{formatShort(basicLimit)}</span>
                             </>
                         )}
                         {extendLimit > 0 && (
                             <span style={{ color: '#d97706' }}>
-                                <span className="opacity-50 fw-normal">+</span> {formatShort(extendLimit, currency)}
+                                <span className="opacity-50 fw-normal">+</span> {formatShort(extendLimit)}
                             </span>
                         )}
                         {limit > 0 && (
@@ -95,14 +94,14 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                                 overlay={
                                     <Tooltip id={`${tooltipId}-mobile`}>
                                         <div className="text-start" style={{ fontSize: '12px', lineHeight: 1.6 }}>
-                                            <div>Basic: <strong>{formatCurrency(basicLimit, currency)}</strong></div>
+                                            <div>Basic: <strong>{formatCurrency(basicLimit)}</strong></div>
                                             {extendLimit > 0 && (
-                                                <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit, currency)}</strong></div>
+                                                <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit)}</strong></div>
                                             )}
                                             <hr className="my-1 border-secondary opacity-50" />
-                                            <div>Total budget: <strong>{formatCurrency(limit, currency)}</strong></div>
+                                            <div>Total budget: <strong>{formatCurrency(limit)}</strong></div>
                                             <div style={limit - absSpent < 0 ? { color: '#f87171' } : {}}>
-                                                Remaining: <strong>{formatCurrency(limit - absSpent, currency)}</strong>
+                                                Remaining: <strong>{formatCurrency(limit - absSpent)}</strong>
                                             </div>
                                             {isProjection && (
                                                 <div className="mt-1 pt-1 border-top border-secondary border-opacity-50 text-info fst-italic" style={{ fontSize: '10px' }}>
@@ -133,17 +132,17 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                 ) : (
                     <div className="d-flex flex-wrap align-items-baseline gap-1 mb-1" style={{ fontSize: '11px' }}>
                         <span className={isOver ? 'text-danger fw-semibold' : 'fw-semibold'}>
-                            {formatCurrency(absSpent, currency)}
+                            {formatCurrency(absSpent)}
                         </span>
                         {limit > 0 && (
                             <>
                                 <span className="text-muted opacity-50">/</span>
-                                <span className="text-muted">{formatCurrency(basicLimit, currency)}</span>
+                                <span className="text-muted">{formatCurrency(basicLimit)}</span>
                             </>
                         )}
                         {extendLimit > 0 && (
                             <span style={{ color: '#d97706' }}>
-                                <span className="opacity-50 fw-normal">+</span> {formatCurrency(extendLimit, currency)}
+                                <span className="opacity-50 fw-normal">+</span> {formatCurrency(extendLimit)}
                             </span>
                         )}
                         {limit > 0 && (
@@ -152,14 +151,14 @@ export function BudgetProgressBar({ spent, basicLimit, extendLimit, currency, la
                                 overlay={
                                     <Tooltip id={`${tooltipId}-desktop`}>
                                         <div className="text-start" style={{ fontSize: '12px', lineHeight: 1.6 }}>
-                                            <div>Basic: <strong>{formatCurrency(basicLimit, currency)}</strong></div>
+                                            <div>Basic: <strong>{formatCurrency(basicLimit)}</strong></div>
                                             {extendLimit > 0 && (
-                                                <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit, currency)}</strong></div>
+                                                <div style={{ color: '#fbbf24' }}>Extend: <strong>{formatCurrency(extendLimit)}</strong></div>
                                             )}
                                             <hr className="my-1 border-secondary opacity-50" />
-                                            <div>Total budget: <strong>{formatCurrency(limit, currency)}</strong></div>
+                                            <div>Total budget: <strong>{formatCurrency(limit)}</strong></div>
                                             <div style={limit - absSpent < 0 ? { color: '#f87171' } : {}}>
-                                                Remaining: <strong>{formatCurrency(limit - absSpent, currency)}</strong>
+                                                Remaining: <strong>{formatCurrency(limit - absSpent)}</strong>
                                             </div>
                                             {isProjection && (
                                                 <div className="mt-1 pt-1 border-top border-secondary border-opacity-50 text-info fst-italic" style={{ fontSize: '10px' }}>

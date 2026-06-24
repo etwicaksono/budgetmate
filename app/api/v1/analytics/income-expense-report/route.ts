@@ -10,22 +10,17 @@ interface CategoryReport {
   name: string;
   icon: string;
   color: string;
-  amounts: number[]; // Array of amounts for each month
+  amounts: number[];
   hasSubItems?: boolean;
   subItems?: CategoryReport[];
 }
 
-interface CurrencyReport {
+interface IncomeExpenseReport {
+  monthNames: string[];
   incomeCategories: CategoryReport[];
   expenseCategories: CategoryReport[];
-  totalIncomes: number[]; // Array of totals for each month
-  totalExpenses: number[]; // Array of totals for each month
-}
-
-interface IncomeExpenseReport {
-  monthNames: string[]; // Array of month names
-  currencies: string[];
-  data: Record<string, CurrencyReport>;
+  totalIncomes: number[];
+  totalExpenses: number[];
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -37,26 +32,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = authResult;
   const { searchParams } = new URL(request.url);
 
-  // Get period type and number of periods to display
-  const periodType = searchParams.get('period_type') || 'month'; // month, week, year, custom
+  const periodType = searchParams.get('period_type') || 'month';
   const numPeriods = Math.min(Math.max(parseInt(searchParams.get('periods') || '2', 10), 2), 6);
 
-  // Get date parameters
   const now = new Date();
   const startDateParam = searchParams.get('start_date');
   const endDateParam = searchParams.get('end_date');
 
   const offsetMinutes = getClientTimezoneOffset(startDateParam);
 
-  const getUtcFromLocalWithOffset = (year: number, month: number, day: number, hours: number, minutes: number, seconds: number, ms: number = 0) => {
+  const getUtcFromLocalWithOffset = (
+    year: number,
+    month: number,
+    day: number,
+    hours: number,
+    minutes: number,
+    seconds: number,
+    ms: number = 0,
+  ) => {
     return getUtcFromLocal(year, month, day, hours, minutes, seconds, ms, offsetMinutes);
   };
 
-  // Get the base date in local time so we can cleanly extract its logical month/year
   const baseDateUtc = startDateParam ? new Date(startDateParam) : new Date(now.getFullYear(), now.getMonth(), 1);
   const baseLocal = new Date(baseDateUtc.getTime() + offsetMinutes * 60000);
 
-  // Calculate date ranges based on period type
   const periodRanges: { start: Date; end: Date; name: string }[] = [];
 
   if (periodType === 'month') {
@@ -91,9 +90,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       const nameStart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(startLocal);
       const nameEnd = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(endLocal);
-      const name = `${nameStart} - ${nameEnd}`;
-
-      periodRanges.push({ start: periodStart, end: periodEnd, name });
+      periodRanges.push({ start: periodStart, end: periodEnd, name: `${nameStart} - ${nameEnd}` });
     }
   } else if (periodType === 'year') {
     const baseYear = baseLocal.getUTCFullYear();
@@ -101,11 +98,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const year = baseYear - i;
       const periodStart = getUtcFromLocalWithOffset(year, 0, 1, 0, 0, 0, 0);
       const periodEnd = getUtcFromLocalWithOffset(year, 11, 31, 23, 59, 59, 999);
-      const name = year.toString();
-      periodRanges.push({ start: periodStart, end: periodEnd, name });
+      periodRanges.push({ start: periodStart, end: periodEnd, name: year.toString() });
     }
   } else {
-    // Custom range
     const customStart = startDateParam ? new Date(startDateParam) : getUtcFromLocalWithOffset(baseLocal.getUTCFullYear(), baseLocal.getUTCMonth(), 1, 0, 0, 0, 0);
     const customEnd = endDateParam ? new Date(endDateParam) : getUtcFromLocalWithOffset(baseLocal.getUTCFullYear(), baseLocal.getUTCMonth() + 1, 0, 23, 59, 59, 999);
 
@@ -125,19 +120,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       const nameStart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(startLocal);
       const nameEnd = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(endLocal);
-      const name = `${nameStart} - ${nameEnd}`;
-
-      periodRanges.push({ start: periodStart, end: periodEnd, name });
+      periodRanges.push({ start: periodStart, end: periodEnd, name: `${nameStart} - ${nameEnd}` });
     }
   }
 
-  // Get filter parameters
   const categoryIds = searchParams.get('category_ids')?.split(',').filter(Boolean) || [];
   const accountIds = searchParams.get('account_ids')?.split(',').filter(Boolean) || [];
-  const currencyParams = searchParams.get('currencies')?.split(',').filter(Boolean) || [];
+  const draftsParam = searchParams.get('draft_option') || 'exclude';
+
+  // Determine draft filter
+  const draftFilter: { is_draft?: boolean } = {};
+  if (draftsParam === 'exclude') draftFilter.is_draft = false;
+  else if (draftsParam === 'only') draftFilter.is_draft = true;
 
   try {
-    // Get all categories for user
     const categories = await prisma.category.findMany({
       where: {
         user_id: user.user_id,
@@ -146,12 +142,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       orderBy: { name: 'asc' },
     });
 
-    // Fetch transactions for all periods in parallel
     const transactionPromises = periodRanges.map(({ start, end }) => {
       const whereClause: Prisma.TransactionWhereInput = {
         user_id: user.user_id,
         deleted_at: null,
-        is_draft: false,
+        ...draftFilter,
         date: {
           gte: start,
           lte: end,
@@ -165,12 +160,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (accountIds.length > 0) {
         whereClause.account_id = { in: accountIds };
       }
-      if (currencyParams.length > 0) {
-        whereClause.currency = { in: currencyParams };
-      }
 
       return prisma.transaction.groupBy({
-        by: ['category_id', 'currency'],
+        by: ['category_id'],
         where: whereClause,
         _sum: { amount: true },
       });
@@ -178,133 +170,99 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const allPeriodTransactions = await Promise.all(transactionPromises);
 
-    // Collect all currencies from all periods
-    const currencySet = new Set<string>();
-    allPeriodTransactions.forEach((periodTxns) => {
-      periodTxns.forEach((t) => currencySet.add(t.currency));
-    });
-    // Ensure we have at least one currency (e.g., USD) to build an empty tree for new users
-    if (currencySet.size === 0) {
-      currencySet.add('USD');
-    }
-    const currencies = Array.from(currencySet).sort();
-
-    // Create lookup maps for amounts by period and currency
-    // Map<currency, Map<categoryId, number[]>>
-    const amountsByCurrency = new Map<string, Map<string, number[]>>();
-
-    currencies.forEach((currency) => {
-      amountsByCurrency.set(currency, new Map());
-    });
-
-    // Process transactions for each period
+    const amountsByCategory = new Map<string, number[]>();
     allPeriodTransactions.forEach((periodTxns, periodIndex) => {
-      periodTxns.forEach((t) => {
-        if (t.category_id) {
-          const amount = Number(t._sum.amount) || 0;
-          const categoryMap = amountsByCurrency.get(t.currency)!;
-
-          if (!categoryMap.has(t.category_id)) {
-            categoryMap.set(t.category_id, new Array(numPeriods).fill(0));
-          }
-          const targetArray = categoryMap.get(t.category_id)!;
-          targetArray[periodIndex] = amount;
+      periodTxns.forEach((transaction) => {
+        if (!transaction.category_id) return;
+        if (!amountsByCategory.has(transaction.category_id)) {
+          amountsByCategory.set(transaction.category_id, new Array(numPeriods).fill(0));
         }
+        amountsByCategory.get(transaction.category_id)![periodIndex] = Number(transaction._sum.amount) || 0;
       });
     });
 
-    // Build category tree
-    const parentCategories = categories.filter((c) => !c.parent_id);
-    const childCategories = categories.filter((c) => c.parent_id);
+    const parentCategories = categories.filter((category) => !category.parent_id);
+    const childCategories = categories.filter((category) => category.parent_id);
 
-    // Group children by parent
     const childrenByParent = new Map<string, typeof categories>();
     childCategories.forEach((child) => {
-      if (child.parent_id) {
-        const children = childrenByParent.get(child.parent_id) || [];
-        children.push(child);
-        childrenByParent.set(child.parent_id, children);
+      if (!child.parent_id) return;
+      const children = childrenByParent.get(child.parent_id) || [];
+      children.push(child);
+      childrenByParent.set(child.parent_id, children);
+    });
+
+    const buildCategoryReport = (parent: typeof categories[number], multiplier: number): CategoryReport => {
+      const parentTotals = new Array(numPeriods).fill(0);
+      const parentAmounts = amountsByCategory.get(parent.id) || new Array(numPeriods).fill(0);
+
+      parentAmounts.forEach((amount, index) => {
+        parentTotals[index] += amount * multiplier;
+      });
+
+      const subItems: CategoryReport[] = (childrenByParent.get(parent.id) || []).map((child) => {
+        const childAmounts = amountsByCategory.get(child.id) || new Array(numPeriods).fill(0);
+        const scaledChildAmounts = new Array(numPeriods).fill(0);
+
+        childAmounts.forEach((amount, index) => {
+          const scaledAmount = amount * multiplier;
+          scaledChildAmounts[index] = scaledAmount;
+          parentTotals[index] += scaledAmount;
+        });
+
+        return {
+          id: child.id,
+          name: child.name,
+          icon: child.icon || 'FaTag',
+          color: child.color || parent.color || '#6c757d',
+          amounts: scaledChildAmounts,
+        };
+      });
+
+      return {
+        id: parent.id,
+        name: parent.name,
+        icon: parent.icon || 'FaFolder',
+        color: parent.color || '#6c757d',
+        amounts: parentTotals,
+        ...(subItems.length > 0 && {
+          hasSubItems: true,
+          subItems,
+        }),
+      };
+    };
+
+    const incomeCategories: CategoryReport[] = [];
+    const expenseCategories: CategoryReport[] = [];
+
+    parentCategories.forEach((parent) => {
+      if (parent.analytic_flag === 'income') {
+        incomeCategories.push(buildCategoryReport(parent, 1));
+      } else if (parent.analytic_flag === 'expense') {
+        expenseCategories.push(buildCategoryReport(parent, -1));
       }
     });
 
-    // Build report data per currency
-    const data: Record<string, CurrencyReport> = {};
+    const totalIncomes = new Array(numPeriods).fill(0);
+    const totalExpenses = new Array(numPeriods).fill(0);
 
-    currencies.forEach((currency) => {
-      const categoryAmounts = amountsByCurrency.get(currency)!;
-
-      const incomeCategories: CategoryReport[] = [];
-      const expenseCategories: CategoryReport[] = [];
-
-      parentCategories.forEach((parent) => {
-        const children = childrenByParent.get(parent.id) || [];
-
-        const buildCategoryReport = (amountsMap: Map<string, number[]>, multiplier: number): CategoryReport => {
-          // Initialize parent totals for each month
-          const parentTotals = new Array(numPeriods).fill(0);
-          const parentAmounts = amountsMap.get(parent.id) || new Array(numPeriods).fill(0);
-          parentAmounts.forEach((amt, idx) => { parentTotals[idx] += amt * multiplier; });
-
-          const subItems: CategoryReport[] = children.map((child) => {
-            const childAmounts = amountsMap.get(child.id) || new Array(numPeriods).fill(0);
-            const scaledChildAmounts = new Array(numPeriods).fill(0);
-            childAmounts.forEach((amt, idx) => {
-              scaledChildAmounts[idx] = amt * multiplier;
-              parentTotals[idx] += amt * multiplier;
-            });
-
-            return {
-              id: child.id,
-              name: child.name,
-              icon: child.icon || 'FaTag',
-              color: child.color || parent.color || '#6c757d',
-              amounts: scaledChildAmounts,
-            };
-          });
-
-          return {
-            id: parent.id,
-            name: parent.name,
-            icon: parent.icon || 'FaFolder',
-            color: parent.color || '#6c757d',
-            amounts: parentTotals,
-            ...(subItems.length > 0 && {
-              hasSubItems: true,
-              subItems,
-            }),
-          };
-        };
-
-        if (parent.analytic_flag === 'income') {
-          incomeCategories.push(buildCategoryReport(categoryAmounts, 1));
-        } else if (parent.analytic_flag === 'expense') {
-          expenseCategories.push(buildCategoryReport(categoryAmounts, -1));
-        }
+    incomeCategories.forEach((category) => {
+      category.amounts.forEach((amount, index) => {
+        totalIncomes[index] += amount;
       });
-
-      // Calculate totals for each month
-      const totalIncomes = new Array(numPeriods).fill(0);
-      const totalExpenses = new Array(numPeriods).fill(0);
-
-      incomeCategories.forEach((c) => {
-        c.amounts.forEach((amt, idx) => { totalIncomes[idx] += amt; });
+    });
+    expenseCategories.forEach((category) => {
+      category.amounts.forEach((amount, index) => {
+        totalExpenses[index] += amount;
       });
-      expenseCategories.forEach((c) => {
-        c.amounts.forEach((amt, idx) => { totalExpenses[idx] += amt; });
-      });
-
-      data[currency] = {
-        incomeCategories,
-        expenseCategories,
-        totalIncomes,
-        totalExpenses,
-      };
     });
 
     const report: IncomeExpenseReport = {
-      monthNames: periodRanges.map((r) => r.name),
-      currencies,
-      data,
+      monthNames: periodRanges.map((range) => range.name),
+      incomeCategories,
+      expenseCategories,
+      totalIncomes,
+      totalExpenses,
     };
 
     return successResponse(report);

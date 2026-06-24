@@ -10,7 +10,6 @@ export const BudgetStatusSchema = registry.register(
     total: z.number().openapi({ example: 500000 }),
     percentage: z.number().openapi({ example: 90.0 }),
     status: z.enum(['success', 'warning', 'danger']).openapi({ example: 'warning' }),
-    currency: z.string().openapi({ example: 'IDR' }),
   })
 );
 

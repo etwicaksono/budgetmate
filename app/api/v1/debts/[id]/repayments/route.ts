@@ -90,7 +90,6 @@ export async function POST(
                account_id: data.account_id,
                type: txType,
                amount: new Prisma.Decimal(dbAmount),
-               currency: account.currency,
                date: new Date(data.date),
                ...(data.description !== undefined
                   ? { description: data.description }

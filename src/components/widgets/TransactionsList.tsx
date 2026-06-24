@@ -23,7 +23,6 @@ export interface Transaction {
   id: string;
   description: string;
   amount: number;
-  currency: string;
   date: string;
   category?: string;
   categoryIconColor?: string;
@@ -214,7 +213,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                     style={{ fontSize: '0.95rem' }}
                   >
                     {transaction.amount < 0 ? '-' : transaction.amount > 0 ? '+' : ''}
-                    {currencyFormatService.formatCurrency(Math.abs(transaction.amount), transaction.currency || 'USD').replace(/\.00$/, '')}
+                    {currencyFormatService.formatCurrency(Math.abs(transaction.amount)).replace(/\.00$/, '')}
                   </strong>
                 </div>
                 <div className="text-muted d-flex align-items-center justify-content-end" style={{ fontSize: '0.75rem', marginTop: '0.1rem' }}>

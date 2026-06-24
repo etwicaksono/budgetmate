@@ -17,7 +17,6 @@ interface AmountRangeFilterProps {
   maxAmount: number;
   onMinAmountChange: (value: number) => void;
   onMaxAmountChange: (value: number) => void;
-  currency?: string;
   minLimit?: number;
   maxLimit?: number;
   step?: number;
@@ -29,7 +28,6 @@ const AmountRangeFilter: React.FC<AmountRangeFilterProps> = ({
   maxAmount,
   onMinAmountChange,
   onMaxAmountChange,
-  currency = 'IDR',
   minLimit = 0,
   maxLimit = 20000000,
   step = 100000,
@@ -101,9 +99,9 @@ const AmountRangeFilter: React.FC<AmountRangeFilterProps> = ({
     <Form.Group className="mb-3" controlId={controlId}>
       <div className="d-flex justify-content-between align-items-center mb-2">
         <Form.Label className="mb-0">Amount range</Form.Label>
-        <small className="text-muted">{currency}</small>
+        <small className="text-muted">IDR</small>
       </div>
-      <small className="text-muted d-block mb-2">Absolute amount in referential currency</small>
+      <small className="text-muted d-block mb-2">Absolute amount in IDR</small>
       <div className="mb-3" style={{ padding: '16px 0' }}>
         <Slider
           range
@@ -146,7 +144,7 @@ const AmountRangeFilter: React.FC<AmountRangeFilterProps> = ({
             }}
           />
           <small className="text-muted d-block mt-1">
-            {currency} {minAmount.toLocaleString('en-US')}
+            IDR {minAmount.toLocaleString('en-US')}
           </small>
         </div>
         <div className="flex-grow-1">
@@ -167,7 +165,7 @@ const AmountRangeFilter: React.FC<AmountRangeFilterProps> = ({
             }}
           />
           <small className="text-muted d-block mt-1">
-            {currency} {maxAmount.toLocaleString('en-US')}
+            IDR {maxAmount.toLocaleString('en-US')}
           </small>
         </div>
       </div>

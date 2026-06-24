@@ -9,7 +9,6 @@ import { FaFilter } from 'react-icons/fa';
 import { useFilterData } from '@/hooks/useFilterData';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { RecordsHeader, RecordsList, RecordsSkeleton, type GroupedTransactions, type TransactionRecord } from '@/components/Records';
-import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
 
 
 import PeriodNavigation, {
@@ -23,7 +22,6 @@ import { TransactionFilterSidebar } from './_components/TransactionFilterSidebar
 import { useTransactionActions } from '@/hooks/useTransactionActions';
 
 function TransactionsContent() {
-  const { formatCurrency } = useFormattedCurrency();
   const {
     state: { dateRange, periodLabel, activePeriod, customRangeDraft },
   } = usePeriodNavigation();
@@ -35,7 +33,6 @@ function TransactionsContent() {
     debouncedSearchTerm,
     selectedCategories,
     selectedAccounts,
-    selectedCurrencies,
     sortOption,
     transferOption,
     debtOption,
@@ -53,22 +50,29 @@ function TransactionsContent() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  // Totals for ALL filtered transactions (from meta, not just loaded pages)
-  const [summaryTotals, setSummaryTotals] = useState<Record<string, { income: number; expense: number; net: number }>>({});
   const [totalRecords, setTotalRecords] = useState(0);
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
   const [isGlobalSelectAll, setIsGlobalSelectAll] = useState(false);
+  const netTotal = useMemo(() => transactions.reduce((sum, transaction) => sum + transaction.amount, 0), [transactions]);
+  const selectedNetTotal = useMemo(() => {
+    if (selectedTransactionIds.size > 0 && !isGlobalSelectAll) {
+      return transactions
+        .filter(transaction => selectedTransactionIds.has(transaction.id))
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
+    }
+
+    return netTotal;
+  }, [transactions, selectedTransactionIds, isGlobalSelectAll, netTotal]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   // Saved filters
   const savedFiltersData = useSavedFilters({
     categories,
     accounts: apiAccounts,
-    current: { selectedCategories, selectedAccounts, selectedCurrencies, selectedLabelIds, sortOption, transferOption, debtOption, draftOption },
+    current: { selectedCategories, selectedAccounts, selectedLabelIds, sortOption, transferOption, debtOption, draftOption },
     dispatchers: { 
       setSelectedCategories: filterData.setSelectedCategories, 
       setSelectedAccounts: filterData.setSelectedAccounts, 
-      setSelectedCurrencies: filterData.setSelectedCurrencies, 
       setSelectedLabelIds, 
       setSortOption: filterData.setSortOption, 
       setTransferOption: filterData.setTransferOption, 
@@ -179,11 +183,6 @@ function TransactionsContent() {
         filters['max_amount'] = maxAmount;
       }
 
-      // Add currency filter
-      if (selectedCurrencies.length > 0) {
-        filters['currencies'] = selectedCurrencies.join(',');
-      }
-
       // Add transfer option filter
       if (transferOption) {
         filters['transfer_option'] = transferOption;
@@ -239,8 +238,6 @@ function TransactionsContent() {
 
       if (pageNum === 1) {
         setTransactions(result.transactions);
-        // Capture totals from ALL filtered data (not just this page)
-        setSummaryTotals(result.meta.totals_by_currency ?? {});
         setTotalRecords(result.meta.total || 0);
       } else {
         setTransactions(prev => [...prev, ...result.transactions]);
@@ -265,7 +262,6 @@ function TransactionsContent() {
     selectedCategories,
     selectedAccounts,
     selectedLabelIds,
-    selectedCurrencies,
     minAmount,
     maxAmount,
     sortOption,
@@ -290,67 +286,11 @@ function TransactionsContent() {
 
       if (detail.action === 'edit' && detail.data && detail.data.id) {
         // Optimistic local update for edits to preserve scroll position and page
-        setTransactions(prev => prev.map(t => {
-          if (t.id === detail.data.id) {
-            // Calculate differences to update summaryTotals
-            const oldAmount = t.amount || 0;
-            const newAmount = detail.data.amount ?? oldAmount;
-            const currency = t.currency || 'USD';
-            
-            const wasDraft = t.is_draft ?? false;
-            const isNowDraft = detail.data.is_draft ?? wasDraft;
-            
-            let diff = 0;
-            if (wasDraft && !isNowDraft) {
-              // Newly confirmed, add full amount
-              diff = newAmount;
-            } else if (!wasDraft && isNowDraft) {
-              // Reverted to draft, subtract full amount
-              diff = -oldAmount;
-            } else if (!wasDraft && !isNowDraft) {
-              // Normal edit, just the difference
-              diff = newAmount - oldAmount;
-            }
-            
-            if (diff !== 0) {
-              setSummaryTotals(totals => {
-                const current = totals[currency] || { income: 0, expense: 0, net: 0 };
-                const updatedCurrent = { ...current };
-                if (t.type === 'income' || t.type === 'debt_in') {
-                  updatedCurrent.income += diff;
-                } else if (t.type === 'expense' || t.type === 'debt_out') {
-                  updatedCurrent.expense += diff;
-                }
-                updatedCurrent.net += diff;
-                return { ...totals, [currency]: updatedCurrent };
-              });
-            }
-            return { ...t, ...detail.data };
-          }
-          return t;
-        }));
+        setTransactions(prev => prev.map(t => (t.id === detail.data.id ? { ...t, ...detail.data } : t)));
       } else if (detail.action === 'add' && detail.data) {
         // Optimistic add (prepend to top)
         setTransactions(prev => [detail.data, ...prev]);
         setTotalRecords(prev => prev + 1);
-        
-        if (!detail.data.is_draft) {
-          setSummaryTotals(totals => {
-            const currency = detail.data.currency || 'USD';
-            const amount = detail.data.amount || 0;
-            const type = detail.data.type;
-            const current = totals[currency] || { income: 0, expense: 0, net: 0 };
-            const updatedCurrent = { ...current };
-            
-            if (type === 'income' || type === 'debt_in') {
-              updatedCurrent.income += amount;
-            } else if (type === 'expense' || type === 'debt_out') {
-              updatedCurrent.expense += amount;
-            }
-            updatedCurrent.net += amount;
-            return { ...totals, [currency]: updatedCurrent };
-          });
-        }
       } else if (detail.action === 'delete' && detail.data && detail.data.id) {
         // Collect all IDs to delete (transfer pairs are deleted together)
         const idsToDelete = new Set([detail.data.id]);
@@ -359,31 +299,7 @@ function TransactionsContent() {
         }
 
         // Optimistic delete
-        setTransactions(prev => {
-          const toDelete = prev.filter(t => idsToDelete.has(t.id));
-
-          toDelete.forEach(txToDelete => {
-            if (!txToDelete.is_draft) {
-              setSummaryTotals(totals => {
-                const currency = txToDelete.currency || 'USD';
-                const amount = txToDelete.amount || 0;
-                const type = txToDelete.type;
-                const current = totals[currency] || { income: 0, expense: 0, net: 0 };
-                const updatedCurrent = { ...current };
-                
-                if (type === 'income' || type === 'debt_in') {
-                  updatedCurrent.income -= amount;
-                } else if (type === 'expense' || type === 'debt_out') {
-                  updatedCurrent.expense -= amount;
-                }
-                updatedCurrent.net -= amount;
-                return { ...totals, [currency]: updatedCurrent };
-              });
-            }
-          });
-
-          return prev.filter(t => !idsToDelete.has(t.id));
-        });
+        setTransactions(prev => prev.filter(t => !idsToDelete.has(t.id)));
         setTotalRecords(prev => Math.max(0, prev - idsToDelete.size));
       } else {
         // Fallback to full fetch for others
@@ -490,7 +406,6 @@ function TransactionsContent() {
         // - transfer_out: negative
         // - transfer_in: positive
         amount: transaction.amount,
-        currency: transaction.currency,
         type: isTransfer ? 'TRANSFER' : (
           transaction.type === 'debt_in' ? 'DEBT_IN' :
             transaction.type === 'debt_out' ? 'DEBT_OUT' :
@@ -595,7 +510,6 @@ function TransactionsContent() {
               ...(selectedLabelIds.length > 0 && { label_ids: selectedLabelIds.join(',') }),
               ...(minAmount > 0 && { min_amount: minAmount }),
               ...(maxAmount < Infinity && { max_amount: maxAmount }),
-              ...(selectedCurrencies.length > 0 && { currencies: selectedCurrencies.join(',') }),
               ...(transferOption && { transfer_option: transferOption }),
               ...(debtOption && { debt_option: debtOption })
             }
@@ -645,50 +559,16 @@ function TransactionsContent() {
     selectedLabelIds,
     minAmount,
     maxAmount,
-    selectedCurrencies,
     transferOption,
     debtOption,
     fetchTransactions
   ]);
 
 
-  // Net totals:
-  //   - When nothing selected: use summaryTotals from API meta (covers ALL filtered data)
-  //   - When selection active: sum only the selected visible rows, UNLESS it's a global selection
-  const netTotalsByCurrency = useMemo(() => {
-    const hasSelection = selectedTransactionIds.size > 0;
-    if (!hasSelection || isGlobalSelectAll) {
-      return summaryTotals;
-    }
-    // Build income/expense/net from selected visible rows
-    const totals: Record<string, { income: number; expense: number; net: number }> = {};
-    transactions
-      .filter(t => selectedTransactionIds.has(t.id))
-      .forEach((t) => {
-        const currency = t.currency || 'USD';
-        if (!totals[currency]) totals[currency] = { income: 0, expense: 0, net: 0 };
-        const amt = t.amount;
-        if (t.type === 'income' || t.type === 'debt_in') {
-          totals[currency]!.income += amt;
-        } else if (t.type === 'expense' || t.type === 'debt_out') {
-          totals[currency]!.expense += amt; // already negative
-        }
-        totals[currency]!.net = totals[currency]!.income + totals[currency]!.expense;
-      });
-    return totals;
-  }, [transactions, selectedTransactionIds, summaryTotals, isGlobalSelectAll]);
-
-  // Format totals for display
-  const formatNetTotals = useCallback((totalsByCurrency: Record<string, { income: number; expense: number; net: number }>) => {
-    return Object.entries(totalsByCurrency)
-      .map(([currency, t]) => {
-        const net = t.net;
-        const formatted = formatCurrency(Math.abs(net), currency);
-        const sign = net > 0 ? '+' : net < 0 ? '-' : '';
-        return `${sign}${formatted}`;
-      })
-      .join(' | ');
-  }, [formatCurrency]);
+  const formatNetTotal = useCallback((net: number) => {
+    const formatted = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Math.abs(net));
+    return `${net > 0 ? '+' : net < 0 ? '-' : ''}${formatted}`;
+  }, []);
 
   const allSelected = selectedTransactionIds.size > 0 && selectedTransactionIds.size === transactions.length;
 
@@ -751,7 +631,7 @@ function TransactionsContent() {
                       onBulkEdit={handleBulkEdit}
                       onBulkExport={handleBulkExport}
                       onBulkDelete={handleBulkDelete}
-                      summaryText={formatNetTotals(netTotalsByCurrency)}
+                      summaryText={formatNetTotal(selectedNetTotal)}
                       showBulkActions
                       isGlobalSelectAll={isGlobalSelectAll}
                       onSelectGlobal={setIsGlobalSelectAll}

@@ -7,7 +7,6 @@ import { TransactionTypeToggle } from './TransactionTypeToggle';
 import { AmountInput } from './AmountInput';
 import { LabelMultiSelect } from './LabelMultiSelect';
 import { ClearButton } from '@/components/common/ClearButton';
-import { getCurrencyPrefix } from '@/utils/formatters';
 import type { Account } from '@/services/accountService';
 
 const PAYMENT_METHODS = ['Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Digital Wallet'];
@@ -74,30 +73,13 @@ export function TransactionForm({
 
   const handleTransferAmountChange = useCallback(
     (value: string) => {
-      const fromAccount = accounts.find((a) => a.id === formData.account_id);
-      const toAccount = accounts.find((a) => a.id === formData.to_account_id);
-
-      // Only sync amounts if same currency
-      if (fromAccount?.currency === toAccount?.currency) {
-        // Same currency: keep amounts in sync
-        updateField('amount', value);
-        updateField('to_amount', value);
-      } else {
-        // Multi-currency: update only source amount
-        // User can manually set different destination amount
-        updateField('amount', value);
-      }
+      updateField('amount', value);
     },
-    [updateField, formData.account_id, formData.to_account_id, accounts]
+    [updateField]
   );
 
 
   const isTransfer = formData.type === 'transfer';
-
-  // Get selected accounts for currency display
-  const selectedAccount = accounts.find((a) => a.id === formData.account_id);
-  const selectedToAccount = accounts.find((a) => a.id === formData.to_account_id);
-  const isMultiCurrencyTransfer = isTransfer && selectedAccount?.currency !== selectedToAccount?.currency;
 
   return (
     <Form>
@@ -159,67 +141,24 @@ export function TransactionForm({
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Row className="g-3 align-items-center">
-              <Col xs={12} md={5}>
-                <Form.Label>
-                  Amount <span className="text-danger">*</span>
-                  {selectedAccount && (
-                    <span className="text-muted ms-2" style={{ fontWeight: 'normal', fontSize: '0.9em' }}>
-                      ({selectedAccount.currency})
-                    </span>
-                  )}
-                </Form.Label>
-                <AmountInput
-                  value={formData.amount}
-                  onChange={handleTransferAmountChange}
-                  type="expense"
-                  isInvalid={!!errors['amount']}
-                  prefix={getCurrencyPrefix(selectedAccount?.currency)}
-                />
-              </Col>
-              <Col
-                xs={12}
-                md={2}
-                className="d-flex justify-content-center align-items-end"
-                style={{ paddingBottom: errors['amount'] ? '1.5rem' : '0.375rem' }}
-              >
-                <FaArrowRight size={24} className="text-primary" />
-              </Col>
-              <Col xs={12} md={5}>
-                <Form.Label>
-                  Amount Received
-                  {selectedToAccount && (
-                    <span className="text-muted ms-2" style={{ fontWeight: 'normal', fontSize: '0.9em' }}>
-                      ({selectedToAccount.currency})
-                    </span>
-                  )}
-                  {isMultiCurrencyTransfer && (
-                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>
-                      Multi-currency
-                    </span>
-                  )}
-                </Form.Label>
-                <AmountInput
-                  value={formData.to_amount || formData.amount}
-                  onChange={(value) => updateField('to_amount', value)}
-                  type="income"
-                  placeholder={isMultiCurrencyTransfer ? 'Enter amount' : 'Same as sent'}
-                  disabled={!isMultiCurrencyTransfer}
-                  prefix={getCurrencyPrefix(selectedToAccount?.currency)}
-                />
-              </Col>
-            </Row>
+            <Form.Label>
+              Amount <span className="text-danger">*</span>
+              <span className="text-muted ms-2" style={{ fontWeight: 'normal', fontSize: '0.9em' }}>
+                (IDR)
+              </span>
+            </Form.Label>
+            <AmountInput
+              value={formData.amount}
+              onChange={handleTransferAmountChange}
+              type="expense"
+              isInvalid={!!errors['amount']}
+              prefix="Rp"
+              disabled={isLoading}
+            />
             {errors['amount'] && (
               <Form.Control.Feedback type="invalid" style={{ display: 'block' }}>
                 {errors['amount']}
               </Form.Control.Feedback>
-            )}
-            {isMultiCurrencyTransfer && (
-              <div className="text-info small mt-1">
-                <i className="bi bi-info-circle me-1"></i>
-                Converting from {selectedAccount?.currency} to {selectedToAccount?.currency}. Enter the amount
-                received in {selectedToAccount?.currency}.
-              </div>
             )}
           </Form.Group>
         </>
@@ -235,18 +174,16 @@ export function TransactionForm({
               <Form.Group className="mb-3">
                 <Form.Label>
                   Amount <span className="text-danger">*</span>
-                  {selectedAccount && (
-                    <span className="text-muted ms-2" style={{ fontWeight: 'normal', fontSize: '0.9em' }}>
-                      ({selectedAccount.currency})
-                    </span>
-                  )}
+                  <span className="text-muted ms-2" style={{ fontWeight: 'normal', fontSize: '0.9em' }}>
+                    (IDR)
+                  </span>
                 </Form.Label>
                 <AmountInput
                   value={formData.amount}
                   onChange={(value) => updateField('amount', value)}
                   type={formData.type === 'income' ? 'income' : 'expense'}
                   isInvalid={!!errors['amount']}
-                  prefix={getCurrencyPrefix(selectedAccount?.currency)}
+                  prefix="Rp"
                 />
                 {errors['amount'] && (
                   <Form.Control.Feedback type="invalid" style={{ display: 'block' }}>
