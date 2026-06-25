@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
@@ -7,6 +7,7 @@ import { accountService } from '@/services/accountService';
 import { categoryService } from '@/services/categoryService';
 import { transactionService, CreateTransactionRequest } from '@/services/transactionService';
 import { dispatchAppEvent } from '@/lib/eventBus';
+import { logError } from '@/lib/logger';
 
 interface TransactionFormValues {
   id?: string;
@@ -98,7 +99,7 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
       setAccountIdToName(idToName);
       setAccountNameToId(nameToId);
     } catch (error) {
-      console.error('Failed to fetch accounts:', error);
+      logError('Failed to fetch accounts:', error);
       showToast('Failed to load accounts', 'error');
     }
   }, [showToast]);
@@ -114,7 +115,7 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
       setCategories(categoriesData.data);
       setCategoryTree(treeData);
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      logError('Failed to fetch categories:', error);
       showToast('Failed to load categories', 'error');
     }
   }, [showToast]);
@@ -233,7 +234,7 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
       closeTransactionModal();
       return true;
     } catch (error) {
-      console.error('Failed to save transaction:', error);
+      logError('Failed to save transaction:', error);
       showToast('Failed to save transaction', 'error');
       return false;
     }
@@ -256,7 +257,7 @@ export function TransactionModalProvider({ children }: { children: ReactNode }):
       ]);
       return true;
     } catch (error) {
-      console.error('Failed to delete transaction:', error);
+      logError('Failed to delete transaction:', error);
       showToast('Failed to delete transaction', 'error');
       return false;
     }

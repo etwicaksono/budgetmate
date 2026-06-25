@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GET  /api/ai/sessions  — list all sessions for the authenticated user
  * POST /api/ai/sessions  — create a new session with a context snapshot
  */
@@ -10,6 +10,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { handlePrismaError } from '@/lib/api/prisma-errors';
 import type { ContextSnapshot } from '@/lib/ai/types';
+import { logError } from '@/lib/logger';
 
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const prismaError = handlePrismaError(error, 'AI chat session', 'fetch');
     if (prismaError) return prismaError;
 
-    console.error('Unexpected error while fetching AI chat sessions:', error);
+    logError('Unexpected error while fetching AI chat sessions:', error);
     return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);
   }
 }
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const prismaError = handlePrismaError(error, 'AI chat session', 'create');
     if (prismaError) return prismaError;
 
-    console.error('Unexpected error while creating AI chat session:', error);
+    logError('Unexpected error while creating AI chat session:', error);
     return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);
   }
 }

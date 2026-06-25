@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, TransactionType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, paginationMeta } from '@/lib/api/response';
+import { logError } from '@/lib/logger';
 import {
   CreateTransactionSchema,
   TransactionFilterSchema
@@ -290,7 +291,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
 
   } catch (error) {
-    console.error('Transaction fetch error:', error);
+    logError('Transaction fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch transactions', 500);
   }
 }
@@ -441,7 +442,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return successResponse(response, { message: 'Transaction created successfully' }, 201);
 
   } catch (error) {
-    console.error('Transaction creation error:', error);
+    logError('Transaction creation error:', error);
 
     if (error instanceof LabelNotFoundError) {
       return errorResponse('INVALID_LABEL', error.message, 404);

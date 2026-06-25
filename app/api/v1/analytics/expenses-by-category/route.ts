@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { logError } from '@/lib/logger';
 
 interface ExpenseCategoryItem {
   category_id: string;
@@ -98,7 +99,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return successResponse({ expenses });
   } catch (error) {
-    console.error('Fetch expenses by category error:', error);
+    logError('Fetch expenses by category error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch expenses by category', 500);
   }
 }

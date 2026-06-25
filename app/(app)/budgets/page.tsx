@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Container, Row, Col, ListGroup, OverlayTrigger, Placeholder, Tooltip, Button, Form } from 'react-bootstrap';
@@ -25,6 +25,7 @@ import { BudgetToolbar } from './_components/BudgetToolbar';
 import { BudgetTableMode } from './_components/BudgetTableMode';
 import { CombinedBudgetItem } from './types';
 import Swal from 'sweetalert2';
+import { logError } from '@/lib/logger';
 
 const BUDGET_SORT_OPTIONS: SortOption<string>[] = [
   { value: 'name_asc', icon: FaSortAlphaDown, title: 'Alphabetical ASC', ariaLabel: 'Alphabetical ascending' },
@@ -108,7 +109,7 @@ function BudgetsPageContent(): React.ReactElement {
       );
       setBudgets(budRes);
     } catch (error) {
-      console.error('Failed to load budgets:', error);
+      logError('Failed to load budgets:', error);
       Swal.fire({
         icon: 'error',
         title: 'Failed to Load Budgets',
@@ -130,7 +131,7 @@ function BudgetsPageContent(): React.ReactElement {
         accountsRef.current = accRes;
         setAccounts(accRes);
       })
-      .catch(console.error);
+      .catch(logError);
   }, []);
 
 
@@ -154,7 +155,7 @@ function BudgetsPageContent(): React.ReactElement {
       });
       setBudgets(budRes);
     } catch (error) {
-      console.error('Failed to refresh budgets:', error);
+      logError('Failed to refresh budgets:', error);
       Swal.fire({
         icon: 'error',
         title: 'Failed to Refresh Budgets',

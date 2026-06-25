@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { accountService, type Account } from '@/services/accountService';
 import { categoryService, type Category } from '@/services/categoryService';
 import { labelService, type Label } from '@/services/labelService';
+import { logError } from '@/lib/logger';
 
 export type SortValue =
   | 'timeAsc'
@@ -86,7 +87,7 @@ export const useFilterData = () => {
         const parsed = JSON.parse(stored);
         setFilterVisibility((prev) => ({ ...prev, ...parsed }));
       } catch (error) {
-        console.error('Failed to parse filter visibility:', error);
+        logError('Failed to parse filter visibility:', error);
       }
     }
   }, []);
@@ -96,7 +97,7 @@ export const useFilterData = () => {
     try {
       localStorage.setItem('filter-visibility', JSON.stringify(filterVisibility));
     } catch (error) {
-      console.error('Failed to persist filter visibility to localStorage:', error);
+      logError('Failed to persist filter visibility to localStorage:', error);
     }
   }, [filterVisibility]);
 
@@ -115,7 +116,7 @@ export const useFilterData = () => {
         setAccounts(accountsData);
         setLabels(labelsData.data);
       } catch (error) {
-        console.error('Failed to fetch filter data:', error);
+        logError('Failed to fetch filter data:', error);
         setError(error instanceof Error ? error : new Error('Failed to fetch filter data'));
       } finally {
         setLoading(false);

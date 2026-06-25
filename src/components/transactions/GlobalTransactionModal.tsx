@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback } from 'react';
 import Swal from 'sweetalert2';
@@ -6,6 +6,7 @@ import { useTransaction } from '@/context/TransactionContext';
 import { transactionService, type Transaction, type CreateTransactionRequest } from '@/services/transactionService';
 import { transferService, type CreateTransferRequest } from '@/services/transferService';
 import { TransactionModal } from '@/components/transaction';
+import { logError } from '@/lib/logger';
 
 export const GlobalTransactionModal: React.FC = () => {
   const { isOpen, mode, initialData, closeModal, openAddModal } = useTransaction();
@@ -51,7 +52,7 @@ export const GlobalTransactionModal: React.FC = () => {
             if (transactionData.to_account_id) transferData['to_account_id'] = transactionData.to_account_id;
             
             const handleError = (error: unknown) => {
-              console.error('Background update failed:', error);
+              logError('Background update failed:', error);
               // Revert optimistic update
               window.dispatchEvent(
                 new CustomEvent('transaction-updated', {
@@ -68,7 +69,7 @@ export const GlobalTransactionModal: React.FC = () => {
             transferService.updateTransfer(transferId, transferData).catch(handleError);
           } else {
             const handleError = (error: unknown) => {
-              console.error('Background update failed:', error);
+              logError('Background update failed:', error);
               window.dispatchEvent(
                 new CustomEvent('transaction-updated', {
                   detail: { action: 'edit', data: initialData },
@@ -138,7 +139,7 @@ export const GlobalTransactionModal: React.FC = () => {
           );
         }
       } catch (err: unknown) {
-        console.error('Failed to save:', err);
+        logError('Failed to save:', err);
         await Swal.fire({
           icon: 'error',
           title: 'Error',
@@ -173,7 +174,7 @@ export const GlobalTransactionModal: React.FC = () => {
       if (isTransfer) {
         const transferId = initialData?.transfer_id || initialData?.id || transactionId;
         transferService.deleteTransfer(transferId).catch(error => {
-          console.error('Failed to delete transfer in background:', error);
+          logError('Failed to delete transfer in background:', error);
           Swal.fire({
             icon: 'error',
             title: 'Delete Failed',
@@ -185,7 +186,7 @@ export const GlobalTransactionModal: React.FC = () => {
         });
       } else {
         transactionService.deleteTransaction(transactionId).catch(error => {
-          console.error('Failed to delete transaction in background:', error);
+          logError('Failed to delete transaction in background:', error);
           Swal.fire({
             icon: 'error',
             title: 'Delete Failed',
@@ -216,7 +217,7 @@ export const GlobalTransactionModal: React.FC = () => {
         })
       );
     } catch (err: unknown) {
-      console.error('Failed to delete:', err);
+      logError('Failed to delete:', err);
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -269,7 +270,7 @@ export const GlobalTransactionModal: React.FC = () => {
         })
       );
     } catch (err) {
-      console.error(err);
+      logError(err);
       Swal.fire({
         icon: 'error',
         title: 'Error',

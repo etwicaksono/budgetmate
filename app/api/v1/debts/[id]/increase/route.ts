@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { CreateRepaymentSchema } from '@/lib/validation/debt'; // Reusing this schema as properties match: amount, account_id, date, description
+import { logError } from '@/lib/logger';
 
 export async function POST(
    request: NextRequest,
@@ -104,7 +105,7 @@ export async function POST(
    } catch (error) {
       const prismaError = handlePrismaError(error, 'Debt increase', 'create');
       if (prismaError) return prismaError;
-      console.error('Unexpected error:', error);
+      logError('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to increase debt', 500);
    }
 }

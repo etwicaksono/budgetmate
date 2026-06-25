@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { AccountType, CategoryNature, CategoryType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
@@ -9,6 +9,7 @@ import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { RegisterSchema } from '@/lib/validation/auth';
 import defaultCategories from '@/data/default_categories.json';
 import defaultAccounts from '@/data/default_accounts.json';
+import { logError } from '@/lib/logger';
 
 interface CategoryData {
   name: string;
@@ -277,7 +278,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const prismaError = handlePrismaError(error, 'User', 'register');
     if (prismaError) return prismaError;
 
-    console.error('Unexpected registration error:', error);
+    logError('Unexpected registration error:', error);
     return errorResponse('INTERNAL_ERROR', 'Registration failed', 500);
   }
 }

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import Swal from 'sweetalert2';
@@ -6,6 +6,7 @@ import { useDebt } from '@/context/DebtContext';
 import { debtService, CreateDebtPayload, UpdateDebtPayload, CreateRepaymentPayload } from '@/services/debtService';
 import { DebtModal, RepaymentModal, DebtIncreaseModal } from '@/components/debt';
 import { useTransactionData } from '@/hooks/useTransactionData';
+import { logError } from '@/lib/logger';
 
 const Toast = Swal.mixin({
   toast: true,
@@ -44,7 +45,7 @@ export const GlobalDebtModal: React.FC = () => {
       }
       dispatchMutated();
     } catch (error) {
-      console.error('Failed to save debt', error);
+      logError('Failed to save debt', error);
       throw error; // Rethrow to let the inner modal catch it for error rendering
     }
   };
@@ -66,7 +67,7 @@ export const GlobalDebtModal: React.FC = () => {
       }
       dispatchMutated();
     } catch (error) {
-      console.error('Failed to save repayment', error);
+      logError('Failed to save repayment', error);
       throw error;
     }
   };
@@ -88,7 +89,7 @@ export const GlobalDebtModal: React.FC = () => {
       }
       dispatchMutated();
     } catch (error) {
-      console.error('Failed to save increase', error);
+      logError('Failed to save increase', error);
       throw error;
     }
   };

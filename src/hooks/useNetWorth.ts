@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { accountService, type Account } from '@/services/accountService';
 import { debtService } from '@/services/debtService';
 import { onAppEvent } from '@/lib/eventBus';
+import { logError } from '@/lib/logger';
 
 export interface UseNetWorthReturn {
   data: number;
@@ -41,7 +42,7 @@ export function useNetWorth(includeDraft: boolean = false): UseNetWorthReturn {
       setTotalCredit(creditTotal);
       setTotalDebt(debtTotalValue);
     } catch (err) {
-      console.error('Failed to fetch net worth data:', err);
+      logError('Failed to fetch net worth data:', err);
       setError('Failed to load net worth data');
     } finally {
       setIsLoading(false);

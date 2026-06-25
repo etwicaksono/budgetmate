@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button, Form, ListGroup, Dropdown, InputGroup, Alert } from 'react-bootstrap';
@@ -6,6 +6,7 @@ import { FaPlus, FaEllipsisV, FaSearch, FaTags } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { labelService, Label } from '@/services/labelService';
 import { LabelModal } from '@/components/label';
+import { logError } from '@/lib/logger';
 
 export function LabelsSection(): React.ReactElement {
   const [labels, setLabels] = useState<Label[]>([]);
@@ -33,7 +34,7 @@ export function LabelsSection(): React.ReactElement {
       setErrorMessage('');
     } catch (error) {
       setErrorMessage('Failed to load labels');
-      console.error(error);
+      logError(error);
     } finally {
       setLoading(false);
     }

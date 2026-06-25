@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
@@ -20,6 +20,7 @@ import { isTransferTransaction } from '@/utils/transferUtils';
 
 import { TransactionFilterSidebar } from './_components/TransactionFilterSidebar';
 import { useTransactionActions } from '@/hooks/useTransactionActions';
+import { logError } from '@/lib/logger';
 
 function TransactionsContent() {
   const {
@@ -248,7 +249,7 @@ function TransactionsContent() {
       setPage(pageNum);
     } catch (error) {
       if (generation !== fetchGenerationRef.current) return;
-      console.error('Failed to fetch transactions:', error);
+      logError('Failed to fetch transactions:', error);
     } finally {
       if (generation === fetchGenerationRef.current) {
         if (pageNum === 1) setLoading(false);
@@ -540,7 +541,7 @@ function TransactionsContent() {
         setIsGlobalSelectAll(false);
         fetchTransactions(1);
       } catch (error) {
-        console.error('Failed to bulk delete:', error);
+        logError('Failed to bulk delete:', error);
         await Swal.fire({
           icon: 'error',
           title: 'Delete Failed',

@@ -8,6 +8,7 @@ import { successResponse, errorResponse, commonErrors } from '@/lib/api/response
 import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { resolveRouteParam } from '@/lib/api/params';
 import { balanceService } from '@/services/balanceService';
+import { logError } from '@/lib/logger';
 
 
 
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
     return successResponse(response);
 
   } catch (error) {
-    console.error('Account fetch error:', error);
+    logError('Account fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch account', 500);
   }
 }
@@ -195,7 +196,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
   } catch (error) {
     const prismaError = handlePrismaError(error, 'Account', 'update');
     if (prismaError) return prismaError;
-    console.error('Unexpected error:', error);
+    logError('Unexpected error:', error);
     return commonErrors.serverError();
   }
 }
@@ -266,7 +267,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
   } catch (error) {
     const prismaError = handlePrismaError(error, 'Account', 'delete');
     if (prismaError) return prismaError;
-    console.error('Unexpected error:', error);
+    logError('Unexpected error:', error);
     return commonErrors.serverError();
   }
 }

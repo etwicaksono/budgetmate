@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useMemo, useState } from 'react';
 import { Button, Container, Dropdown, Offcanvas } from 'react-bootstrap';
@@ -10,6 +10,7 @@ import { useTransaction } from '@/context/TransactionContext';
 import { useDebt } from '@/context/DebtContext';
 import './Header.css';
 import Image from 'next/image';
+import { logError } from '@/lib/logger';
 
 interface NavigationLink {
   to: string;
@@ -89,7 +90,7 @@ export default function Header(): React.ReactElement {
       await logout();
       router.push('/login');
     } catch (error) {
-      console.error('Logout failed:', error);
+      logError('Logout failed:', error);
     }
   }, [logout, router]);
 

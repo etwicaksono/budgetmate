@@ -38,6 +38,7 @@ import {
 import type { IconType } from 'react-icons';
 
 import '../Accounts.css'; // Reuse styles from accounts
+import { logError } from '@/lib/logger';
 
 const getIconComponent = (iconName: string): IconType => {
   const iconMap: Record<string, IconType> = {
@@ -71,7 +72,7 @@ const BalanceTab = ({ accountId }: { accountId: string }) => {
         const res = await analyticsService.fetchBalanceTrend({ account_ids: [accountId] });
         setData(res);
       } catch (err) {
-        console.error('Failed to fetch balance trend:', err);
+        logError('Failed to fetch balance trend:', err);
       } finally {
         setLoading(false);
       }
@@ -167,7 +168,7 @@ const RecordsTab = ({ accountId }: { accountId: string }) => {
       setHasMore(result.meta.page < totalPages);
       setPage(pageNum);
     } catch (error) {
-      console.error('Failed to fetch transactions:', error);
+      logError('Failed to fetch transactions:', error);
     } finally {
       if (pageNum === 1) setLoading(false);
       else setIsLoadingMore(false);
@@ -355,7 +356,7 @@ export default function AccountDetailPage() {
       const data = await accountService.fetchAccountById(accountId);
       setAccount(data);
     } catch (err) {
-      console.error('Failed to fetch account:', err);
+      logError('Failed to fetch account:', err);
       // Fallback: they might be offline or it's a test. Handle error gracefully hook?
       Swal.fire({
         icon: 'error',

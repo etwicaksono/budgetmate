@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { generateAnalyticsPeriods } from '@/lib/timezone';
+import { logError } from '@/lib/logger';
 
 type DataType = 'balance' | 'cashflow' | 'cumulative_cashflow';
 type Granularity = 'day' | 'week' | 'month';
@@ -388,7 +389,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return successResponse(response);
   } catch (error) {
-    console.error('Advanced charts error:', error);
+    logError('Advanced charts error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch advanced charts data', 500);
   }
 }

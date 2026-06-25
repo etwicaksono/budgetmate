@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, DebtStatus, DebtType, TransactionType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { CreateDebtSchema } from '@/lib/validation/debt';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
    const authResult = await requireAuth(request);
@@ -166,7 +167,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
          }
       });
    } catch (error) {
-      console.error('Fetch debts error:', error);
+      logError('Fetch debts error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to retrieve debts', 500);
    }
 }
@@ -266,7 +267,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
 
    } catch (error) {
-      console.error('Create debt error:', error);
+      logError('Create debt error:', error);
       return errorResponse(
          'INTERNAL_ERROR',
          'Failed to create debt',

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { logError } from '@/lib/logger';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return successResponse({ data });
   } catch (error) {
-    console.error('Fetch income vs expenses error:', error);
+    logError('Fetch income vs expenses error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch income vs expenses data', 500);
   }
 }

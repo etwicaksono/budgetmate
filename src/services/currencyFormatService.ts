@@ -1,3 +1,4 @@
+﻿import { logError } from '@/lib/logger';
 export interface FormatOptions {
   showSymbol?: boolean;      // Include currency symbol
   showCode?: boolean;        // Include currency code
@@ -63,7 +64,7 @@ class CurrencyFormatService {
 
       return formattedNumber;
     } catch (error) {
-      console.error('Currency formatting failed:', error);
+      logError('Currency formatting failed:', error);
       return `${CURRENCY_CODE} ${amount.toFixed(decimalDigits)}`;
     }
   }

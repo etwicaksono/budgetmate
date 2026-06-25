@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+﻿import { useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { useTransaction } from '@/context/TransactionContext';
 import { useDebt } from '@/context/DebtContext';
@@ -6,6 +6,7 @@ import { transactionService, type Transaction } from '@/services/transactionServ
 import { debtService } from '@/services/debtService';
 import { type TransactionRecord } from '@/components/Records';
 import { isTransferTransaction, mapTransferAccounts, getModalTransactionType } from '@/utils/transferUtils';
+import { logError } from '@/lib/logger';
 
 interface UseTransactionActionsOptions {
   transactions: Transaction[];
@@ -40,7 +41,7 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
           }
           return; // Skip opening the standard transaction modal
         } catch (error) {
-          console.error('Failed to load debt details for editing, falling back to generic editor:', error);
+          logError('Failed to load debt details for editing, falling back to generic editor:', error);
           Swal.mixin({
             toast: true,
             position: 'top-end',
@@ -116,7 +117,7 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
 
       // Background delete
       transactionService.deleteTransaction(recordId).catch(error => {
-        console.error('Failed to delete transaction in background:', error);
+        logError('Failed to delete transaction in background:', error);
 
         // Revert optimistic update
         const deletedTransaction = transactions.find((t) => t.id === recordId);
@@ -217,7 +218,7 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
       transactionService.updateTransaction(transaction.id, {
         is_draft: false
       }).catch(error => {
-        console.error('Failed to confirm draft in background:', error);
+        logError('Failed to confirm draft in background:', error);
         
         // Revert optimistic update
         window.dispatchEvent(
@@ -233,7 +234,7 @@ export function useTransactionActions({ transactions }: UseTransactionActionsOpt
         });
       });
     } catch (error) {
-      console.error('Failed to confirm draft:', error);
+      logError('Failed to confirm draft:', error);
       Swal.fire({
         icon: 'error',
         title: 'Confirmation Failed',

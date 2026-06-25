@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { logError } from '@/lib/logger';
 
 // Define the expected schema based on frontend mapping:
 // { id: string, order: number }
@@ -58,7 +59,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     return successResponse(null, { message: 'Account order updated successfully' });
 
   } catch (error) {
-    console.error('Account swap order error:', error);
+    logError('Account swap order error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to update account order', 500);
   }
 }

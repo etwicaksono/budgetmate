@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Form, Card, Button, Row, Col } from 'react-bootstrap';
 import { useLocale } from '@/context/LocaleContext';
 import { useFormattedCurrency } from '@/hooks/useFormattedCurrency';
+import { logError } from '@/lib/logger';
 
 export function GeneralSection(): React.ReactElement {
   const { locale, setLocale, availableLocales, loading } = useLocale();
@@ -25,7 +26,7 @@ export function GeneralSection(): React.ReactElement {
     try {
       await setLocale(selectedLocale);
     } catch (error) {
-      console.error('Failed to save locale:', error);
+      logError('Failed to save locale:', error);
     } finally {
       setSaving(false);
     }

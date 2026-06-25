@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { errorResponse } from '@/lib/api/response';
+import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -137,7 +138,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ success: true, data: enhancedBudgets, debug: { yearParam, monthParam, year, month, monthlyStart, monthlyEnd, monthlyAgg } });
   } catch (error) {
-    console.error('Fetch budgets error:', error);
+    logError('Fetch budgets error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch budgets', 500);
   }
 }

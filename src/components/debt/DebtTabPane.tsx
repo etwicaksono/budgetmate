@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Row, Col, Card, Button, Spinner } from 'react-bootstrap';
@@ -10,6 +10,7 @@ import { useDebt } from '@/context/DebtContext';
 import { DebtCard } from './DebtCard';
 import { DebtSkeleton } from './DebtSkeleton';
 import { DebtDetailModal } from './DebtDetailModal';
+import { logError } from '@/lib/logger';
 
 const Toast = Swal.mixin({
   toast: true,
@@ -129,7 +130,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
           const updated = await debtService.getDebtById(detailDebt.id);
           setDetailDebt(updated);
         } catch (err) {
-          console.error('Failed to refresh detail modal', err);
+          logError('Failed to refresh detail modal', err);
         }
       }
     };

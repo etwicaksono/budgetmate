@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Custom hook for account modal management
  * Following DRY principle - single source of truth for modal logic
  * Following SRP - separates modal state management from UI components
@@ -8,6 +8,7 @@ import { useState, useCallback } from 'react';
 import type { AccountType } from '@prisma/client';
 import { accountService, Account } from '@/services/accountService';
 import { dispatchAppEvent } from '@/lib/eventBus';
+import { logError } from '@/lib/logger';
 
 export interface AccountFormData {
   name: string;
@@ -97,7 +98,7 @@ export function useAccountModal(onSuccess?: () => Promise<void>): UseAccountModa
 
       closeModal();
     } catch (error) {
-      console.error('Failed to save account:', error);
+      logError('Failed to save account:', error);
       const wrappedError = new Error('Failed to save account') as Error & { cause?: unknown };
       wrappedError.cause = error;
       throw wrappedError;

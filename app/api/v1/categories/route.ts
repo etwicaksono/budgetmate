@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { CategoryNature, CategoryType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { CreateCategorySchema, CategoryFilterSchema } from '@/lib/validation/category';
+import { logError } from '@/lib/logger';
 
 const normalizeCategoryType = (type?: string): CategoryType => {
   return type === 'income' ? CategoryType.income : CategoryType.expense;
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
   } catch (error) {
-    console.error('Category fetch error:', error);
+    logError('Category fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch categories', 500);
   }
 }
@@ -213,7 +214,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return successResponse(response, { message: 'Category created successfully' }, 201);
 
   } catch (error) {
-    console.error('Category creation error:', error);
+    logError('Category creation error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to create category', 500);
   }
 }

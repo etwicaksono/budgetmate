@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 
 import type { ApiErrorResponse } from './response';
 import { errorResponse } from './response';
+import { logError } from '@/lib/logger';
 
 export function handlePrismaError(
   error: unknown,
@@ -15,7 +16,7 @@ export function handlePrismaError(
 
   const context = entityName ?? 'Record';
 
-  console.error('Prisma error encountered', {
+  logError('Prisma error encountered', {
     entityName: context,
     operation,
     code: error.code,

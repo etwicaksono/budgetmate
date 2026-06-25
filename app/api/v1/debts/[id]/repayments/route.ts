@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { CreateRepaymentSchema } from '@/lib/validation/debt';
+import { logError } from '@/lib/logger';
 
 export async function POST(
    request: NextRequest,
@@ -114,7 +115,7 @@ export async function POST(
       return successResponse(newRepaymentTx, { message: 'Repayment recorded successfully', code: 201 });
 
    } catch (error) {
-      console.error('Create repayment error:', error);
+      logError('Create repayment error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to record repayment', 500);
    }
 }

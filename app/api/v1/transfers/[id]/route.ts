@@ -7,6 +7,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, commonErrors } from '@/lib/api/response';
 import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { resolveRouteParam } from '@/lib/api/params';
+import { logError } from '@/lib/logger';
 
 interface RouteParams {
   params?: {
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
     return successResponse(response);
 
   } catch (error) {
-    console.error('Transfer fetch error:', error);
+    logError('Transfer fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch transfer', 500);
   }
 }
@@ -261,7 +262,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     }
     const prismaError = handlePrismaError(error, 'Transfer', 'update');
     if (prismaError) return prismaError;
-    console.error('Unexpected error:', error);
+    logError('Unexpected error:', error);
     return commonErrors.serverError();
   }
 }
@@ -316,7 +317,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
   } catch (error) {
     const prismaError = handlePrismaError(error, 'Transfer', 'delete');
     if (prismaError) return prismaError;
-    console.error('Unexpected error:', error);
+    logError('Unexpected error:', error);
     return commonErrors.serverError();
   }
 }

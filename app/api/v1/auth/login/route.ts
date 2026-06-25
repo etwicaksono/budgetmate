@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/db/prisma';
 import { verifyPassword } from '@/lib/auth/password';
@@ -6,6 +6,7 @@ import { generateTokenPair } from '@/lib/auth/jwt';
 import { checkRateLimit } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { LoginSchema } from '@/lib/validation/auth';
+import { logError } from '@/lib/logger';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
     
   } catch (error) {
-    console.error('Login error:', error);
+    logError('Login error:', error);
     return errorResponse(
       'INTERNAL_ERROR',
       'An error occurred during login',

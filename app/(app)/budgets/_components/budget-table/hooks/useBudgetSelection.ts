@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+﻿import { useState, useMemo, useEffect } from 'react';
 import { Row } from '../types';
 import { Column, DataGridHandle } from 'react-data-grid';
 import Swal from 'sweetalert2';
+import { logError } from '@/lib/logger';
 
 interface UseBudgetSelectionProps {
   rows: Row[];
@@ -165,7 +166,7 @@ export function useBudgetSelection({ rows, columns, gridRef, onCellsChange }: Us
       await navigator.clipboard.writeText(tsv);
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Copied to clipboard', showConfirmButton: false, timer: 1500 });
     } catch (err) {
-      console.error('Failed to copy', err);
+      logError('Failed to copy', err);
     }
   };
 
@@ -252,7 +253,7 @@ export function useBudgetSelection({ rows, columns, gridRef, onCellsChange }: Us
         onCellsChange(changedRows);
       }
     } catch (err) {
-      console.error('Failed to paste', err);
+      logError('Failed to paste', err);
     }
   };
 

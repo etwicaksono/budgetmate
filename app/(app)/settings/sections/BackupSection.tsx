@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useRef } from 'react';
 import { Row, Col, Card, Button, Alert, Form, ProgressBar } from 'react-bootstrap';
@@ -6,6 +6,7 @@ import { FaDatabase, FaDownload, FaUpload, FaCheckCircle, FaExclamationTriangle,
 import { backupService } from '@/services/backupService';
 import type { ImportMode, ValidateResponse } from '@/types/backup.types';
 import { useAuth } from '@/context/AuthContext';
+import { logError } from '@/lib/logger';
 import Swal from 'sweetalert2';
 
 export function BackupSection(): React.ReactElement {
@@ -35,7 +36,7 @@ export function BackupSection(): React.ReactElement {
         confirmButtonColor: '#28a745',
       });
     } catch (error) {
-      console.error('Export error:', error);
+      logError('Export error:', error);
       await Swal.fire({
         icon: 'error',
         title: 'Export Failed',
@@ -69,7 +70,7 @@ export function BackupSection(): React.ReactElement {
         });
       }
     } catch (error) {
-      console.error('Failed to validate backup file:', error);
+      logError('Failed to validate backup file:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to validate backup file.';
       setFileValidation({ valid: false, error: errorMessage });
       await Swal.fire({
@@ -184,7 +185,7 @@ export function BackupSection(): React.ReactElement {
       window.location.href = '/dashboard';
     } catch (error: unknown) {
       setImportProgress(0);
-      console.error('Import error:', error);
+      logError('Import error:', error);
 
       const errorMessage = error instanceof Error ? error.message : 'Failed to import data';
 

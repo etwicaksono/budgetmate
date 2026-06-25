@@ -1,8 +1,9 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Button, Spinner } from 'react-bootstrap';
 import type { Label } from '@/services/labelService';
+import { logError } from '@/lib/logger';
 
 interface LabelModalProps {
   show: boolean;
@@ -83,7 +84,7 @@ export function LabelModal({
       });
       onHide();
     } catch (error) {
-      console.error('Failed to save label:', error);
+      logError('Failed to save label:', error);
     } finally {
       setSaving(false);
     }

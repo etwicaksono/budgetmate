@@ -1,10 +1,11 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import { categoryService, Category } from '@/services/categoryService';
 import { getIconComponent } from '@/utils/iconUtils';
 import { ClearButton } from '@/components/common/ClearButton';
+import { logError } from '@/lib/logger';
 
 interface TransactionCategorySelectProps {
   selectedCategoryId: string | null;
@@ -58,7 +59,7 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
           setCategories(res.data);
         }
       } catch (err) {
-        console.error('Failed to fetch categories:', err);
+        logError('Failed to fetch categories:', err);
       } finally {
         if (isMounted) setIsLoading(false);
       }

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { DataGrid, DataGridHandle } from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
@@ -14,6 +14,7 @@ import { useBudgetPersistence } from './budget-table/hooks/useBudgetPersistence'
 import { useBudgetSelection } from './budget-table/hooks/useBudgetSelection';
 import { useBudgetColumns } from './budget-table/columns';
 import { BudgetToolbar } from './BudgetToolbar';
+import { logError } from '@/lib/logger';
 
 interface BudgetTableModeProps {
   data: CombinedBudgetItem[];
@@ -80,7 +81,7 @@ export function BudgetTableMode({ data, onRefresh }: BudgetTableModeProps) {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('budgetTableVisibleColumns');
       if (saved) {
-        try { return JSON.parse(saved); } catch (e) { console.error(e); }
+        try { return JSON.parse(saved); } catch (e) { logError(e); }
       }
     }
     return {

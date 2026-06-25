@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken, extractTokenFromHeader } from './jwt';
 import { errorResponse } from '@/lib/api/response';
 import { prisma } from '@/lib/db/prisma';
+import { logError } from '@/lib/logger';
 
 // Auth result types
 export interface AuthUser {
@@ -81,7 +82,7 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult | Au
     }
     
     // Log unexpected auth errors
-    console.error('Unexpected auth error:', error);
+    logError('Unexpected auth error:', error);
     
     // Generic auth error
     return {

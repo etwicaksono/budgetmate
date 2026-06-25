@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { resolveRouteParam } from '@/lib/api/params';
+import { logError } from '@/lib/logger';
 
 interface RouteParams {
   params?: {
@@ -49,7 +50,7 @@ export async function GET(
   } catch (error) {
     const prismaError = handlePrismaError(error, 'Budget', 'fetch');
     if (prismaError) return prismaError;
-    console.error('Unexpected error:', error);
+    logError('Unexpected error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch budget', 500);
   }
 }
@@ -128,7 +129,7 @@ export async function PUT(
   } catch (error) {
     const prismaError = handlePrismaError(error, 'Budget', 'update');
     if (prismaError) return prismaError;
-    console.error('Unexpected error:', error);
+    logError('Unexpected error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to update budget', 500);
   }
 }
@@ -168,7 +169,7 @@ export async function DELETE(
   } catch (error) {
     const prismaError = handlePrismaError(error, 'Budget', 'delete');
     if (prismaError) return prismaError;
-    console.error('Unexpected error:', error);
+    logError('Unexpected error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to delete budget', 500);
   }
 }

@@ -1,3 +1,4 @@
+﻿import { logError } from '@/lib/logger';
 // Simple encryption for client-side token storage
 // In production, use a proper encryption library like crypto-js
 
@@ -15,7 +16,7 @@ export const tokenCrypto = {
       // Reverse the string for additional obfuscation
       return encoded.split('').reverse().join('');
     } catch (error) {
-      console.error('Token encryption error:', error);
+      logError('Token encryption error:', error);
       throw new Error('Failed to encrypt token');
     }
   },
@@ -61,7 +62,7 @@ export const tokenCrypto = {
       
       return token || null;
     } catch (error) {
-      console.error('Token decryption error:', error);
+      logError('Token decryption error:', error);
       return null;
     }
   },

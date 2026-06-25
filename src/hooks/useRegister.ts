@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+﻿import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ZodError } from 'zod';
 import { useAuth } from '@/context/AuthContext';
 import { authService } from '@/services/authService';
 import { RegisterSchema, type RegisterInput } from '@/lib/validation/auth';
 import { APP_CONFIG } from '@/utils/constants';
+import { logError } from '@/lib/logger';
 
 // Types for field-level errors
 interface FieldError {
@@ -162,7 +163,7 @@ export const useRegister = (redirectTo: string = '/dashboard'): UseRegisterRetur
     }
 
     const error = err as ApiError;
-    console.error('Registration failed:', error);
+    logError('Registration failed:', error);
 
     // Handle field-specific errors from API
     if (error.response?.data?.error?.fields) {

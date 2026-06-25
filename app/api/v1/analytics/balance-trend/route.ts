@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { balanceService } from '@/services/balanceService';
+import { logError } from '@/lib/logger';
 import {
   generateAnalyticsPeriods,
   getLocalDateKey,
@@ -176,7 +177,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return successResponse(response);
   } catch (error) {
-    console.error('Balance trend error:', error);
+    logError('Balance trend error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch balance trend', 500);
   }
 }

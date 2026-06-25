@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -46,6 +46,7 @@ import { NetWorthWidget } from '@/components/dashboard/widgets';
 import { localStorageService } from '@/mocks/localStorageService';
 import './Accounts.css';
 import Swal from 'sweetalert2';
+import { logError } from '@/lib/logger';
 
 // Map icon strings to components
 const getIconComponent = (iconName: string): IconType => {
@@ -221,7 +222,7 @@ const AccountsPage: React.FC = () => {
       const data = await accountService.fetchAccounts({ include_draft: includeDraft });
       setAccounts(data);
     } catch (err) {
-      console.error('Failed to fetch accounts:', err);
+      logError('Failed to fetch accounts:', err);
       Swal.fire({
         icon: 'error',
         title: 'Failed to Load Accounts',
@@ -334,7 +335,7 @@ const AccountsPage: React.FC = () => {
 
             await accountService.swapAccountOrder(orderMap);
           } catch (error) {
-            console.error('Failed to reorder accounts:', error);
+            logError('Failed to reorder accounts:', error);
             Swal.fire({
               icon: 'warning',
               title: 'Failed to Reorder Accounts',

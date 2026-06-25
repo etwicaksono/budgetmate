@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { UpdateDebtSchema } from '@/lib/validation/debt';
+import { logError } from '@/lib/logger';
 
 export async function GET(
    request: NextRequest,
@@ -91,7 +92,7 @@ export async function GET(
 
       return successResponse(transformedDebt);
    } catch (error) {
-      console.error('Fetch debt detail error:', error);
+      logError('Fetch debt detail error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to retrieve debt', 500);
    }
 }
@@ -207,7 +208,7 @@ export async function PUT(
    } catch (error) {
       const prismaError = handlePrismaError(error, 'Debt', 'update');
       if (prismaError) return prismaError;
-      console.error('Unexpected error:', error);
+      logError('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to update debt', 500);
    }
 }
@@ -256,7 +257,7 @@ export async function DELETE(
    } catch (error) {
       const prismaError = handlePrismaError(error, 'Debt', 'delete');
       if (prismaError) return prismaError;
-      console.error('Unexpected error:', error);
+      logError('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to delete debt', 500);
    }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Modal, Form, Button, Spinner, Alert, Row, Col, Badge, OverlayTrigger, Placeholder, Tooltip } from 'react-bootstrap';
 
 import { budgetService } from '@/services/budgetService';
@@ -6,6 +6,7 @@ import { transactionService } from '@/services/transactionService';
 import { FaSave, FaTimes, FaInfoCircle, FaMagic } from 'react-icons/fa';
 import { AmountInput } from '@/components/transaction/AmountInput';
 import { TransactionCategorySelect } from '@/components/transaction/TransactionCategorySelect';
+import { logError } from '@/lib/logger';
 
 interface BudgetConfigModalProps {
   show: boolean;
@@ -129,7 +130,7 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
           setFormData({ basicMonthly: '', extendMonthly: '', basicAnnual: '', extendAnnual: '' });
         }
       } catch (err) {
-        console.error("Failed to fetch budget for category:", err);
+        logError("Failed to fetch budget for category:", err);
         setFormData({ basicMonthly: '', extendMonthly: '', basicAnnual: '', extendAnnual: '' });
       } finally {
         setIsFetchingBudget(false);
@@ -164,7 +165,7 @@ export const BudgetConfigModal: React.FC<BudgetConfigModalProps> = ({ show, onHi
         });
         setHistoricalAverage(sum / historicalRange);
       } catch (err) {
-        console.error("Failed to fetch historical average", err);
+        logError("Failed to fetch historical average", err);
         setHistoricalAverage(null);
       } finally {
         setIsFetchingHistory(false);

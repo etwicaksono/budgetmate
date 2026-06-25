@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Container, Row, Col, Card, Button, Form, Dropdown, Offcanvas, Nav, Badge } from 'react-bootstrap';
@@ -18,6 +18,7 @@ import { DebtStatus } from '@prisma/client';
 import { DebtTabPane } from '@/components/debt';
 import { useDebt } from '@/context/DebtContext';
 import { ClearButton } from '@/components/common/ClearButton';
+import { logError } from '@/lib/logger';
 
 interface DebtSortDropdownProps {
   sortBy: string;
@@ -166,7 +167,7 @@ export default function DebtsPage() {
       setTotalLent(lentOut);
       setTotalBorrowed(borrowIn);
     } catch (error) {
-      console.error('Failed to fetch debt summary:', error);
+      logError('Failed to fetch debt summary:', error);
     }
   }, []);
 

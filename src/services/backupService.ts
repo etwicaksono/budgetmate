@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Backup Service
  * 
  * Client-side service for backup/restore operations
@@ -14,6 +14,7 @@ import type {
   ImportMode,
 } from '@/types/backup.types';
 import { BackupDataSchema, isVersionCompatible } from '@/lib/validation/backupSchemas';
+import { logError } from '@/lib/logger';
 
 class BackupService {
   /**
@@ -74,7 +75,7 @@ class BackupService {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export failed:', error);
+      logError('Export failed:', error);
       throw error;
     }
   }
@@ -199,7 +200,7 @@ class BackupService {
 
       return result;
     } catch (error) {
-      console.error('Import failed:', error);
+      logError('Import failed:', error);
       throw error;
     }
   }
@@ -287,7 +288,7 @@ class BackupService {
         },
       };
     } catch (error) {
-      console.error('Validation error:', error);
+      logError('Validation error:', error);
       return {
         valid: false,
         error: 'Failed to validate backup file',

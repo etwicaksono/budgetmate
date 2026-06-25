@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { createContext, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
@@ -7,6 +7,7 @@ import { APP_CONFIG } from '@/utils/constants';
 import { authService } from '@/services/authService';
 import { useToast } from './ToastContext';
 import { useAuthState } from './AuthStateContext';
+import { logError } from '@/lib/logger';
 
 interface User {
   id: string;
@@ -71,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
           setIsAuthenticated(false);
         }
       } catch (error) {
-        console.error('Auth check error:', error);
+        logError('Auth check error:', error);
         clearAuthData();
       } finally {
         setLoading(false);
@@ -97,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
       showToast('Login successful!', 'success');
       router.push('/');
     } catch (error) {
-      console.error('Login error:', error);
+      logError('Login error:', error);
       showToast('Login failed. Please try again.', 'error');
       throw error;
     }
@@ -114,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
         }
       }
     } catch (error) {
-      console.error('Logout API error:', error);
+      logError('Logout API error:', error);
       // Continue with local logout even if API fails
     } finally {
       clearAuthData();
@@ -149,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
         throw new Error('Invalid refresh response');
       }
     } catch (error) {
-      console.error('Token refresh error:', error);
+      logError('Token refresh error:', error);
       clearAuthData();
       
       // Redirect to login if refresh failed

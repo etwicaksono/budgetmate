@@ -1,6 +1,7 @@
-import axios, { AxiosRequestConfig } from 'axios';
+﻿import axios, { AxiosRequestConfig } from 'axios';
 import { tokenCrypto } from '@/utils/crypto';
 import { APP_CONFIG } from '@/utils/constants';
+import { logError } from '@/lib/logger';
 
 // Create axios instance
 const apiClient = axios.create({
@@ -127,13 +128,13 @@ apiClient.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return apiClient(originalRequest);
         } catch (refreshError) {
-          console.error('Token refresh failed:', refreshError);
+          logError('Token refresh failed:', refreshError);
           clearAuthAndRedirect('session_expired');
           return Promise.reject(refreshError);
         }
       } else {
         // Other 401 errors (invalid token, user not found, etc.) - redirect immediately
-        console.error('Authentication failed:', error.response?.data?.error?.message);
+        logError('Authentication failed:', error.response?.data?.error?.message);
         clearAuthAndRedirect('auth_error');
       }
     }

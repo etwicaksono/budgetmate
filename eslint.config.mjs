@@ -58,13 +58,27 @@ export default [
       'react/react-in-jsx-scope': 'off',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      'no-console': ['warn', { allow: ['warn', 'error', 'info', 'log', 'table'] }], // TODO: remove log and table after development
+      'no-console': ['error', { allow: ['warn', 'info', 'log', 'table'] }],
       'no-undef': 'off' // TypeScript handles this
     },
     settings: {
       react: {
         version: 'detect'
       }
+    }
+  },
+  {
+    // Allow console.error only in the logger module
+    files: ['src/lib/logger.ts'],
+    rules: {
+      'no-console': 'off'
+    }
+  },
+  {
+    // Standalone scripts that use console.error directly
+    files: ['prisma/seed.ts', 'scripts/**/*.ts'],
+    rules: {
+      'no-console': 'off'
     }
   }
 ];

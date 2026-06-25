@@ -7,6 +7,7 @@ import { successResponse, errorResponse, commonErrors } from '@/lib/api/response
 import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { resolveRouteParam } from '@/lib/api/params';
 import { UpdateTransactionSchema } from '@/lib/validation/transaction';
+import { logError } from '@/lib/logger';
 
 interface RouteParams {
   params?: {
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
     return successResponse(response);
 
   } catch (error) {
-    console.error('Transaction fetch error:', error);
+    logError('Transaction fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch transaction', 500);
   }
 }
@@ -284,7 +285,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     } catch (prismaError: unknown) {
       const prismaResponse = handlePrismaError(prismaError, 'Transaction', 'update');
       if (prismaResponse) return prismaResponse;
-      console.error('Unexpected error:', prismaError);
+      logError('Unexpected error:', prismaError);
       return commonErrors.serverError();
     }
 
@@ -309,7 +310,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
 
 
   } catch (error) {
-    console.error('Transaction update error:', error);
+    logError('Transaction update error:', error);
 
     if (error instanceof Error && error.message === 'One or more labels not found') {
       return errorResponse('INVALID_LABEL', error.message, 404);
@@ -395,7 +396,7 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
     return successResponse(null, { message: 'Transaction deleted successfully' });
 
   } catch (error) {
-    console.error('Transaction deletion error:', error);
+    logError('Transaction deletion error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to delete transaction', 500);
   }
 }

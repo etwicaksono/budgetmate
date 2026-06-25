@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { CategoryType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { logError } from '@/lib/logger';
 
 interface CategoryNode {
   id: string;
@@ -134,7 +135,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
   } catch (error) {
-    console.error('Category tree fetch error:', error);
+    logError('Category tree fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch category tree', 500);
   }
 }

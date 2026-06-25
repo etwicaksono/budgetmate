@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Authenticate user
@@ -149,7 +150,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return successResponse(validStatuses);
   } catch (error) {
-    console.error('Fetch budget status error:', error);
+    logError('Fetch budget status error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch budget status', 500);
   }
 }

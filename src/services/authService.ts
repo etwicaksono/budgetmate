@@ -1,6 +1,7 @@
-import { api } from './api';
+﻿import { api } from './api';
 import axios from 'axios';
 import { APP_CONFIG } from '@/utils/constants';
+import { logError } from '@/lib/logger';
 
 export interface LoginRequest {
   email_or_username: string;
@@ -70,7 +71,7 @@ class AuthService {
       }
     } catch (error) {
       // Logout anyway even if API call fails
-      console.error('Logout API error:', error);
+      logError('Logout API error:', error);
     }
   }
   

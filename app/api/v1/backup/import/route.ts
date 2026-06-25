@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Backup Import API Endpoint
  *
  * POST /api/v1/backup/import?mode=replace|merge
@@ -16,6 +16,7 @@ import { commonErrors } from '@/lib/api/response';
 import { BackupDataSchema, isVersionCompatible } from '@/lib/validation/backupSchemas';
 import { createId } from '@paralleldrive/cuid2';
 import crypto from 'crypto';
+import { logError } from '@/lib/logger';
 
 // Allow up to 5 minutes for large imports
 export const maxDuration = 300;
@@ -684,7 +685,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Import error:', error);
+    logError('Import error:', error);
 
     if (error instanceof Error) {
       return commonErrors.serverError(`Failed to import data: ${error.message}`);

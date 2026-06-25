@@ -1,7 +1,8 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Row } from '../types';
 import { budgetService } from '@/services/budgetService';
 import Swal from 'sweetalert2';
+import { logError } from '@/lib/logger';
 
 interface UseBudgetPersistenceProps {
   originalRows: Row[];
@@ -73,7 +74,7 @@ export function useBudgetPersistence({
           newOriginalRows[origIdx] = JSON.parse(JSON.stringify(row));
         }
       } catch (error: unknown) {
-        console.error(`Failed to save budget for ${row.category.name}`, error);
+        logError(`Failed to save budget for ${row.category.name}`, error);
         let msg = 'Failed to save changes';
         const err = error as { response?: { data?: { error?: { message?: string } } } };
         if (err?.response?.data?.error?.message) {

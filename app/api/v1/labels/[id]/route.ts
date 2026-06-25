@@ -8,6 +8,7 @@ import { resolveRouteParam } from '@/lib/api/params';
 
 
 import { UpdateLabelSchema as updateLabelSchema } from '@/lib/openapi/schemas/labels';
+import { logError } from '@/lib/logger';
 
 interface RouteParams {
   params?: { id?: string };
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest, context: RouteParams) {
 
     return successResponse(label);
   } catch (error) {
-    console.error('Error fetching label:', error);
+    logError('Error fetching label:', error);
     return errorResponse('FETCH_ERROR', 'Failed to fetch label', 500);
   }
 }
@@ -92,7 +93,7 @@ export async function PUT(request: NextRequest, context: RouteParams) {
   } catch (error) {
     const prismaError = handlePrismaError(error, 'Label', 'update');
     if (prismaError) return prismaError;
-    console.error('Unexpected error:', error);
+    logError('Unexpected error:', error);
     return errorResponse('UPDATE_ERROR', 'Failed to update label', 500);
   }
 }
@@ -146,7 +147,7 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
   } catch (error) {
     const prismaError = handlePrismaError(error, 'Label', 'delete');
     if (prismaError) return prismaError;
-    console.error('Unexpected error:', error);
+    logError('Unexpected error:', error);
     return errorResponse('DELETE_ERROR', 'Failed to delete label', 500);
   }
 }

@@ -1,8 +1,9 @@
-import { NextRequest } from 'next/server';
+﻿import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { ReorderSavedFiltersSchema as reorderSavedFiltersSchema } from '@/lib/openapi/schemas/savedFilters';
+import { logError } from '@/lib/logger';
 
 export async function PUT(request: NextRequest) {
    const authResult = await requireAuth(request);
@@ -38,7 +39,7 @@ export async function PUT(request: NextRequest) {
 
       return successResponse({ message: 'Saved filters reordered successfully.' });
    } catch (error) {
-      console.error('Error reordering saved filters:', error);
+      logError('Error reordering saved filters:', error);
       return errorResponse('UPDATE_ERROR', 'Failed to update sorted order', 500);
    }
 }

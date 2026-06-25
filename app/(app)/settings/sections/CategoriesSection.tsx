@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button, Form, ListGroup, Badge } from 'react-bootstrap';
@@ -17,6 +17,7 @@ import '@/components/Records/Records.css';
 import './Categories.css';
 import { categoryService, Category, CreateCategoryPayload, UpdateCategoryPayload } from '@/services/categoryService';
 import { CategoryModal } from '@/components/category';
+import { logError } from '@/lib/logger';
 
 export function CategoriesSection(): React.ReactElement {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -57,7 +58,7 @@ export function CategoriesSection(): React.ReactElement {
       setErrorMessage('');
     } catch (error) {
       setErrorMessage('Failed to load categories');
-      console.error(error);
+      logError(error);
     } finally {
       setLoading(false);
     }

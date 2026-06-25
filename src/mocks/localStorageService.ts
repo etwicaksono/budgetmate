@@ -1,3 +1,4 @@
+﻿import { logError } from '@/lib/logger';
 /**
  * Local Storage Service
  * 
@@ -59,7 +60,7 @@ const getItem = <T>(key: string, defaultValue: T): T => {
       return JSON.parse(item) as T;
     }
   } catch (error) {
-    console.error(`Failed to get item from localStorage (${key}):`, error);
+    logError(`Failed to get item from localStorage (${key}):`, error);
   }
 
   return defaultValue;
@@ -77,7 +78,7 @@ const setItem = <T>(key: string, value: T): boolean => {
     localStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch (error) {
-    console.error(`Failed to set item in localStorage (${key}):`, error);
+    logError(`Failed to set item in localStorage (${key}):`, error);
     return false;
   }
 };
@@ -94,7 +95,7 @@ const removeItem = (key: string): boolean => {
     localStorage.removeItem(key);
     return true;
   } catch (error) {
-    console.error(`Failed to remove item from localStorage (${key}):`, error);
+    logError(`Failed to remove item from localStorage (${key}):`, error);
     return false;
   }
 };
@@ -111,7 +112,7 @@ const clear = (): boolean => {
     localStorage.clear();
     return true;
   } catch (error) {
-    console.error('Failed to clear localStorage:', error);
+    logError('Failed to clear localStorage:', error);
     return false;
   }
 };
@@ -182,7 +183,7 @@ export const getAuthToken = (): string | null => {
   try {
     return localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
   } catch (error) {
-    console.error('Failed to get auth token:', error);
+    logError('Failed to get auth token:', error);
     return null;
   }
 };
@@ -199,7 +200,7 @@ export const setAuthToken = (token: string): boolean => {
     localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token);
     return true;
   } catch (error) {
-    console.error('Failed to set auth token:', error);
+    logError('Failed to set auth token:', error);
     return false;
   }
 };
@@ -222,7 +223,7 @@ export const getRefreshToken = (): string | null => {
   try {
     return localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
   } catch (error) {
-    console.error('Failed to get refresh token:', error);
+    logError('Failed to get refresh token:', error);
     return null;
   }
 };
@@ -239,7 +240,7 @@ export const setRefreshToken = (token: string): boolean => {
     localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, token);
     return true;
   } catch (error) {
-    console.error('Failed to set refresh token:', error);
+    logError('Failed to set refresh token:', error);
     return false;
   }
 };

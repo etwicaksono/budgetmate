@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -63,6 +63,7 @@ const getIconComponent = (iconName: string): React.ComponentType<{ size?: number
 
 import { useTransactionActions } from '@/hooks/useTransactionActions';
 import { useNetWorth } from '@/hooks/useNetWorth';
+import { logError } from '@/lib/logger';
 import {
   BalanceTrendWidget,
   BudgetStatusWidget,
@@ -121,7 +122,7 @@ function DashboardContent(): React.ReactElement {
       const data = await accountService.fetchAccounts({ is_active: true, include_draft: includeDraft });
       setAccounts(data);
     } catch (err) {
-      console.error('Failed to fetch accounts:', err);
+      logError('Failed to fetch accounts:', err);
       setError('Failed to load accounts');
     } finally {
       setAccountsLoading(false);
@@ -213,7 +214,7 @@ function DashboardContent(): React.ReactElement {
       }
 
     } catch (err) {
-      console.error('Failed to fetch dashboard data:', err);
+      logError('Failed to fetch dashboard data:', err);
       setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -240,7 +241,7 @@ function DashboardContent(): React.ReactElement {
       const totalPages = response.meta?.totalPages || response.meta?.total_pages || 1;
       setHasMoreTransactions((response.meta?.page || 1) < totalPages);
     } catch (e) {
-      console.error('Failed to load more transactions:', e);
+      logError('Failed to load more transactions:', e);
     } finally {
       setIsLoadingMoreTx(false);
     }
@@ -274,7 +275,7 @@ function DashboardContent(): React.ReactElement {
             return;
           }
         } catch (e) {
-          console.error('[Dashboard] Failed to fetch updated transaction for local patch, falling back to full reload', e);
+          logError('[Dashboard] Failed to fetch updated transaction for local patch, falling back to full reload', e);
         }
       }
 

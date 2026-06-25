@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, TransactionType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { getClientTimezoneOffset, getUtcFromLocal } from '@/lib/timezone';
+import { logError } from '@/lib/logger';
 
 interface CategoryReport {
   id: string;
@@ -267,7 +268,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return successResponse(report);
   } catch (error) {
-    console.error('Failed to fetch income expense report:', error);
+    logError('Failed to fetch income expense report:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch report', 500);
   }
 }

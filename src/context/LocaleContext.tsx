@@ -1,10 +1,11 @@
-'use client';
+﻿'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { AVAILABLE_LOCALES, getDefaultLocale, isValidLocale, type LocaleOption } from '@/config/locales';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import { api } from '@/services/api';
+import { logError } from '@/lib/logger';
 
 interface LocaleContextValue {
   locale: string;
@@ -44,12 +45,12 @@ export function LocaleProvider({ children }: { children: ReactNode }): React.Rea
               localStorage.setItem(LOCALE_STORAGE_KEY, response.data.locale);
             }
           } catch (error) {
-            console.error('Failed to load user locale from API:', error);
+            logError('Failed to load user locale from API:', error);
             // Continue with localStorage value
           }
         }
       } catch (error) {
-        console.error('Failed to load locale:', error);
+        logError('Failed to load locale:', error);
         setLocaleState(getDefaultLocale().code);
       } finally {
         setLoading(false);
@@ -85,14 +86,14 @@ export function LocaleProvider({ children }: { children: ReactNode }): React.Rea
 
           showToast('Number format preference saved', 'success');
         } catch (error) {
-          console.error('Failed to save locale to server:', error);
+          logError('Failed to save locale to server:', error);
           showToast('Locale updated locally, but failed to save to server', 'warning');
         }
       } else {
         showToast('Number format preference updated', 'success');
       }
     } catch (error) {
-      console.error('Failed to update locale:', error);
+      logError('Failed to update locale:', error);
       showToast('Failed to update number format preference', 'error');
     }
   }, [isAuthenticated, showToast]);

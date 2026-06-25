@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { Prisma, TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/middleware";
 import { errorResponse, successResponse } from "@/lib/api/response";
+import { logError } from '@/lib/logger';
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
   try {
@@ -160,7 +161,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
     return successResponse({ deletedCount }, { message: `Successfully deleted ${deletedCount} transaction(s)` }, 200);
 
   } catch (error) {
-    console.error("Bulk delete error:", error);
+    logError("Bulk delete error:", error);
     return errorResponse("INTERNAL_ERROR", "Failed to delete transactions", 500);
   }
 }

@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { resolveRouteParam } from '@/lib/api/params';
 import { UpdateSavedFilterSchema as updateSavedFilterSchema } from '@/lib/openapi/schemas/savedFilters';
+import { logError } from '@/lib/logger';
 
 interface RouteParams {
    params?: { id?: string };
@@ -52,7 +53,7 @@ export async function PUT(request: NextRequest, context: RouteParams) {
       if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'P2002') {
          return errorResponse('DUPLICATE_NAME', 'A filter with this name already exists', 409);
       }
-      console.error('Error updating saved filter:', error);
+      logError('Error updating saved filter:', error);
       return errorResponse('UPDATE_ERROR', 'Failed to update saved filter', 500);
    }
 }
@@ -81,7 +82,7 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
 
       return successResponse(null);
    } catch (error) {
-      console.error('Error deleting saved filter:', error);
+      logError('Error deleting saved filter:', error);
       return errorResponse('DELETE_ERROR', 'Failed to delete saved filter', 500);
    }
 }

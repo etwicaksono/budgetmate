@@ -1,9 +1,10 @@
-import { NextRequest } from 'next/server';
+﻿import { NextRequest } from 'next/server';
 import { SavedFilterContext } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { CreateSavedFilterSchema as createSavedFilterSchema } from '@/lib/openapi/schemas/savedFilters';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
    const authResult = await requireAuth(request);
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
 
       return successResponse(savedFilters);
    } catch (error) {
-      console.error('Error fetching saved filters:', error);
+      logError('Error fetching saved filters:', error);
       return errorResponse('FETCH_ERROR', 'Failed to fetch saved filters', 500);
    }
 }
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'P2002') {
          return errorResponse('DUPLICATE_NAME', 'A filter with this name already exists', 409);
       }
-      console.error('Error creating saved filter:', error);
+      logError('Error creating saved filter:', error);
       return errorResponse('CREATE_ERROR', 'Failed to create saved filter', 500);
    }
 }

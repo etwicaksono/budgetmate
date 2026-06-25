@@ -1,10 +1,11 @@
-import { NextRequest } from 'next/server';
+﻿import { NextRequest } from 'next/server';
 
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { errorResponse, successResponse } from '@/lib/api/response';
 import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { isValidLocale } from '@/config/locales';
+import { logError } from '@/lib/logger';
 
 /**
  * GET /api/v1/user/settings
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     const prismaError = handlePrismaError(error, 'User settings', 'fetch');
     if (prismaError) return prismaError;
 
-    console.error('Unexpected error while fetching user settings:', {
+    logError('Unexpected error while fetching user settings:', {
       userId: user.user_id,
       error,
     });
@@ -104,7 +105,7 @@ export async function PUT(request: NextRequest) {
     const prismaError = handlePrismaError(error, 'User settings', 'update');
     if (prismaError) return prismaError;
 
-    console.error('Unexpected error while updating user settings:', {
+    logError('Unexpected error while updating user settings:', {
       userId: user.user_id,
       updateData,
       error,

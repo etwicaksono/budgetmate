@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { CreateRepaymentSchema } from '@/lib/validation/debt';
+import { logError } from '@/lib/logger';
 
 /**
  * PUT /api/v1/debts/[id]/increase/[transactionId]
@@ -103,7 +104,7 @@ export async function PUT(
    } catch (error) {
       const prismaError = handlePrismaError(error, 'Debt increase transaction', 'update');
       if (prismaError) return prismaError;
-      console.error('Unexpected error:', error);
+      logError('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to update debt increase', 500);
    }
 }
@@ -156,7 +157,7 @@ export async function DELETE(
    } catch (error) {
       const prismaError = handlePrismaError(error, 'Debt increase transaction', 'delete');
       if (prismaError) return prismaError;
-      console.error('Unexpected error:', error);
+      logError('Unexpected error:', error);
       return errorResponse('INTERNAL_ERROR', 'Failed to delete debt increase', 500);
    }
 }

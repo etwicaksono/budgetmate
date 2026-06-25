@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 
 import { verifyRefreshToken } from '@/lib/auth/jwt';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { RefreshTokenSchema } from '@/lib/validation/auth';
+import { logError } from '@/lib/logger';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
     
   } catch (error) {
-    console.error('Token refresh error:', error);
+    logError('Token refresh error:', error);
     return errorResponse(
       'INTERNAL_ERROR',
       'An error occurred during token refresh',

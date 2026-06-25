@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Backup Export API Endpoint
  * 
  * GET /api/v1/backup/export
@@ -12,6 +12,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { commonErrors } from '@/lib/api/response';
 import crypto from 'crypto';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -228,7 +229,7 @@ export async function GET(request: NextRequest) {
       headers,
     });
   } catch (error) {
-    console.error('Export error:', error);
+    logError('Export error:', error);
     return commonErrors.serverError('Failed to export data');
   }
 }

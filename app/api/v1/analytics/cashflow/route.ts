@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { logError } from '@/lib/logger';
 import {
   generateAnalyticsPeriods,
   getDayOfPeriod,
@@ -304,7 +305,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return successResponse(response);
   } catch (error) {
-    console.error('Cash flow error:', error);
+    logError('Cash flow error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch cash flow data', 500);
   }
 }

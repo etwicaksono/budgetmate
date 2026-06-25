@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { savedFilterService, type SavedFilter, type SavedFilterPayload } from '@/services/savedFilterService';
 import type { SavedFilterContext } from '@prisma/client';
 import type { SortValue, TransferOption, DebtOption, DraftOption } from '@/hooks/useFilterData';
 import type { Category } from '@/services/categoryService';
 import type { Account } from '@/services/accountService';
+import { logError } from '@/lib/logger';
 
 export interface FilterSnapshot {
    selectedCategories: string[];   // names (what useFilterData holds)
@@ -59,7 +60,7 @@ export function useSavedFilters({
             const data = await savedFilterService.fetchSavedFilters(context);
             setSavedFilters(data);
          } catch (error) {
-            console.error('Failed to fetch saved filters:', error);
+            logError('Failed to fetch saved filters:', error);
             setError(error instanceof Error ? error : new Error('Failed to fetch saved filters'));
          } finally {
             setLoading(false);
@@ -137,7 +138,7 @@ export function useSavedFilters({
          } catch (error: unknown) {
             const status = (error as { response?: { status?: number } })?.response?.status;
             if (status === 409) return { success: false, duplicateName: true };
-            console.error('Failed to save filter:', error);
+            logError('Failed to save filter:', error);
             return { success: false, duplicateName: false };
          }
       },
@@ -181,7 +182,7 @@ export function useSavedFilters({
          setSavedFilters((prev) => prev.filter((f) => f.id !== id));
          if (activeFilterId === id) setActiveFilterId(null);
       } catch (error) {
-         console.error('Failed to delete saved filter:', error);
+         logError('Failed to delete saved filter:', error);
       }
    }, [activeFilterId]);
 
@@ -200,7 +201,7 @@ export function useSavedFilters({
       } catch (error: unknown) {
          const status = (error as { response?: { status?: number } })?.response?.status;
          if (status === 409) return { success: false, duplicateName: true };
-         console.error('Failed to rename saved filter:', error);
+         logError('Failed to rename saved filter:', error);
          return { success: false };
       }
    }, []);
@@ -225,7 +226,7 @@ export function useSavedFilters({
          } catch (error: unknown) {
             const status = (error as { response?: { status?: number } })?.response?.status;
             if (status === 409) return { success: false, duplicateName: true };
-            console.error('Failed to update saved filter:', error);
+            logError('Failed to update saved filter:', error);
             return { success: false };
          }
       },
@@ -242,7 +243,7 @@ export function useSavedFilters({
          // Fire and forget API call for optimistic UI. 
          // If it fails, we fetch the truth from the server next time.
          savedFilterService.reorderSavedFilters(newFilters.map(f => f.id)).catch(e => {
-            console.error('Failed to save new filter order:', e);
+            logError('Failed to save new filter order:', e);
          });
 
          return newFilters;

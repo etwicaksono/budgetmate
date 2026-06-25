@@ -9,6 +9,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { handlePrismaError } from '@/lib/api/prisma-errors';
+import { logError } from '@/lib/logger';
 
 
 interface RouteParams {
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest, { params }: RouteParams): Promis
     const prismaError = handlePrismaError(error, 'AI chat session', 'find');
     if (prismaError) return prismaError;
 
-    console.error('Unexpected error while fetching AI chat session:', error);
+    logError('Unexpected error while fetching AI chat session:', error);
     return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);
   }
 }
@@ -78,7 +79,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams): Prom
     const prismaError = handlePrismaError(error, 'AI chat session', 'update');
     if (prismaError) return prismaError;
 
-    console.error('Unexpected error while renaming AI chat session:', error);
+    logError('Unexpected error while renaming AI chat session:', error);
     return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);
   }
 }
@@ -109,7 +110,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams): Pro
     const prismaError = handlePrismaError(error, 'AI chat session', 'delete');
     if (prismaError) return prismaError;
 
-    console.error('Unexpected error while deleting AI chat session:', error);
+    logError('Unexpected error while deleting AI chat session:', error);
     return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);
   }
 }

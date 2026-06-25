@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 
 
 import { prisma } from '@/lib/db/prisma';
@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { balanceService } from '@/services/balanceService';
 import { CreateAccountSchema } from '@/lib/openapi/schemas/accounts';
+import { logError } from '@/lib/logger';
 
 // GET - Fetch all accounts
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return successResponse(transformedAccounts, meta);
 
   } catch (error) {
-    console.error('Account fetch error:', error);
+    logError('Account fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch accounts', 500);
   }
 }
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return successResponse(response, { message: 'Account created successfully' }, 201);
 
   } catch (error) {
-    console.error('Account creation error:', error);
+    logError('Account creation error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to create account', 500);
   }
 }

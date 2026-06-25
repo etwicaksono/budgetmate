@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo } from 'react';
 import { categoryService, type Category } from '@/services/categoryService';
 import { accountService, type Account } from '@/services/accountService';
 import { labelService, type Label } from '@/services/labelService';
 import type { IconType } from 'react-icons';
 import * as FaIcons from 'react-icons/fa';
+import { logError } from '@/lib/logger';
 
 export interface TransactionDataHookResult {
   categories: Category[];
@@ -71,7 +72,7 @@ export function useTransactionData(): TransactionDataHookResult {
       setLabels(labelsData.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
-      console.error('Error fetching transaction data:', err);
+      logError('Error fetching transaction data:', err);
     } finally {
       setIsLoading(false);
     }

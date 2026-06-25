@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 /**
  * AIChatPanel
@@ -18,6 +18,7 @@ import type { ContextSnapshot } from '@/lib/ai/types';
 import { apiClient } from '@/services/api';
 import { APP_CONFIG } from '@/utils/constants';
 import { tokenCrypto } from '@/utils/crypto';
+import { logError } from '@/lib/logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -187,7 +188,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
         return defaultProv?.models[0] ?? '';
       });
     } catch (err) {
-      console.error('Failed to fetch AI config:', err);
+      logError('Failed to fetch AI config:', err);
     }
   }, []);
 
@@ -198,7 +199,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
       const json = res.data;
       setSessions(json.data ?? json);
     } catch (err) {
-      console.error('Failed to load sessions:', err);
+      logError('Failed to load sessions:', err);
     } finally {
       setIsLoadingSessions(false);
     }
@@ -224,7 +225,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
         }))
       );
     } catch (err) {
-      console.error('Failed to load session:', err);
+      logError('Failed to load session:', err);
     }
   }, []);
 
@@ -252,7 +253,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
       await loadSessions();
       setMenuOpenId(null);
     } catch (err) {
-      console.error('Failed to delete chat session:', err);
+      logError('Failed to delete chat session:', err);
       Swal.fire({
         icon: 'error',
         title: 'Delete Failed',
@@ -392,7 +393,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
     try {
       await createSession(context);
     } catch (error) {
-      console.error('Failed to create new chat session:', error);
+      logError('Failed to create new chat session:', error);
       Swal.fire({
         icon: 'error',
         title: 'New Chat Failed',
@@ -418,7 +419,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
         setRenamingId(null);
         setRenameValue('');
       } catch (error) {
-        console.error('Failed to rename chat session:', error);
+        logError('Failed to rename chat session:', error);
         Swal.fire({
           icon: 'error',
           title: 'Rename Failed',

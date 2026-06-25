@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, paginationMeta } from '@/lib/api/response';
 import { CreateTransferSchema } from '@/lib/validation/transfer';
+import { logError } from '@/lib/logger';
 
 // GET - Fetch all transfers
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
 
   } catch (error) {
-    console.error('Transfer fetch error:', error);
+    logError('Transfer fetch error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to fetch transfers', 500);
   }
 }
@@ -233,7 +234,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return successResponse(response, { message: 'Transfer created successfully' }, 201);
 
   } catch (error) {
-    console.error('Transfer creation error:', error);
+    logError('Transfer creation error:', error);
     return errorResponse('INTERNAL_ERROR', 'Failed to create transfer', 500);
   }
 }

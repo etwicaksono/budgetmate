@@ -22,6 +22,7 @@ import { createLLMProvider } from '@/lib/ai/factory';
 import { ANALYTICS_TOOLS, toolExecutor } from '@/lib/ai/tools';
 import { buildSystemPrompt, formatIncomeExpenseReport } from '@/lib/ai/formatters';
 import type { ChatMessage, ContextSnapshot, ToolCall } from '@/lib/ai/types';
+import { logError } from '@/lib/logger';
 
 
 interface RouteParams {
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     const prismaError = handlePrismaError(error, 'AI chat session', 'find');
     if (prismaError) return prismaError;
 
-    console.error('Unexpected error while validating AI chat session ownership:', error);
+    logError('Unexpected error while validating AI chat session ownership:', error);
     return errorResponse('INTERNAL_ERROR', 'An unexpected error occurred', 500);
   }
 
@@ -102,11 +103,11 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
       ].filter(Boolean).join(' · ');
       contextData = formatIncomeExpenseReport(json.data ?? json, filterLabel);
     } else {
-      console.error('[DEBUG_SERVER_LOG] Analytics API failed with status:', dataRes.status);
+      logError('[DEBUG_SERVER_LOG] Analytics API failed with status:', dataRes.status);
       return errorResponse('ANALYTICS_ERROR', `Gagal mengambil data dari server (Status: ${dataRes.status}). Silakan coba lagi.`, dataRes.status);
     }
   } catch (err) {
-    console.error('[AI] Failed to fetch analytics context:', err);
+    logError('[AI] Failed to fetch analytics context:', err);
     return errorResponse('ANALYTICS_ERROR', 'Terjadi kesalahan sistem saat menghubungi server analitik.', 500);
   }
 
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
               try {
                 toolResult = await toolExecutor(tc.name, tc.arguments, auth.user.user_id, context);
               } catch (err) {
-                console.error(`[AI] Tool ${tc.name} failed:`, err);
+                logError(`[AI] Tool ${tc.name} failed:`, err);
                 toolResult = `[Tool: ${tc.name}]\nGagal mengambil data.`;
               }
               messages.push({ role: 'tool', content: toolResult, tool_call_id: tc.id });
@@ -200,7 +201,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
         } catch (error) {
           const prismaError = handlePrismaError(error, 'AI chat message', 'persist');
           if (!prismaError) {
-            console.error('Unexpected error while persisting AI chat messages:', error);
+            logError('Unexpected error while persisting AI chat messages:', error);
           }
           sendEvent('error', 'Terjadi kesalahan pada sistem saat memproses pesan.');
           return;
@@ -212,7 +213,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
         }
 
       } catch (err) {
-        console.error('[AI] Stream loop error:', err);
+        logError('[AI] Stream loop error:', err);
         sendEvent('error', 'Terjadi kesalahan pada sistem saat memproses pesan.');
       } finally {
         controller.close();
@@ -251,7 +252,7 @@ async function generateSessionTitle(
 
     aiTitle = (await provider.complete(prompt)).trim().replace(/^["']|["']$/g, '');
   } catch (err) {
-    console.error('[AI] LLM title generation failed, falling back to user message:', err);
+    logError('[AI] LLM title generation failed, falling back to user message:', err);
   }
 
   // Use AI title if non-empty, otherwise fall back to user message
@@ -265,7 +266,7 @@ async function generateSessionTitle(
       return;
     }
 
-    console.error('[AI] Failed to persist session title:', {
+    logError('[AI] Failed to persist session title:', {
       error,
       sessionId,
       usedFallback: !aiTitle,
