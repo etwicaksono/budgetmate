@@ -59,10 +59,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where['parent_id'] = filters.parent_id;
     }
 
-    if (filters.is_system !== undefined) {
-      where['is_system'] = filters.is_system;
-    }
-
     if (filters.is_active !== undefined) {
       where['is_active'] = filters.is_active;
     }
@@ -105,7 +101,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       nature: category.nature,
       icon: category.icon,
       color: category.color,
-      is_system: category.is_system,
       is_active: category.is_active,
       parent_id: category.parent_id,
       parent: category.parent,
@@ -192,7 +187,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         nature: normalizeCategoryNature(data.nature),
         icon: data.icon,
         color: data.color ?? null,
-        is_system: false, // User-created categories are not system
         is_active: data.is_active,
         created_by: user.user_id
       },
@@ -210,7 +204,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       nature: category.nature,
       icon: category.icon,
       color: category.color,
-      is_system: category.is_system,
       is_active: category.is_active,
       parent_id: category.parent_id,
       parent: category.parent,

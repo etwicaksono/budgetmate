@@ -220,7 +220,6 @@ export const useFilterData = () => {
       parent_id: parentId,
       color,
       icon,
-      is_system: false,
       is_active: true,
       created_at: new Date().toISOString(),
     };

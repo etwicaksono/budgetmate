@@ -268,7 +268,6 @@ export async function POST(request: NextRequest) {
                         nature: category.nature as CategoryNature,
                         icon: category.icon,
                         color: category.color ?? null,
-                        is_system: false,
                         is_active: category.is_active,
                       },
                     });
@@ -284,7 +283,6 @@ export async function POST(request: NextRequest) {
                         nature: category.nature as CategoryNature,
                         icon: category.icon,
                         color: category.color ?? null,
-                        is_system: false,
                         is_active: category.is_active,
                       },
                     });
@@ -301,7 +299,6 @@ export async function POST(request: NextRequest) {
                       nature: category.nature as CategoryNature,
                       icon: category.icon,
                       color: category.color ?? null,
-                      is_system: false,
                       is_active: category.is_active,
                     },
                   });
@@ -340,7 +337,6 @@ export async function POST(request: NextRequest) {
                         nature: category.nature as CategoryNature,
                         icon: category.icon,
                         color: category.color ?? null,
-                        is_system: false,
                         is_active: category.is_active,
                       },
                     });
@@ -357,7 +353,6 @@ export async function POST(request: NextRequest) {
                         nature: category.nature as CategoryNature,
                         icon: category.icon,
                         color: category.color ?? null,
-                        is_system: false,
                         is_active: category.is_active,
                       },
                     });
@@ -375,7 +370,6 @@ export async function POST(request: NextRequest) {
                       nature: category.nature as CategoryNature,
                       icon: category.icon,
                       color: category.color ?? null,
-                      is_system: false,
                       is_active: category.is_active,
                     },
                   });

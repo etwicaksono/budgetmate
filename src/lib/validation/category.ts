@@ -36,7 +36,6 @@ export type UpdateCategoryInput = z.infer<typeof UpdateCategorySchema>;
 export const CategoryFilterSchema = z.object({
   type: z.union([z.nativeEnum(CategoryType), z.literal('both')]).optional(),
   parent_id: z.string().regex(cuidRegex, 'Invalid parent ID').nullable().optional(),
-  is_system: z.coerce.boolean().optional(),
   is_active: z.coerce.boolean().optional(),
   search: z.string().optional()
 });

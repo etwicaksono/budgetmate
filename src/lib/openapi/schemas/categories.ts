@@ -12,7 +12,6 @@ export const CategorySchema = registry.register(
     nature: z.nativeEnum(CategoryNature).openapi({ example: CategoryNature.NEED }),
     icon: z.string().openapi({ example: 'shopping-cart' }),
     color: z.string().openapi({ example: '#10B981' }),
-    is_system: z.boolean().openapi({ example: false }),
     is_active: z.boolean().openapi({ example: true }),
     parent_id: z.string().nullable().openapi({ example: null }),
     parent: z.object({ id: z.string(), name: z.string() }).nullable().optional(),
@@ -45,7 +44,6 @@ registry.registerPath({
   parameters: [
     { name: 'type', in: 'query', schema: { type: 'string', enum: [CategoryType.income, CategoryType.expense, 'both'] }, required: false },
     { name: 'parent_id', in: 'query', schema: { type: 'string' }, required: false },
-    { name: 'is_system', in: 'query', schema: { type: 'boolean' }, required: false },
     { name: 'is_active', in: 'query', schema: { type: 'boolean' }, required: false },
   ],
   responses: {

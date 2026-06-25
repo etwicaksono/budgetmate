@@ -73,7 +73,6 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       nature: category.nature,
       icon: category.icon,
       color: category.color,
-      is_system: category.is_system,
       is_active: category.is_active,
       parent_id: category.parent_id,
       parent: category.parent,
@@ -238,7 +237,6 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       nature: updated.nature,
       icon: updated.icon,
       color: updated.color,
-      is_system: updated.is_system,
       is_active: updated.is_active,
       parent_id: updated.parent_id,
       parent: updated.parent,
@@ -286,16 +284,6 @@ export async function DELETE(request: NextRequest, context: RouteParams): Promis
 
     if (!existingCategory) {
       return commonErrors.notFound('Category');
-    }
-
-    // Prevent deletion of system categories (only default seeded categories)
-    // Allow deleting of user-created categories even if they have is_system flag
-    if (existingCategory.is_system && !existingCategory.created_by) {
-      return errorResponse(
-        'SYSTEM_CATEGORY',
-        'Default system categories cannot be deleted',
-        403
-      );
     }
 
     // Check if category has transactions

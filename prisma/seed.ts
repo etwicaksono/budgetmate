@@ -41,7 +41,6 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
           nature: normalizeCategoryNature(category.nature),
           icon: category.icon,
           color: category.color,
-          is_system: true,
           is_active: true
         }
       });
@@ -62,7 +61,6 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
           nature: normalizeCategoryNature(data.nature),
           icon: data.icon,
           color: data.color,
-          is_system: true,
           is_active: true
         }
       });
@@ -81,7 +79,6 @@ async function createDefaultDataForUser(userId: string): Promise<Map<string, str
               nature: normalizeCategoryNature(child.nature ?? data.nature),
               icon: child.icon,
               color: data.color, // Inherit parent color
-              is_system: true,
               is_active: true
             }
           });

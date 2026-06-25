@@ -200,7 +200,7 @@ export function useBudgetGridData(
       parentId: null,
       hasChildren: false,
       isSummary: true,
-      category: { id: 'summary-row', name: 'Total', color: '#6c757d', icon: '', type: 'expense', analytic_flag: 'expense', nature: 'NEED', is_system: false, is_active: true, parent_id: null } as unknown as Row['category'],
+      category: { id: 'summary-row', name: 'Total', color: '#6c757d', icon: '', type: 'expense', analytic_flag: 'expense', nature: 'NEED', is_active: true, parent_id: null } as unknown as Row['category'],
       basicMonthly: summaryBasicMonthly,
       extendMonthly: summaryExtendMonthly,
       spentMonthly: summarySpentMonthly,

@@ -12,7 +12,6 @@ interface CategoryNode {
   nature: string;
   icon: string;
   color: string | null;
-  is_system: boolean;
   is_active: boolean;
   parent_id: string | null;
   children: CategoryNode[];
@@ -90,7 +89,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         nature: category.nature,
         icon: category.icon,
         color: category.color,
-        is_system: category.is_system,
         is_active: category.is_active,
         parent_id: category.parent_id,
         children: [],

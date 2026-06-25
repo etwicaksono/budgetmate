@@ -128,7 +128,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             nature: normalizeCategoryNature(incomeCategory.nature || 'WANT'),
             icon: incomeCategory.icon,
             color: incomeCategory.color,
-            is_system: true,
             is_active: true
           }
         });
@@ -145,7 +144,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     nature: normalizeCategoryNature(child.nature || incomeCategory.nature || 'WANT'),
                 icon: child.icon,
                 color: incomeCategory.color, // Inherit parent color
-                is_system: true,
                 is_active: true
               }
             });
@@ -166,7 +164,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             nature: normalizeCategoryNature(data.nature || 'WANT'),
             icon: data.icon,
             color: data.color,
-            is_system: true,
             is_active: true
           }
         });
@@ -183,7 +180,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     nature: normalizeCategoryNature(child.nature || data.nature || 'WANT'),
                 icon: child.icon,
                 color: data.color, // Inherit parent color
-                is_system: true,
                 is_active: true
               }
             });
@@ -205,7 +201,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 nature: normalizeCategoryNature(data.nature || 'WANT'),
               icon: data.icon,
               color: data.color,
-              is_system: true,
               is_active: true
             }
           });
@@ -222,7 +217,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                         nature: normalizeCategoryNature(child.nature || data.nature || 'WANT'),
                   icon: child.icon,
                   color: data.color, // Inherit parent color
-                  is_system: true,
                   is_active: true
                 }
               });

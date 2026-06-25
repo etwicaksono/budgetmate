@@ -177,13 +177,6 @@ export const CategoryTreeView: React.FC<CategoryTreeViewProps> = ({
               <span className={`${isParent ? 'fw-bold' : ''}`}>
                 {node.name}
               </span>
-              
-              {/* System Badge */}
-              {node.is_system && (
-                <Badge bg="secondary" className="small">
-                  System
-                </Badge>
-              )}
 
               {/* Type Badge */}
               <Badge bg={node.type === 'income' ? 'success' : node.type === 'both' ? 'info' : 'danger'} className="small">
@@ -241,10 +234,9 @@ export const CategoryTreeView: React.FC<CategoryTreeViewProps> = ({
               
               <Dropdown.Divider />
               
-              <Dropdown.Item 
+              <Dropdown.Item
                 onClick={() => handleDeleteClick(node)}
                 className="text-danger"
-                disabled={node.is_system}
               >
                 <FaTrash className="me-2" />
                 Delete

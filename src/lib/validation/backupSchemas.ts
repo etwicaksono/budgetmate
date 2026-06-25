@@ -33,7 +33,6 @@ const BackupCategorySchema = z.object({
   nature: z.nativeEnum(CategoryNature),
   icon: z.string().min(1).max(50),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(),
-  is_system: z.boolean(),
   is_active: z.boolean(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),

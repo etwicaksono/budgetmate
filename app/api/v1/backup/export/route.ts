@@ -134,7 +134,6 @@ export async function GET(request: NextRequest) {
         nature: cat.nature,
         icon: cat.icon,
         color: cat.color,
-        is_system: cat.is_system,
         is_active: cat.is_active,
         created_at: cat.created_at.toISOString(),
         updated_at: cat.updated_at.toISOString(),
