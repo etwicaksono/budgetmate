@@ -1,37 +1,45 @@
 # BudgetMate - Smart Finance, Simplified
 
-Take control of your personal finances with BudgetMate. A comprehensive personal finance management application built with Next.js 15+, TypeScript, Prisma, and PostgreSQL.
+Take control of your personal finances with BudgetMate. A comprehensive personal finance management application built with Next.js 16, React 19, TypeScript, Prisma 7, and PostgreSQL.
 
 ## Features
 
-- 🔐 **Authentication System** - Secure JWT-based authentication with token encryption
-- 💰 **Account Management** - Track multiple accounts (checking, savings, credit cards, cash, investments)
-- 💳 **Transaction Tracking** - Record income and expenses with detailed categorization
-- 📊 **Categories** - Hierarchical category system with 70+ pre-configured categories
-- 🔄 **Transfers** - Transfer money between accounts with automatic balance updates
-- 📈 **Dashboard** - Overview of financial health with summary cards
-- 🎨 **Modern UI** - Responsive design with React Bootstrap
-- 🔒 **Type-Safe** - Full TypeScript coverage with strict mode
+- **Authentication** - JWT-based auth with encrypted token storage and refresh token mutex
+- **Account Management** - Track multiple accounts (checking, savings, credit cards, cash, investments, loans)
+- **Transaction Tracking** - Record income and expenses with categorization, labels, drafts, and bulk operations
+- **Transfers** - Transfer money between accounts with automatic paired-transaction handling
+- **Budgets** - Category-based budgeting with period tracking and status overview
+- **Debts** - Track lending and borrowing with increase/repayment flows
+- **Labels** - Tag transactions with custom labels for finer filtering
+- **Analytics** - Dashboard with charts: cashflow, balance trends, expenses by category, income vs expenses
+- **Saved Filters** - Persist and reuse filter presets per context (transactions, analytics, budgets)
+- **AI Chat** - AI-powered financial assistant (Google Gemini / OpenAI)
+- **Backup** - Export and import data
+- **Settings** - User preferences and account configuration
+- **API Docs** - Interactive OpenAPI documentation via Scalar
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15+, React 19, TypeScript 5.3+
-- **Backend**: Next.js API Routes, Prisma ORM 5.8+
-- **Database**: PostgreSQL 16+
-- **Authentication**: JWT with jose library, bcryptjs for password hashing
-- **UI Framework**: React Bootstrap 2.10+ (primary), Tailwind CSS (utilities only)
+- **Framework**: Next.js 16, React 19
+- **Language**: TypeScript 5.9+ (strict mode)
+- **Database**: PostgreSQL 16+ with Prisma ORM 7
+- **Authentication**: JWT with `jose`, `bcryptjs` for password hashing, encrypted token storage
+- **UI**: React Bootstrap 2.10 (primary), Tailwind CSS (utilities only)
 - **Icons**: react-icons/fa (Font Awesome)
 - **Alerts**: SweetAlert2
 - **Forms**: react-number-format (numeric inputs)
-- **Validation**: Zod 3.22+
-- **State Management**: React Context API, Zustand
-- **Charts**: Recharts
+- **Validation**: Zod 3.25+
+- **Charts**: Recharts 3
+- **AI**: Google Generative AI (`@google/generative-ai`), OpenAI SDK
+- **API Docs**: `@asteasolutions/zod-to-openapi` + `@scalar/nextjs-api-reference`
+- **Drag & Drop**: `@dnd-kit/core`, `@dnd-kit/sortable`
+- **Testing**: Jest, Playwright
 
 ## Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - PostgreSQL 14+
-- npm or yarn
+- npm
 
 ## Getting Started
 
@@ -54,7 +62,7 @@ Create a `.env` file in the root directory:
 
 ```env
 # Database
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/finance_db"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/finance_app"
 
 # JWT Secrets (generate strong secrets in production)
 JWT_ACCESS_SECRET="your-super-secret-jwt-access-key-change-in-production"
@@ -70,13 +78,13 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 Create the PostgreSQL database:
 
 ```bash
-createdb finance_db
+createdb finance_app
 ```
 
-Push the Prisma schema to the database:
+Apply migrations:
 
 ```bash
-npm run db:push
+npm run db:migrate
 ```
 
 Seed the database with default data:
@@ -86,8 +94,8 @@ npm run db:seed
 ```
 
 This will create:
-- 83 default categories (11 income + 72 expense)
-- 3 default accounts (Cash, Checking, Savings)
+- Default categories (income + expense)
+- Default accounts (Cash, Checking, Savings)
 - Demo user with sample transactions
 
 ### 5. Run the development server
@@ -106,66 +114,124 @@ After seeding, you can login with:
 
 ## Available Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run lint:fix` - Fix ESLint errors
-- `npm run type-check` - Run TypeScript type checking
-- `npm run validate` - Run type-check and lint
-- `npm run db:generate` - Generate Prisma client
-- `npm run db:push` - Push schema to database
-- `npm run db:seed` - Seed database with default data
-- `npm run db:studio` - Open Prisma Studio
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server (TZ=UTC) |
+| `npm run build` | Generate Prisma client + build for production |
+| `npm run build:migrate` | Generate Prisma client + deploy migrations + build |
+| `npm start` | Start production server (TZ=UTC) |
+| `npm run lint` | Run ESLint |
+| `npm run lint:fix` | Fix ESLint errors |
+| `npm run type-check` | Run TypeScript type checking |
+| `npm run validate` | Run type-check and lint |
+| `npm run validate:fix` | Run type-check and lint:fix |
+| `npm run format` | Format code with Prettier |
+| `npm run format:check` | Check formatting with Prettier |
+| `npm run db:generate` | Generate Prisma client |
+| `npm run db:migrate` | Create and apply migration (dev) |
+| `npm run db:push` | Push schema to database |
+| `npm run db:seed` | Seed database with default data |
+| `npm run db:reset` | Reset and re-seed database |
+| `npm run db:studio` | Open Prisma Studio |
+| `npm run test` | Run Jest tests |
+| `npm run test:watch` | Run Jest in watch mode |
+| `npm run test:coverage` | Run Jest with coverage |
+| `npm run test:e2e` | Run Playwright E2E tests |
+| `npm run analyze` | Build with bundle analysis |
 
 ## Project Structure
 
 ```
 budgetmate/
-├── app/                      # Next.js app directory
-│   ├── (auth)/              # Authentication pages (login, register)
-│   ├── dashboard/           # Protected dashboard pages
-│   ├── api/v1/              # API routes
-│   │   ├── auth/           # Authentication endpoints
-│   │   ├── accounts/       # Account management endpoints
-│   │   ├── transactions/   # Transaction endpoints
-│   │   ├── categories/     # Category endpoints
-│   │   └── transfers/      # Transfer endpoints
-│   ├── layout.tsx          # Root layout with providers
-│   └── page.tsx            # Home/landing page
+├── app/                          # Next.js app directory
+│   ├── (auth)/                   # Authentication pages (login, register)
+│   ├── (app)/                    # Protected app pages
+│   │   ├── accounts/             # Account management + detail view
+│   │   ├── analytics/            # Analytics dashboard with charts
+│   │   ├── budgets/              # Budget tracking per category
+│   │   ├── dashboard/             # Main dashboard with summary
+│   │   ├── debts/                 # Debt tracking (lend/borrow)
+│   │   ├── settings/              # User settings
+│   │   ├── transactions/         # Transaction list with filters
+│   │   └── transfers/            # Transfer history
+│   ├── api/                       # API routes
+│   │   ├── ai/                    # AI chat endpoints
+│   │   └── v1/                    # REST API v1
+│   │       ├── auth/              # Auth endpoints (login, register, refresh, logout)
+│   │       ├── accounts/          # Account CRUD + swap order
+│   │       ├── transactions/      # Transaction CRUD + bulk
+│   │       ├── categories/       # Category CRUD + tree
+│   │       ├── transfers/        # Transfer CRUD
+│   │       ├── budgets/          # Budget CRUD + status
+│   │       ├── debts/            # Debt CRUD + increase/repayments
+│   │       ├── labels/           # Label CRUD
+│   │       ├── saved-filters/    # Saved filter CRUD + reorder
+│   │       ├── analytics/        # Analytics endpoints (7 chart types)
+│   │       ├── backup/           # Export/import
+│   │       └── user/             # User settings
+│   ├── api-docs/                  # Scalar API documentation
+│   ├── layout.tsx                # Root layout with providers
+│   └── page.tsx                  # Home/landing page
 ├── src/
-│   ├── components/         # React components
-│   │   ├── DashboardLayout.tsx
-│   │   ├── Sidebar.tsx
-│   │   ├── Header.tsx
-│   │   └── ProtectedRoute.tsx
-│   ├── context/           # React Context providers
-│   │   ├── ToastContext.tsx
-│   │   ├── AuthStateContext.tsx
-│   │   ├── AuthContext.tsx
-│   │   └── TransactionModalContext.tsx
-│   ├── services/          # API service layer
-│   │   ├── api.ts
-│   │   ├── authService.ts
-│   │   ├── accountService.ts
-│   │   ├── transactionService.ts
-│   │   ├── categoryService.ts
-│   │   ├── transferService.ts
-│   │   └── analyticsService.ts
-│   ├── lib/               # Utility libraries
-│   │   ├── auth/         # JWT and password utilities
-│   │   ├── api/          # API response builders
-│   │   └── validation/   # Zod schemas
-│   ├── utils/            # Utility functions
-│   └── data/             # Default data (categories, accounts)
+│   ├── components/               # React components (by domain)
+│   │   ├── accounts/             # Account components
+│   │   ├── analytics/            # Analytics components
+│   │   ├── budgets/              # Budget components
+│   │   ├── common/               # Shared components
+│   │   ├── dashboard/            # Dashboard widgets
+│   │   ├── debt/                 # Debt components
+│   │   ├── FilterSidebar/        # Filter sidebar + saved filters
+│   │   ├── forms/                # Form components
+│   │   ├── label/                # Label components
+│   │   ├── modals/               # Modal components
+│   │   ├── period/               # Period navigation
+│   │   ├── Records/              # Transaction record list
+│   │   └── transaction/          # Transaction components
+│   ├── context/                  # React Context providers
+│   │   ├── AuthContext.tsx       # Auth actions
+│   │   ├── AuthStateContext.tsx  # Auth state
+│   │   ├── DebtContext.tsx       # Debt modal state
+│   │   ├── LocaleContext.tsx     # Locale/i18n
+│   │   ├── ToastContext.tsx      # Toast notifications
+│   │   ├── TransactionContext.tsx # Transaction modal state
+│   │   └── TransactionModalContext.tsx # Transaction form modal
+│   ├── features/                 # Feature-oriented modules
+│   │   ├── accounts/             # Account services + types
+│   │   ├── analytics/            # Analytics services
+│   │   ├── auth/                  # Auth hooks + services + types
+│   │   ├── backup/               # Backup services + types
+│   │   ├── budgets/              # Budget services + types
+│   │   ├── categories/           # Category hooks + services + types
+│   │   ├── debts/                # Debt hooks + services + types
+│   │   ├── labels/               # Label services + types
+│   │   ├── transactions/         # Transaction hooks + services + types
+│   │   └── transfers/            # Transfer services + types
+│   ├── hooks/                    # Shared React hooks
+│   ├── lib/                      # Core libraries
+│   │   ├── ai/                    # AI providers (Gemini, OpenAI)
+│   │   ├── api/                   # API response helpers
+│   │   ├── auth/                  # JWT + password utilities
+│   │   ├── db/                    # Prisma client
+│   │   ├── openapi/               # OpenAPI schemas + registry
+│   │   ├── validation/            # Zod validation schemas
+│   │   ├── eventBus.ts            # Typed event bus for cross-component comms
+│   │   └── timezone.ts            # Timezone utilities
+│   ├── services/                  # API service layer
+│   ├── types/                     # Shared TypeScript types
+│   ├── utils/                    # Utility functions
+│   └── data/                      # Default data (categories, accounts)
 ├── prisma/
-│   ├── schema.prisma     # Database schema
-│   └── seed.ts           # Database seeder
-└── tests/                # Test files (future)
-
+│   ├── schema.prisma              # Database schema (enums + models)
+│   ├── seed.ts                   # Database seeder
+│   └── migrations/               # SQL migrations
+├── scripts/                      # Utility scripts
+├── docs/                         # Documentation
+└── public/                       # Static assets
 ```
 
 ## API Documentation
+
+Interactive API docs are available at `/api-docs` when the server is running.
 
 ### Authentication
 
@@ -181,6 +247,7 @@ budgetmate/
 - `GET /api/v1/accounts/[id]` - Get account details
 - `PUT /api/v1/accounts/[id]` - Update account
 - `DELETE /api/v1/accounts/[id]` - Delete account (soft delete)
+- `POST /api/v1/accounts/swap-order` - Reorder accounts
 
 ### Transactions
 
@@ -188,7 +255,8 @@ budgetmate/
 - `POST /api/v1/transactions` - Create new transaction
 - `GET /api/v1/transactions/[id]` - Get transaction details
 - `PUT /api/v1/transactions/[id]` - Update transaction
-- `DELETE /api/v1/transactions/[id]` - Delete transaction (soft delete)
+- `DELETE /api/v1/transactions/[id]` - Delete transaction (soft delete, auto-deletes paired transfer)
+- `POST /api/v1/transactions/bulk` - Bulk operations
 
 ### Categories
 
@@ -206,18 +274,87 @@ budgetmate/
 - `GET /api/v1/transfers/[id]` - Get transfer details
 - `DELETE /api/v1/transfers/[id]` - Delete transfer
 
+### Budgets
+
+- `GET /api/v1/budgets` - List budgets
+- `POST /api/v1/budgets` - Create/update budget
+- `GET /api/v1/budgets/status` - Get budget status overview
+- `PUT /api/v1/budgets/[category_id]` - Update budget for category
+- `DELETE /api/v1/budgets/[category_id]` - Delete budget
+
+### Debts
+
+- `GET /api/v1/debts` - List all debts
+- `POST /api/v1/debts` - Create new debt
+- `GET /api/v1/debts/[id]` - Get debt details
+- `PUT /api/v1/debts/[id]` - Update debt
+- `DELETE /api/v1/debts/[id]` - Delete debt
+- `POST /api/v1/debts/increase/[transactionId]` - Increase debt amount
+- `GET /api/v1/debts/repayments` - List repayments
+
+### Labels
+
+- `GET /api/v1/labels` - List all labels
+- `POST /api/v1/labels` - Create new label
+- `PUT /api/v1/labels/[id]` - Update label
+- `DELETE /api/v1/labels/[id]` - Delete label
+
+### Saved Filters
+
+- `GET /api/v1/saved-filters` - List saved filters (optional `?context=` filter)
+- `POST /api/v1/saved-filters` - Create saved filter
+- `PUT /api/v1/saved-filters/[id]` - Update saved filter
+- `DELETE /api/v1/saved-filters/[id]` - Delete saved filter
+- `POST /api/v1/saved-filters/reorder` - Reorder saved filters
+
+### Analytics
+
+- `GET /api/v1/analytics/balance-trend` - Balance over time
+- `GET /api/v1/analytics/cashflow` - Cashflow chart data
+- `GET /api/v1/analytics/expenses-by-category` - Expense breakdown
+- `GET /api/v1/analytics/income-vs-expenses` - Income vs expense comparison
+- `GET /api/v1/analytics/income-expense-report` - Detailed report
+- `GET /api/v1/analytics/trends` - Trend analysis
+- `GET /api/v1/analytics/advanced-charts` - Advanced chart data
+
+### Backup
+
+- `GET /api/v1/backup/export` - Export user data
+- `POST /api/v1/backup/import` - Import user data
+
+### User
+
+- `GET /api/v1/user/settings` - Get user settings
+- `PUT /api/v1/user/settings` - Update user settings
+
+### AI
+
+- `POST /api/ai/sessions` - Create AI chat session
+- `GET /api/ai/sessions` - List sessions
+- `POST /api/ai/sessions/[id]/messages` - Send message to AI
+- `GET /api/ai/config` - Get AI configuration
+
 ## Architecture
 
 ### Context Provider Hierarchy
 
-The application uses a specific provider hierarchy for proper dependency management:
+```
+ToastProvider
+  └─ AuthStateProvider
+      └─ AuthProvider
+          └─ TransactionModalProvider
+              └─ DebtProvider
+                  └─ LocaleProvider
+```
 
-```
-ToastProvider (Level 1)
-  └─ AuthStateProvider (Level 2)
-      └─ AuthProvider (Level 3)
-          └─ TransactionModalProvider (Level 4)
-```
+### Event System
+
+Cross-component communication uses a typed event bus (`src/lib/eventBus.ts`):
+
+- `dispatchAppEvent(name, payload)` - Dispatch typed events
+- `onAppEvent(name, handler)` - Subscribe to typed events
+
+All event names and payloads are defined in a single `AppEventMap` type for compile-time safety.
 
 ### Authentication Flow
 
@@ -226,7 +363,7 @@ ToastProvider (Level 1)
 3. Tokens are encrypted and stored in localStorage
 4. AuthContext manages authentication state
 5. Protected routes check authentication status
-6. Token automatically refreshes when expired
+6. Token automatically refreshes when expired (with mutex to prevent concurrent refresh races)
 
 ### Data Flow
 
@@ -235,65 +372,49 @@ ToastProvider (Level 1)
 3. **API Route** → Server-side handler processes request
 4. **Prisma ORM** → Database query executed
 5. **Response** → Data flows back through layers
-6. **Context Update** → Global state updated if needed
-7. **UI Update** → Component re-renders with new data
+6. **Event Bus** → Typed event dispatched for cross-component updates
+7. **UI Update** → Components re-render with new data
 
 ## Security Features
 
-- ✅ Password hashing with bcryptjs
-- ✅ JWT authentication with token rotation
-- ✅ Token encryption for client-side storage
-- ✅ Rate limiting on authentication endpoints
-- ✅ Input validation with Zod
-- ✅ SQL injection protection via Prisma
-- ✅ Protected API routes requiring authentication
-- ✅ Soft deletes for data recovery
+- Password hashing with bcryptjs
+- JWT authentication with token rotation
+- Token encryption for client-side storage
+- Refresh token mutex to prevent race conditions
+- Input validation with Zod
+- SQL injection protection via Prisma
+- Protected API routes requiring authentication
+- Soft deletes for data recovery
+- CORS restricted to `NEXT_PUBLIC_APP_URL`
 
 ## Development
 
 ### Code Quality
 
-The project maintains high code quality standards:
-
-- **TypeScript Strict Mode** - All strict flags enabled
-- **ESLint** - Comprehensive linting rules
-- **Type Coverage** - 100% TypeScript coverage
-- **Zero Warnings** - No lint or type warnings
-
-Run quality checks:
-
 ```bash
-npm run validate  # Runs type-check and lint
+npm run validate      # Type-check + lint
+npm run validate:fix  # Type-check + lint with auto-fix
+npm run format        # Format with Prettier
 ```
 
 ### Database Management
 
-View and manage database:
-
 ```bash
-npm run db:studio  # Opens Prisma Studio at http://localhost:5555
-```
-
-Reset database:
-
-```bash
-npm run db:reset  # Resets and re-seeds database
+npm run db:studio     # Open Prisma Studio at http://localhost:5555
+npm run db:migrate    # Create and apply new migration
+npm run db:reset      # Reset and re-seed database
 ```
 
 ## Troubleshooting
 
 ### Database Connection Issues
 
-If you get database connection errors:
-
 1. Ensure PostgreSQL is running
-2. Verify DATABASE_URL in `.env` file
+2. Verify `DATABASE_URL` in `.env` file
 3. Check database exists: `psql -l`
-4. Test connection: `psql postgresql://postgres:postgres@localhost:5432/finance_db`
+4. Test connection: `psql postgresql://postgres:postgres@localhost:5432/finance_app`
 
 ### Port Already in Use
-
-If port 3000 is in use:
 
 ```bash
 # Windows
@@ -306,11 +427,10 @@ lsof -ti:3000 | xargs kill -9
 
 ### Prisma Issues
 
-If Prisma throws errors:
-
 ```bash
 npx prisma generate  # Regenerate Prisma client
-npx prisma db push   # Re-sync database schema
+npx prisma migrate deploy  # Apply pending migrations
+npx prisma migrate status  # Check migration status
 ```
 
 ## Contributing
@@ -324,9 +444,3 @@ npx prisma db push   # Re-sync database schema
 ## License
 
 This project is licensed under the MIT License.
-
-## Acknowledgments
-
-- Built following modern Next.js best practices
-- UI inspired by popular finance management applications
-- Architecture designed for scalability and maintainability
