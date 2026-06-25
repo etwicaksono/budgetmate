@@ -1,9 +1,10 @@
 /**
  * Backup Import API Endpoint
- * 
+ *
  * POST /api/v1/backup/import?mode=replace|merge
- * 
+ *
  * Imports and restores user data from backup JSON file.
+ * Uses SSE (Server-Sent Events) to stream progress updates.
  * Requires authentication.
  */
 
@@ -14,6 +15,43 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { commonErrors } from '@/lib/api/response';
 import { BackupDataSchema, isVersionCompatible } from '@/lib/validation/backupSchemas';
 import { createId } from '@paralleldrive/cuid2';
+import crypto from 'crypto';
+
+// Allow up to 5 minutes for large imports
+export const maxDuration = 300;
+
+// Chunk size for batch processing
+const CHUNK_SIZE = 50;
+
+// Split array into chunks
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
+// Progress weight ranges per step
+const PROGRESS_RANGES = {
+  cleared: { start: 0, end: 5 },
+  accounts: { start: 5, end: 20 },
+  categories: { start: 20, end: 35 },
+  labels: { start: 35, end: 45 },
+  transfers: { start: 45, end: 55 },
+  transactions: { start: 55, end: 85 },
+  transactionLabels: { start: 85, end: 100 },
+} as const;
+
+function calculateProgress(
+  step: keyof typeof PROGRESS_RANGES,
+  currentIndex: number,
+  totalCount: number
+): number {
+  const { start, end } = PROGRESS_RANGES[step];
+  if (totalCount === 0) return end;
+  return Math.min(end, Math.round(start + (currentIndex / totalCount) * (end - start)));
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,518 +95,600 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Import data in transaction
-    const result = await prisma.$transaction(
-      async (tx) => {
-        // ID mapping tables for rebuilding relationships
-        const accountIdMap = new Map<string, string>();
-        const categoryIdMap = new Map<string, string>();
-        const labelIdMap = new Map<string, string>();
-        const transferIdMap = new Map<string, string>();
+    // Verify checksum if present
+    if (backupData.metadata.checksum) {
+      const computedChecksum = crypto
+        .createHash('sha256')
+        .update(JSON.stringify(backupData.data))
+        .digest('hex')
+        .substring(0, 16);
 
-        // If replace mode, delete existing data in correct order
-        if (mode === 'replace') {
-          await tx.transactionLabel.deleteMany({
-            where: { transaction: { user_id: userId } },
-          });
-          await tx.transaction.deleteMany({ where: { user_id: userId } });
-          await tx.transfer.deleteMany({ where: { user_id: userId } });
-          await tx.label.deleteMany({ where: { user_id: userId } });
-          await tx.category.deleteMany({ where: { user_id: userId } });
-          await tx.account.deleteMany({ where: { user_id: userId } });
-        }
-
-        // 1. Import Accounts
-        const createdAccounts = [];
-        for (const account of backupData.data.accounts) {
-          if (mode === 'merge') {
-            // Check if account with same id exists
-            const existing = await tx.account.findFirst({
-              where: {
-                user_id: userId,
-                id: account.id,
-              },
-            });
-
-            if (existing) {
-              // Update existing account
-              const updated = await tx.account.update({
-                where: { id: existing.id },
-                data: {
-                  name: account.name,
-                  account_type: account.account_type as AccountType,
-                  initial_balance: account.initial_balance,
-                  icon: account.icon,
-                  color: account.color,
-                  is_active: account.is_active,
-                  is_included_in_total: account.is_included_in_total,
-                },
-              });
-
-              accountIdMap.set(account.id, existing.id);
-              createdAccounts.push(updated);
-            } else {
-              // Insert as new
-              const newId = createId();
-              const created = await tx.account.create({
-                data: {
-                  id: newId,
-                  user_id: userId,
-                  name: account.name,
-                  account_type: account.account_type as AccountType,
-                  initial_balance: account.initial_balance,
-                  icon: account.icon,
-                  color: account.color,
-                  is_active: account.is_active,
-                  is_included_in_total: account.is_included_in_total,
-                },
-              });
-
-              accountIdMap.set(account.id, newId);
-              createdAccounts.push(created);
-            }
-          } else {
-            // Replace mode: insert with new id
-            const newId = createId();
-            const created = await tx.account.create({
-              data: {
-                id: newId,
-                user_id: userId,
-                name: account.name,
-                account_type: account.account_type as AccountType,
-                initial_balance: account.initial_balance,
-                icon: account.icon,
-                color: account.color,
-                is_active: account.is_active,
-                is_included_in_total: account.is_included_in_total,
-              },
-            });
-
-            accountIdMap.set(account.id, newId);
-            createdAccounts.push(created);
-          }
-        }
-
-        // 2. Import Categories (handle hierarchy)
-        // Import all categories and flag them as user categories (is_system: false)
-        const createdCategories = [];
-        const categoriesWithParent: typeof backupData.data.categories = [];
-
-        // First pass: Root categories
-        for (const category of backupData.data.categories) {
-          if (!category.parent_id) {
-            if (mode === 'merge') {
-              // Check if category with same id exists
-              const existing = await tx.category.findFirst({
-                where: {
-                  user_id: userId,
-                  id: category.id,
-                },
-              });
-
-              if (existing) {
-                // Update existing category (force is_system: false)
-                const updated = await tx.category.update({
-                  where: { id: existing.id },
-                  data: {
-                    name: category.name,
-                    type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                    nature: category.nature as CategoryNature,
-                    icon: category.icon,
-                    color: category.color ?? null,
-                    is_system: false,
-                    is_active: category.is_active,
-                  },
-                });
-
-                categoryIdMap.set(category.id, existing.id);
-                createdCategories.push(updated);
-              } else {
-                // Insert as new (force is_system: false)
-                const newId = createId();
-                const created = await tx.category.create({
-                  data: {
-                    id: newId,
-                    user_id: userId,
-                    name: category.name,
-                    type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                    nature: category.nature as CategoryNature,
-                    icon: category.icon,
-                    color: category.color ?? null,
-                    is_system: false,
-                    is_active: category.is_active,
-                  },
-                });
-
-                categoryIdMap.set(category.id, newId);
-                createdCategories.push(created);
-              }
-            } else {
-              // Replace mode: insert with new id (force is_system: false)
-              const newId = createId();
-              const created = await tx.category.create({
-                data: {
-                  id: newId,
-                  user_id: userId,
-                  name: category.name,
-                  type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                  nature: category.nature as CategoryNature,
-                  icon: category.icon,
-                  color: category.color ?? null,
-                  is_system: false,
-                  is_active: category.is_active,
-                },
-              });
-
-              categoryIdMap.set(category.id, newId);
-              createdCategories.push(created);
-            }
-          } else {
-            categoriesWithParent.push(category);
-          }
-        }
-
-        // Second pass: Child categories
-        for (const category of categoriesWithParent) {
-          const newParentId = categoryIdMap.get(category.parent_id!);
-
-          if (mode === 'merge') {
-            const existing = await tx.category.findFirst({
-              where: {
-                user_id: userId,
-                id: category.id,
-              },
-            });
-
-            if (existing) {
-              const updated = await tx.category.update({
-                where: { id: existing.id },
-                data: {
-                  parent_id: newParentId || null,
-                  name: category.name,
-                  type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                  nature: category.nature as CategoryNature,
-                  icon: category.icon,
-                  color: category.color ?? null,
-                  is_system: false,
-                  is_active: category.is_active,
-                },
-              });
-
-              categoryIdMap.set(category.id, existing.id);
-              createdCategories.push(updated);
-            } else {
-              const newId = createId();
-              const created = await tx.category.create({
-                data: {
-                  id: newId,
-                  user_id: userId,
-                  parent_id: newParentId || null,
-                  name: category.name,
-                  type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                  nature: category.nature as CategoryNature,
-                  icon: category.icon,
-                  color: category.color ?? null,
-                  is_system: false,
-                  is_active: category.is_active,
-                },
-              });
-
-              categoryIdMap.set(category.id, newId);
-              createdCategories.push(created);
-            }
-          } else {
-            const newId = createId();
-            const created = await tx.category.create({
-              data: {
-                id: newId,
-                user_id: userId,
-                parent_id: newParentId || null,
-                name: category.name,
-                type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                nature: category.nature as CategoryNature,
-                icon: category.icon,
-                color: category.color ?? null,
-                is_system: false,
-                is_active: category.is_active,
-              },
-            });
-
-            categoryIdMap.set(category.id, newId);
-            createdCategories.push(created);
-          }
-        }
-
-        // 3. Import Labels
-        const createdLabels = [];
-        for (const label of backupData.data.labels) {
-          if (mode === 'merge') {
-            const existing = await tx.label.findFirst({
-              where: {
-                user_id: userId,
-                id: label.id,
-              },
-            });
-
-            if (existing) {
-              const updated = await tx.label.update({
-                where: { id: existing.id },
-                data: {
-                  name: label.name,
-                  color: label.color,
-                },
-              });
-
-              labelIdMap.set(label.id, existing.id);
-              createdLabels.push(updated);
-            } else {
-              const newId = createId();
-              const created = await tx.label.create({
-                data: {
-                  id: newId,
-                  user_id: userId,
-                  name: label.name,
-                  color: label.color,
-                },
-              });
-
-              labelIdMap.set(label.id, newId);
-              createdLabels.push(created);
-            }
-          } else {
-            const newId = createId();
-            const created = await tx.label.create({
-              data: {
-                id: newId,
-                user_id: userId,
-                name: label.name,
-                color: label.color,
-              },
-            });
-
-            labelIdMap.set(label.id, newId);
-            createdLabels.push(created);
-          }
-        }
-
-        // 4. Import Transfers
-        const createdTransfers = [];
-        for (const transfer of backupData.data.transfers) {
-          const newFromAccountId = accountIdMap.get(transfer.from_account);
-          const newToAccountId = accountIdMap.get(transfer.to_account);
-
-          if (newFromAccountId && newToAccountId) {
-            if (mode === 'merge') {
-              const existing = await tx.transfer.findFirst({
-                where: {
-                  user_id: userId,
-                  id: transfer.id,
-                },
-              });
-
-              if (existing) {
-                const updated = await tx.transfer.update({
-                  where: { id: existing.id },
-                  data: {
-                    date: new Date(transfer.date),
-                    from_account: newFromAccountId,
-                    to_account: newToAccountId,
-                    amount: transfer.amount,
-                    description: transfer.description ?? null,
-                  },
-                });
-
-                transferIdMap.set(transfer.id, existing.id);
-                createdTransfers.push(updated);
-              } else {
-                const newId = createId();
-                const created = await tx.transfer.create({
-                  data: {
-                    id: newId,
-                    user_id: userId,
-                    date: new Date(transfer.date),
-                    from_account: newFromAccountId,
-                    to_account: newToAccountId,
-                    amount: transfer.amount,
-                    description: transfer.description ?? null,
-                  },
-                });
-
-                transferIdMap.set(transfer.id, newId);
-                createdTransfers.push(created);
-              }
-            } else {
-              const newId = createId();
-              const created = await tx.transfer.create({
-                data: {
-                  id: newId,
-                  user_id: userId,
-                  date: new Date(transfer.date),
-                  from_account: newFromAccountId,
-                  to_account: newToAccountId,
-                  amount: transfer.amount,
-                  description: transfer.description ?? null,
-                },
-              });
-
-              transferIdMap.set(transfer.id, newId);
-              createdTransfers.push(created);
-            }
-          }
-        }
-
-        // 5. Import Transactions
-        // Build a transaction ID map for label re-association
-        const transactionIdMap = new Map<string, string>();
-        const createdTransactions = [];
-        for (const transaction of backupData.data.transactions) {
-          const newAccountId = accountIdMap.get(transaction.account_id);
-          const newCategoryId = transaction.category_id
-            ? categoryIdMap.get(transaction.category_id)
-            : null;
-          const newTransferId = transaction.transfer_id
-            ? transferIdMap.get(transaction.transfer_id)
-            : null;
-
-          if (newAccountId) {
-            if (mode === 'merge') {
-              const existing = await tx.transaction.findFirst({
-                where: {
-                  user_id: userId,
-                  id: transaction.id,
-                },
-              });
-
-              if (existing) {
-                const updated = await tx.transaction.update({
-                  where: { id: existing.id },
-                  data: {
-                    account_id: newAccountId,
-                    category_id: newCategoryId ?? null,
-                    type: transaction.type as TransactionType,
-                    amount: transaction.amount,
-                    date: new Date(transaction.date),
-                    description: transaction.description ?? null,
-                    payee: transaction.payee ?? null,
-                    payment_method: transaction.payment_method ?? null,
-                    payment_status: transaction.payment_status ?? null,
-                    transfer_id: newTransferId ?? null,
-                  },
-                });
-
-                transactionIdMap.set(transaction.id, existing.id);
-                createdTransactions.push(updated);
-              } else {
-                const newId = createId();
-                const created = await tx.transaction.create({
-                  data: {
-                    id: newId,
-                    user_id: userId,
-                    account_id: newAccountId,
-                    category_id: newCategoryId ?? null,
-                    type: transaction.type as TransactionType,
-                    amount: transaction.amount,
-                    date: new Date(transaction.date),
-                    description: transaction.description ?? null,
-                    payee: transaction.payee ?? null,
-                    payment_method: transaction.payment_method ?? null,
-                    payment_status: transaction.payment_status ?? null,
-                    transfer_id: newTransferId ?? null,
-                  },
-                });
-
-                transactionIdMap.set(transaction.id, newId);
-                createdTransactions.push(created);
-              }
-            } else {
-              const newId = createId();
-              const created = await tx.transaction.create({
-                data: {
-                  id: newId,
-                  user_id: userId,
-                  account_id: newAccountId,
-                  category_id: newCategoryId ?? null,
-                  type: transaction.type as TransactionType,
-                  amount: transaction.amount,
-                  date: new Date(transaction.date),
-                  description: transaction.description ?? null,
-                  payee: transaction.payee ?? null,
-                  payment_method: transaction.payment_method ?? null,
-                  payment_status: transaction.payment_status ?? null,
-                  transfer_id: newTransferId ?? null,
-                },
-              });
-
-              transactionIdMap.set(transaction.id, newId);
-              createdTransactions.push(created);
-            }
-          }
-        }
-
-        // 6. Import Transaction-Label relationships
-        let createdTransactionLabels = 0;
-        for (const tl of backupData.data.transactionLabels) {
-          // Use the transaction ID map to find the new transaction ID
-          const newTransactionId = transactionIdMap.get(tl.transaction_id);
-          const newLabelId = labelIdMap.get(tl.label_id);
-
-          if (newTransactionId && newLabelId) {
-            if (mode === 'merge') {
-              // Check if relationship already exists
-              const existing = await tx.transactionLabel.findFirst({
-                where: {
-                  transaction_id: newTransactionId,
-                  label_id: newLabelId,
-                },
-              });
-
-              if (!existing) {
-                await tx.transactionLabel.create({
-                  data: {
-                    id: createId(),
-                    transaction_id: newTransactionId,
-                    label_id: newLabelId,
-                  },
-                });
-                createdTransactionLabels++;
-              }
-            } else {
-              await tx.transactionLabel.create({
-                data: {
-                  id: createId(),
-                  transaction_id: newTransactionId,
-                  label_id: newLabelId,
-                },
-              });
-              createdTransactionLabels++;
-            }
-          }
-        }
-
-        return {
-          accounts: createdAccounts.length,
-          categories: createdCategories.length,
-          transactions: createdTransactions.length,
-          transfers: createdTransfers.length,
-          labels: createdLabels.length,
-          transactionLabels: createdTransactionLabels,
-        };
-      },
-      {
-        timeout: 60000, // 60 seconds timeout for large imports
+      if (computedChecksum !== backupData.metadata.checksum) {
+        return commonErrors.badRequest(
+          'Backup file checksum mismatch — data may be corrupted'
+        );
       }
-    );
+    } else {
+      console.warn('Backup file has no checksum, skipping verification');
+    }
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          message: `Data ${mode === 'replace' ? 'restored' : 'merged'} successfully`,
-          imported: result,
-        },
+    // Fetch the authenticated user's email for ownership validation
+    const userRecord = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+
+    if (!userRecord) {
+      return commonErrors.notFound('User not found');
+    }
+
+    // Validate backup ownership for merge mode
+    const isOwner = backupData.user.email === userRecord.email;
+
+    if (!isOwner && mode === 'merge') {
+      return commonErrors.forbidden(
+        'Merge mode can only be used with your own backup file. Use replace mode to restore data from another account.'
+      );
+    }
+
+    // --- SSE streaming import ---
+
+    const encoder = new TextEncoder();
+
+    // ID mapping tables (maintained across chunks)
+    const accountIdMap = new Map<string, string>();
+    const categoryIdMap = new Map<string, string>();
+    const labelIdMap = new Map<string, string>();
+    const transferIdMap = new Map<string, string>();
+    const transactionIdMap = new Map<string, string>();
+
+    // Result counters
+    let createdAccounts = 0;
+    let createdCategories = 0;
+    let createdLabels = 0;
+    let createdTransfers = 0;
+    let createdTransactions = 0;
+    let createdTransactionLabels = 0;
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        const sendEvent = (data: Record<string, unknown>) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        };
+
+        // Heartbeat every 5 seconds to keep connection alive
+        const heartbeat = setInterval(() => {
+          controller.enqueue(encoder.encode(`: keepalive\n\n`));
+        }, 5000);
+
+        try {
+          // Step 1: Replace mode — delete existing data
+          if (mode === 'replace') {
+            await prisma.$transaction(async (tx) => {
+              await tx.transactionLabel.deleteMany({
+                where: { transaction: { user_id: userId } },
+              });
+              await tx.transaction.deleteMany({ where: { user_id: userId } });
+              await tx.transfer.deleteMany({ where: { user_id: userId } });
+              await tx.label.deleteMany({ where: { user_id: userId } });
+              await tx.category.deleteMany({ where: { user_id: userId } });
+              await tx.account.deleteMany({ where: { user_id: userId } });
+            });
+            sendEvent({ progress: 5, step: 'cleared', message: 'Existing data cleared' });
+          }
+
+          // Step 2: Import Accounts in chunks
+          const accountChunks = chunkArray(backupData.data.accounts, CHUNK_SIZE);
+          for (let i = 0; i < accountChunks.length; i++) {
+            await prisma.$transaction(async (tx) => {
+              for (const account of accountChunks[i]!) {
+                if (mode === 'merge') {
+                  const existing = await tx.account.findFirst({
+                    where: { user_id: userId, id: account.id },
+                  });
+
+                  if (existing) {
+                    await tx.account.update({
+                      where: { id: existing.id },
+                      data: {
+                        name: account.name,
+                        account_type: account.account_type as AccountType,
+                        initial_balance: account.initial_balance,
+                        icon: account.icon,
+                        color: account.color,
+                        is_active: account.is_active,
+                        is_included_in_total: account.is_included_in_total,
+                      },
+                    });
+                    accountIdMap.set(account.id, existing.id);
+                  } else {
+                    const newId = createId();
+                    await tx.account.create({
+                      data: {
+                        id: newId,
+                        user_id: userId,
+                        name: account.name,
+                        account_type: account.account_type as AccountType,
+                        initial_balance: account.initial_balance,
+                        icon: account.icon,
+                        color: account.color,
+                        is_active: account.is_active,
+                        is_included_in_total: account.is_included_in_total,
+                      },
+                    });
+                    accountIdMap.set(account.id, newId);
+                  }
+                } else {
+                  const newId = createId();
+                  await tx.account.create({
+                    data: {
+                      id: newId,
+                      user_id: userId,
+                      name: account.name,
+                      account_type: account.account_type as AccountType,
+                      initial_balance: account.initial_balance,
+                      icon: account.icon,
+                      color: account.color,
+                      is_active: account.is_active,
+                      is_included_in_total: account.is_included_in_total,
+                    },
+                  });
+                  accountIdMap.set(account.id, newId);
+                }
+                createdAccounts++;
+              }
+            });
+            sendEvent({
+              progress: calculateProgress('accounts', (i + 1) * CHUNK_SIZE, backupData.data.accounts.length),
+              step: 'accounts',
+              done: Math.min((i + 1) * CHUNK_SIZE, backupData.data.accounts.length),
+              total: backupData.data.accounts.length,
+            });
+          }
+
+          // Step 3: Import Categories in chunks (root first, then children)
+          const rootCategories = backupData.data.categories.filter((c) => !c.parent_id);
+          const childCategories = backupData.data.categories.filter((c) => c.parent_id);
+
+          const rootChunks = chunkArray(rootCategories, CHUNK_SIZE);
+          for (let i = 0; i < rootChunks.length; i++) {
+            await prisma.$transaction(async (tx) => {
+              for (const category of rootChunks[i]!) {
+                if (mode === 'merge') {
+                  const existing = await tx.category.findFirst({
+                    where: { user_id: userId, id: category.id },
+                  });
+
+                  if (existing) {
+                    await tx.category.update({
+                      where: { id: existing.id },
+                      data: {
+                        name: category.name,
+                        type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                        nature: category.nature as CategoryNature,
+                        icon: category.icon,
+                        color: category.color ?? null,
+                        is_system: false,
+                        is_active: category.is_active,
+                      },
+                    });
+                    categoryIdMap.set(category.id, existing.id);
+                  } else {
+                    const newId = createId();
+                    await tx.category.create({
+                      data: {
+                        id: newId,
+                        user_id: userId,
+                        name: category.name,
+                        type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                        nature: category.nature as CategoryNature,
+                        icon: category.icon,
+                        color: category.color ?? null,
+                        is_system: false,
+                        is_active: category.is_active,
+                      },
+                    });
+                    categoryIdMap.set(category.id, newId);
+                  }
+                } else {
+                  const newId = createId();
+                  await tx.category.create({
+                    data: {
+                      id: newId,
+                      user_id: userId,
+                      name: category.name,
+                      type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                      nature: category.nature as CategoryNature,
+                      icon: category.icon,
+                      color: category.color ?? null,
+                      is_system: false,
+                      is_active: category.is_active,
+                    },
+                  });
+                  categoryIdMap.set(category.id, newId);
+                }
+                createdCategories++;
+              }
+            });
+            sendEvent({
+              progress: calculateProgress('categories', (i + 1) * CHUNK_SIZE, backupData.data.categories.length),
+              step: 'categories',
+              done: Math.min((i + 1) * CHUNK_SIZE, backupData.data.categories.length),
+              total: backupData.data.categories.length,
+            });
+          }
+
+          // Child categories (need parent IDs from root pass)
+          const childChunks = chunkArray(childCategories, CHUNK_SIZE);
+          for (let i = 0; i < childChunks.length; i++) {
+            await prisma.$transaction(async (tx) => {
+              for (const category of childChunks[i]!) {
+                const newParentId = categoryIdMap.get(category.parent_id!);
+
+                if (mode === 'merge') {
+                  const existing = await tx.category.findFirst({
+                    where: { user_id: userId, id: category.id },
+                  });
+
+                  if (existing) {
+                    await tx.category.update({
+                      where: { id: existing.id },
+                      data: {
+                        parent_id: newParentId || null,
+                        name: category.name,
+                        type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                        nature: category.nature as CategoryNature,
+                        icon: category.icon,
+                        color: category.color ?? null,
+                        is_system: false,
+                        is_active: category.is_active,
+                      },
+                    });
+                    categoryIdMap.set(category.id, existing.id);
+                  } else {
+                    const newId = createId();
+                    await tx.category.create({
+                      data: {
+                        id: newId,
+                        user_id: userId,
+                        parent_id: newParentId || null,
+                        name: category.name,
+                        type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                        nature: category.nature as CategoryNature,
+                        icon: category.icon,
+                        color: category.color ?? null,
+                        is_system: false,
+                        is_active: category.is_active,
+                      },
+                    });
+                    categoryIdMap.set(category.id, newId);
+                  }
+                } else {
+                  const newId = createId();
+                  await tx.category.create({
+                    data: {
+                      id: newId,
+                      user_id: userId,
+                      parent_id: newParentId || null,
+                      name: category.name,
+                      type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
+                      nature: category.nature as CategoryNature,
+                      icon: category.icon,
+                      color: category.color ?? null,
+                      is_system: false,
+                      is_active: category.is_active,
+                    },
+                  });
+                  categoryIdMap.set(category.id, newId);
+                }
+                createdCategories++;
+              }
+            });
+            sendEvent({
+              progress: calculateProgress('categories', rootCategories.length + (i + 1) * CHUNK_SIZE, backupData.data.categories.length),
+              step: 'categories',
+              done: Math.min(rootCategories.length + (i + 1) * CHUNK_SIZE, backupData.data.categories.length),
+              total: backupData.data.categories.length,
+            });
+          }
+
+          // Step 4: Import Labels in chunks
+          const labelChunks = chunkArray(backupData.data.labels, CHUNK_SIZE);
+          for (let i = 0; i < labelChunks.length; i++) {
+            await prisma.$transaction(async (tx) => {
+              for (const label of labelChunks[i]!) {
+                if (mode === 'merge') {
+                  const existing = await tx.label.findFirst({
+                    where: { user_id: userId, id: label.id },
+                  });
+
+                  if (existing) {
+                    await tx.label.update({
+                      where: { id: existing.id },
+                      data: {
+                        name: label.name,
+                        color: label.color,
+                      },
+                    });
+                    labelIdMap.set(label.id, existing.id);
+                  } else {
+                    const newId = createId();
+                    await tx.label.create({
+                      data: {
+                        id: newId,
+                        user_id: userId,
+                        name: label.name,
+                        color: label.color,
+                      },
+                    });
+                    labelIdMap.set(label.id, newId);
+                  }
+                } else {
+                  const newId = createId();
+                  await tx.label.create({
+                    data: {
+                      id: newId,
+                      user_id: userId,
+                      name: label.name,
+                      color: label.color,
+                    },
+                  });
+                  labelIdMap.set(label.id, newId);
+                }
+                createdLabels++;
+              }
+            });
+            sendEvent({
+              progress: calculateProgress('labels', (i + 1) * CHUNK_SIZE, backupData.data.labels.length),
+              step: 'labels',
+              done: Math.min((i + 1) * CHUNK_SIZE, backupData.data.labels.length),
+              total: backupData.data.labels.length,
+            });
+          }
+
+          // Step 5: Import Transfers in chunks
+          const transferChunks = chunkArray(backupData.data.transfers, CHUNK_SIZE);
+          for (let i = 0; i < transferChunks.length; i++) {
+            await prisma.$transaction(async (tx) => {
+              for (const transfer of transferChunks[i]!) {
+                const newFromAccountId = accountIdMap.get(transfer.from_account);
+                const newToAccountId = accountIdMap.get(transfer.to_account);
+
+                if (newFromAccountId && newToAccountId) {
+                  if (mode === 'merge') {
+                    const existing = await tx.transfer.findFirst({
+                      where: { user_id: userId, id: transfer.id },
+                    });
+
+                    if (existing) {
+                      await tx.transfer.update({
+                        where: { id: existing.id },
+                        data: {
+                          date: new Date(transfer.date),
+                          from_account: newFromAccountId,
+                          to_account: newToAccountId,
+                          amount: transfer.amount,
+                          description: transfer.description ?? null,
+                        },
+                      });
+                      transferIdMap.set(transfer.id, existing.id);
+                    } else {
+                      const newId = createId();
+                      await tx.transfer.create({
+                        data: {
+                          id: newId,
+                          user_id: userId,
+                          date: new Date(transfer.date),
+                          from_account: newFromAccountId,
+                          to_account: newToAccountId,
+                          amount: transfer.amount,
+                          description: transfer.description ?? null,
+                        },
+                      });
+                      transferIdMap.set(transfer.id, newId);
+                    }
+                  } else {
+                    const newId = createId();
+                    await tx.transfer.create({
+                      data: {
+                        id: newId,
+                        user_id: userId,
+                        date: new Date(transfer.date),
+                        from_account: newFromAccountId,
+                        to_account: newToAccountId,
+                        amount: transfer.amount,
+                        description: transfer.description ?? null,
+                      },
+                    });
+                    transferIdMap.set(transfer.id, newId);
+                  }
+                  createdTransfers++;
+                }
+              }
+            });
+            sendEvent({
+              progress: calculateProgress('transfers', (i + 1) * CHUNK_SIZE, backupData.data.transfers.length),
+              step: 'transfers',
+              done: Math.min((i + 1) * CHUNK_SIZE, backupData.data.transfers.length),
+              total: backupData.data.transfers.length,
+            });
+          }
+
+          // Step 6: Import Transactions in chunks
+          const transactionChunks = chunkArray(backupData.data.transactions, CHUNK_SIZE);
+          for (let i = 0; i < transactionChunks.length; i++) {
+            await prisma.$transaction(async (tx) => {
+              for (const transaction of transactionChunks[i]!) {
+                const newAccountId = accountIdMap.get(transaction.account_id);
+                const newCategoryId = transaction.category_id
+                  ? categoryIdMap.get(transaction.category_id)
+                  : null;
+                const newTransferId = transaction.transfer_id
+                  ? transferIdMap.get(transaction.transfer_id)
+                  : null;
+
+                if (newAccountId) {
+                  if (mode === 'merge') {
+                    const existing = await tx.transaction.findFirst({
+                      where: { user_id: userId, id: transaction.id },
+                    });
+
+                    if (existing) {
+                      await tx.transaction.update({
+                        where: { id: existing.id },
+                        data: {
+                          account_id: newAccountId,
+                          category_id: newCategoryId ?? null,
+                          type: transaction.type as TransactionType,
+                          amount: transaction.amount,
+                          date: new Date(transaction.date),
+                          description: transaction.description ?? null,
+                          payee: transaction.payee ?? null,
+                          payment_method: transaction.payment_method ?? null,
+                          payment_status: transaction.payment_status ?? null,
+                          transfer_id: newTransferId ?? null,
+                        },
+                      });
+                      transactionIdMap.set(transaction.id, existing.id);
+                    } else {
+                      const newId = createId();
+                      await tx.transaction.create({
+                        data: {
+                          id: newId,
+                          user_id: userId,
+                          account_id: newAccountId,
+                          category_id: newCategoryId ?? null,
+                          type: transaction.type as TransactionType,
+                          amount: transaction.amount,
+                          date: new Date(transaction.date),
+                          description: transaction.description ?? null,
+                          payee: transaction.payee ?? null,
+                          payment_method: transaction.payment_method ?? null,
+                          payment_status: transaction.payment_status ?? null,
+                          transfer_id: newTransferId ?? null,
+                        },
+                      });
+                      transactionIdMap.set(transaction.id, newId);
+                    }
+                  } else {
+                    const newId = createId();
+                    await tx.transaction.create({
+                      data: {
+                        id: newId,
+                        user_id: userId,
+                        account_id: newAccountId,
+                        category_id: newCategoryId ?? null,
+                        type: transaction.type as TransactionType,
+                        amount: transaction.amount,
+                        date: new Date(transaction.date),
+                        description: transaction.description ?? null,
+                        payee: transaction.payee ?? null,
+                        payment_method: transaction.payment_method ?? null,
+                        payment_status: transaction.payment_status ?? null,
+                        transfer_id: newTransferId ?? null,
+                      },
+                    });
+                    transactionIdMap.set(transaction.id, newId);
+                  }
+                  createdTransactions++;
+                }
+              }
+            });
+            sendEvent({
+              progress: calculateProgress('transactions', (i + 1) * CHUNK_SIZE, backupData.data.transactions.length),
+              step: 'transactions',
+              done: Math.min((i + 1) * CHUNK_SIZE, backupData.data.transactions.length),
+              total: backupData.data.transactions.length,
+            });
+          }
+
+          // Step 7: Import Transaction-Label relations in chunks
+          const tlChunks = chunkArray(backupData.data.transactionLabels, CHUNK_SIZE * 2);
+          for (let i = 0; i < tlChunks.length; i++) {
+            await prisma.$transaction(async (tx) => {
+              for (const tl of tlChunks[i]!) {
+                const newTransactionId = transactionIdMap.get(tl.transaction_id);
+                const newLabelId = labelIdMap.get(tl.label_id);
+
+                if (newTransactionId && newLabelId) {
+                  if (mode === 'merge') {
+                    const existing = await tx.transactionLabel.findFirst({
+                      where: {
+                        transaction_id: newTransactionId,
+                        label_id: newLabelId,
+                      },
+                    });
+
+                    if (!existing) {
+                      await tx.transactionLabel.create({
+                        data: {
+                          id: createId(),
+                          transaction_id: newTransactionId,
+                          label_id: newLabelId,
+                        },
+                      });
+                      createdTransactionLabels++;
+                    }
+                  } else {
+                    await tx.transactionLabel.create({
+                      data: {
+                        id: createId(),
+                        transaction_id: newTransactionId,
+                        label_id: newLabelId,
+                      },
+                    });
+                    createdTransactionLabels++;
+                  }
+                }
+              }
+            });
+            sendEvent({
+              progress: calculateProgress('transactionLabels', (i + 1) * CHUNK_SIZE * 2, backupData.data.transactionLabels.length),
+              step: 'transactionLabels',
+              done: Math.min((i + 1) * CHUNK_SIZE * 2, backupData.data.transactionLabels.length),
+              total: backupData.data.transactionLabels.length,
+            });
+          }
+
+          // Final event
+          sendEvent({
+            progress: 100,
+            done: true,
+            result: {
+              accounts: createdAccounts,
+              categories: createdCategories,
+              transactions: createdTransactions,
+              transfers: createdTransfers,
+              labels: createdLabels,
+              transactionLabels: createdTransactionLabels,
+            },
+            ...(mode === 'replace' && !isOwner
+              ? { warning: 'Restored data from a different account' }
+              : {}),
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Import failed';
+          sendEvent({
+            error: true,
+            message,
+            ...(mode === 'replace'
+              ? { warning: 'Replace mode already deleted your existing data. Please retry the import with the same backup file.' }
+              : {}),
+          });
+        } finally {
+          clearInterval(heartbeat);
+          controller.close();
+        }
       },
-      { status: 200 }
-    );
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    });
   } catch (error) {
     console.error('Import error:', error);
 

@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
             where: { id: userId },
             select: {
               email: true,
+              username: true,
               timezone: true,
               locale: true,
               date_format: true,
@@ -186,7 +187,6 @@ export async function GET(request: NextRequest) {
         email: userData.user.email,
         settings: {
           timezone: userData.user.timezone,
-          currency: 'IDR',
           locale: userData.user.locale,
           date_format: userData.user.date_format,
           number_format: userData.user.number_format,
@@ -199,7 +199,8 @@ export async function GET(request: NextRequest) {
           userData.categories.length +
           userData.transactions.length +
           userData.transfers.length +
-          userData.labels.length,
+          userData.labels.length +
+          userData.transactionLabels.length,
         checksum: generateChecksum(sanitizedDataContent),
         recordCounts: {
           accounts: userData.accounts.length,
@@ -207,6 +208,7 @@ export async function GET(request: NextRequest) {
           transactions: userData.transactions.length,
           transfers: userData.transfers.length,
           labels: userData.labels.length,
+          transactionLabels: userData.transactionLabels.length,
         },
       },
     };
@@ -216,9 +218,10 @@ export async function GET(request: NextRequest) {
     headers.set('Content-Type', 'application/json; charset=utf-8');
 
     // Use timestamp from client (local time) in filename
+    const username = userData.user.username;
     headers.set(
       'Content-Disposition',
-      `attachment; filename="finance-backup-${finalTimestamp}.json"`
+      `attachment; filename="finance-backup-${username}-${finalTimestamp}.json"`
     );
 
     return new NextResponse(JSON.stringify(sanitizedData, null, 2), {

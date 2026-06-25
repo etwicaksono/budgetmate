@@ -4,13 +4,16 @@
  * Client-side service for backup/restore operations
  */
 
-import { api, apiClient } from './api';
+import { apiClient } from './api';
+import { tokenCrypto } from '@/utils/crypto';
+import { APP_CONFIG } from '@/utils/constants';
 import type {
   BackupData,
   ImportResponse,
   ValidateResponse,
   ImportMode,
 } from '@/types/backup.types';
+import { BackupDataSchema, isVersionCompatible } from '@/lib/validation/backupSchemas';
 
 class BackupService {
   /**
@@ -77,38 +80,124 @@ class BackupService {
   }
 
   /**
-   * Import data from JSON backup file
-   * 
-   * @param file - The backup JSON file
+   * Import data from JSON backup file or pre-parsed backup data
+   *
+   * Uses SSE (Server-Sent Events) to receive realtime progress updates.
+   * The server streams progress events as it processes data in chunks.
+   *
+   * @param fileOrData - The backup JSON file or pre-parsed BackupData object
    * @param mode - Import mode ('replace' or 'merge')
+   * @param onProgress - Optional callback for progress updates
    */
-  async importData(file: File, mode: ImportMode = 'replace'): Promise<ImportResponse> {
+  async importData(
+    fileOrData: File | BackupData,
+    mode: ImportMode = 'replace',
+    onProgress?: (progress: number, step: string) => void
+  ): Promise<ImportResponse> {
     try {
-      // Read file content
-      const text = await file.text();
-      const data = JSON.parse(text) as BackupData;
+      // If a File is passed, read and parse it
+      let data: BackupData;
 
-      // Validate before uploading
-      const validation = await this.validateBackupFile(file);
-      if (!validation.valid) {
-        throw new Error(validation.error || 'Invalid backup file');
+      if (fileOrData instanceof File) {
+        const text = await fileOrData.text();
+        data = JSON.parse(text) as BackupData;
+      } else {
+        // Already parsed data — use directly (avoids double file read)
+        data = fileOrData;
       }
 
-      // Upload to server
-      // Note: api service already has baseURL='/api/v1', so we use relative path
-      const response = await api.post<ImportResponse>(
-        `/backup/import?mode=${mode}`,
-        data
-      );
+      // Get auth token (same mechanism as apiClient interceptor)
+      const encryptedToken = localStorage.getItem(APP_CONFIG.storageKeys.authToken);
+      let authHeader = '';
 
-      if ('data' in response && response.data) {
-        return {
-          success: true,
-          data: response.data,
-        };
+      if (encryptedToken) {
+        const token = await tokenCrypto.decryptToken(encryptedToken);
+        if (token) {
+          authHeader = `Bearer ${token}`;
+        }
       }
-      
-      throw new Error('Invalid response format');
+
+      // Use fetch() to support SSE streaming response
+      const response = await fetch(`${APP_CONFIG.api.baseUrl}/backup/import?mode=${mode}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authHeader ? { Authorization: authHeader } : {}),
+        },
+        body: JSON.stringify(data),
+      });
+
+      // Check for non-streaming error responses (validation, auth, etc.)
+      if (!response.ok && response.headers.get('content-type') !== 'text/event-stream') {
+        const errorBody = await response.json().catch(() => null);
+        const message = errorBody?.error?.message || errorBody?.error || 'Import failed';
+        throw new Error(message);
+      }
+
+      if (!response.body) {
+        throw new Error('No response stream received');
+      }
+
+      // Parse SSE events from the stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let result: ImportResponse | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          // Skip heartbeat comments and empty lines
+          if (!line.startsWith('data: ')) continue;
+
+          let event: {
+            error?: boolean;
+            message?: string;
+            progress?: number;
+            step?: string;
+            done?: boolean;
+            result?: NonNullable<ImportResponse['data']>['imported'];
+            warning?: string;
+          };
+          try {
+            event = JSON.parse(line.slice(6));
+          } catch {
+            // Skip malformed JSON lines
+            continue;
+          }
+
+          if (event.error) {
+            throw new Error(event.message || 'Import failed');
+          }
+
+          if (event.progress !== undefined && onProgress) {
+            onProgress(event.progress, event.step || '');
+          }
+
+          if (event.done) {
+            result = {
+              success: true,
+              data: {
+                message: 'Import successful',
+                imported: event.result!,
+                ...(event.warning ? { warning: event.warning } : {}),
+              },
+            };
+          }
+        }
+      }
+
+      if (!result) {
+        throw new Error('Import completed but no result received');
+      }
+
+      return result;
     } catch (error) {
       console.error('Import failed:', error);
       throw error;
@@ -117,6 +206,10 @@ class BackupService {
 
   /**
    * Validate backup file before import
+   * 
+   * Uses the Zod BackupDataSchema for structural validation, replacing
+   * the previous manual field-by-field checks. Only file-level checks
+   * (size, extension, JSON parse) are done outside the Zod schema.
    * 
    * @param file - The backup JSON file to validate
    * @returns Validation result with file details
@@ -142,10 +235,10 @@ class BackupService {
 
       // Try to parse JSON
       const text = await file.text();
-      let data: BackupData;
+      let parsed: unknown;
       
       try {
-        data = JSON.parse(text);
+        parsed = JSON.parse(text);
       } catch {
         return {
           valid: false,
@@ -153,18 +246,24 @@ class BackupService {
         };
       }
 
-      // Check required fields
-      if (!data.exportVersion || !data.data || !data.exportDate) {
+      // Validate using Zod schema (replaces manual field-by-field checks)
+      const result = BackupDataSchema.safeParse(parsed);
+
+      if (!result.success) {
+        const firstError = result.error.errors[0];
+        const errorMsg = firstError
+          ? `${firstError.path.join('.')}: ${firstError.message}`
+          : 'Invalid backup file format';
         return {
           valid: false,
-          error: 'Invalid backup file format: missing required fields',
+          error: `Invalid backup file: ${errorMsg}`,
         };
       }
 
+      const data = result.data;
+
       // Check version compatibility
-      const compatible = this.isVersionCompatible(data.exportVersion);
-      
-      if (!compatible) {
+      if (!isVersionCompatible(data.exportVersion)) {
         return {
           valid: false,
           error: `Backup version ${data.exportVersion} is not compatible with current version`,
@@ -174,7 +273,7 @@ class BackupService {
       // Return validation success with details
       return {
         valid: true,
-        data,
+        data: data as BackupData,
         details: {
           fileName: file.name,
           fileSize: this.formatFileSize(file.size),
@@ -194,22 +293,6 @@ class BackupService {
         error: 'Failed to validate backup file',
       };
     }
-  }
-
-  /**
-   * Check if backup version is compatible with current app version
-   * 
-   * @param backupVersion - Version from backup file (e.g., "1.0.0")
-   * @returns True if compatible
-   */
-  isVersionCompatible(backupVersion: string): boolean {
-    const currentVersion = '1.0.0'; // Current app version
-    
-    const [backupMajor] = backupVersion.split('.');
-    const [currentMajor] = currentVersion.split('.');
-    
-    // Major version must match for compatibility
-    return backupMajor === currentMajor;
   }
 
   /**

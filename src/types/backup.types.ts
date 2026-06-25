@@ -39,6 +39,7 @@ export interface BackupData {
       transactions: number;
       transfers: number;
       labels: number;
+      transactionLabels: number;
     };
   };
 }
@@ -64,7 +65,7 @@ export interface BackupCategory {
   id: string;
   parent_id?: string | null;
   name: string;
-  type: string; // 'income' | 'expense' | 'both'
+  type: string; // 'income' | 'expense'
   nature: string; // 'WANT' | 'NEED' | 'MUST'
   icon: string;
   color?: string | null;
@@ -119,11 +120,10 @@ export interface BackupTransactionLabel {
 // API Response Types
 // =============================================================================
 
-export interface ExportResponse {
-  success: boolean;
-  data?: BackupData;
-  error?: string;
-}
+// Note: ExportResponse is not defined here because the export route returns
+// a raw backup JSON file download (Content-Disposition: attachment), not a
+// typed JSON API response. The backupService.exportData() method uses
+// responseType: 'blob' and does not rely on a typed response.
 
 export interface ImportResponse {
   success: boolean;
@@ -135,7 +135,9 @@ export interface ImportResponse {
       transactions: number;
       transfers: number;
       labels: number;
+      transactionLabels: number;
     };
+    warning?: string;
   };
   error?: string;
 }
