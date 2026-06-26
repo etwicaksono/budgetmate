@@ -40,7 +40,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     };
 
     if (type) {
-      where['type'] = type as CategoryType;
+      // Categories with type 'both' should appear when filtering by income or expense
+      where['type'] = { in: [type as CategoryType, 'both'] };
     }
 
     if (is_active !== null) {
@@ -123,15 +124,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     sortChildren(rootCategories);
 
     // Group by type if not filtered
+    // Categories with type 'both' appear in both income and expense groups
     const result = type ? rootCategories : {
-      income: rootCategories.filter(c => c.type === 'income'),
-      expense: rootCategories.filter(c => c.type === 'expense')
+      income: rootCategories.filter(c => c.type === 'income' || c.type === 'both'),
+      expense: rootCategories.filter(c => c.type === 'expense' || c.type === 'both')
     };
 
     return successResponse(result, {
       total: categories.length,
-      income_count: categories.filter(c => c.type === 'income').length,
-      expense_count: categories.filter(c => c.type === 'expense').length
+      income_count: categories.filter(c => c.type === 'income' || c.type === 'both').length,
+      expense_count: categories.filter(c => c.type === 'expense' || c.type === 'both').length
     });
 
   } catch (error) {

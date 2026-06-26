@@ -120,10 +120,17 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
     return Object.values(groups);
   }, [categories]);
 
-  // Standalone parents (no children in current result set)
-  const standaloneParents = useMemo(() => {
-    return categories.filter(
-      c => !c.parent_id && !groupedCategories.some(g => g.parent.id === c.id)
+  // Standalone items: parents without children AND orphaned children
+  // (children whose parent is not in the current result set, e.g. when filtering by type
+  // and the parent has a different type)
+  const standaloneItems = useMemo(() => {
+    const groupedParentIds = new Set(groupedCategories.map(g => g.parent.id));
+    const groupedChildIds = new Set<string>();
+    groupedCategories.forEach(g => g.children.forEach(c => groupedChildIds.add(c.id)));
+
+    return categories.filter(c =>
+      (!c.parent_id && !groupedParentIds.has(c.id)) ||
+      (c.parent_id && !groupedChildIds.has(c.id))
     );
   }, [categories, groupedCategories]);
 
@@ -308,7 +315,7 @@ export const TransactionCategorySelect: React.FC<TransactionCategorySelectProps>
                     {group.children.map(child => renderCategoryItem(child))}
                   </div>
                 ))}
-                {standaloneParents.map(cat => renderCategoryItem(cat))}
+                {standaloneItems.map(cat => renderCategoryItem(cat))}
               </>
             )}
           </div>

@@ -132,6 +132,12 @@ class BackupService {
       if (!response.ok && response.headers.get('content-type') !== 'text/event-stream') {
         const errorBody = await response.json().catch(() => null);
         const message = errorBody?.error?.message || errorBody?.error || 'Import failed';
+        logError('[Backup Import] Server returned error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorBody,
+          message,
+        });
         throw new Error(message);
       }
 
@@ -174,6 +180,12 @@ class BackupService {
           }
 
           if (event.error) {
+            logError('[Backup Import] SSE error event:', {
+              message: event.message,
+              step: event.step,
+              progress: event.progress,
+              warning: event.warning,
+            });
             throw new Error(event.message || 'Import failed');
           }
 

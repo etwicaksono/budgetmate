@@ -55,7 +55,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     };
 
     if (filters.type) {
-      where['type'] = filters.type as CategoryType;
+      // Categories with type 'both' should appear when filtering by income or expense
+      where['type'] = { in: [filters.type as CategoryType, 'both'] };
     }
 
     if (filters.parent_id !== undefined) {
@@ -116,8 +117,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return successResponse(transformedCategories, {
       total: transformedCategories.length,
-      income_count: transformedCategories.filter(c => c.type === 'income').length,
-      expense_count: transformedCategories.filter(c => c.type === 'expense').length
+      income_count: transformedCategories.filter(c => c.type === 'income' || c.type === 'both').length,
+      expense_count: transformedCategories.filter(c => c.type === 'expense' || c.type === 'both').length
     });
 
   } catch (error) {

@@ -356,7 +356,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Verify category type matches transaction type
-    if (category.type !== transactionType) {
+    // Categories with type 'both' accept both income and expense transactions
+    if (category.type !== 'both' && category.type !== transactionType) {
       return errorResponse(
         'CATEGORY_TYPE_MISMATCH',
         `Category type '${category.type}' does not match transaction type '${data.type}'`,

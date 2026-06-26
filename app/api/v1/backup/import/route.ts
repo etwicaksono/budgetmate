@@ -97,20 +97,56 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify checksum if present
+    // IMPORTANT: Compute checksum on body.data (raw parsed JSON) NOT backupData.data (Zod-parsed).
+    // Zod's safeParse reorders object keys to match schema definition order, which changes
+    // the JSON.stringify output and would cause checksum mismatches for backups exported
+    // from versions with different key ordering.
     if (backupData.metadata.checksum) {
+      const expectedChecksum = backupData.metadata.checksum;
+      const rawDataString = JSON.stringify(body.data);
       const computedChecksum = crypto
         .createHash('sha256')
-        .update(JSON.stringify(backupData.data))
+        .update(rawDataString)
         .digest('hex')
         .substring(0, 16);
 
-      if (computedChecksum !== backupData.metadata.checksum) {
+      if (computedChecksum !== expectedChecksum) {
+        const recordCounts = {
+          accounts: backupData.data.accounts.length,
+          categories: backupData.data.categories.length,
+          transactions: backupData.data.transactions.length,
+          transfers: backupData.data.transfers.length,
+          labels: backupData.data.labels.length,
+          transactionLabels: backupData.data.transactionLabels.length,
+        };
+        const metadataCounts = backupData.metadata.recordCounts;
+
+        logError('[Backup Import] Checksum mismatch:', {
+          expected: expectedChecksum,
+          computed: computedChecksum,
+          dataStringLength: rawDataString.length,
+          recordCounts,
+          metadataCounts,
+          exportVersion: backupData.exportVersion,
+          exportDate: backupData.exportDate,
+        });
+
+        const countsMatch = JSON.stringify(recordCounts) === JSON.stringify(metadataCounts);
+        if (!countsMatch) {
+          logError('[Backup Import] Record count mismatch:', {
+            actual: recordCounts,
+            metadata: metadataCounts,
+          });
+        }
+
         return commonErrors.badRequest(
-          'Backup file checksum mismatch — data may be corrupted'
+          `Backup file checksum mismatch — data may be corrupted. ` +
+          `Expected: ${expectedChecksum}, Computed: ${computedChecksum}. ` +
+          `Data size: ${rawDataString.length} chars, Records: ${JSON.stringify(recordCounts)}.`
         );
       }
     } else {
-      console.warn('Backup file has no checksum, skipping verification');
+      console.warn('[Backup Import] No checksum in backup file, skipping verification');
     }
 
     // Fetch the authenticated user's email for ownership validation
@@ -663,6 +699,12 @@ export async function POST(request: NextRequest) {
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Import failed';
+          logError('[Backup Import] SSE stream error:', {
+            message,
+            stack: error instanceof Error ? error.stack : undefined,
+            mode,
+            step: 'unknown',
+          });
           sendEvent({
             error: true,
             message,

@@ -196,7 +196,8 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
           return errorResponse('INVALID_CATEGORY', 'Category not found or inactive', 404);
         }
 
-        if (category.type !== type) {
+        // Categories with type 'both' accept both income and expense transactions
+        if (category.type !== 'both' && category.type !== type) {
           return errorResponse(
             'CATEGORY_TYPE_MISMATCH',
             `Category type '${category.type}' does not match transaction type '${type}'`,
