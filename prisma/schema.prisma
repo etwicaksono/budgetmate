@@ -26,6 +26,7 @@ enum AccountType {
 enum CategoryType {
   income
   expense
+  both
 }
 
 enum CategoryNature {

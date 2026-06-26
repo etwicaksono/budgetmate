@@ -16,7 +16,9 @@ interface RouteParams {
 }
 
 const normalizeCategoryType = (type?: string): CategoryType => {
-  return type === 'income' ? CategoryType.income : CategoryType.expense;
+  if (type === 'income') return CategoryType.income;
+  if (type === 'both') return CategoryType.both;
+  return CategoryType.expense;
 };
 
 // GET - Fetch single category

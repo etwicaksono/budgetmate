@@ -44,7 +44,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  CREATE TYPE "CategoryType" AS ENUM ('income', 'expense');
+  CREATE TYPE "CategoryType" AS ENUM ('income', 'expense','both');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 

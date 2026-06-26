@@ -8,7 +8,9 @@ import { CreateCategorySchema, CategoryFilterSchema } from '@/lib/validation/cat
 import { logError } from '@/lib/logger';
 
 const normalizeCategoryType = (type?: string): CategoryType => {
-  return type === 'income' ? CategoryType.income : CategoryType.expense;
+  if (type === 'income') return CategoryType.income;
+  if (type === 'both') return CategoryType.both;
+  return CategoryType.expense;
 };
 
 const normalizeCategoryNature = (nature?: string): CategoryNature => {
