@@ -146,6 +146,37 @@
   color: #212529;
 }
 
+.category-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.category-item__content:hover .category-tags {
+  opacity: 1;
+}
+
+.category-tag {
+  font-size: 0.65em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 0.15em 0.5em;
+  vertical-align: middle;
+}
+
+.category-tag--nature {
+  text-transform: none;
+}
+
+.category-tag--analytic {
+  text-transform: lowercase;
+  border: 1px solid #dee2e6;
+}
+
 .category-item__type {
   font-size: 0.875rem;
   color: #6c757d;

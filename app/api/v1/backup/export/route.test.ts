@@ -52,6 +52,8 @@ describe('GET /api/v1/backup/export', () => {
     // expect(body).toHaveProperty('metadata');
     // expect(body.data).toHaveProperty('accounts');
     // expect(body.data).toHaveProperty('categories');
+    // expect(body.data).toHaveProperty('categoryBudgets');
+    // expect(body.data).toHaveProperty('debts');
     // expect(body.data).toHaveProperty('transactions');
     // expect(body.data).toHaveProperty('transfers');
     // expect(body.data).toHaveProperty('labels');

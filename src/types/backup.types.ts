@@ -25,6 +25,8 @@ export interface BackupData {
   data: {
     accounts: BackupAccount[];
     categories: BackupCategory[];
+    categoryBudgets: BackupCategoryBudget[];
+    debts: BackupDebt[];
     transactions: BackupTransaction[];
     transfers: BackupTransfer[];
     labels: BackupLabel[];
@@ -36,6 +38,8 @@ export interface BackupData {
     recordCounts: {
       accounts: number;
       categories: number;
+      categoryBudgets: number;
+      debts: number;
       transactions: number;
       transfers: number;
       labels: number;
@@ -70,6 +74,29 @@ export interface BackupCategory {
   icon: string;
   color?: string | null;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupCategoryBudget {
+  id: string;
+  category_id: string;
+  basic_monthly_amount: number;
+  extend_monthly_amount: number;
+  basic_annual_amount: number;
+  extend_annual_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackupDebt {
+  id: string;
+  date: string;
+  type: string; // 'lend' | 'borrow'
+  account_id: string;
+  counterparty: string;
+  description?: string | null;
+  status: string; // 'active' | 'settled' | 'cancelled'
   created_at: string;
   updated_at: string;
 }
@@ -131,6 +158,8 @@ export interface ImportResponse {
     imported: {
       accounts: number;
       categories: number;
+      categoryBudgets: number;
+      debts: number;
       transactions: number;
       transfers: number;
       labels: number;

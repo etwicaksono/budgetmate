@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { AccountType, CategoryNature, CategoryType, TransactionType } from '@prisma/client';
+import { AccountType, CategoryNature, CategoryType, DebtStatus, DebtType, TransactionType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { commonErrors } from '@/lib/api/response';
@@ -37,11 +37,13 @@ function chunkArray<T>(array: T[], size: number): T[][] {
 const PROGRESS_RANGES = {
   cleared: { start: 0, end: 5 },
   accounts: { start: 5, end: 20 },
-  categories: { start: 20, end: 35 },
-  labels: { start: 35, end: 45 },
-  transfers: { start: 45, end: 55 },
-  transactions: { start: 55, end: 85 },
-  transactionLabels: { start: 85, end: 100 },
+  categories: { start: 20, end: 30 },
+  categoryBudgets: { start: 30, end: 35 },
+  debts: { start: 35, end: 45 },
+  labels: { start: 45, end: 55 },
+  transfers: { start: 55, end: 65 },
+  transactions: { start: 65, end: 90 },
+  transactionLabels: { start: 90, end: 100 },
 } as const;
 
 function calculateProgress(
@@ -114,6 +116,8 @@ export async function POST(request: NextRequest) {
         const recordCounts = {
           accounts: backupData.data.accounts.length,
           categories: backupData.data.categories.length,
+          categoryBudgets: backupData.data.categoryBudgets.length,
+          debts: backupData.data.debts.length,
           transactions: backupData.data.transactions.length,
           transfers: backupData.data.transfers.length,
           labels: backupData.data.labels.length,
@@ -175,6 +179,8 @@ export async function POST(request: NextRequest) {
     // ID mapping tables (maintained across chunks)
     const accountIdMap = new Map<string, string>();
     const categoryIdMap = new Map<string, string>();
+    const categoryBudgetIdMap = new Map<string, string>();
+    const debtIdMap = new Map<string, string>();
     const labelIdMap = new Map<string, string>();
     const transferIdMap = new Map<string, string>();
     const transactionIdMap = new Map<string, string>();
@@ -182,6 +188,8 @@ export async function POST(request: NextRequest) {
     // Result counters
     let createdAccounts = 0;
     let createdCategories = 0;
+    let createdCategoryBudgets = 0;
+    let createdDebts = 0;
     let createdLabels = 0;
     let createdTransfers = 0;
     let createdTransactions = 0;
@@ -207,6 +215,10 @@ export async function POST(request: NextRequest) {
               });
               await tx.transaction.deleteMany({ where: { user_id: userId } });
               await tx.transfer.deleteMany({ where: { user_id: userId } });
+              await tx.debt.deleteMany({ where: { user_id: userId } });
+              await tx.categoryBudget.deleteMany({
+                where: { category: { user_id: userId } },
+              });
               await tx.label.deleteMany({ where: { user_id: userId } });
               await tx.category.deleteMany({ where: { user_id: userId } });
               await tx.account.deleteMany({ where: { user_id: userId } });
@@ -423,7 +435,142 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          // Step 4: Import Labels in chunks
+          // Step 4: Import Category Budgets in chunks
+          const categoryBudgetChunks = chunkArray(backupData.data.categoryBudgets, CHUNK_SIZE);
+          for (let i = 0; i < categoryBudgetChunks.length; i++) {
+            await prisma.$transaction(async (tx) => {
+              for (const cb of categoryBudgetChunks[i]!) {
+                const newCategoryId = categoryIdMap.get(cb.category_id);
+
+                if (newCategoryId) {
+                  if (mode === 'merge') {
+                    const existing = await tx.categoryBudget.findFirst({
+                      where: { id: cb.id, category: { user_id: userId } },
+                    });
+
+                    if (existing) {
+                      await tx.categoryBudget.update({
+                        where: { id: existing.id },
+                        data: {
+                          category_id: newCategoryId,
+                          basic_monthly_amount: cb.basic_monthly_amount,
+                          extend_monthly_amount: cb.extend_monthly_amount,
+                          basic_annual_amount: cb.basic_annual_amount,
+                          extend_annual_amount: cb.extend_annual_amount,
+                        },
+                      });
+                      categoryBudgetIdMap.set(cb.id, existing.id);
+                    } else {
+                      const newId = createId();
+                      await tx.categoryBudget.create({
+                        data: {
+                          id: newId,
+                          category_id: newCategoryId,
+                          basic_monthly_amount: cb.basic_monthly_amount,
+                          extend_monthly_amount: cb.extend_monthly_amount,
+                          basic_annual_amount: cb.basic_annual_amount,
+                          extend_annual_amount: cb.extend_annual_amount,
+                        },
+                      });
+                      categoryBudgetIdMap.set(cb.id, newId);
+                    }
+                  } else {
+                    const newId = createId();
+                    await tx.categoryBudget.create({
+                      data: {
+                        id: newId,
+                        category_id: newCategoryId,
+                        basic_monthly_amount: cb.basic_monthly_amount,
+                        extend_monthly_amount: cb.extend_monthly_amount,
+                        basic_annual_amount: cb.basic_annual_amount,
+                        extend_annual_amount: cb.extend_annual_amount,
+                      },
+                    });
+                    categoryBudgetIdMap.set(cb.id, newId);
+                  }
+                  createdCategoryBudgets++;
+                }
+              }
+            });
+            sendEvent({
+              progress: calculateProgress('categoryBudgets', (i + 1) * CHUNK_SIZE, backupData.data.categoryBudgets.length),
+              step: 'categoryBudgets',
+              done: Math.min((i + 1) * CHUNK_SIZE, backupData.data.categoryBudgets.length),
+              total: backupData.data.categoryBudgets.length,
+            });
+          }
+
+          // Step 5: Import Debts in chunks
+          const debtChunks = chunkArray(backupData.data.debts, CHUNK_SIZE);
+          for (let i = 0; i < debtChunks.length; i++) {
+            await prisma.$transaction(async (tx) => {
+              for (const debt of debtChunks[i]!) {
+                const newAccountId = accountIdMap.get(debt.account_id);
+
+                if (newAccountId) {
+                  if (mode === 'merge') {
+                    const existing = await tx.debt.findFirst({
+                      where: { user_id: userId, id: debt.id },
+                    });
+
+                    if (existing) {
+                      await tx.debt.update({
+                        where: { id: existing.id },
+                        data: {
+                          date: new Date(debt.date),
+                          type: debt.type as DebtType,
+                          account_id: newAccountId,
+                          counterparty: debt.counterparty,
+                          description: debt.description ?? null,
+                          status: debt.status as DebtStatus,
+                        },
+                      });
+                      debtIdMap.set(debt.id, existing.id);
+                    } else {
+                      const newId = createId();
+                      await tx.debt.create({
+                        data: {
+                          id: newId,
+                          user_id: userId,
+                          date: new Date(debt.date),
+                          type: debt.type as DebtType,
+                          account_id: newAccountId,
+                          counterparty: debt.counterparty,
+                          description: debt.description ?? null,
+                          status: debt.status as DebtStatus,
+                        },
+                      });
+                      debtIdMap.set(debt.id, newId);
+                    }
+                  } else {
+                    const newId = createId();
+                    await tx.debt.create({
+                      data: {
+                        id: newId,
+                        user_id: userId,
+                        date: new Date(debt.date),
+                        type: debt.type as DebtType,
+                        account_id: newAccountId,
+                        counterparty: debt.counterparty,
+                        description: debt.description ?? null,
+                        status: debt.status as DebtStatus,
+                      },
+                    });
+                    debtIdMap.set(debt.id, newId);
+                  }
+                  createdDebts++;
+                }
+              }
+            });
+            sendEvent({
+              progress: calculateProgress('debts', (i + 1) * CHUNK_SIZE, backupData.data.debts.length),
+              step: 'debts',
+              done: Math.min((i + 1) * CHUNK_SIZE, backupData.data.debts.length),
+              total: backupData.data.debts.length,
+            });
+          }
+
+          // Step 6: Import Labels in chunks
           const labelChunks = chunkArray(backupData.data.labels, CHUNK_SIZE);
           for (let i = 0; i < labelChunks.length; i++) {
             await prisma.$transaction(async (tx) => {
@@ -477,7 +624,7 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          // Step 5: Import Transfers in chunks
+          // Step 7: Import Transfers in chunks
           const transferChunks = chunkArray(backupData.data.transfers, CHUNK_SIZE);
           for (let i = 0; i < transferChunks.length; i++) {
             await prisma.$transaction(async (tx) => {
@@ -545,7 +692,7 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          // Step 6: Import Transactions in chunks
+          // Step 8: Import Transactions in chunks
           const transactionChunks = chunkArray(backupData.data.transactions, CHUNK_SIZE);
           for (let i = 0; i < transactionChunks.length; i++) {
             await prisma.$transaction(async (tx) => {
@@ -556,6 +703,9 @@ export async function POST(request: NextRequest) {
                   : null;
                 const newTransferId = transaction.transfer_id
                   ? transferIdMap.get(transaction.transfer_id)
+                  : null;
+                const newDebtId = transaction.debt_id
+                  ? debtIdMap.get(transaction.debt_id)
                   : null;
 
                 if (newAccountId) {
@@ -578,6 +728,7 @@ export async function POST(request: NextRequest) {
                           payment_method: transaction.payment_method ?? null,
                           payment_status: transaction.payment_status ?? null,
                           transfer_id: newTransferId ?? null,
+                          debt_id: newDebtId ?? null,
                         },
                       });
                       transactionIdMap.set(transaction.id, existing.id);
@@ -597,6 +748,7 @@ export async function POST(request: NextRequest) {
                           payment_method: transaction.payment_method ?? null,
                           payment_status: transaction.payment_status ?? null,
                           transfer_id: newTransferId ?? null,
+                          debt_id: newDebtId ?? null,
                         },
                       });
                       transactionIdMap.set(transaction.id, newId);
@@ -617,6 +769,7 @@ export async function POST(request: NextRequest) {
                         payment_method: transaction.payment_method ?? null,
                         payment_status: transaction.payment_status ?? null,
                         transfer_id: newTransferId ?? null,
+                        debt_id: newDebtId ?? null,
                       },
                     });
                     transactionIdMap.set(transaction.id, newId);
@@ -633,7 +786,7 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          // Step 7: Import Transaction-Label relations in chunks
+          // Step 9: Import Transaction-Label relations in chunks
           const tlChunks = chunkArray(backupData.data.transactionLabels, CHUNK_SIZE * 2);
           for (let i = 0; i < tlChunks.length; i++) {
             await prisma.$transaction(async (tx) => {
@@ -688,6 +841,8 @@ export async function POST(request: NextRequest) {
             result: {
               accounts: createdAccounts,
               categories: createdCategories,
+              categoryBudgets: createdCategoryBudgets,
+              debts: createdDebts,
               transactions: createdTransactions,
               transfers: createdTransfers,
               labels: createdLabels,

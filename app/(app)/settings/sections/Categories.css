@@ -12,11 +12,20 @@
   justify-content: center;
 }
 
-/* Support records-item-actions sliding hover in category list */
-.category-item__content:hover .records-item-actions {
+/* Tags + action buttons appear on hover */
+.category-item__hover-info {
+  opacity: 0;
+  pointer-events: none;
+  max-width: 0;
+  overflow: hidden;
+  transition: opacity 0.2s ease, max-width 0.2s ease;
+  gap: 0.25rem;
+}
+
+.category-item__content:hover .category-item__hover-info {
   opacity: 1;
   pointer-events: auto;
-  max-width: 300px;
+  max-width: 400px;
   margin-left: 0.5rem;
 }
 
@@ -26,7 +35,13 @@
 }
 
 @media (pointer: coarse) {
-  .category-item__content .records-item-actions {
+  .category-item__hover-info {
+    opacity: 1;
+    pointer-events: auto;
+    max-width: 400px;
+  }
+
+  .category-tags {
     opacity: 1;
   }
 }

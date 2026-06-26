@@ -39,6 +39,8 @@ const validBackupData = {
   data: {
     accounts: [],
     categories: [],
+    categoryBudgets: [],
+    debts: [],
     transactions: [],
     transfers: [],
     labels: [],
@@ -49,6 +51,8 @@ const validBackupData = {
     recordCounts: {
       accounts: 0,
       categories: 0,
+      categoryBudgets: 0,
+      debts: 0,
       transactions: 0,
       transfers: 0,
       labels: 0,

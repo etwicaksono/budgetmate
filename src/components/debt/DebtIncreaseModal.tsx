@@ -73,6 +73,7 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
   if (!debt) return null;
 
   const isLend = debt.type === DebtType.lend;
+  const remaining = debt.remaining_amount || 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +124,8 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
                 {isLend ? 'Lend more to' : 'Borrow more from'} {debt.counterparty}
              </div>
              <div className="small d-flex justify-content-between text-muted">
-                <span>Current Total: <NumericFormat value={debt.amount} displayType="text" thousandSeparator prefix="Rp " /></span>
+                <span>Total: <NumericFormat value={debt.amount} displayType="text" thousandSeparator prefix="Rp " /></span>
+                <span>Remaining: <NumericFormat value={remaining} displayType="text" thousandSeparator prefix="Rp " className="text-dark fw-bold" /></span>
              </div>
           </Alert>
 

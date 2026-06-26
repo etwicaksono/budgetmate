@@ -204,6 +204,26 @@ export function CategoriesSection(): React.ReactElement {
     return IconComponent || FaGift;
   };
 
+  const renderCategoryTags = (category: Category) => {
+    const typeVariant = category.type === 'income' ? 'success' : category.type === 'expense' ? 'danger' : 'info';
+    const natureVariant = category.nature === 'MUST' ? 'danger' : category.nature === 'NEED' ? 'warning' : 'secondary';
+    const analyticFlag = category.analytic_flag || 'expense';
+
+    return (
+      <span className="category-tags">
+        <Badge bg={typeVariant} className="category-tag category-tag--type">
+          {category.type}
+        </Badge>
+        <Badge bg={natureVariant} className="category-tag category-tag--nature">
+          {category.nature}
+        </Badge>
+        <Badge bg="light" text="dark" className="category-tag category-tag--analytic">
+          → {analyticFlag}
+        </Badge>
+      </span>
+    );
+  };
+
   const renderCategoryItem = (category: Category & { children: Category[] }) => {
     const IconComponent = getIconComponent(category.icon || 'FaGift');
     const hasChildren = category.children && category.children.length > 0;
@@ -233,9 +253,10 @@ export function CategoriesSection(): React.ReactElement {
                   <Badge bg="secondary" className="ms-2 text-decoration-none" style={{ fontSize: '0.65em', verticalAlign: 'middle' }}>Inactive</Badge>
                 )}
               </span>
+              {renderCategoryTags(category)}
             </div>
             <div
-              className="records-item-actions d-none d-md-flex align-items-center"
+              className="category-item__hover-info d-none d-md-flex align-items-center"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -292,9 +313,10 @@ export function CategoriesSection(): React.ReactElement {
                           <Badge bg="secondary" className="ms-2 text-decoration-none" style={{ fontSize: '0.65em', verticalAlign: 'middle' }}>Inactive</Badge>
                         )}
                       </span>
+                      {renderCategoryTags(childData)}
                     </div>
                     <div
-                      className="records-item-actions d-none d-md-flex align-items-center"
+                      className="category-item__hover-info d-none d-md-flex align-items-center"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button

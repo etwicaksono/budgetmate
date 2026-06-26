@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { AccountType, CategoryNature, CategoryType, TransactionType } from '@prisma/client';
+import { AccountType, CategoryNature, CategoryType, DebtStatus, DebtType, TransactionType } from '@prisma/client';
 
 // =============================================================================
 // Entity Schemas
@@ -50,6 +50,7 @@ const BackupTransactionSchema = z.object({
   payment_method: z.string().max(50).nullable().optional(),
   payment_status: z.string().max(32).nullable().optional(),
   transfer_id: z.string().nullable().optional(),
+  debt_id: z.string().nullable().optional(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
 });
@@ -69,6 +70,29 @@ const BackupLabelSchema = z.object({
   id: z.string(),
   name: z.string().min(1).max(50),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime(),
+});
+
+const BackupDebtSchema = z.object({
+  id: z.string(),
+  date: z.string().datetime(),
+  type: z.nativeEnum(DebtType),
+  account_id: z.string(),
+  counterparty: z.string().min(1).max(255),
+  description: z.string().nullable().optional(),
+  status: z.nativeEnum(DebtStatus),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime(),
+});
+
+const BackupCategoryBudgetSchema = z.object({
+  id: z.string(),
+  category_id: z.string(),
+  basic_monthly_amount: z.number(),
+  extend_monthly_amount: z.number(),
+  basic_annual_amount: z.number(),
+  extend_annual_amount: z.number(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
 });
@@ -99,6 +123,8 @@ export const BackupDataSchema = z.object({
   data: z.object({
     accounts: z.array(BackupAccountSchema),
     categories: z.array(BackupCategorySchema),
+    categoryBudgets: z.array(BackupCategoryBudgetSchema),
+    debts: z.array(BackupDebtSchema),
     transactions: z.array(BackupTransactionSchema),
     transfers: z.array(BackupTransferSchema),
     labels: z.array(BackupLabelSchema),
@@ -110,6 +136,8 @@ export const BackupDataSchema = z.object({
     recordCounts: z.object({
       accounts: z.number().int().nonnegative(),
       categories: z.number().int().nonnegative(),
+      categoryBudgets: z.number().int().nonnegative(),
+      debts: z.number().int().nonnegative(),
       transactions: z.number().int().nonnegative(),
       transfers: z.number().int().nonnegative(),
       labels: z.number().int().nonnegative(),
@@ -184,6 +212,8 @@ export type BackupData = z.infer<typeof BackupDataSchema>;
 export type BackupAccount = z.infer<typeof BackupAccountSchema>;
 export type BackupCategory = z.infer<typeof BackupCategorySchema>;
 export type BackupTransaction = z.infer<typeof BackupTransactionSchema>;
+export type BackupCategoryBudget = z.infer<typeof BackupCategoryBudgetSchema>;
+export type BackupDebt = z.infer<typeof BackupDebtSchema>;
 export type BackupTransfer = z.infer<typeof BackupTransferSchema>;
 export type BackupLabel = z.infer<typeof BackupLabelSchema>;
 export type BackupTransactionLabel = z.infer<typeof BackupTransactionLabelSchema>;

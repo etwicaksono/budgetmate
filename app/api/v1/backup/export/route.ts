@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch ALL user data with relations in a transaction
     const userData = await prisma.$transaction(async (tx) => {
-      const [accounts, categories, transactions, transfers, labels, transactionLabels, user] =
+      const [accounts, categories, categoryBudgets, debts, transactions, transfers, labels, transactionLabels, user] =
         await Promise.all([
           // Accounts
           tx.account.findMany({
@@ -53,6 +53,18 @@ export async function GET(request: NextRequest) {
 
           // Categories with hierarchy (include all - system and user)
           tx.category.findMany({
+            where: { user_id: userId },
+            orderBy: { created_at: 'asc' },
+          }),
+
+          // Category Budgets
+          tx.categoryBudget.findMany({
+            where: { category: { user_id: userId } },
+            orderBy: { created_at: 'asc' },
+          }),
+
+          // Debts
+          tx.debt.findMany({
             where: { user_id: userId },
             orderBy: { created_at: 'asc' },
           }),
@@ -101,6 +113,8 @@ export async function GET(request: NextRequest) {
       return {
         accounts,
         categories,
+        categoryBudgets,
+        debts,
         transactions,
         transfers,
         labels,
@@ -139,6 +153,27 @@ export async function GET(request: NextRequest) {
         created_at: cat.created_at.toISOString(),
         updated_at: cat.updated_at.toISOString(),
       })),
+      categoryBudgets: userData.categoryBudgets.map((cb) => ({
+        id: cb.id,
+        category_id: cb.category_id,
+        basic_monthly_amount: Number(cb.basic_monthly_amount),
+        extend_monthly_amount: Number(cb.extend_monthly_amount),
+        basic_annual_amount: Number(cb.basic_annual_amount),
+        extend_annual_amount: Number(cb.extend_annual_amount),
+        created_at: cb.created_at.toISOString(),
+        updated_at: cb.updated_at.toISOString(),
+      })),
+      debts: userData.debts.map((debt) => ({
+        id: debt.id,
+        date: debt.date.toISOString(),
+        type: debt.type,
+        account_id: debt.account_id,
+        counterparty: debt.counterparty,
+        description: debt.description,
+        status: debt.status,
+        created_at: debt.created_at.toISOString(),
+        updated_at: debt.updated_at.toISOString(),
+      })),
       transactions: userData.transactions.map((tx) => ({
         id: tx.id,
         account_id: tx.account_id,
@@ -151,6 +186,7 @@ export async function GET(request: NextRequest) {
         payment_method: tx.payment_method,
         payment_status: tx.payment_status,
         transfer_id: tx.transfer_id,
+        debt_id: tx.debt_id,
         created_at: tx.created_at.toISOString(),
         updated_at: tx.updated_at.toISOString(),
       })),
@@ -197,6 +233,8 @@ export async function GET(request: NextRequest) {
         totalRecords:
           userData.accounts.length +
           userData.categories.length +
+          userData.categoryBudgets.length +
+          userData.debts.length +
           userData.transactions.length +
           userData.transfers.length +
           userData.labels.length +
@@ -205,6 +243,8 @@ export async function GET(request: NextRequest) {
         recordCounts: {
           accounts: userData.accounts.length,
           categories: userData.categories.length,
+          categoryBudgets: userData.categoryBudgets.length,
+          debts: userData.debts.length,
           transactions: userData.transactions.length,
           transfers: userData.transfers.length,
           labels: userData.labels.length,

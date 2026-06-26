@@ -155,7 +155,7 @@ export function BackupSection(): React.ReactElement {
       setImportProgress(100);
 
       // Show success message
-      await Swal.fire({
+      const successResult = await Swal.fire({
         icon: 'success',
         title: 'Import Successful',
         html: `
@@ -164,6 +164,8 @@ export function BackupSection(): React.ReactElement {
           <ul style="text-align: left; list-style: none; padding: 0;">
             <li>✓ ${result.data?.imported.accounts || 0} accounts</li>
             <li>✓ ${result.data?.imported.categories || 0} categories</li>
+            <li>✓ ${result.data?.imported.categoryBudgets || 0} category budgets</li>
+            <li>✓ ${result.data?.imported.debts || 0} debts</li>
             <li>✓ ${result.data?.imported.transactions || 0} transactions</li>
             <li>✓ ${result.data?.imported.transfers || 0} transfers</li>
             <li>✓ ${result.data?.imported.labels || 0} labels</li>
@@ -181,8 +183,10 @@ export function BackupSection(): React.ReactElement {
         fileInputRef.current.value = '';
       }
 
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
+      // Only redirect if user clicked the confirm button
+      if (successResult.isConfirmed) {
+        window.location.href = '/dashboard';
+      }
     } catch (error: unknown) {
       setImportProgress(0);
       logError('Import error:', error);
