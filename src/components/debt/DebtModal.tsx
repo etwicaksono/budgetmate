@@ -84,7 +84,8 @@ export const DebtModal: React.FC<DebtModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent, createAnother: boolean = false) => {
     e.preventDefault();
-    if (!counterparty.trim() || !accountId || amount === '' || amount <= 0) {
+    // Amount is not editable in edit mode, so only require it when creating.
+    if (!counterparty.trim() || !accountId || (!isEdit && (amount === '' || amount <= 0))) {
       setError('Please fill in all required fields accurately.');
       return;
     }
@@ -96,11 +97,11 @@ export const DebtModal: React.FC<DebtModalProps> = ({
       const dDate = new Date(date).toISOString();
 
       if (isEdit) {
+        // Edit only mutates the Debt record; amount/type are not sent because
+        // they are derived from (and would affect) the linked ledger transaction.
         const payload: UpdateDebtPayload = {
-          type,
           counterparty,
           account_id: accountId,
-          amount: Number(amount),
           date: dDate,
           status,
           ...(description ? { description } : {})
@@ -145,7 +146,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
         <Modal.Body>
           {error && <div className="alert alert-danger py-2">{error}</div>}
 
-          <DebtTypeToggle value={type} onChange={setType} disabled={isEdit && editDebt?.repayments && editDebt.repayments.length > 0} />
+          <DebtTypeToggle value={type} onChange={setType} disabled={isEdit} />
 
           <Row>
             <Col xs={12} className="mb-3">
@@ -198,13 +199,13 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                    decimalScale={decimalScale}
                    value={amount}
                    onValueChange={(values) => setAmount(values.floatValue || '')}
-                   disabled={isSubmitting}
+                   disabled={isSubmitting || isEdit}
                    placeholder="0"
                    allowNegative={false}
-                   required
-                   style={{ paddingRight: amount !== '' && !isSubmitting ? '2.5rem' : undefined }}
+                   required={!isEdit}
+                   style={{ paddingRight: amount !== '' && !isSubmitting && !isEdit ? '2.5rem' : undefined }}
                 />
-                {amount !== '' && !isSubmitting && (
+                {amount !== '' && !isSubmitting && !isEdit && (
                   <div className="position-absolute end-0 pe-2 d-flex align-items-center">
                     <ClearButton
                       size={14}

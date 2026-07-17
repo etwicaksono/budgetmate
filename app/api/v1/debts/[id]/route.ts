@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma, DebtStatus, DebtType, TransactionType } from '@prisma/client';
+import { DebtStatus, DebtType, TransactionType } from '@prisma/client';
 
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
@@ -119,14 +119,12 @@ export async function PUT(
 
       const data = validation.data;
 
-      // Check existing debt and fetch its active linked transaction
+      // Check existing debt (edit only mutates the Debt record; linked
+      // transactions/ledger entries are intentionally left untouched).
       const existingDebt = await prisma.debt.findFirst({
          where: {
             id: debtId,
             user_id: authResult.user.user_id,
-         },
-         include: {
-            transactions: { orderBy: { created_at: 'asc' } },
          },
       });
 
@@ -134,74 +132,17 @@ export async function PUT(
          return errorResponse('NOT_FOUND', 'Debt not found', 404);
       }
 
-      const allTxs = existingDebt.transactions || [];
-
-      const initialTxType = existingDebt.type === DebtType.lend ? TransactionType.debt_out : TransactionType.debt_in;
-      const linkedTransaction = allTxs.find((tx) => tx.type === initialTxType) || null;
-
-      // Compute repaid total to ensure new amount doesn't go below what's already repaid
-      const repaymentTxType = existingDebt.type === DebtType.lend ? TransactionType.debt_in : TransactionType.debt_out;
-      const repaymentTxs = allTxs.filter((tx) => tx.type === repaymentTxType);
-
-      let totalRepaid = 0;
-      if (repaymentTxs.length > 0) {
-         totalRepaid = repaymentTxs.reduce((acc: number, tx) => acc + Math.abs(Number(tx.amount)), 0);
-      }
-
-      if (data.amount !== undefined && data.amount < totalRepaid) {
-         return errorResponse('VALIDATION_ERROR', 'New amount cannot be less than already repaid amount', 400);
-      }
-
-      const updateType = data.type || existingDebt.type;
-      const dbAmount = data.amount
-         ? (updateType === 'lend' ? -Math.abs(data.amount) : Math.abs(data.amount))
-         : undefined;
-      const txType = updateType === DebtType.lend ? TransactionType.debt_out : TransactionType.debt_in;
-
-      const updatedDebt = await prisma.$transaction(async (tx) => {
-         const updateData: Prisma.DebtUpdateInput = { updated_by: authResult.user.user_id };
-         if (data.date) updateData.date = new Date(data.date);
-         if (data.type) updateData.type = data.type as DebtType;
-         if (data.account_id) updateData.account = { connect: { id: data.account_id } };
-         if (data.counterparty) updateData.counterparty = data.counterparty;
-         if (data.description !== undefined) updateData.description = data.description;
-         if (data.status) updateData.status = data.status as DebtStatus;
-
-         // Update Debt entry
-         const updated = await tx.debt.update({
-            where: { id: debtId },
-            data: updateData
-         });
-
-         // Update linked transaction
-         if (linkedTransaction) {
-            const txUpdateData: Prisma.TransactionUpdateInput = { updated_by: authResult.user.user_id };
-            if (data.date) txUpdateData.date = new Date(data.date);
-            if (data.type) txUpdateData.type = txType;
-            if (data.account_id) txUpdateData.account = { connect: { id: data.account_id } };
-            if (dbAmount !== undefined) {
-               // Calculate how much of the new Total Amount belongs to THIS specific initial transaction.
-               // Total Amount = (Initial Transaction Amount) + (Sum of all Increase Transactions)
-               // Therefore: New Initial Transaction Amount = (New Total Amount) - (Sum of all Increase Transactions)
-               const allOtherInitialTxs = allTxs.filter((tx) => tx.type === initialTxType && tx.id !== linkedTransaction.id);
-               const sumOfIncreases = allOtherInitialTxs.reduce((acc: number, tx) => acc + Math.abs(Number(tx.amount)), 0);
-
-               const newInitialAmount = Math.max(0, Math.abs(dbAmount) - sumOfIncreases);
-
-               // Restore negative sign if lending
-               const finalDbAmount = txType === 'debt_out' ? -newInitialAmount : newInitialAmount;
-               txUpdateData.amount = new Prisma.Decimal(finalDbAmount);
-            }
-            if (data.counterparty) txUpdateData.payee = data.counterparty;
-            if (data.description !== undefined) txUpdateData.description = data.description;
-
-            await tx.transaction.update({
-               where: { id: linkedTransaction.id },
-               data: txUpdateData
-            });
-         }
-
-         return updated;
+      const updatedDebt = await prisma.debt.update({
+         where: { id: debtId },
+         data: {
+            updated_by: authResult.user.user_id,
+            ...(data.date && { date: new Date(data.date) }),
+            ...(data.type && { type: data.type as DebtType }),
+            ...(data.account_id && { account: { connect: { id: data.account_id } } }),
+            ...(data.counterparty && { counterparty: data.counterparty }),
+            ...(data.description !== undefined && { description: data.description }),
+            ...(data.status && { status: data.status as DebtStatus }),
+         },
       });
 
       return successResponse(updatedDebt, { message: 'Debt updated successfully' });

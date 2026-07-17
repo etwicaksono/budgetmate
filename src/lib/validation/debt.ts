@@ -15,7 +15,6 @@ export const UpdateDebtSchema = z.object({
    date: z.string().datetime({ message: 'Invalid datetime string' }).optional(),
    type: z.nativeEnum(DebtType).optional(),
    account_id: z.string().min(1).optional(),
-   amount: z.number().positive('Amount must be positive').optional(),
    counterparty: z.string().min(1).max(255).optional(),
    description: z.string().optional(),
    status: z.nativeEnum(DebtStatus).optional()

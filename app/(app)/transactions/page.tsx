@@ -286,8 +286,113 @@ function TransactionsContent() {
       if (!detail) return;
 
       if (detail.action === 'edit' && detail.data && detail.data.id) {
-        // Optimistic local update for edits to preserve scroll position and page
-        setTransactions(prev => prev.map(t => (t.id === detail.data.id ? { ...t, ...detail.data } : t)));
+        // Optimistic local update for edits to preserve scroll position and page.
+        // The incoming payload carries a positive amount (form uses Math.abs)
+        // and a generic type (income/expense/transfer), so re-apply the correct
+        // sign and keep the original directional type for transfers/debts.
+        const data = detail.data;
+        setTransactions(prev => {
+          const editedRow = prev.find(t => t.id === data.id);
+
+          // A transfer is stored as two rows sharing one transfer_id:
+          // - transfer_out (source): negative amount
+          // - transfer_in (destination): positive amount
+          // Editing one leg must update both legs so their amounts stay in sync.
+          const isTransferEdit =
+            !!editedRow &&
+            (editedRow.type === 'transfer_out' || editedRow.type === 'transfer_in') &&
+            !!editedRow.transfer_id;
+
+          if (isTransferEdit) {
+            const newAbsAmount =
+              typeof data.amount === 'number'
+                ? Math.abs(data.amount)
+                : Math.abs(parseFloat(String(data.amount ?? 0)));
+
+            // A transfer edit may reassign both accounts. The source leg
+            // (transfer_out) uses from_account_id, the destination leg
+            // (transfer_in) uses to_account_id. Resolve the nested `account`
+            // relation so displayed names/icons update optimistically.
+            const resolveAccount = (accountId?: string) => {
+              if (!accountId) return undefined;
+              const acc = apiAccounts.find(a => a.id === accountId);
+              return acc
+                ? { id: acc.id, name: acc.name, icon: acc.icon, color: acc.color }
+                : undefined;
+            };
+
+            return prev.map(t => {
+              if (t.transfer_id !== editedRow.transfer_id) return t;
+
+              const signedAmount = t.type === 'transfer_out' ? -newAbsAmount : newAbsAmount;
+              const nextAccountId =
+                t.type === 'transfer_out' ? data.account_id : data.to_account_id;
+              const nextAccount = resolveAccount(nextAccountId);
+
+              return {
+                ...t,
+                ...(Number.isNaN(newAbsAmount) ? {} : { amount: signedAmount }),
+                ...(data.date !== undefined && { date: data.date }),
+                ...(data.description !== undefined && { description: data.description }),
+                ...(nextAccountId !== undefined && { account_id: nextAccountId }),
+                ...(nextAccount && { account: nextAccount }),
+              };
+            });
+          }
+
+          // Regular income/expense (type may change via modal) or debt rows.
+          return prev.map(t => {
+            if (t.id !== data.id) return t;
+
+            const merged = { ...t, ...data };
+
+            // The payload carries only account_id, but rows render the nested
+            // `account` relation (name/icon). Refresh it so the displayed
+            // account matches the persisted change.
+            if (data.account_id !== undefined && data.account_id !== t.account_id) {
+              const nextAccount = apiAccounts.find(acc => acc.id === data.account_id);
+              if (nextAccount) {
+                merged.account = {
+                  id: nextAccount.id,
+                  name: nextAccount.name,
+                  icon: nextAccount.icon,
+                  color: nextAccount.color,
+                };
+              }
+            }
+
+            // Likewise, the payload carries only category_id, but rows render
+            // the nested `category` relation (name/icon/color). Refresh it.
+            if (data.category_id !== undefined && data.category_id !== t.category_id) {
+              const nextCategory = categories.find(cat => cat.id === data.category_id);
+              if (nextCategory) {
+                merged.category = {
+                  id: nextCategory.id,
+                  name: nextCategory.name,
+                  icon: nextCategory.icon,
+                  color: nextCategory.color ?? '#6c757d',
+                  type: String(nextCategory.type),
+                };
+              }
+            }
+
+            if (typeof merged.amount === 'number') {
+              const absAmount = Math.abs(merged.amount);
+              // Debt rows keep their original directional type; only regular
+              // income/expense rows may switch type from the modal.
+              const isDirectionalOriginal =
+                t.type === 'debt_in' || t.type === 'debt_out';
+              const effectiveType = isDirectionalOriginal ? t.type : (data.type ?? t.type);
+              const shouldBeNegative =
+                effectiveType === 'expense' || effectiveType === 'debt_out';
+
+              merged.amount = shouldBeNegative ? -absAmount : absAmount;
+              merged.type = effectiveType;
+            }
+
+            return merged;
+          });
+        });
       } else if (detail.action === 'add' && detail.data) {
         // Optimistic add (prepend to top)
         setTransactions(prev => [detail.data, ...prev]);
@@ -310,7 +415,7 @@ function TransactionsContent() {
     
     window.addEventListener('transaction-updated', handleUpdate);
     return () => window.removeEventListener('transaction-updated', handleUpdate);
-  }, [fetchTransactions]);
+  }, [fetchTransactions, apiAccounts, categories]);
 
   // Infinite scroll implementation
   useEffect(() => {

@@ -34,7 +34,9 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         <div className="account-card__details">
           <div className="account-card__name">{name}</div>
           <div className="account-card__balance">
-            {formatCurrency(balance)}
+            {formatCurrency(balance, {
+              forceDecimals: Number.isInteger(balance) ? 0 : 2,
+            })}
           </div>
         </div>
       </Card.Body>

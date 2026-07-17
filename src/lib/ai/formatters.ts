@@ -15,16 +15,12 @@ interface CategoryReport {
   subItems?: CategoryReport[];
 }
 
-interface ReportData {
+interface IncomeExpenseReport {
+  monthNames: string[];
   incomeCategories: CategoryReport[];
   expenseCategories: CategoryReport[];
   totalIncomes: number[];
   totalExpenses: number[];
-}
-
-interface IncomeExpenseReport {
-  monthNames: string[];
-  data: ReportData;
 }
 
 /**
@@ -35,15 +31,21 @@ export function formatIncomeExpenseReport(
   report: IncomeExpenseReport,
   filterLabel: string = 'All filters'
 ): string {
+  const data: IncomeExpenseReport = {
+    monthNames: report?.monthNames ?? [],
+    incomeCategories: report?.incomeCategories ?? [],
+    expenseCategories: report?.expenseCategories ?? [],
+    totalIncomes: report?.totalIncomes ?? [],
+    totalExpenses: report?.totalExpenses ?? [],
+  };
+
   const lines: string[] = [
     '## Income & Expenses Report',
-    `Period: ${report.monthNames.join(' | ')}`,
+    `Period: ${data.monthNames.join(' | ')}`,
     'Currency: IDR',
     `Filters: ${filterLabel}`,
     '',
   ];
-
-  const data = report.data;
 
   // Income
   lines.push('INCOME:');

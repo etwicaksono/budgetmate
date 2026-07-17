@@ -286,6 +286,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
         debt={detailDebt}
         onIncreaseClick={handleOpenIncrease}
         onRepayClick={handleOpenRepay}
+        onEditClick={handleOpenEditDebt}
         onEditTransactionClick={handleEditTransactionClick}
       />
     </>

@@ -18,7 +18,11 @@ export const GlobalTransactionModal: React.FC = () => {
         const isTransfer = transactionData.type === 'transfer';
 
         if (mode === 'edit' && initialData?.id) {
-          // Optimistic update: instantly close modal and dispatch event
+          // Optimistic update: instantly close modal and dispatch event.
+          // Note: `transactionData.amount` is always positive (the form uses
+          // Math.abs) and `type` is generic (income/expense/transfer). The
+          // page listener re-applies the correct sign and preserves the
+          // original directional type (transfer_in/out, debt_in/out).
           const eventData = { ...initialData, ...transactionData, id: initialData.id };
           window.dispatchEvent(
             new CustomEvent('transaction-updated', {

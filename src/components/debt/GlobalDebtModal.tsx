@@ -55,9 +55,21 @@ export const GlobalDebtModal: React.FC = () => {
       if (editTransaction) {
         await debtService.updateRepayment(debtId, editTransaction.id, payload);
         Toast.fire({ icon: 'success', title: 'Repayment updated successfully' });
+        // Include the edited fields so the list updates optimistically. The
+        // payload amount is positive; the page listener re-applies the correct
+        // sign based on the row's directional type (debt_in/debt_out).
         window.dispatchEvent(
           new CustomEvent('transaction-updated', {
-            detail: { action: 'edit', data: { id: editTransaction.id } },
+            detail: {
+              action: 'edit',
+              data: {
+                id: editTransaction.id,
+                amount: payload.amount,
+                date: payload.date,
+                account_id: payload.account_id,
+                ...(payload.description !== undefined && { description: payload.description }),
+              },
+            },
           })
         );
       } else {
@@ -77,9 +89,21 @@ export const GlobalDebtModal: React.FC = () => {
       if (editTransaction) {
         await debtService.updateIncrease(debtId, editTransaction.id, payload);
         Toast.fire({ icon: 'success', title: 'Increase updated successfully' });
+        // Include the edited fields so the list updates optimistically. The
+        // payload amount is positive; the page listener re-applies the correct
+        // sign based on the row's directional type (debt_in/debt_out).
         window.dispatchEvent(
           new CustomEvent('transaction-updated', {
-            detail: { action: 'edit', data: { id: editTransaction.id } },
+            detail: {
+              action: 'edit',
+              data: {
+                id: editTransaction.id,
+                amount: payload.amount,
+                date: payload.date,
+                account_id: payload.account_id,
+                ...(payload.description !== undefined && { description: payload.description }),
+              },
+            },
           })
         );
       } else {

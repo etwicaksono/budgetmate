@@ -196,7 +196,12 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
 
           await prisma.aiChatSession.update({
             where: { id: sessionId },
-            data: { updated_at: new Date() },
+            data: {
+              updated_at: new Date(),
+              // Default title = first 100 chars of the user's first question.
+              // The AI-generated title (fire-and-forget below) replaces it later.
+              ...(isFirstMessage && { title: userContent.slice(0, 100).trim() }),
+            },
           });
         } catch (error) {
           const prismaError = handlePrismaError(error, 'AI chat message', 'persist');
@@ -239,9 +244,9 @@ async function generateSessionTitle(
   assistantReply: string,
   provider: ReturnType<typeof createLLMProvider>
 ): Promise<void> {
-  // Fallback: use the user's first message as the title (max 255 chars per schema)
+  // Fallback: use the first 100 chars of the user's first message as the title.
   // userMessage is guaranteed non-empty — validated at POST handler line 94-96
-  const fallbackTitle = userMessage.slice(0, 255).trim();
+  const fallbackTitle = userMessage.slice(0, 100).trim();
 
   let aiTitle: string | null = null;
   try {

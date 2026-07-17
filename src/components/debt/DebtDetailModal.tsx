@@ -8,7 +8,8 @@ import {
    FaArrowCircleUp,
    FaArrowCircleDown,
    FaMoneyBillWave,
-   FaPlusCircle
+   FaPlusCircle,
+   FaPencilAlt
 } from 'react-icons/fa';
 
 import { Debt } from '@/services/debtService';
@@ -22,6 +23,7 @@ interface DebtDetailModalProps {
    onIncreaseClick: (debt: Debt) => void;
    onRepayClick: (debt: Debt) => void;
    onDecreaseClick?: (debt: Debt) => void;
+   onEditClick?: (debt: Debt) => void;
    onEditTransactionClick?: (debt: Debt, transaction: import('@/services/transactionService').Transaction, isIncrease: boolean) => void;
 }
 
@@ -31,6 +33,7 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
    debt,
    onIncreaseClick,
    onRepayClick,
+   onEditClick,
    onEditTransactionClick
 }) => {
    if (!debt) return null;
@@ -183,6 +186,11 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
             {(isActive || isSettled) && (
                <Button variant="outline-primary" onClick={() => onIncreaseClick(debt)} className="d-flex align-items-center justify-content-center">
                   <FaPlusCircle className="me-2" /> Increase Debt
+               </Button>
+            )}
+            {isActive && onEditClick && (
+               <Button variant="outline-secondary" onClick={() => onEditClick(debt)} className="d-flex align-items-center justify-content-center">
+                  <FaPencilAlt className="me-2" /> Edit Debt
                </Button>
             )}
             {isActive && (

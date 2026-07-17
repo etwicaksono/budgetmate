@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Spinner, Form } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import ReactMarkdown from 'react-markdown';
@@ -84,6 +85,10 @@ function contextLabel(ctx: ContextSnapshot): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSessionList, setShowSessionList] = useState(false);
@@ -205,6 +210,21 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
     }
   }, []);
 
+  // Update the `chat` query param so an expanded conversation survives refresh.
+  const setChatParam = useCallback(
+    (sessionId: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (sessionId) {
+        params.set('chat', sessionId);
+      } else {
+        params.delete('chat');
+      }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [searchParams, router, pathname]
+  );
+
   const loadSession = useCallback(async (session: Session) => {
     setCurrentSession(session);
     sessionContextKeyRef.current = contextKey(session.context_snapshot);
@@ -282,6 +302,40 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
     await Promise.all([loadSessions(), fetchConfig()]);
   }, [loadSessions, fetchConfig]);
 
+  // Keep the `chat` query param in sync with the expanded conversation so a
+  // browser refresh reopens the same chat. The param is only present while the
+  // chat is expanded; collapsing or closing removes it.
+  useEffect(() => {
+    if (isOpen && isExpanded && currentSession) {
+      setChatParam(currentSession.id);
+    } else {
+      setChatParam(null);
+    }
+  }, [isOpen, isExpanded, currentSession, setChatParam]);
+
+  // Restore an expanded chat from the URL on first mount (e.g. after refresh).
+  const didRestoreFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didRestoreFromUrlRef.current) return;
+    const chatId = searchParams.get('chat');
+    if (!chatId) return;
+    didRestoreFromUrlRef.current = true;
+
+    void (async () => {
+      setIsOpen(true);
+      setIsExpanded(true);
+      await Promise.all([loadSessions(), fetchConfig()]);
+      try {
+        const res = await apiClient.get(`/api/ai/sessions/${chatId}`, { baseURL: '' });
+        const json = res.data;
+        const loaded: Session = json.data ?? json;
+        await loadSession(loaded);
+      } catch (err) {
+        logError('Failed to restore chat session from URL:', err);
+      }
+    })();
+  }, [searchParams, loadSessions, fetchConfig, loadSession]);
+
   const handleSend = useCallback(
     async (content: string) => {
       const text = content.trim();
@@ -293,6 +347,21 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
       try {
         let session = currentSession;
         if (!session) session = await createSession(context);
+
+        // Optimistically set a default title (first 100 chars of the question)
+        // for brand-new sessions so the sidebar/header never shows an empty or
+        // placeholder title while the AI-generated title is still pending.
+        if (!session.title) {
+          const defaultTitle = text.slice(0, 100).trim();
+          const sessionId = session.id;
+          session = { ...session, title: defaultTitle };
+          setCurrentSession((prev) =>
+            prev && prev.id === sessionId ? { ...prev, title: defaultTitle } : prev
+          );
+          setSessions((prev) =>
+            prev.map((s) => (s.id === sessionId && !s.title ? { ...s, title: defaultTitle } : s))
+          );
+        }
 
         const encryptedToken = localStorage.getItem(APP_CONFIG.storageKeys.authToken);
         let token = '';
@@ -517,7 +586,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
                             style={{ flexGrow: 1, minWidth: 0, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: currentSession?.id === s.id ? '#1E3A5F' : '#495057', fontWeight: currentSession?.id === s.id ? 500 : 400 }}
                             onClick={() => void loadSession(s)}
                           >
-                            {s.title ?? 'Percakapan baru'}
+                            {s.title || 'Percakapan baru'}
                           </span>
                           <div style={{ position: 'relative', flexShrink: 0 }}>
                             <button
@@ -589,7 +658,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
               <span style={{ fontSize: '16px' }}>✨</span>
               <span style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {currentSession?.title ?? 'AI Assistant'}
+                {currentSession?.title || 'AI Assistant'}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
@@ -690,7 +759,7 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
                           style={{ flexGrow: 1, minWidth: 0, fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                           onClick={() => void loadSession(s)}
                         >
-                          {s.title ?? 'Percakapan baru'}
+                          {s.title || 'Percakapan baru'}
                         </span>
                         <div style={{ position: 'relative', flexShrink: 0 }}>
                           <button

@@ -43,9 +43,7 @@ export interface CreateDebtPayload {
 
 export interface UpdateDebtPayload {
    date?: string;
-   type?: DebtType;
    account_id?: string;
-   amount?: number;
    counterparty?: string;
    description?: string;
    status?: DebtStatus;

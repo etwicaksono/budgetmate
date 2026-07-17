@@ -116,17 +116,29 @@ export const DebtCard: React.FC<DebtCardProps> = ({
               decimalScale={2}
             />
           </div>
-          {isActive && (
-            <div className="small text-muted">
-              {progressPercent}% of <NumericFormat
-                value={totalAmount}
-                displayType={'text'}
-                thousandSeparator={true}
-                prefix="Rp "
-                decimalScale={2}
-              /> repaid
-            </div>
-          )}
+          <div className="small text-muted">
+            {isActive ? (
+              <>
+                {progressPercent}% of <NumericFormat
+                  value={totalAmount}
+                  displayType={'text'}
+                  thousandSeparator={true}
+                  prefix="Rp "
+                  decimalScale={2}
+                /> repaid
+              </>
+            ) : (
+              <>
+                <NumericFormat
+                  value={totalAmount}
+                  displayType={'text'}
+                  thousandSeparator={true}
+                  prefix="Rp "
+                  decimalScale={2}
+                /> • {isSettled ? 'Fully repaid' : 'Cancelled'}
+              </>
+            )}
+          </div>
         </Col>
       </Row>
 
