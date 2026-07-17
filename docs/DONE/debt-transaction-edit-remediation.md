@@ -183,11 +183,11 @@ const updatedDebt = await prisma.$transaction(async (tx) => {
 });
 ```
 
-- [ ] Wrap the debt update + linked-transaction update in a single `prisma.$transaction`
-- [ ] Sync `date`, `account_id`, `payee` (from `counterparty`), and `description` onto the initial ledger transaction
-- [ ] Do NOT modify transaction `amount` (amount is no longer editable — leave it alone)
-- [ ] Decide whether editing `date`/`account` should also affect repayment transactions, or only the initial one — document the decision inline (see 1.2 for the `type` question)
-- [ ] Run `npm run validate`
+- [x] Wrap the debt update + linked-transaction update in a single `prisma.$transaction`
+- [x] Sync `date`, `account_id`, `payee` (from `counterparty`), and `description` onto the initial ledger transaction
+- [x] Do NOT modify transaction `amount` (amount is no longer editable — leave it alone)
+- [x] Decide whether editing `date`/`account` should also affect repayment transactions, or only the initial one — document the decision inline (see 1.2 for the `type` question). Decision: only the INITIAL transaction is synced; repayment/increase transactions have their own edit flows and are left untouched.
+- [x] Run `npm run validate`
 
 ### 1.2 — `type` is still writable via the PUT API but no longer re-syncs the ledger
 
@@ -222,12 +222,12 @@ export const UpdateDebtSchema = z.object({
 
 and remove the `...(data.type && { type: data.type as DebtType })` line from the PUT update.
 
-- [ ] Choose approach A or B and note the decision here
-- [ ] If A: remove `type` from `UpdateDebtSchema` in `src/lib/validation/debt.ts`
-- [ ] If A: remove the `type` write from the PUT handler in `app/api/v1/debts/[id]/route.ts`
-- [ ] If A: confirm `DebtType` import is still used (it is, via 1.1's `initialTxType`) so no unused-import lint error
+- [x] Choose approach A or B and note the decision here. Decision: **Approach A** — `type` is not editable after creation.
+- [x] If A: remove `type` from `UpdateDebtSchema` in `src/lib/validation/debt.ts`
+- [x] If A: remove the `type` write from the PUT handler in `app/api/v1/debts/[id]/route.ts`
+- [x] If A: confirm `DebtType` import is still used (it is, via 1.1's `initialTxType`) so no unused-import lint error
 - [ ] If B: implement full ledger re-typing + re-signing + repayment revalidation (out of scope of the current bug fix — prefer A)
-- [ ] Run `npm run validate`
+- [x] Run `npm run validate`
 
 ---
 
@@ -250,10 +250,10 @@ until a manual refresh/refetch — defeating the optimistic update this branch a
 
 **Fix / verification:**
 
-- [ ] Confirm the transfer edit form always includes `to_account_id` (and `account_id` for the source leg) in the dispatched `transactionData`
-- [ ] If it can be absent, either carry both legs' account ids explicitly in the event `detail.data`, or fall back to `fetchTransactions()` for transfer edits instead of an optimistic patch
-- [ ] Add/adjust a test or manual check: edit a transfer's destination account and confirm the row updates without a refetch
-- [ ] Run `npm run validate`
+- [x] Confirm the transfer edit form always includes `to_account_id` (and `account_id` for the source leg) in the dispatched `transactionData`. Verified: `handleEditRecord` builds `modalData` with `to_account_id` (via `mapTransferAccounts`) for every transfer, and `GlobalTransactionModal` dispatches `{ ...initialData, ...transactionData, id }`, so the event always carries `to_account_id`. `to_account_id` is also required by the form validation for transfers, so it cannot be cleared.
+- [x] If it can be absent, either carry both legs' account ids explicitly in the event `detail.data`, or fall back to `fetchTransactions()` for transfer edits instead of an optimistic patch. N/A — always present (see above).
+- [ ] Add/adjust a test or manual check: edit a transfer's destination account and confirm the row updates without a refetch (deferred with Phase 3)
+- [x] Run `npm run validate`
 
 ---
 
@@ -283,7 +283,7 @@ until a manual refresh/refetch — defeating the optimistic update this branch a
 `generateSessionTitle` still says "Falls back to the user's message (truncated to 255 chars)"
 while the code now truncates to 100 (`userMessage.slice(0, 100)`).
 
-- [ ] Update the comment to say "truncated to 100 chars"
+- [x] Update the comment to say "truncated to 100 chars"
 
 ### 4.2 — Verify `DebtCard` inactive-state labels match real statuses
 
@@ -292,8 +292,8 @@ in the inactive branch, but `DebtStatus` (and the `DebtModal` status dropdown) o
 `active` and `settled`. If there is no `cancelled` status, the `'Cancelled'` label is
 unreachable/misleading.
 
-- [ ] Confirm whether a `cancelled`/non-settled inactive state actually exists in `DebtStatus`
-- [ ] If not, replace the misleading `'Cancelled'` fallback with the correct label (or remove the branch)
+- [x] Confirm whether a `cancelled`/non-settled inactive state actually exists in `DebtStatus` — it does (`enum DebtStatus { active, settled, cancelled }` in `schema.prisma`), so the `'Cancelled'` label is valid, not dead code. No change needed.
+- [x] If not, replace the misleading `'Cancelled'` fallback with the correct label (or remove the branch) — N/A, label is correct.
 
 ---
 

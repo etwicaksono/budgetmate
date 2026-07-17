@@ -237,7 +237,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
 
 // ── Title generation (non-blocking) ─────────────────────────────────────────
 // Tries to generate a short AI title from the first exchange.
-// Falls back to the user's message (truncated to 255 chars) if AI fails.
+// Falls back to the user's message (truncated to 100 chars) if AI fails.
 async function generateSessionTitle(
   sessionId: string,
   userMessage: string,

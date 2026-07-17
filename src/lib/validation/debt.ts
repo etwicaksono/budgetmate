@@ -11,9 +11,11 @@ export const CreateDebtSchema = z.object({
    parent_debt_id: z.string().optional()
 });
 
+// NOTE: `type` is intentionally NOT editable after creation. Changing a debt's
+// direction would require re-typing and re-signing every linked ledger
+// transaction (and revalidating repayments), so it is excluded from edits.
 export const UpdateDebtSchema = z.object({
    date: z.string().datetime({ message: 'Invalid datetime string' }).optional(),
-   type: z.nativeEnum(DebtType).optional(),
    account_id: z.string().min(1).optional(),
    counterparty: z.string().min(1).max(255).optional(),
    description: z.string().optional(),

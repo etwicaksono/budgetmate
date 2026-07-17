@@ -119,8 +119,11 @@ export async function PUT(
 
       const data = validation.data;
 
-      // Check existing debt (edit only mutates the Debt record; linked
-      // transactions/ledger entries are intentionally left untouched).
+      // Check existing debt. The edit mutates the Debt record AND keeps the
+      // initial linked ledger transaction in sync (see below), because the GET
+      // endpoint derives the displayed account/date and amounts from those
+      // transactions. `type` is intentionally NOT editable (see 1.2): flipping
+      // it would require re-typing/re-signing every linked transaction.
       const existingDebt = await prisma.debt.findFirst({
          where: {
             id: debtId,
@@ -132,17 +135,39 @@ export async function PUT(
          return errorResponse('NOT_FOUND', 'Debt not found', 404);
       }
 
-      const updatedDebt = await prisma.debt.update({
-         where: { id: debtId },
-         data: {
-            updated_by: authResult.user.user_id,
-            ...(data.date && { date: new Date(data.date) }),
-            ...(data.type && { type: data.type as DebtType }),
-            ...(data.account_id && { account: { connect: { id: data.account_id } } }),
-            ...(data.counterparty && { counterparty: data.counterparty }),
-            ...(data.description !== undefined && { description: data.description }),
-            ...(data.status && { status: data.status as DebtStatus }),
-         },
+      const updatedDebt = await prisma.$transaction(async (tx) => {
+         const updated = await tx.debt.update({
+            where: { id: debtId },
+            data: {
+               updated_by: authResult.user.user_id,
+               ...(data.date && { date: new Date(data.date) }),
+               ...(data.account_id && { account: { connect: { id: data.account_id } } }),
+               ...(data.counterparty && { counterparty: data.counterparty }),
+               ...(data.description !== undefined && { description: data.description }),
+               ...(data.status && { status: data.status as DebtStatus }),
+            },
+         });
+
+         // Keep the INITIAL ledger transaction in sync so the debt header and
+         // account balances do not drift. Repayment/increase transactions are
+         // edited via their own dedicated flows and are left untouched here.
+         const initialTxType =
+            existingDebt.type === DebtType.lend
+               ? TransactionType.debt_out
+               : TransactionType.debt_in;
+
+         await tx.transaction.updateMany({
+            where: { debt_id: debtId, type: initialTxType },
+            data: {
+               updated_by: authResult.user.user_id,
+               ...(data.date && { date: new Date(data.date) }),
+               ...(data.account_id && { account_id: data.account_id }),
+               ...(data.counterparty && { payee: data.counterparty }),
+               ...(data.description !== undefined && { description: data.description }),
+            },
+         });
+
+         return updated;
       });
 
       return successResponse(updatedDebt, { message: 'Debt updated successfully' });

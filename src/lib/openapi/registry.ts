@@ -1,5 +1,7 @@
 import { OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
+
+import { APP_VERSION } from '@/lib/version';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 
 extendZodWithOpenApi(z);
@@ -19,7 +21,7 @@ export function generateOpenApiDocument(): ReturnType<OpenApiGeneratorV3['genera
   return generator.generateDocument({
     openapi: '3.0.0',
     info: {
-      version: '1.0.0',
+      version: APP_VERSION,
       title: 'BudgetMate API v1',
       description: 'BudgetMate API for managing finances, accounts, debts, and transactions.',
     },

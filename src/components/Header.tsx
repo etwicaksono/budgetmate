@@ -10,7 +10,9 @@ import { useTransaction } from '@/context/TransactionContext';
 import { useDebt } from '@/context/DebtContext';
 import './Header.css';
 import Image from 'next/image';
+import Swal from 'sweetalert2';
 import { logError } from '@/lib/logger';
+import { APP_VERSION, BUG_EMAIL } from '@/lib/version';
 
 interface NavigationLink {
   to: string;
@@ -94,6 +96,46 @@ export default function Header(): React.ReactElement {
     }
   }, [logout, router]);
 
+  const handleReportBug = useCallback(async (): Promise<void> => {
+    const subject = `BudgetMate bug report (v${APP_VERSION})`;
+    const mailtoUrl = `mailto:${BUG_EMAIL}?subject=${encodeURIComponent(subject)}`;
+
+    const result = await Swal.fire({
+      icon: 'info',
+      title: 'Report a bug',
+      html:
+        `<p class="mb-2">Please send your bug report to:</p>` +
+        `<p class="mb-2"><strong>${BUG_EMAIL}</strong></p>` +
+        `<p class="text-muted small mb-0">Include what you were doing and any error messages. ` +
+        `The button below opens your mail app; if nothing happens, copy the address and email us manually.</p>`,
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: 'Open mail app',
+      denyButtonText: 'Copy email',
+      cancelButtonText: 'Close',
+      confirmButtonColor: '#0d6efd',
+      denyButtonColor: '#6c757d',
+    });
+
+    if (result.isConfirmed) {
+      window.location.href = mailtoUrl;
+    } else if (result.isDenied) {
+      try {
+        await navigator.clipboard.writeText(BUG_EMAIL);
+        Swal.fire({
+          icon: 'success',
+          title: 'Email copied',
+          text: BUG_EMAIL,
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } catch (error) {
+        logError('Failed to copy bug-report email:', error);
+        Swal.fire({ icon: 'error', title: 'Copy failed', text: BUG_EMAIL });
+      }
+    }
+  }, []);
+
   return (
     <header className="app-header">
       <Container fluid className="app-header__container">
@@ -153,13 +195,13 @@ export default function Header(): React.ReactElement {
                   Settings
                 </span>
               </Dropdown.Item>
-              <Dropdown.Item>
+              <Dropdown.Item onClick={() => router.push('/settings?section=help')}>
                 <span className="d-flex align-items-center">
                   <FaQuestionCircle className="me-2" size={14} />
                   Help
                 </span>
               </Dropdown.Item>
-              <Dropdown.Item>
+              <Dropdown.Item onClick={handleReportBug}>
                 <span className="d-flex align-items-center">
                   <FaBug className="me-2" size={14} />
                   Report a bug
@@ -238,11 +280,11 @@ export default function Header(): React.ReactElement {
               </div>
             </Button>
             
-            <Button variant="link" className="app-header__mobile-link text-start w-100 d-flex justify-content-start align-items-center" onClick={handleClose}>
+            <Button variant="link" className="app-header__mobile-link text-start w-100 d-flex justify-content-start align-items-center" onClick={() => { router.push('/settings?section=help'); handleClose(); }}>
               <div className="d-flex align-items-center gap-2"><FaQuestionCircle size={16} /> Help</div>
             </Button>
             
-            <Button variant="link" className="app-header__mobile-link text-start w-100 d-flex justify-content-start align-items-center" onClick={handleClose}>
+            <Button variant="link" className="app-header__mobile-link text-start w-100 d-flex justify-content-start align-items-center" onClick={() => { handleReportBug(); handleClose(); }}>
               <div className="d-flex align-items-center gap-2"><FaBug size={16} /> Report a bug</div>
             </Button>
 

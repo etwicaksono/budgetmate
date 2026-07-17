@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { commonErrors } from '@/lib/api/response';
+import { APP_VERSION } from '@/lib/version';
 import crypto from 'crypto';
 import { logError } from '@/lib/logger';
 
@@ -218,7 +219,7 @@ export async function GET(request: NextRequest) {
     const sanitizedData = {
       exportVersion: '1.0.0',
       exportDate: new Date().toISOString(),
-      appVersion: '1.0.0',
+      appVersion: APP_VERSION,
       user: {
         email: userData.user.email,
         settings: {

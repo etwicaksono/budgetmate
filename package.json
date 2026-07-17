@@ -1,7 +1,10 @@
 {
   "name": "budgetmate",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
+  "bugs": {
+    "email": "ekoteguhwicaksono@gmail.com"
+  },
   "scripts": {
     "dev": "cross-env TZ=UTC next dev",
     "build": "prisma generate && next build",
@@ -100,4 +103,4 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3"
   }
-}
+}
