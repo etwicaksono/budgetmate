@@ -237,9 +237,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const expenseCategories: CategoryReport[] = [];
 
     parentCategories.forEach((parent) => {
-      if (parent.type === 'income') {
+      const flag = parent.type === 'both' ? parent.analytic_flag : parent.type;
+      if (flag === 'income') {
         incomeCategories.push(buildCategoryReport(parent, 1));
-      } else if (parent.type === 'expense') {
+      } else if (flag === 'expense') {
         expenseCategories.push(buildCategoryReport(parent, -1));
       }
     });

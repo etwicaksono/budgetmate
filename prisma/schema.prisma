@@ -128,8 +128,9 @@ model Category {
   user_id    String
   parent_id  String?
   name       String         @db.VarChar(100)
-  type       CategoryType
-  nature     CategoryNature @default(WANT)
+  type          CategoryType
+  analytic_flag String         @default("expense") @db.VarChar(20)
+  nature        CategoryNature @default(WANT)
   icon       String         @db.VarChar(50)
   color      String?        @db.VarChar(7)
   is_active  Boolean        @default(true)

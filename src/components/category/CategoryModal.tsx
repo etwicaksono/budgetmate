@@ -48,6 +48,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
         setFormData({
           name: '',
           type: 'expense',
+          analytic_flag: 'expense',
           nature: 'WANT',
           icon: 'FaGift',
           color: '#dc3545',

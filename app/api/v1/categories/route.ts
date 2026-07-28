@@ -102,6 +102,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       id: category.id,
       name: category.name,
       type: category.type,
+      analytic_flag: category.analytic_flag,
       nature: category.nature,
       icon: category.icon,
       color: category.color,
@@ -180,6 +181,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const categoryType = normalizeCategoryType(data.type);
+    const analyticFlag =
+      categoryType === 'both'
+        ? (data.analytic_flag ?? 'expense')
+        : (categoryType === 'income' ? 'income' : 'expense');
 
     // Create category
     const category = await prisma.category.create({
@@ -187,6 +192,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         user_id: user.user_id,
         name: data.name,
         type: categoryType,
+        analytic_flag: analyticFlag,
         parent_id: data.parent_id ?? null,
         nature: normalizeCategoryNature(data.nature),
         icon: data.icon,
@@ -205,6 +211,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       id: category.id,
       name: category.name,
       type: category.type,
+      analytic_flag: category.analytic_flag,
       nature: category.nature,
       icon: category.icon,
       color: category.color,

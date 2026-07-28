@@ -73,6 +73,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
       id: category.id,
       name: category.name,
       type: category.type,
+      analytic_flag: category.analytic_flag,
       nature: category.nature,
       icon: category.icon,
       color: category.color,
@@ -192,7 +193,15 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
     };
 
     if (data.name !== undefined) updateData['name'] = data.name;
-    if (data.type !== undefined) updateData['type'] = normalizeCategoryType(data.type);
+    if (data.type !== undefined) {
+      const newType = normalizeCategoryType(data.type);
+      updateData['type'] = newType;
+      updateData['analytic_flag'] = newType === 'both'
+        ? (data.analytic_flag ?? existingCategory.analytic_flag ?? 'expense')
+        : (newType === 'income' ? 'income' : 'expense');
+    } else if (data.analytic_flag !== undefined) {
+      updateData['analytic_flag'] = data.analytic_flag;
+    }
     if (data.parent_id !== undefined) updateData['parent_id'] = data.parent_id;
     if (data.nature !== undefined) updateData['nature'] = data.nature as CategoryNature;
     if (data.icon !== undefined) updateData['icon'] = data.icon;
@@ -218,6 +227,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
 
       if (data.color !== undefined) childUpdateData.color = data.color;
       if (data.type !== undefined) childUpdateData.type = normalizeCategoryType(data.type);
+      if (updateData['analytic_flag'] !== undefined) childUpdateData.analytic_flag = updateData['analytic_flag'] as string;
 
       if (Object.keys(childUpdateData).length > 0) {
         childUpdateData.updated_at = new Date();
@@ -237,6 +247,7 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
       id: updated.id,
       name: updated.name,
       type: updated.type,
+      analytic_flag: updated.analytic_flag,
       nature: updated.nature,
       icon: updated.icon,
       color: updated.color,
