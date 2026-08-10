@@ -61,6 +61,10 @@ export const PAYMENT_STATUS = {
   CANCELLED: 'Cancelled'
 } as const;
 
+// Dropdown-ready lists so every payment selector stays in sync with the constants above
+export const PAYMENT_METHOD_OPTIONS = Object.values(PAYMENT_METHODS);
+export const PAYMENT_STATUS_OPTIONS = Object.values(PAYMENT_STATUS);
+
 export const SORT_OPTIONS = {
   DATE_DESC: { field: 'date', order: 'desc', label: 'Date (Newest)' },
   DATE_ASC: { field: 'date', order: 'asc', label: 'Date (Oldest)' },

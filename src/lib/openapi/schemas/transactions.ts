@@ -43,9 +43,32 @@ export const BulkDeleteTransactionSchema = z.object({
   filters: z.record(z.unknown()).optional().openapi({ example: { type: 'expense' } })
 });
 
+export const BulkUpdateTransactionSchema = z.object({
+  allMatching: z.boolean().optional().openapi({ example: false }),
+  ids: z.array(z.string()).optional().openapi({ example: ['clq1234560000000000000000'] }),
+  filters: z.record(z.unknown()).optional().openapi({ example: { category_ids: 'clqcategory12345600000000' } }),
+  data: z.object({
+    description: z.string().optional().openapi({ example: 'Monthly groceries' }),
+    payee: z.string().optional().openapi({ example: 'Supermarket' }),
+    payment_method: z.string().optional().openapi({ example: 'Credit Card' }),
+    payment_status: z.string().optional().openapi({ example: 'Cleared' }),
+    category_id: z.string().optional().openapi({ example: 'clqcategory12345600000000' }),
+    label_ids: z.array(z.string()).optional().openapi({ example: ['clqlabel1234560000000000'] }),
+    label_mode: z
+      .enum(['replace', 'append'])
+      .optional()
+      .openapi({
+        description:
+          "How label_ids is applied. 'replace' swaps the whole set (an empty list clears all labels); 'append' only adds. Defaults to 'append'.",
+        example: 'append'
+      })
+  })
+});
+
 const CreateTransactionRequest = registry.register('CreateTransactionRequest', CreateTransactionSchema);
 const UpdateTransactionRequest = registry.register('UpdateTransactionRequest', UpdateTransactionSchema);
 const BulkDeleteTransactionRequest = registry.register('BulkDeleteTransactionRequest', BulkDeleteTransactionSchema);
+const BulkUpdateTransactionRequest = registry.register('BulkUpdateTransactionRequest', BulkUpdateTransactionSchema);
 
 // GET /api/v1/transactions
 registry.registerPath({
@@ -210,6 +233,42 @@ registry.registerPath({
           schema: z.object({
             success: z.boolean(),
             data: z.object({ deletedCount: z.number() }),
+            meta: z.object({ message: z.string() })
+          })
+        }
+      }
+    }
+  }
+});
+
+// PATCH /api/v1/transactions/bulk
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/transactions/bulk',
+  description: 'Bulk update transaction fields (category, labels, description, payee, payment method, payment status) by IDs or filter criteria. Transfer and debt transactions are skipped, as are transactions whose type does not match the selected category type.',
+  summary: 'Bulk Update Transactions',
+  tags: ['Transactions'],
+  request: {
+    body: {
+      content: {
+        'application/json': { schema: BulkUpdateTransactionRequest }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: 'Transactions updated successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.boolean(),
+            data: z.object({
+              updatedCount: z.number(),
+              skipped: z.object({
+                transferOrDebt: z.number(),
+                categoryTypeMismatch: z.number()
+              })
+            }),
             meta: z.object({ message: z.string() })
           })
         }

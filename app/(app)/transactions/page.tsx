@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 
-import { transactionService, type Transaction } from '@/services/transactionService';
+import { transactionService, type Transaction, type TransactionFilters, type BulkUpdateTransactionsRequest } from '@/services/transactionService';
 import { FaFilter } from 'react-icons/fa';
 import { useFilterData } from '@/hooks/useFilterData';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
@@ -19,6 +19,7 @@ import PeriodRangeSelector from '@/components/period/PeriodRangeSelector';
 import { isTransferTransaction } from '@/utils/transferUtils';
 
 import { TransactionFilterSidebar } from './_components/TransactionFilterSidebar';
+import { BulkEditModal, type BulkEditValues } from './_components/BulkEditModal';
 import { useTransactionActions } from '@/hooks/useTransactionActions';
 import { logError } from '@/lib/logger';
 
@@ -66,6 +67,7 @@ function TransactionsContent() {
   }, [transactions, selectedTransactionIds, isGlobalSelectAll, netTotal]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
   // Saved filters
   const savedFiltersData = useSavedFilters({
     categories,
@@ -560,16 +562,47 @@ function TransactionsContent() {
 
 
   // Bulk action handlers
+
+  /** Current filter set, shared by every "all matching" bulk operation. */
+  const buildCurrentFilters = useCallback((): TransactionFilters => {
+    const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
+    const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
+
+    return {
+      ...(startDateTime && { start_date: startDateTime }),
+      ...(endDateTime && { end_date: endDateTime }),
+      ...(searchTerm && { search: searchTerm }),
+      ...(selectedCategories.length > 0 && categories.length > 0 && {
+        category_ids: categories.filter(cat => selectedCategories.includes(cat.name)).map(cat => cat.id).join(',')
+      }),
+      ...(selectedAccounts.length > 0 && apiAccounts.length > 0 && {
+        account_ids: apiAccounts.filter(acc => selectedAccounts.includes(acc.name)).map(acc => acc.id).join(',')
+      }),
+      ...(selectedLabelIds.length > 0 && { label_ids: selectedLabelIds.join(',') }),
+      ...(minAmount > 0 && { min_amount: minAmount }),
+      ...(maxAmount < Infinity && { max_amount: maxAmount }),
+      ...(transferOption && { transfer_option: transferOption }),
+      ...(debtOption && { debt_option: debtOption }),
+      ...(draftOption && { draft_option: draftOption })
+    };
+  }, [
+    dateRange,
+    searchTerm,
+    selectedCategories,
+    categories,
+    selectedAccounts,
+    apiAccounts,
+    selectedLabelIds,
+    minAmount,
+    maxAmount,
+    transferOption,
+    debtOption,
+    draftOption
+  ]);
+
   const handleBulkEdit = useCallback(() => {
-    Swal.fire({
-      icon: 'info',
-      title: 'Bulk Edit',
-      text: isGlobalSelectAll
-        ? `Bulk editing ALL ${totalRecords} matching transactions is not yet implemented.`
-        : `Bulk editing ${selectedTransactionIds.size} transaction(s) is not yet implemented.`,
-      confirmButtonColor: '#0d6efd',
-    });
-  }, [selectedTransactionIds.size, isGlobalSelectAll, totalRecords]);
+    setShowBulkEdit(true);
+  }, []);
 
   const handleBulkExport = useCallback(() => {
     Swal.fire({
@@ -602,27 +635,9 @@ function TransactionsContent() {
         let payload: import('@/services/transactionService').BulkDeleteTransactionsRequest = {};
 
         if (isGlobalSelectAll) {
-          const startDateTime = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toISOString() : undefined;
-          const endDateTime = dateRange.end ? new Date(dateRange.end + 'T23:59:59').toISOString() : undefined;
-
           payload = {
             allMatching: true,
-            filters: {
-              ...(startDateTime && { start_date: startDateTime }),
-              ...(endDateTime && { end_date: endDateTime }),
-              ...(searchTerm && { search: searchTerm }),
-              ...(selectedCategories.length > 0 && categories.length > 0 && {
-                category_ids: categories.filter(cat => selectedCategories.includes(cat.name)).map(cat => cat.id).join(',')
-              }),
-              ...(selectedAccounts.length > 0 && apiAccounts.length > 0 && {
-                account_ids: apiAccounts.filter(acc => selectedAccounts.includes(acc.name)).map(acc => acc.id).join(',')
-              }),
-              ...(selectedLabelIds.length > 0 && { label_ids: selectedLabelIds.join(',') }),
-              ...(minAmount > 0 && { min_amount: minAmount }),
-              ...(maxAmount < Infinity && { max_amount: maxAmount }),
-              ...(transferOption && { transfer_option: transferOption }),
-              ...(debtOption && { debt_option: debtOption })
-            }
+            filters: buildCurrentFilters()
           };
         } else {
           payload = {
@@ -660,19 +675,52 @@ function TransactionsContent() {
     selectedTransactionIds,
     isGlobalSelectAll,
     totalRecords,
-    dateRange,
-    searchTerm,
-    selectedCategories,
-    categories,
-    selectedAccounts,
-    apiAccounts,
-    selectedLabelIds,
-    minAmount,
-    maxAmount,
-    transferOption,
-    debtOption,
+    buildCurrentFilters,
     fetchTransactions
   ]);
+
+  const handleBulkEditSubmit = useCallback(async (values: BulkEditValues) => {
+    const payload: BulkUpdateTransactionsRequest = isGlobalSelectAll
+      ? { allMatching: true, filters: buildCurrentFilters(), data: values }
+      : { allMatching: false, ids: Array.from(selectedTransactionIds), data: values };
+
+    try {
+      const res = await transactionService.bulkUpdateTransactions(payload);
+      setShowBulkEdit(false);
+
+      const reasons: string[] = [];
+      if (res.skipped.transferOrDebt > 0) {
+        reasons.push(`${res.skipped.transferOrDebt} transfer/debt`);
+      }
+      if (res.skipped.categoryTypeMismatch > 0) {
+        reasons.push(`${res.skipped.categoryTypeMismatch} with a mismatched category type`);
+      }
+
+      await Swal.fire({
+        icon: reasons.length > 0 ? 'warning' : 'success',
+        title: 'Updated',
+        text: reasons.length > 0
+          ? `Updated ${res.updatedCount} transaction(s). Skipped ${reasons.join(' and ')}.`
+          : `Successfully updated ${res.updatedCount} transaction(s)`,
+        ...(reasons.length === 0 && { timer: 2000, showConfirmButton: false })
+      });
+
+      setSelectedTransactionIds(new Set());
+      setIsGlobalSelectAll(false);
+      fetchTransactions(1);
+    } catch (error) {
+      logError('Failed to bulk edit:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: 'Failed to update transactions',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#dc3545'
+      });
+      // Rethrow so the modal stays open with the user's input intact
+      throw error;
+    }
+  }, [isGlobalSelectAll, selectedTransactionIds, buildCurrentFilters, fetchTransactions]);
 
 
   const formatNetTotal = useCallback((net: number) => {
@@ -788,7 +836,13 @@ function TransactionsContent() {
         </Col>
       </Row>
 
-
+      <BulkEditModal
+        show={showBulkEdit}
+        onHide={() => setShowBulkEdit(false)}
+        targetCount={isGlobalSelectAll ? totalRecords : selectedTransactionIds.size}
+        isGlobalSelectAll={isGlobalSelectAll}
+        onSubmit={handleBulkEditSubmit}
+      />
     </Container>
   );
 }

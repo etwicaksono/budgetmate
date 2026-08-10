@@ -7,10 +7,8 @@ import { TransactionTypeToggle } from './TransactionTypeToggle';
 import { AmountInput } from './AmountInput';
 import { LabelMultiSelect } from './LabelMultiSelect';
 import { ClearButton } from '@/components/common/ClearButton';
+import { PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS } from '@/utils/constants';
 import type { Account } from '@/services/accountService';
-
-const PAYMENT_METHODS = ['Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Digital Wallet'];
-const PAYMENT_STATUSES = ['Cleared', 'Pending', 'Scheduled'];
 
 export interface TransactionFormProps {
   formData: import('@/hooks/useTransactionForm').TransactionFormData;
@@ -255,7 +253,7 @@ export function TransactionForm({
               value={formData.payment_status}
               onChange={(e) => updateField('payment_status', e.target.value)}
             >
-              {PAYMENT_STATUSES.map((status) => (
+              {PAYMENT_STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
                   {status}
                 </option>
@@ -341,7 +339,7 @@ export function TransactionForm({
               value={formData.payment_method}
               onChange={(e) => updateField('payment_method', e.target.value)}
             >
-              {PAYMENT_METHODS.map((method) => (
+              {PAYMENT_METHOD_OPTIONS.map((method) => (
                 <option key={method} value={method}>
                   {method}
                 </option>

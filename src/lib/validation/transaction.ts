@@ -38,6 +38,52 @@ export const UpdateTransactionSchema = z.object({
 
 export type UpdateTransactionInput = z.infer<typeof UpdateTransactionSchema>;
 
+// Bulk update transaction schema
+// Only the fields present in `data` are applied; empty strings are rejected so that
+// "leave unchanged" is always expressed by omitting the key rather than sending "".
+export const BulkUpdateTransactionsSchema = z
+  .object({
+    allMatching: z.boolean().optional().default(false),
+    ids: z
+      .array(z.string().regex(cuidRegex, 'Invalid transaction ID'))
+      .max(1000, 'Cannot update more than 1000 transactions by ID')
+      .optional(),
+    filters: z.record(z.unknown()).optional(),
+    data: z.object({
+      description: z.string().trim().min(1, 'Description cannot be empty').optional(),
+      payee: z.string().trim().min(1, 'Payee cannot be empty').max(255).optional(),
+      payment_method: z.string().trim().min(1, 'Payment method cannot be empty').max(50).optional(),
+      payment_status: z.string().trim().min(1, 'Payment status cannot be empty').max(32).optional(),
+      category_id: z.string().regex(cuidRegex, 'Invalid category ID').optional(),
+      label_ids: z.array(z.string().regex(cuidRegex, 'Invalid label ID')).optional(),
+      // 'replace' swaps the whole label set (an empty list clears it); 'append' only adds
+      label_mode: z.enum(['replace', 'append']).default('append')
+    })
+  })
+  .superRefine((val, ctx) => {
+    if (!val.allMatching && (!val.ids || val.ids.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ids'],
+        message: 'Must provide ids or set allMatching to true'
+      });
+    }
+
+    // `label_mode` is excluded on purpose: it carries a default, so counting it here
+    // would make an otherwise empty `data` object look like a real change.
+    const { label_mode: _labelMode, ...mutations } = val.data;
+    const providedFields = Object.values(mutations).filter(value => value !== undefined);
+    if (providedFields.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['data'],
+        message: 'At least one field must be provided'
+      });
+    }
+  });
+
+export type BulkUpdateTransactionsInput = z.infer<typeof BulkUpdateTransactionsSchema>;
+
 // Transaction filter schema
 export const TransactionFilterSchema = z.object({
   page: z.coerce.number().min(1).default(1),

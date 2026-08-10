@@ -75,6 +75,7 @@ export interface TransactionFilters {
   category_ids?: string;
   transfer_option?: string;
   debt_option?: string;
+  draft_option?: string;
   sort_by?: 'date' | 'amount';
   sort_order?: 'asc' | 'desc';
 }
@@ -98,6 +99,36 @@ export interface BulkDeleteTransactionsRequest {
   allMatching?: boolean;
   ids?: string[];
   filters?: TransactionFilters;
+}
+
+/** Fields applied to every selected transaction; omitted keys are left unchanged. */
+export interface BulkUpdateTransactionsData {
+  description?: string;
+  payee?: string;
+  payment_method?: string;
+  payment_status?: string;
+  category_id?: string;
+  label_ids?: string[];
+  /** 'replace' swaps the whole label set, 'append' only adds. Defaults to append. */
+  label_mode?: 'replace' | 'append';
+}
+
+export interface BulkUpdateTransactionsRequest {
+  allMatching?: boolean;
+  ids?: string[];
+  filters?: TransactionFilters;
+  data: BulkUpdateTransactionsData;
+}
+
+/** Why some selected transactions were not updated. */
+export interface BulkUpdateSkipBreakdown {
+  transferOrDebt: number;
+  categoryTypeMismatch: number;
+}
+
+export interface BulkUpdateTransactionsResult {
+  updatedCount: number;
+  skipped: BulkUpdateSkipBreakdown;
 }
 
 export interface TransactionSummary {
@@ -162,6 +193,16 @@ class TransactionService {
     const response = await api.delete<{ success: boolean; data: { deletedCount: number } }>(
       '/transactions/bulk',
       { data: payload }
+    );
+    return response.data;
+  }
+
+  async bulkUpdateTransactions(
+    payload: BulkUpdateTransactionsRequest
+  ): Promise<BulkUpdateTransactionsResult> {
+    const response = await api.patch<{ success: boolean; data: BulkUpdateTransactionsResult }>(
+      '/transactions/bulk',
+      payload
     );
     return response.data;
   }

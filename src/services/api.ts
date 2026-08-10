@@ -181,6 +181,10 @@ export const api = {
     return apiClient.put(url, data, config).then(response => response.data);
   },
 
+  patch: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
+    return apiClient.patch(url, data, config).then(response => response.data);
+  },
+
   delete: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> => {
     return apiClient.delete(url, config).then(response => response.data);
   },
