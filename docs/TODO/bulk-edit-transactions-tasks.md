@@ -731,6 +731,9 @@ Verifikasi DB (Prisma Studio / query langsung):
 # Fase 2 — Bulk Delete: Hard Delete → Soft Delete
 
 > **GATE**: Task T12-T15 hanya boleh dimulai setelah **seluruh DoD T1-T11 tercentang** dan bulk edit sudah dipakai normal minimal beberapa hari tanpa laporan bug. Alasannya: T12 mengubah `bulk/route.ts` yang sama dengan T3/T4, jadi mengerjakannya bersamaan akan mencampur dua perubahan berisiko dalam satu diff.
+>
+> **Status gate: LEWAT.** Fase 1 sudah di-squash ke `main` sebagai `f13689b` setelah seluruh skenario
+> manual dijalankan dan dinyatakan aman. Fase 2 dikerjakan di branch `soft-delete-transactions`.
 
 ## Konteks Masalah
 
@@ -773,40 +776,45 @@ Untuk jalur `ids`, tambahkan `deleted_at: null` juga supaya baris yang sudah ter
 
 ### T12b — Tangani leg transfer berpasangan
 
-Selaraskan dengan `[id]/route.ts:357-382`. Sebelum melakukan soft delete, kumpulkan `transfer_id` dari baris target lalu perluas cakupannya:
+**Diimplementasikan berbeda dari rencana awal.** Rencana semula memuat seluruh ID target lewat
+`findMany`, mengumpulkan `transfer_id`-nya, lalu memakai `id: { in: [...] }`. Pendekatan itu ditinggalkan
+karena pada `allMatching` dengan puluhan ribu baris ia memuat semua ID ke memori, dan ada jeda antara
+pembacaan dan penulisan sehingga baris yang berubah di antaranya bisa terlewat.
+
+Sebagai gantinya, pasangan transfer dinyatakan sebagai **relation filter**, sehingga tidak ada ID yang
+perlu dimaterialisasi dan seluruh delete tetap satu statement atomik:
 
 ```ts
-const targets = await prisma.transaction.findMany({
-  where: baseWhere,
-  select: { id: true, transfer_id: true },
-});
+// src/lib/api/transactionSoftDelete.ts
+export function buildSoftDeleteWhere(
+  userId: string,
+  baseWhere: Prisma.TransactionWhereInput
+): Prisma.TransactionWhereInput {
+  return {
+    user_id: userId,
+    deleted_at: null,
+    OR: [baseWhere, { transfer: { transactions: { some: baseWhere } } }]
+  };
+}
+```
 
-const transferIds = [...new Set(
-  targets.map(t => t.transfer_id).filter((v): v is string => v !== null)
-)];
+Urutan di dalam `$transaction` **penting**: record `Transfer` distempel lebih dulu, karena setelah
+leg-nya ter-soft-delete `baseWhere` (yang mensyaratkan `deleted_at: null`) tidak lagi cocok dengan apa
+pun sehingga transfer terdampak tidak bisa ditemukan.
 
-await prisma.$transaction(async (tx) => {
-  // Soft delete baris yang dipilih + seluruh leg pasangannya
-  const result = await tx.transaction.updateMany({
-    where: {
-      user_id: userId,
-      deleted_at: null,
-      OR: [
-        { id: { in: targets.map(t => t.id) } },
-        ...(transferIds.length > 0 ? [{ transfer_id: { in: transferIds } }] : []),
-      ],
-    },
-    data: softDeleteData,
+```ts
+const deletedCount = await prisma.$transaction(async tx => {
+  await tx.transfer.updateMany({
+    where: buildAffectedTransferWhere(userId, baseWhere),
+    data: { updated_at: now, updated_by: userId }
   });
-  deletedCount = result.count;
 
-  // Stempel audit pada record Transfer (model Transfer tidak punya deleted_at)
-  if (transferIds.length > 0) {
-    await tx.transfer.updateMany({
-      where: { id: { in: transferIds }, user_id: userId },
-      data: { updated_at: new Date(), updated_by: userId },
-    });
-  }
+  const result = await tx.transaction.updateMany({
+    where: buildSoftDeleteWhere(userId, baseWhere),
+    data: buildSoftDeleteStamp(userId, now)
+  });
+
+  return result.count;
 });
 ```
 
@@ -816,11 +824,14 @@ await prisma.$transaction(async (tx) => {
 
 ### T12c — Chunking untuk dataset besar
 
-`updateMany` dengan `id: { in: [...] }` berisi puluhan ribu ID akan membebani query planner. Terapkan chunk 1000 seperti pola T4, dan akumulasikan `deletedCount`.
+**Tidak diperlukan.** Chunking hanya dibutuhkan kalau ID dimaterialisasi jadi `id: { in: [...] }`.
+Karena T12b memakai relation filter, seluruh operasi adalah satu `UPDATE ... WHERE` yang dievaluasi
+di database, jadi tidak ada daftar ID yang membebani query planner. Batas `MAX_LABEL_UPDATE_ROWS`
+pada PATCH tetap relevan karena di sana tabel join memang harus ditulis per baris.
 
 **DoD T12**
 
-- [ ] Tidak ada lagi `deleteMany` pada model `Transaction` di file ini.
+- [x] Tidak ada lagi `deleteMany` pada model `Transaction` di file ini.
 - [ ] Bulk delete by `ids` → baris ber-`deleted_at` terisi, **masih ada** di tabel DB.
 - [ ] Bulk delete `allMatching` → sama, dan hanya menyentuh baris `deleted_at: null`.
 - [ ] Menghapus 1 leg transfer lewat bulk → **kedua** leg ter-soft-delete; saldo kedua akun tetap seimbang.
@@ -829,7 +840,8 @@ await prisma.$transaction(async (tx) => {
 - [ ] Menjalankan bulk delete dua kali pada ID yang sama → request kedua mengembalikan `deletedCount: 0`, tidak error.
 - [ ] `deletedCount` menghitung leg pasangan transfer yang ikut terhapus.
 - [ ] Baris ter-soft-delete tidak muncul di `GET /transactions`, tidak masuk perhitungan `balanceService`, dan tidak muncul di analytics.
-- [ ] Response shape `{ deletedCount }` tidak berubah (backward compatible).
+- [x] Response shape `{ deletedCount }` tidak berubah (backward compatible).
+- [x] Logika `where` diekstrak ke `src/lib/api/transactionSoftDelete.ts` dan ditutup unit test (10 test).
 
 ---
 
@@ -841,31 +853,60 @@ Sebelum T12, hard delete menyembunyikan bug filter yang mungkin ada. Setelah T12
 
 Endpoint/service yang harus dicek satu per satu (query pada model `Transaction`):
 
-| Lokasi | Status saat ini |
+| Lokasi | Status hasil audit |
 |---|---|
 | `app/api/v1/transactions/route.ts:50` | sudah filter |
 | `app/api/v1/transactions/[id]/route.ts` (36, 157, 172, 348) | sudah filter |
-| `src/services/balanceService.ts` (33, 72, 110, 150) | sudah filter |
+| `src/services/balanceService.ts` (33, 72, 110, 150) | sudah filter (raw SQL, `AND t.deleted_at IS NULL`) |
 | `app/api/v1/analytics/trends/route.ts` (71, 91) | sudah filter |
 | `app/api/v1/analytics/expenses-by-category/route.ts:42` | sudah filter |
-| `app/api/v1/analytics/cashflow/route.ts:80` | sudah filter |
+| `app/api/v1/analytics/cashflow/route.ts` (110, 123, 136) | sudah filter (via spread `baseWhereClause`, hanya `date` yang ditimpa) |
 | `app/api/v1/analytics/income-vs-expenses/route.ts:33` | sudah filter |
 | `app/api/v1/analytics/income-expense-report/route.ts:149` | sudah filter |
-| `app/api/v1/analytics/advanced-charts/route.ts` | **perlu dicek** |
-| `app/api/v1/analytics/balance-trend/route.ts` | **perlu dicek** |
+| `app/api/v1/analytics/advanced-charts/route.ts` (161, 272) | sudah filter |
+| `app/api/v1/analytics/balance-trend/route.ts` (115) | sudah filter |
+| `app/api/v1/budgets/route.ts` (72, 84) | sudah filter |
 | `app/api/v1/budgets/status/route.ts:79` | sudah filter |
-| `app/api/v1/debts/**` | **perlu dicek** |
-| `app/api/v1/transfers/**` (129, 137, 153) | sudah filter, cek yang lain |
+| `app/api/v1/accounts/[id]/route.ts` (63, 70, 239) | sudah filter |
+| `app/api/v1/categories/[id]/route.ts` (59, 304) | sudah filter |
+| `app/api/v1/categories/tree/route.ts:64` | sudah filter |
 | `src/lib/ai/tools.ts` (129, 169) | sudah filter |
-| `app/api/v1/backup/export/route.ts` (51, 75) | sudah filter — artinya baris ter-soft-delete **tidak** ikut ter-backup; putuskan apakah ini yang diinginkan |
+| `app/api/v1/debts/route.ts:53` | **DIPERBAIKI** — nested include tanpa filter, menggelembungkan `initialAmount`/`totalRepaid` |
+| `app/api/v1/debts/[id]/route.ts:33` | **DIPERBAIKI** — nested include tanpa filter pada GET detail |
+| `app/api/v1/debts/[id]/route.ts:159` | **DIPERBAIKI** — `updateMany` bisa menyentuh baris ter-soft-delete |
+| `app/api/v1/debts/[id]/repayments/route.ts:46` | **DIPERBAIKI** — `totalRepaid` terlalu besar → repayment sah ditolak sebagai overpayment |
+| `app/api/v1/debts/[id]/increase/[transactionId]/route.ts` (56, 140) | **DIPERBAIKI** — lookup menemukan baris terhapus, lalu diedit/dihapus lagi |
+| `app/api/v1/transfers/route.ts:70` | **DIPERBAIKI** — leg terhapus muncul di payload list |
+| `app/api/v1/transfers/[id]/route.ts:54` | **DIPERBAIKI** — leg terhapus muncul di payload detail |
+| `app/api/v1/transfers/[id]/route.ts:128` | **DIPERBAIKI** — paling berbahaya: hasilnya jadi target tulis PUT (204, 218), leg terhapus bisa ditimpa diam-diam |
+| `app/api/v1/backup/export/route.ts:75` | sudah filter (transaksi) |
+| `app/api/v1/backup/export/route.ts:91` | **DIPERBAIKI** — `transactionLabel` ikut mengekspor milik transaksi terhapus |
+
+**Hard delete yang masih ada (di luar scope task ini, sengaja tidak diubah):**
+
+- `app/api/v1/debts/[id]/route.ts:213` — `deleteMany` seluruh transaksi debt sebelum `debt.delete`.
+- `app/api/v1/transfers/[id]/route.ts:303` — `deleteMany` kedua leg sebelum `transfer.delete`.
+- `app/api/v1/debts/[id]/increase/[transactionId]/route.ts:153` — `delete` satu baris.
+
+Ketiganya adalah cascade yang disengaja saat entitas induk benar-benar dihapus, bukan penghapusan
+transaksi biasa. Menyeragamkannya butuh keputusan tersendiri (apakah menghapus Debt/Transfer berarti
+soft delete juga) dan menyentuh alur di luar bulk delete, jadi dicatat sebagai follow-up.
+
+**Keputusan backup export**: baris ter-soft-delete **tidak** ikut diekspor. Alasannya backup ditujukan
+untuk memulihkan keadaan yang terlihat user, bukan riwayat internal; `deleted_at` juga tidak punya arti
+setelah di-restore ke database baru karena semua ID di-remap. Konsekuensinya `transactionLabel` milik
+transaksi terhapus juga harus dikecualikan — sebelum ini ikut terekspor, padahal import membuangnya
+lewat guard `if (newTransactionId && newLabelId)`, sehingga hanya menggelembungkan `recordCounts` dan
+ukuran file tanpa pernah bisa dipulihkan.
 
 **DoD T13**
 
-- [ ] Setiap query `prisma.transaction.*` dan raw SQL pada tabel `"Transaction"` di seluruh `app/api` dan `src` sudah diverifikasi punya filter `deleted_at IS NULL`, atau punya komentar eksplisit kenapa tidak perlu.
-- [ ] Daftar di atas diperbarui dengan hasil pengecekan aktual (bukan asumsi).
-- [ ] Setiap temuan yang belum memfilter diperbaiki di task ini juga.
-- [ ] Keputusan soal backup export (ikut menyertakan baris ter-soft-delete atau tidak) dicatat sebagai keputusan sadar di dokumen ini.
+- [x] Setiap query `prisma.transaction.*` dan raw SQL pada tabel `"Transaction"` di seluruh `app/api` dan `src` sudah diverifikasi punya filter `deleted_at IS NULL`, atau punya komentar eksplisit kenapa tidak perlu.
+- [x] Daftar di atas diperbarui dengan hasil pengecekan aktual (bukan asumsi).
+- [x] Setiap temuan yang belum memfilter diperbaiki di task ini juga (8 lokasi di debts & transfers + 1 di backup export).
+- [x] Keputusan soal backup export dicatat sebagai keputusan sadar di dokumen ini.
 - [ ] Uji manual: soft-delete 10 transaksi, lalu cek Dashboard, Analytics (semua tab), Budgets, Net Worth, dan Debts — tidak ada angka yang berubah dibanding sebelum penghapusan selain yang memang seharusnya berkurang.
+- [ ] Uji manual tambahan: hapus salah satu transaksi ledger sebuah debt, lalu buka daftar debt dan coba catat repayment — nominal debt dan sisa tagihan tidak boleh menghitung baris terhapus.
 
 ---
 

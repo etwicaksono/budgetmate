@@ -31,6 +31,8 @@ export async function GET(
                select: { name: true, icon: true, color: true },
             },
             transactions: {
+               // Deleted ledger rows must not count toward the debt amount or repayments
+               where: { deleted_at: null },
                orderBy: { created_at: 'asc' },
                include: {
                   account: { select: { name: true, icon: true, color: true } }
@@ -157,7 +159,7 @@ export async function PUT(
                : TransactionType.debt_in;
 
          await tx.transaction.updateMany({
-            where: { debt_id: debtId, type: initialTxType },
+            where: { debt_id: debtId, type: initialTxType, deleted_at: null },
             data: {
                updated_by: authResult.user.user_id,
                ...(data.date && { date: new Date(data.date) }),

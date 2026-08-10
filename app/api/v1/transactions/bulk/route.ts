@@ -5,6 +5,11 @@ import { requireAuth } from "@/lib/auth/middleware";
 import { errorResponse, successResponse } from "@/lib/api/response";
 import { buildTransactionWhere, InvalidFilterError } from "@/lib/api/transactionFilters";
 import { buildBulkUpdateSkipSummary } from "@/lib/api/bulkUpdateSummary";
+import {
+  buildAffectedTransferWhere,
+  buildSoftDeleteStamp,
+  buildSoftDeleteWhere
+} from "@/lib/api/transactionSoftDelete";
 import { BulkUpdateTransactionsSchema } from "@/lib/validation/transaction";
 import { logError } from '@/lib/logger';
 
@@ -49,6 +54,14 @@ function chunk<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
+/**
+ * Soft deletes many transactions at once.
+ *
+ * Rows are stamped with `deleted_at` rather than removed, matching
+ * `DELETE /transactions/[id]`. Deleting one leg of a transfer also takes its
+ * paired leg, otherwise the two accounts would be left permanently unbalanced.
+ * Already-deleted rows are ignored, so repeating a request is a no-op.
+ */
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
   try {
     const authResult = await requireAuth(req);
@@ -65,28 +78,33 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
       return errorResponse("BAD_REQUEST", "Must provide array of ids or specify allMatching = true", 400);
     }
 
-    let deletedCount = 0;
+    // The rows the user actually selected. `deleted_at: null` keeps the operation
+    // idempotent: a second identical request reports 0 instead of re-stamping.
+    const baseWhere: Prisma.TransactionWhereInput = allMatching
+      ? // Shares the filter semantics of GET /transactions so "select all matching"
+        // deletes exactly the rows the user is looking at.
+        await buildTransactionWhere(userId, filters, { resolveCategoryChildren })
+      : { id: { in: ids }, user_id: userId, deleted_at: null };
 
-    if (allMatching) {
-      // Shares the filter semantics of GET /transactions so "select all matching"
-      // deletes exactly the rows the user is looking at.
-      const whereClause = await buildTransactionWhere(userId, filters, {
-        resolveCategoryChildren
+    // Selected rows plus every remaining leg of any transfer they belong to
+    const softDeleteWhere = buildSoftDeleteWhere(userId, baseWhere);
+
+    const now = new Date();
+    const deletedCount = await prisma.$transaction(async tx => {
+      // Stamped first: once the legs are soft deleted, `baseWhere` no longer
+      // matches anything and the affected transfers could not be found.
+      await tx.transfer.updateMany({
+        where: buildAffectedTransferWhere(userId, baseWhere),
+        data: { updated_at: now, updated_by: userId }
       });
 
-      const result = await prisma.transaction.deleteMany({ where: whereClause });
-      deletedCount = result.count;
-
-    } else {
-      // Execute bulk delete for explicit IDs
-      const result = await prisma.transaction.deleteMany({
-        where: {
-          id: { in: ids },
-          user_id: userId // Ensure user validation!
-        }
+      const result = await tx.transaction.updateMany({
+        where: softDeleteWhere,
+        data: buildSoftDeleteStamp(userId, now)
       });
-      deletedCount = result.count;
-    }
+
+      return result.count;
+    });
 
     return successResponse({ deletedCount }, { message: `Successfully deleted ${deletedCount} transaction(s)` }, 200);
 

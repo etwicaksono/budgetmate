@@ -221,11 +221,11 @@ function TransactionsContent() {
             filters['sort_order'] = 'asc';
             break;
           case 'absAmountDesc':
-            filters['sort_by'] = 'amount';
+            filters['sort_by'] = 'abs_amount';
             filters['sort_order'] = 'desc';
             break;
           case 'absAmountAsc':
-            filters['sort_by'] = 'amount';
+            filters['sort_by'] = 'abs_amount';
             filters['sort_order'] = 'asc';
             break;
         }
@@ -616,12 +616,22 @@ function TransactionsContent() {
   }, [selectedTransactionIds.size, isGlobalSelectAll, totalRecords]);
 
   const handleBulkDelete = useCallback(async () => {
+    // Deleting one leg of a transfer also removes its pair, so the count the user
+    // sees confirmed can be lower than the number of rows actually deleted.
+    const selectionTouchesTransfer = isGlobalSelectAll
+      ? transactions.some(t => !!t.transfer_id)
+      : transactions.some(t => selectedTransactionIds.has(t.id) && !!t.transfer_id);
+
+    const transferNote = selectionTouchesTransfer
+      ? ' Deleting a transfer also removes its paired transaction.'
+      : '';
+
     const result = await Swal.fire({
       icon: 'warning',
       title: isGlobalSelectAll ? 'Delete ALL Matching Records' : 'Bulk Delete',
       text: isGlobalSelectAll
-        ? `Are you sure you want to permanently delete ALL ${totalRecords} transactions matching your current filters? This cannot be undone.`
-        : `Are you sure you want to delete ${selectedTransactionIds.size} transaction(s)?`,
+        ? `Are you sure you want to delete ALL ${totalRecords} transactions matching your current filters?${transferNote}`
+        : `Are you sure you want to delete ${selectedTransactionIds.size} transaction(s)?${transferNote}`,
       showCancelButton: true,
       confirmButtonText: 'Yes, delete',
       cancelButtonText: 'Cancel',
@@ -675,6 +685,7 @@ function TransactionsContent() {
     selectedTransactionIds,
     isGlobalSelectAll,
     totalRecords,
+    transactions,
     buildCurrentFilters,
     fetchTransactions
   ]);

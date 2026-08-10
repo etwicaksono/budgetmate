@@ -100,7 +100,9 @@ export const TransactionFilterSchema = z.object({
   keyword: z.string().trim().min(2, 'Search term must be at least 2 characters').optional(),
   search: z.string().trim().min(2, 'Search term must be at least 2 characters').optional(), // alias for keyword
   label_ids: z.string().optional(), // comma-separated
-  sort_by: z.enum(['date', 'amount', 'created_at']).default('date'),
+  // 'amount' sorts by signed value (largest expense first); 'abs_amount' sorts by
+  // magnitude so an expense and an income of the same size rank together
+  sort_by: z.enum(['date', 'amount', 'created_at', 'abs_amount']).default('date'),
   sort_order: z.enum(['asc', 'desc']).default('desc'),
   transfer_option: z.enum(['include', 'only', 'exclude']).optional(),
   debt_option: z.enum(['include', 'only', 'exclude']).optional(),

@@ -76,7 +76,7 @@ export interface TransactionFilters {
   transfer_option?: string;
   debt_option?: string;
   draft_option?: string;
-  sort_by?: 'date' | 'amount';
+  sort_by?: 'date' | 'amount' | 'created_at' | 'abs_amount';
   sort_order?: 'asc' | 'desc';
 }
 

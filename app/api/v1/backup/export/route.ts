@@ -93,6 +93,10 @@ export async function GET(request: NextRequest) {
             where: {
               transaction: {
                 user_id: userId,
+                // Deleted transactions are not exported, so their label links would
+                // be orphans that import silently drops while still inflating
+                // recordCounts and the file size
+                deleted_at: null,
               },
             },
           }),

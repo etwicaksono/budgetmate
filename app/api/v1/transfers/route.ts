@@ -67,7 +67,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const transformedTransfers = await Promise.all(transfers.map(async transfer => {
       const from_account_rel = await prisma.account.findUnique({ where: { id: transfer.from_account }, select: { id: true, name: true, icon: true, color: true } });
       const to_account_rel = await prisma.account.findUnique({ where: { id: transfer.to_account }, select: { id: true, name: true, icon: true, color: true } });
-      const transactions_rel = await prisma.transaction.findMany({ where: { transfer_id: transfer.id }, select: { id: true, type: true, account_id: true } });
+      const transactions_rel = await prisma.transaction.findMany({ where: { transfer_id: transfer.id, deleted_at: null }, select: { id: true, type: true, account_id: true } });
 
       return {
         id: transfer.id,

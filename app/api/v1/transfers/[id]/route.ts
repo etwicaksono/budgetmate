@@ -52,7 +52,7 @@ export async function GET(request: NextRequest, context: RouteParams): Promise<N
     });
 
     const transactions_rel = await prisma.transaction.findMany({
-      where: { transfer_id: transfer.id },
+      where: { transfer_id: transfer.id, deleted_at: null },
       select: { id: true, type: true, amount: true, account_id: true, created_at: true },
       orderBy: { type: 'desc' }
     });
@@ -125,7 +125,10 @@ export async function PUT(request: NextRequest, context: RouteParams): Promise<N
         user_id: user.user_id
       }
     });
-    const transferTransactions = await prisma.transaction.findMany({ where: { transfer_id: id } });
+    // Must exclude deleted legs: the source/dest rows picked out of this list are
+    // the ones PUT writes to, so a deleted leg here would be silently rewritten
+    // while the live leg kept its old amount.
+    const transferTransactions = await prisma.transaction.findMany({ where: { transfer_id: id, deleted_at: null } });
     const existingTransfer = existingTransferRaw ? { ...existingTransferRaw, transactions: transferTransactions } : null;
 
     if (!existingTransfer) {

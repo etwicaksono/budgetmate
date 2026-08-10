@@ -58,6 +58,7 @@ export async function PUT(
             id: transactionId,
             debt_id: debtId,
             user_id: user.user_id,
+            deleted_at: null,
          },
       });
 
@@ -142,6 +143,7 @@ export async function DELETE(
             id: transactionId,
             debt_id: debtId,
             user_id: user.user_id,
+            deleted_at: null,
          },
       });
 

@@ -51,6 +51,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
          select: { name: true, icon: true, color: true }
       },
       transactions: {
+         // Deleted ledger rows must not count toward the debt amount or repayments
+         where: { deleted_at: null },
          orderBy: { created_at: 'asc' },
          include: {
             account: { select: { name: true, icon: true, color: true } }

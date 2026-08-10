@@ -43,7 +43,9 @@ export async function POST(
             status: 'active',
          },
          include: {
-            transactions: { orderBy: { created_at: 'asc' } }
+            // Deleted rows must not inflate totalRepaid, which would wrongly
+            // reject a legitimate repayment as an overpayment
+            transactions: { where: { deleted_at: null }, orderBy: { created_at: 'asc' } }
          }
       });
 

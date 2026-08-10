@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse, paginationMeta } from '@/lib/api/response';
 import { logError } from '@/lib/logger';
+import { orderRowsByIds, selectAbsAmountPageIds } from '@/lib/api/transactionSort';
 import {
   CreateTransactionSchema,
   TransactionFilterSchema
@@ -173,10 +174,41 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
 
+    // Prisma cannot order by abs(amount), so magnitude ordering is resolved here:
+    // fetch the matching ids with their amounts, rank them, then load just that page.
+    // Ranking has to happen over the whole result set — sorting an already-paginated
+    // page would only shuffle rows within it and break paging.
+    let absAmountPageIds: string[] | null = null;
+    if (filters.sort_by === 'abs_amount') {
+      const amountRows = await prisma.transaction.findMany({
+        where,
+        select: { id: true, amount: true }
+      });
+
+      absAmountPageIds = selectAbsAmountPageIds(
+        amountRows.map(row => ({ id: row.id, amount: row.amount.toNumber() })),
+        filters.sort_order,
+        filters.page,
+        filters.limit
+      );
+    }
+
+    const pageQuery: Prisma.TransactionFindManyArgs =
+      absAmountPageIds === null
+        ? {
+            where,
+            orderBy: { [filters.sort_by]: filters.sort_order },
+            skip: (filters.page - 1) * filters.limit,
+            take: filters.limit
+          }
+        : // Already paginated above; `in` returns rows in arbitrary order, so the
+          // ranking is reapplied after the fetch.
+          { where: { id: { in: absAmountPageIds } } };
+
     // Execute all queries in parallel — single groupBy on type covers aggregation needs.
     const [transactions, total, typeGrouped] = await Promise.all([
       prisma.transaction.findMany({
-        where,
+        ...pageQuery,
         include: {
           category: {
             select: {
@@ -215,10 +247,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               description: true
             }
           }
-        },
-        orderBy: { [filters.sort_by]: filters.sort_order },
-        skip: (filters.page - 1) * filters.limit,
-        take: filters.limit
+        }
       }),
       prisma.transaction.count({ where }),
       prisma.transaction.groupBy({
@@ -227,6 +256,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         _sum: { amount: true }
       })
     ]);
+
+    const orderedTransactions =
+      absAmountPageIds === null ? transactions : orderRowsByIds(transactions, absAmountPageIds);
 
     // Aggregate income/expense in IDR.
     // Transfers and debts are excluded from net intentionally — they net to zero across accounts.
@@ -248,7 +280,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 
     // Transform response
-    const transformedTransactions = transactions.map(tx => {
+    const transformedTransactions = orderedTransactions.map(tx => {
       const baseTransaction = {
         id: tx.id,
         date: tx.date,

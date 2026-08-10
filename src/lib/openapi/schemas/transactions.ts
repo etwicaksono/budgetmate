@@ -86,7 +86,7 @@ registry.registerPath({
     { name: 'start_date', in: 'query', schema: { type: 'string', format: 'date-time' }, required: false },
     { name: 'end_date', in: 'query', schema: { type: 'string', format: 'date-time' }, required: false },
     { name: 'keyword', in: 'query', schema: { type: 'string' }, required: false },
-    { name: 'sort_by', in: 'query', schema: { type: 'string', default: 'date' }, required: false },
+    { name: 'sort_by', in: 'query', schema: { type: 'string', enum: ['date', 'amount', 'created_at', 'abs_amount'], default: 'date' }, required: false, description: "'amount' orders by signed value; 'abs_amount' orders by magnitude so an expense and an income of the same size rank together" },
     { name: 'sort_order', in: 'query', schema: { type: 'string', enum: ['asc', 'desc'], default: 'desc' }, required: false },
   ],
   responses: {
