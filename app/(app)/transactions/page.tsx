@@ -35,6 +35,8 @@ function TransactionsContent() {
     debouncedSearchTerm,
     selectedCategories,
     selectedAccounts,
+    selectedLabelIds,
+    setSelectedLabelIds,
     sortOption,
     transferOption,
     debtOption,
@@ -65,7 +67,6 @@ function TransactionsContent() {
 
     return netTotal;
   }, [transactions, selectedTransactionIds, isGlobalSelectAll, netTotal]);
-  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   // Saved filters
