@@ -81,6 +81,8 @@ function AnalyticsContent(): React.ReactElement {
     apiAccounts,
     selectedLabelIds,
     setSelectedLabelIds,
+    excludedLabelIds,
+    setExcludedLabelIds,
     numberOfColumns,
     setNumberOfColumns,
   } = filterData;
@@ -89,8 +91,8 @@ function AnalyticsContent(): React.ReactElement {
     categories,
     accounts: apiAccounts,
     context: 'analytics',
-    current: { selectedCategories, selectedAccounts, selectedLabelIds, sortOption, transferOption, debtOption, draftOption },
-    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedLabelIds, setSortOption, setTransferOption, setDebtOption, setDraftOption },
+    current: { selectedCategories, selectedAccounts, selectedLabelIds, excludedLabelIds, sortOption, transferOption, debtOption, draftOption },
+    dispatchers: { setSelectedCategories, setSelectedAccounts, setSelectedLabelIds, setExcludedLabelIds, setSortOption, setTransferOption, setDebtOption, setDraftOption },
   });
   const { savedFilters, activeFilterId } = savedFiltersData;
 
@@ -187,6 +189,7 @@ function AnalyticsContent(): React.ReactElement {
             debtOption={debtOption}
             draftOption={draftOption}
             selectedLabelIds={selectedLabelIds}
+            excludedLabelIds={excludedLabelIds}
             sortOption={sortOption}
             onSortOptionChange={setSortOption}
           />
@@ -208,6 +211,7 @@ function AnalyticsContent(): React.ReactElement {
             transferOption={transferOption}
             debtOption={debtOption}
             selectedLabelIds={selectedLabelIds}
+            excludedLabelIds={excludedLabelIds}
           />
         );
       }
@@ -227,6 +231,7 @@ function AnalyticsContent(): React.ReactElement {
             transferOption={transferOption}
             debtOption={debtOption}
             selectedLabelIds={selectedLabelIds}
+            excludedLabelIds={excludedLabelIds}
           />
         );
       }
@@ -245,6 +250,7 @@ function AnalyticsContent(): React.ReactElement {
             transferOption={transferOption}
             debtOption={debtOption}
             selectedLabelIds={selectedLabelIds}
+            excludedLabelIds={excludedLabelIds}
           />
         );
       }

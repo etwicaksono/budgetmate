@@ -18,6 +18,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const startDateStr = searchParams.get('start_date');
   const endDateStr = searchParams.get('end_date');
   const limit = parseInt(searchParams.get('limit') || '10', 10);
+  const accountIdsParam = searchParams.get('account_ids')?.split(',').filter(Boolean) ?? [];
+  const categoryIdsParam = searchParams.get('category_ids')?.split(',').filter(Boolean) ?? [];
   const draftsParam = searchParams.get('drafts') || 'exclude'; // 'include', 'exclude', 'only'
 
   try {
@@ -46,6 +48,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         category: {
           user_id: user.user_id,
         },
+        // Narrow the visible budgets to the requested categories
+        ...(categoryIdsParam.length > 0 && { category_id: { in: categoryIdsParam } }),
       },
       include: {
         category: {
@@ -79,6 +83,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         deleted_at: null,
         type: { in: ['income', 'expense'] },
         category_id: { in: categoryIds },
+        ...(accountIdsParam.length > 0 && { account_id: { in: accountIdsParam } }),
         ...draftFilter,
         ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
       },

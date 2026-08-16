@@ -3,6 +3,7 @@ import { Prisma, TransactionType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { buildLabelWhereConditions } from '@/lib/api/labelFilters';
 import { getClientTimezoneOffset, getUtcFromLocal } from '@/lib/timezone';
 import { logError } from '@/lib/logger';
 
@@ -128,6 +129,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const categoryIds = searchParams.get('category_ids')?.split(',').filter(Boolean) || [];
   const accountIds = searchParams.get('account_ids')?.split(',').filter(Boolean) || [];
   const draftsParam = searchParams.get('draft_option') || 'exclude';
+  const labelConditions = buildLabelWhereConditions(
+    searchParams.get('label_ids'),
+    searchParams.get('exclude_label_ids')
+  );
 
   // Determine draft filter
   const draftFilter: { is_draft?: boolean } = {};
@@ -160,6 +165,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
       if (accountIds.length > 0) {
         whereClause.account_id = { in: accountIds };
+      }
+      if (labelConditions.length > 0) {
+        whereClause.AND = labelConditions;
       }
 
       return prisma.transaction.groupBy({

@@ -42,6 +42,7 @@ type SavedFiltersManagerProps = Pick<
   | 'selectedCategories'
   | 'selectedAccounts'
   | 'selectedLabelIds'
+  | 'excludedLabelIds'
   | 'selectedCurrencies'
   | 'sortOption'
   | 'transferOption'
@@ -55,6 +56,7 @@ type FilterSnapshot = {
   selectedCategories: string[];
   selectedAccounts: string[];
   selectedLabelIds: string[];
+  excludedLabelIds: string[];
   selectedCurrencies: string[];
   sortOption: SortValue;
   transferOption: TransferOption;
@@ -75,6 +77,7 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
   selectedCategories = [],
   selectedAccounts = [],
   selectedLabelIds = [],
+  excludedLabelIds = [],
   selectedCurrencies = [],
   sortOption = 'timeDesc',
   transferOption = 'include',
@@ -98,6 +101,7 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
     selectedCategories: filter.filters.selectedCategoryIds ?? [],
     selectedAccounts: filter.filters.selectedAccountIds ?? [],
     selectedLabelIds: filter.filters.selectedLabelIds ?? [],
+    excludedLabelIds: filter.filters.excludedLabelIds ?? [],
     selectedCurrencies: filter.filters.selectedCurrencies ?? [],
     sortOption: (filter.filters.sortOption as SortValue) ?? 'timeDesc',
     transferOption: (filter.filters.transferOption as TransferOption) ?? 'include',
@@ -117,6 +121,7 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
       !arrEq(selectedCategories, loadedSnapshot.selectedCategories) ||
       !arrEq(selectedAccounts, loadedSnapshot.selectedAccounts) ||
       !arrEq(selectedLabelIds, loadedSnapshot.selectedLabelIds) ||
+      !arrEq(excludedLabelIds, loadedSnapshot.excludedLabelIds) ||
       !arrEq(selectedCurrencies, loadedSnapshot.selectedCurrencies) ||
       sortOption !== loadedSnapshot.sortOption ||
       transferOption !== loadedSnapshot.transferOption ||
@@ -128,6 +133,7 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
     selectedCategories,
     selectedAccounts,
     selectedLabelIds,
+    excludedLabelIds,
     selectedCurrencies,
     sortOption,
     transferOption,
@@ -479,6 +485,7 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                       selectedCategories,
                       selectedAccounts,
                       selectedLabelIds,
+                      excludedLabelIds,
                       selectedCurrencies,
                       sortOption,
                       transferOption,
@@ -518,6 +525,7 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                   selectedCategories,
                   selectedAccounts,
                   selectedLabelIds,
+                  excludedLabelIds,
                   selectedCurrencies,
                   sortOption,
                   transferOption,

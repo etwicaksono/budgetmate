@@ -166,6 +166,27 @@ export const DebtCard: React.FC<DebtCardProps> = ({
               {debt.description}
             </div>
           )}
+          {Array.isArray(debt.labels) && debt.labels.length > 0 && (
+            <div className="d-flex flex-wrap gap-1 mt-1">
+              {debt.labels.map((label) => (
+                <span
+                  key={label.id}
+                  className="badge text-uppercase text-truncate"
+                  style={{
+                    backgroundColor: label.color || '#6c757d',
+                    color: '#fff',
+                    fontSize: '0.6rem',
+                    padding: '0.15rem 0.4rem',
+                    fontWeight: '600',
+                    maxWidth: '80px'
+                  }}
+                  title={label.name}
+                >
+                  {label.name}
+                </span>
+              ))}
+            </div>
+          )}
         </Col>
 
         <Col xs={12} md={6} className="mt-2 mt-md-0 d-flex flex-column justify-content-center">

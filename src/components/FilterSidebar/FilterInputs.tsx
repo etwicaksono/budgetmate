@@ -38,6 +38,8 @@ type FilterInputsProps = Pick<
   | 'selectableAccounts'
   | 'selectedLabelIds'
   | 'onSelectedLabelIdsChange'
+  | 'excludedLabelIds'
+  | 'onExcludedLabelIdsChange'
   | 'labels'
   | 'minAmount'
   | 'maxAmount'
@@ -81,6 +83,8 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
   selectableAccounts = [],
   selectedLabelIds = [],
   onSelectedLabelIdsChange = () => {},
+  excludedLabelIds = [],
+  onExcludedLabelIdsChange = () => {},
   labels = [],
   minAmount = 0,
   maxAmount = 20000000,
@@ -89,6 +93,17 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
   SortDropdownComponent,
 }) => {
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Include and exclude must stay disjoint — a label present in both can never match.
+  const handleSelectedLabelIdsChange = (labelIds: string[]) => {
+    onSelectedLabelIdsChange(labelIds);
+    onExcludedLabelIdsChange((prev) => prev.filter((id) => !labelIds.includes(id)));
+  };
+
+  const handleExcludedLabelIdsChange = (labelIds: string[]) => {
+    onExcludedLabelIdsChange(labelIds);
+    onSelectedLabelIdsChange((prev) => prev.filter((id) => !labelIds.includes(id)));
+  };
 
   return (
     <Form>
@@ -177,15 +192,27 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
       )}
 
       {filterVisibility.labels && (
-        <Form.Group className="mb-4" controlId="labelFilter">
-          <Form.Label className="fw-semibold text-muted small">Labels</Form.Label>
-          <LabelMultiSelect
-            labels={labels}
-            selectedLabelIds={selectedLabelIds}
-            onChange={onSelectedLabelIdsChange}
-            placeholder="All labels"
-          />
-        </Form.Group>
+        <>
+          <Form.Group className="mb-3" controlId="labelFilter">
+            <Form.Label className="fw-semibold text-muted small">Labels</Form.Label>
+            <LabelMultiSelect
+              labels={labels}
+              selectedLabelIds={selectedLabelIds}
+              onChange={handleSelectedLabelIdsChange}
+              placeholder="All labels"
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-4" controlId="excludeLabelFilter">
+            <Form.Label className="fw-semibold text-muted small">Exclude labels</Form.Label>
+            <LabelMultiSelect
+              labels={labels}
+              selectedLabelIds={excludedLabelIds}
+              onChange={handleExcludedLabelIdsChange}
+              placeholder="No excluded labels"
+            />
+          </Form.Group>
+        </>
       )}
 
       {filterVisibility.amountRange && (

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { accountService, type Account } from '@/services/accountService';
-import { debtService } from '@/services/debtService';
+import { debtService, type Debt } from '@/services/debtService';
 import { onAppEvent } from '@/lib/eventBus';
 import { logError } from '@/lib/logger';
 
@@ -16,10 +16,10 @@ export interface UseNetWorthReturn {
   refresh: () => void;
 }
 
-export function useNetWorth(includeDraft: boolean = false): UseNetWorthReturn {
+export function useNetWorth(includeDraft: boolean = false, accountIds: string[] = []): UseNetWorthReturn {
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [totalCredit, setTotalCredit] = useState(0);
-  const [totalDebt, setTotalDebt] = useState(0);
+  const [lendDebts, setLendDebts] = useState<Debt[]>([]);
+  const [borrowDebts, setBorrowDebts] = useState<Debt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,12 +35,8 @@ export function useNetWorth(includeDraft: boolean = false): UseNetWorthReturn {
       ]);
 
       setAccounts(accountsData);
-
-      const creditTotal = lendData.data.reduce((sum, debt) => sum + (debt.remaining_amount || 0), 0);
-      const debtTotalValue = borrowData.data.reduce((sum, debt) => sum + (debt.remaining_amount || 0), 0);
-
-      setTotalCredit(creditTotal);
-      setTotalDebt(debtTotalValue);
+      setLendDebts(lendData.data);
+      setBorrowDebts(borrowData.data);
     } catch (err) {
       logError('Failed to fetch net worth data:', err);
       setError('Failed to load net worth data');
@@ -85,9 +81,23 @@ export function useNetWorth(includeDraft: boolean = false): UseNetWorthReturn {
   const accountBalance = useMemo(() => {
     return accounts.reduce((sum, account) => {
       if (!account.is_included_in_total) return sum;
+      // An empty selection means "all accounts"
+      if (accountIds.length > 0 && !accountIds.includes(account.id)) return sum;
       return sum + account.current_balance;
     }, 0);
-  }, [accounts]);
+  }, [accounts, accountIds]);
+
+  const sumRemaining = useCallback(
+    (debts: Debt[]) =>
+      debts.reduce((sum, debt) => {
+        if (accountIds.length > 0 && !accountIds.includes(debt.account_id)) return sum;
+        return sum + (debt.remaining_amount || 0);
+      }, 0),
+    [accountIds]
+  );
+
+  const totalCredit = useMemo(() => sumRemaining(lendDebts), [sumRemaining, lendDebts]);
+  const totalDebt = useMemo(() => sumRemaining(borrowDebts), [sumRemaining, borrowDebts]);
 
   const data = useMemo(() => {
     return accountBalance + totalCredit - totalDebt;

@@ -56,7 +56,8 @@ describe('buildTransactionWhere', () => {
     const where = await buildTransactionWhere(USER_ID, {
       account_ids: many,
       category_ids: many,
-      label_ids: many
+      label_ids: many,
+      exclude_label_ids: many
     });
 
     expect((where.account_id as { in: string[] }).in).toHaveLength(50);
@@ -64,6 +65,38 @@ describe('buildTransactionWhere', () => {
     expect(
       ((where.labels as { some: { label_id: { in: string[] } } }).some.label_id.in)
     ).toHaveLength(50);
+    expect(
+      (
+        (where.AND as Array<{ labels: { none: { label_id: { in: string[] } } } }>)[0]!
+      ).labels.none.label_id.in
+    ).toHaveLength(50);
+  });
+
+  it('pushes exclude_label_ids into AND as a "none" label condition', async () => {
+    const where = await buildTransactionWhere(USER_ID, { exclude_label_ids: 'lbl1,lbl2' });
+
+    expect(where).not.toHaveProperty('labels');
+    expect(where.AND).toEqual([
+      { labels: { none: { label_id: { in: ['lbl1', 'lbl2'] } } } }
+    ]);
+  });
+
+  it('keeps include and exclude label filters independent of each other', async () => {
+    const where = await buildTransactionWhere(USER_ID, {
+      label_ids: 'lbl1',
+      exclude_label_ids: 'lbl2'
+    });
+
+    expect(where.labels).toEqual({ some: { label_id: { in: ['lbl1'] } } });
+    expect(where.AND).toEqual([
+      { labels: { none: { label_id: { in: ['lbl2'] } } } }
+    ]);
+  });
+
+  it('omits the exclude condition when exclude_label_ids is empty', async () => {
+    const where = await buildTransactionWhere(USER_ID, { exclude_label_ids: '' });
+
+    expect(where).not.toHaveProperty('AND');
   });
 
   it('pushes amount range and search into AND without overwriting other keys', async () => {

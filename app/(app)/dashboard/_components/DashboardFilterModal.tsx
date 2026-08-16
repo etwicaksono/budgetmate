@@ -1,8 +1,8 @@
 'use client';
 
-import { Button, Card, Col, Dropdown, Form, Offcanvas } from 'react-bootstrap';
-import { RiListSettingsLine } from 'react-icons/ri';
-import { FaFileAlt, FaCheck, FaTags } from 'react-icons/fa';
+import React from 'react';
+import { Button, Dropdown, Form, Modal } from 'react-bootstrap';
+import { FaCheck, FaFileAlt, FaTags } from 'react-icons/fa';
 import { AccountDropdown } from '@/components/FilterSidebar/AccountDropdown';
 import { CategoryDropdown } from '@/components/FilterSidebar/CategoryDropdown';
 import { SavedFiltersManager } from '@/components/FilterSidebar/SavedFiltersManager';
@@ -11,21 +11,30 @@ import '@/components/FilterSidebar/FilterSidebar.css';
 import type { useFilterData } from '@/hooks/useFilterData';
 import type { useSavedFilters } from '@/hooks/useSavedFilters';
 
-interface AnalyticsFilterSidebarProps {
+const DRAFT_OPTIONS = [
+  { label: 'Include drafts', value: 'include' },
+  { label: 'Only drafts', value: 'only' },
+  { label: 'Exclude drafts', value: 'exclude' },
+] as const;
+
+interface DashboardFilterModalProps {
+  show: boolean;
+  onHide: () => void;
   /** Return value of useFilterData() */
   filterData: ReturnType<typeof useFilterData>;
   /** Return value of useSavedFilters() */
   savedFiltersData: ReturnType<typeof useSavedFilters>;
-  /** Mobile Offcanvas visibility */
-  showMobile: boolean;
-  /** Mobile Offcanvas close handler */
-  onHideMobile: () => void;
+  /** Clears every dashboard filter */
+  onResetFilters: () => void;
 }
 
-function AnalyticsFilterPanel({
+export function DashboardFilterModal({
+  show,
+  onHide,
   filterData,
   savedFiltersData,
-}: Omit<AnalyticsFilterSidebarProps, 'showMobile' | 'onHideMobile'>) {
+  onResetFilters,
+}: DashboardFilterModalProps): React.ReactElement {
   const {
     selectedAccounts,
     setSelectedAccounts,
@@ -61,11 +70,7 @@ function AnalyticsFilterPanel({
   } = savedFiltersData;
 
   const handleReset = () => {
-    setSelectedAccounts([]);
-    setSelectedCategories([]);
-    setSelectedLabelIds([]);
-    setExcludedLabelIds([]);
-    setDraftOption('exclude');
+    onResetFilters();
     clearActiveFilter();
   };
 
@@ -97,48 +102,22 @@ function AnalyticsFilterPanel({
     excludedLabelIds,
   };
 
-  return (
-    <Card
-      className="desktop-filter-sidebar shadow-sm border-0"
-      style={{
-        position: 'sticky',
-        top: '85px',
-        height: 'calc(100vh - 105px)',
-        maxHeight: 'calc(100vh - 105px)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* Header */}
-      <Card.Header className="d-flex align-items-center justify-content-between bg-white border-bottom">
-        <span className="h4 mb-0 fw-bold">Analytics</span>
-        <button
-          type="button"
-          style={{
-            width: '36px', height: '36px', borderRadius: '8px',
-            backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-          aria-label="Reset filters"
-          title="Reset filters"
-          onClick={handleReset}
-        >
-          {/* TODO: Replace RiListSettingsLine with a proper reset/refresh icon (e.g., FaUndo or FaRedo). */}
-          <RiListSettingsLine size={20} color="#6b7280" />
-        </button>
-      </Card.Header>
+  const draftLabel =
+    DRAFT_OPTIONS.find((option) => option.value === draftOption)?.label ?? 'Exclude drafts';
 
-      {/* Body */}
-      <Card.Body className="pb-2" style={{ flex: '1 1 auto' }}>
+  return (
+    <Modal show={show} onHide={onHide} centered scrollable>
+      <Modal.Header closeButton>
+        <Modal.Title className="h5 mb-0 fw-bold">Filter widgets</Modal.Title>
+      </Modal.Header>
+
+      <Modal.Body>
         {/* Saved presets */}
         <SavedFiltersManager {...savedFilterProps} handleResetFilters={handleReset} />
 
         <Form>
           {/* Category filter */}
-          <Form.Group className="mb-4" controlId="analyticsCategoryFilter">
+          <Form.Group className="mb-4" controlId="dashboardCategoryFilter">
             <Form.Label className="fw-semibold text-muted small">Categories</Form.Label>
             <CategoryDropdown
               selectedCategories={selectedCategories}
@@ -156,7 +135,7 @@ function AnalyticsFilterPanel({
           </Form.Group>
 
           {/* Account filter */}
-          <Form.Group className="mb-4" controlId="analyticsAccountFilter">
+          <Form.Group className="mb-4" controlId="dashboardAccountFilter">
             <Form.Label className="fw-semibold text-muted small">Accounts</Form.Label>
             <AccountDropdown
               selectedAccounts={selectedAccounts}
@@ -171,8 +150,8 @@ function AnalyticsFilterPanel({
             />
           </Form.Group>
 
-          {/* Labels Filter */}
-          <Form.Group className="mb-3" controlId="analyticsLabelFilter">
+          {/* Labels filter */}
+          <Form.Group className="mb-3" controlId="dashboardLabelFilter">
             <Form.Label className="fw-semibold text-muted small">Labels</Form.Label>
             <LabelMultiSelect
               labels={labels}
@@ -182,7 +161,7 @@ function AnalyticsFilterPanel({
             />
           </Form.Group>
 
-          <Form.Group className="mb-4" controlId="analyticsExcludeLabelFilter">
+          <Form.Group className="mb-4" controlId="dashboardExcludeLabelFilter">
             <Form.Label className="fw-semibold text-muted small">Exclude labels</Form.Label>
             <LabelMultiSelect
               labels={labels}
@@ -192,8 +171,8 @@ function AnalyticsFilterPanel({
             />
           </Form.Group>
 
-          {/* Drafts Filter */}
-          <Form.Group className="mb-4" controlId="analyticsDraftFilter">
+          {/* Drafts filter */}
+          <Form.Group className="mb-2" controlId="dashboardDraftFilter">
             <Form.Label className="fw-semibold text-muted small">Drafts</Form.Label>
             <Dropdown>
               <Dropdown.Toggle
@@ -203,21 +182,11 @@ function AnalyticsFilterPanel({
               >
                 <span className="d-flex align-items-center gap-2">
                   <FaFileAlt size={14} color="#adb5bd" />
-                  <span className="d-inline-flex align-items-center gap-1">
-                    {draftOption === 'include'
-                      ? 'Include drafts'
-                      : draftOption === 'only'
-                        ? 'Only drafts'
-                        : 'Exclude drafts'}
-                  </span>
+                  <span className="d-inline-flex align-items-center gap-1">{draftLabel}</span>
                 </span>
               </Dropdown.Toggle>
               <Dropdown.Menu className="w-100 p-1">
-                {[
-                  { label: 'Include drafts', value: 'include' },
-                  { label: 'Only drafts', value: 'only' },
-                  { label: 'Exclude drafts', value: 'exclude' },
-                ].map((option) => {
+                {DRAFT_OPTIONS.map((option) => {
                   const isSelected = draftOption === option.value;
                   return (
                     <Dropdown.Item
@@ -226,85 +195,38 @@ function AnalyticsFilterPanel({
                       type="button"
                       className={`d-flex align-items-center gap-2 w-100 bg-white ${isSelected ? 'selected' : ''}`}
                       style={isSelected ? { backgroundColor: '#e9ecef' } : {}}
-                      onClick={() => setDraftOption(option.value as 'include' | 'only' | 'exclude')}
+                      onClick={() => setDraftOption(option.value)}
                     >
-                      {isSelected && (
+                      {isSelected ? (
                         <span className="d-inline-flex justify-content-center" style={{ width: '1.25rem' }}>
                           <FaCheck className="text-success" />
                         </span>
+                      ) : (
+                        <span style={{ width: '1.25rem' }}></span>
                       )}
-                      {!isSelected && <span style={{ width: '1.25rem' }}></span>}
                       <span className="flex-grow-1 text-start">{option.label}</span>
                     </Dropdown.Item>
                   );
                 })}
               </Dropdown.Menu>
             </Dropdown>
+            <Form.Text className="text-muted">
+              Net Worth and Budget Status only follow the account and draft filters.
+            </Form.Text>
           </Form.Group>
         </Form>
-      </Card.Body>
+      </Modal.Body>
 
-      {/* Footer: Reset */}
-      <Card.Footer className="bg-white border-top p-3 mt-auto">
-        <button
-          type="button"
-          className="btn btn-outline-secondary w-100 fw-medium"
-          onClick={handleReset}
-        >
+      <Modal.Footer className="d-flex justify-content-between">
+        <button type="button" className="btn btn-outline-secondary fw-medium" onClick={handleReset}>
           Reset all filters
         </button>
-      </Card.Footer>
-    </Card>
+        <Button variant="primary" onClick={onHide}>
+          Done
+        </Button>
+      </Modal.Footer>
+    </Modal>
   );
 }
 
-export function AnalyticsFilterSidebar({
-  filterData,
-  savedFiltersData,
-  showMobile,
-  onHideMobile,
-}: AnalyticsFilterSidebarProps) {
-  return (
-    <>
-      {/* Desktop: sticky left column */}
-      <Col lg={3} className="mb-3 d-none d-lg-block">
-        <AnalyticsFilterPanel
-          filterData={filterData}
-          savedFiltersData={savedFiltersData}
-        />
-      </Col>
-
-      {/* Mobile: slide-in Offcanvas */}
-      <Offcanvas
-        show={showMobile}
-        onHide={onHideMobile}
-        placement="end"
-        className="d-lg-none"
-        style={{ display: 'flex', flexDirection: 'column' }}
-      >
-        <Offcanvas.Header closeButton className="border-bottom">
-          <Offcanvas.Title className="fw-bold">Filters</Offcanvas.Title>
-        </Offcanvas.Header>
-        <Offcanvas.Body className="p-0" style={{ overflowY: 'auto', flex: 1 }}>
-          <AnalyticsFilterPanel
-            filterData={filterData}
-            savedFiltersData={savedFiltersData}
-          />
-        </Offcanvas.Body>
-        {/* Sticky footer — mobile only */}
-        <div
-          className="border-top p-3"
-          style={{ flexShrink: 0, backgroundColor: 'var(--bs-body-bg, #fff)' }}
-        >
-          <Button
-            variant="primary"
-            className="w-100"
-            onClick={onHideMobile}
-          >
-            Show Result
-          </Button>
-        </div>
-      </Offcanvas>
-    </>
-  );
-}
+export default DashboardFilterModal;

@@ -10,6 +10,7 @@ export interface FilterSnapshot {
    selectedCategories: string[];   // names (what useFilterData holds)
    selectedAccounts: string[];     // names
    selectedLabelIds: string[];
+   excludedLabelIds: string[];
    sortOption: SortValue;
    transferOption: string;
    debtOption: string;
@@ -20,6 +21,7 @@ export interface LoadFilterCallback {
    setSelectedCategories: React.Dispatch<React.SetStateAction<string[]>>;
    setSelectedAccounts: React.Dispatch<React.SetStateAction<string[]>>;
    setSelectedLabelIds: React.Dispatch<React.SetStateAction<string[]>>;
+   setExcludedLabelIds: React.Dispatch<React.SetStateAction<string[]>>;
    setSortOption: React.Dispatch<React.SetStateAction<SortValue>>;
    setTransferOption: React.Dispatch<React.SetStateAction<TransferOption>>;
    setDebtOption: React.Dispatch<React.SetStateAction<DebtOption>>;
@@ -125,6 +127,7 @@ export function useSavedFilters({
             selectedCategoryIds: categoryNamesToIds(current.selectedCategories),
             selectedAccountIds: accountNamesToIds(current.selectedAccounts),
             selectedLabelIds: current.selectedLabelIds,
+            excludedLabelIds: current.excludedLabelIds,
             sortOption: current.sortOption,
             transferOption: current.transferOption,
             debtOption: current.debtOption,
@@ -157,6 +160,9 @@ export function useSavedFilters({
          }
          if (filters.selectedLabelIds) {
             dispatchers.setSelectedLabelIds(filters.selectedLabelIds);
+         }
+         if (filters.excludedLabelIds) {
+            dispatchers.setExcludedLabelIds(filters.excludedLabelIds);
          }
          if (filters.sortOption) {
             dispatchers.setSortOption(filters.sortOption as SortValue);
@@ -214,6 +220,7 @@ export function useSavedFilters({
             selectedCategoryIds: categoryNamesToIds(current.selectedCategories),
             selectedAccountIds: accountNamesToIds(current.selectedAccounts),
             selectedLabelIds: current.selectedLabelIds,
+            excludedLabelIds: current.excludedLabelIds,
             sortOption: current.sortOption,
             transferOption: current.transferOption,
             debtOption: current.debtOption,

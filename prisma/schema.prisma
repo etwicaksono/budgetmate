@@ -59,6 +59,8 @@ enum SavedFilterContext {
   transaction
   analytics
   budget
+  dashboard
+  debt
 }
 
 enum AiChatRole {
@@ -229,6 +231,7 @@ model Label {
   // Relations
   user         User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
   transactions TransactionLabel[]
+  debts        DebtLabel[]
 
   @@index([user_id])
 }
@@ -245,6 +248,23 @@ model TransactionLabel {
 
   @@unique([transaction_id, label_id])
   @@index([transaction_id])
+  @@index([label_id])
+}
+
+// ==================== DEBT LABEL (JUNCTION) ====================
+// Labels attached to the debt entity itself, independent of the labels on its
+// linked ledger transactions.
+model DebtLabel {
+  id       String @id @default(cuid())
+  debt_id  String
+  label_id String
+
+  // Relations
+  debt  Debt  @relation(fields: [debt_id], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [label_id], references: [id], onDelete: Cascade)
+
+  @@unique([debt_id, label_id])
+  @@index([debt_id])
   @@index([label_id])
 }
 
@@ -283,6 +303,7 @@ model Debt {
   user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
   account      Account       @relation(fields: [account_id], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  labels       DebtLabel[]
 
   @@index([user_id])
   @@index([account_id])

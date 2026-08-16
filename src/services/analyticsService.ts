@@ -182,6 +182,11 @@ class AnalyticsService {
     group_by?: string;
     start_date?: string;
     end_date?: string;
+    account_ids?: string;
+    category_ids?: string;
+    label_ids?: string;
+    exclude_label_ids?: string;
+    draft_option?: string;
   }): Promise<TrendData> {
     const response = await api.get<{ success: boolean; data: TrendData }>(
       '/analytics/trends',
@@ -206,6 +211,11 @@ class AnalyticsService {
     start_date?: string;
     end_date?: string;
     limit?: number;
+    account_ids?: string;
+    category_ids?: string;
+    label_ids?: string;
+    exclude_label_ids?: string;
+    draft_option?: string;
   }): Promise<ExpensesByCategoryResponse> {
     const response = await api.get<{ success: boolean; data: ExpensesByCategoryResponse }>(
       '/analytics/expenses-by-category',
@@ -248,6 +258,11 @@ class AnalyticsService {
   async fetchIncomeVsExpenses(params?: {
     start_date?: string;
     end_date?: string;
+    account_ids?: string;
+    category_ids?: string;
+    label_ids?: string;
+    exclude_label_ids?: string;
+    draft_option?: string;
   }): Promise<IncomeVsExpensesResponse> {
     const response = await api.get<{ success: boolean; data: IncomeVsExpensesResponse }>(
       '/analytics/income-vs-expenses',
@@ -270,11 +285,13 @@ class AnalyticsService {
     debt_option?: string;
     draft_option?: string;
     label_ids?: string[];
+    exclude_label_ids?: string[];
   }): Promise<IncomeExpenseReport> {
     const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
     if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
+    if (params?.exclude_label_ids?.length) queryParams['exclude_label_ids'] = params.exclude_label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: IncomeExpenseReport }>(
       '/analytics/income-expense-report',
@@ -295,11 +312,13 @@ class AnalyticsService {
     transfer_option?: string;
     debt_option?: string;
     label_ids?: string[];
+    exclude_label_ids?: string[];
   }): Promise<BalanceTrendResponse> {
     const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
     if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
+    if (params?.exclude_label_ids?.length) queryParams['exclude_label_ids'] = params.exclude_label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: BalanceTrendResponse }>(
       '/analytics/balance-trend',
@@ -319,11 +338,13 @@ class AnalyticsService {
     transfer_option?: string;
     debt_option?: string;
     label_ids?: string[];
+    exclude_label_ids?: string[];
   }): Promise<CashFlowResponse> {
     const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
     if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
+    if (params?.exclude_label_ids?.length) queryParams['exclude_label_ids'] = params.exclude_label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: CashFlowResponse }>(
       '/analytics/cashflow',
@@ -346,11 +367,13 @@ class AnalyticsService {
     transfer_option?: string;
     debt_option?: string;
     label_ids?: string[];
+    exclude_label_ids?: string[];
   }): Promise<AdvancedChartsResponse> {
     const queryParams: Record<string, string | number | string[]> = { ...params } as Record<string, string | number | string[]>;
     if (params?.category_ids?.length) queryParams['category_ids'] = params.category_ids.join(',');
     if (params?.account_ids?.length) queryParams['account_ids'] = params.account_ids.join(',');
     if (params?.label_ids?.length) queryParams['label_ids'] = params.label_ids.join(',');
+    if (params?.exclude_label_ids?.length) queryParams['exclude_label_ids'] = params.exclude_label_ids.join(',');
 
     const response = await api.get<{ success: boolean; data: AdvancedChartsResponse }>(
       '/analytics/advanced-charts',

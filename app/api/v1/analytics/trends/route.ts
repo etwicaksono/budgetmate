@@ -2,6 +2,7 @@
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { parseAnalyticsFilters, buildAnalyticsTransactionWhere } from '@/lib/api/analyticsFilters';
 import { logError } from '@/lib/logger';
 
 interface TrendDataset {
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const period = searchParams.get('period') || 'daily';
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
+  const filters = parseAnalyticsFilters(searchParams);
 
   try {
     if (!['income', 'expense', 'net', 'balance'].includes(metric)) {
@@ -70,6 +72,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           user_id: user.user_id,
           deleted_at: null,
           is_included_in_total: true,
+          // Keep the baseline aligned with the accounts the caller filtered on
+          ...(filters.accountIds.length > 0 && { id: { in: filters.accountIds } }),
         },
         select: {
           initial_balance: true,
@@ -89,7 +93,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where: {
         user_id: user.user_id,
         deleted_at: null,
-        is_draft: false,
+        ...buildAnalyticsTransactionWhere(filters),
         ...(typeFilter && { type: typeFilter }),
         ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
       },

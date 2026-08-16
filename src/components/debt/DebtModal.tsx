@@ -10,7 +10,9 @@ import { Debt, CreateDebtPayload, UpdateDebtPayload } from '@/services/debtServi
 import { DebtStatus, DebtType } from '@prisma/client';
 import { DebtTypeToggle } from './DebtTypeToggle';
 import { AccountSelect } from '@/components/transaction/AccountSelect';
+import { LabelMultiSelect } from '@/components/transaction/LabelMultiSelect';
 import { Account } from '@/services/accountService';
+import type { Label } from '@/services/labelService';
 import { ClearButton } from '@/components/common/ClearButton';
 
 interface DebtModalProps {
@@ -19,6 +21,7 @@ interface DebtModalProps {
   onSave: (data: CreateDebtPayload | UpdateDebtPayload) => Promise<void>;
   editDebt?: Debt | null;
   accounts: Account[];
+  labels?: Label[];
   defaultType?: DebtType;
 }
 
@@ -28,6 +31,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   onSave,
   editDebt,
   accounts,
+  labels = [],
   defaultType,
 }) => {
   const isEdit = !!editDebt;
@@ -41,6 +45,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<DebtStatus>(DebtStatus.active);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
 
   const counterpartyInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +72,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
         setDate(format(new Date(editDebt.date), "yyyy-MM-dd'T'HH:mm"));
         setDescription(editDebt.description || '');
         setStatus(editDebt.status);
+        setSelectedLabelIds((editDebt.labels ?? []).map((label) => label.id));
       } else {
         setType(defaultType ?? DebtType.lend);
         setCounterparty('');
@@ -75,6 +81,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
         setDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
         setDescription('');
         setStatus(DebtStatus.active);
+        setSelectedLabelIds([]);
         setError(null);
       }
     }
@@ -104,6 +111,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
           account_id: accountId,
           date: dDate,
           status,
+          label_ids: selectedLabelIds,
           ...(description ? { description } : {})
         };
         await onSave(payload);
@@ -115,6 +123,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
           account_id: accountId,
           amount: Number(amount),
           date: dDate,
+          ...(selectedLabelIds.length > 0 ? { label_ids: selectedLabelIds } : {}),
           ...(description ? { description } : {})
         };
         await onSave(payload);
@@ -123,6 +132,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
            setCounterparty('');
            setAmount('');
            setDescription('');
+           setSelectedLabelIds([]);
         } else {
            onHide();
         }
@@ -273,6 +283,17 @@ export const DebtModal: React.FC<DebtModalProps> = ({
                    </div>
                  )}
                </div>
+            </Col>
+
+            <Col xs={12} className="mb-3">
+               <Form.Label>Labels</Form.Label>
+               <LabelMultiSelect
+                 labels={labels}
+                 selectedLabelIds={selectedLabelIds}
+                 onChange={setSelectedLabelIds}
+                 disabled={isSubmitting}
+                 placeholder="Select labels"
+               />
             </Col>
           </Row>
         </Modal.Body>

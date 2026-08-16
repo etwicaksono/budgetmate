@@ -37,6 +37,7 @@ export interface AdvancedChartsReportProps {
   transferOption?: string;
   debtOption?: string;
   selectedLabelIds?: string[];
+  excludedLabelIds?: string[];
 }
 
 const formatNumberAbbreviation = (value: number): string => {
@@ -63,6 +64,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
   transferOption,
   debtOption,
   selectedLabelIds,
+  excludedLabelIds,
   selectedCategories,
   selectedAccounts,
 }) => {
@@ -95,6 +97,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
           transfer_option?: string;
           debt_option?: string;
           label_ids?: string[];
+          exclude_label_ids?: string[];
           category_ids?: string[];
           account_ids?: string[];
         } = {
@@ -110,6 +113,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
         if (transferOption) params.transfer_option = transferOption;
         if (debtOption) params.debt_option = debtOption;
         if (selectedLabelIds?.length) params.label_ids = selectedLabelIds;
+        if (excludedLabelIds?.length) params.exclude_label_ids = excludedLabelIds;
         if (selectedCategories?.length) params.category_ids = selectedCategories;
         if (selectedAccounts?.length) params.account_ids = selectedAccounts;
 
@@ -123,7 +127,7 @@ const AdvancedChartsReport: React.FC<AdvancedChartsReportProps> = ({
     };
 
     fetchData();
-  }, [startDate, endDate, dataType, granularity, groupBy, searchTerm, minAmount, maxAmount, transferOption, debtOption, selectedLabelIds, selectedCategories, selectedAccounts]);
+  }, [startDate, endDate, dataType, granularity, groupBy, searchTerm, minAmount, maxAmount, transferOption, debtOption, selectedLabelIds, excludedLabelIds, selectedCategories, selectedAccounts]);
 
   const currentChartData = useMemo(() => {
     if (!data) return { chartData: [], groupedData: [] };

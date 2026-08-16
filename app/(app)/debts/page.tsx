@@ -14,10 +14,15 @@ import { NumericFormat } from 'react-number-format';
 
 import './Debts.css';
 import { debtService } from '@/services/debtService';
-import { DebtStatus } from '@prisma/client';
+import { DebtStatus, SavedFilterContext } from '@prisma/client';
 import { DebtTabPane } from '@/components/debt';
 import { useDebt } from '@/context/DebtContext';
 import { ClearButton } from '@/components/common/ClearButton';
+import { LabelMultiSelect } from '@/components/transaction/LabelMultiSelect';
+import { SavedFiltersManager } from '@/components/FilterSidebar/SavedFiltersManager';
+import { labelService, type Label } from '@/services/labelService';
+import { useSavedFilters } from '@/hooks/useSavedFilters';
+import type { SortValue } from '@/hooks/useFilterData';
 import { logError } from '@/lib/logger';
 
 interface DebtSortDropdownProps {
@@ -136,6 +141,11 @@ export default function DebtsPage() {
   const [counterpartyFilter, setCounterpartyFilter] = useState('');
   const counterpartyInputRef = useRef<HTMLInputElement>(null);
 
+  // Label filters — include and exclude are kept disjoint
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [excludedLabelIds, setExcludedLabelIds] = useState<string[]>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
+
   // Sorting
   const [sortBy, setSortBy] = useState('date');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -176,19 +186,120 @@ export default function DebtsPage() {
     fetchSummary();
   }, [fetchSummary]);
 
-  const hasActiveFilter = statusFilter !== DebtStatus.active || counterpartyFilter !== '';
+  // Labels feed the sidebar filter dropdowns
+  useEffect(() => {
+    const loadLabels = async () => {
+      try {
+        const response = await labelService.fetchLabels();
+        setLabels(response.data);
+      } catch (error) {
+        logError('Failed to fetch labels:', error);
+      }
+    };
+    loadLabels();
+  }, []);
+
+  const hasActiveFilter =
+    statusFilter !== DebtStatus.active ||
+    counterpartyFilter !== '' ||
+    selectedLabelIds.length > 0 ||
+    excludedLabelIds.length > 0;
+
+  // ── useSavedFilters wired for the debt context ────────────────────────────
+  // Only the labels and sort order have a counterpart in the preset schema; the
+  // remaining dispatchers are no-ops because this page has no such state.
+  // The preset's `sortOption` holds this page's own `<field>_<direction>` value,
+  // which is why it is validated against SORT_OPTIONS before being applied.
+  const applySavedSortOption = useCallback((value: SortValue) => {
+    const option = SORT_OPTIONS.find((opt) => opt.value === (value as string));
+    if (!option) return;
+    setSortBy(option.sortBy);
+    setSortOrder(option.sortOrder);
+  }, []);
+
+  const savedFiltersData = useSavedFilters({
+    categories: [],
+    accounts: [],
+    current: {
+      selectedCategories: [],
+      selectedAccounts: [],
+      selectedLabelIds,
+      excludedLabelIds,
+      sortOption: `${sortBy}_${sortOrder}` as SortValue,
+      transferOption: 'include',
+      debtOption: 'include',
+      draftOption: 'exclude',
+    },
+    dispatchers: {
+      setSelectedCategories: () => {},
+      setSelectedAccounts: () => {},
+      setSelectedLabelIds,
+      setExcludedLabelIds,
+      setSortOption: applySavedSortOption as React.Dispatch<React.SetStateAction<SortValue>>,
+      setTransferOption: () => {},
+      setDebtOption: () => {},
+      setDraftOption: () => {},
+    },
+    context: SavedFilterContext.debt,
+  });
+
+  const {
+    savedFilters,
+    loading: savedFiltersLoading,
+    activeFilterId,
+    saveCurrentFilter,
+    updateCurrentFilter,
+    loadFilter,
+    deleteFilter,
+    renameFilter,
+    clearActiveFilter,
+    reorderFilter,
+  } = savedFiltersData;
+
+  // Include and exclude must stay disjoint — a label present in both can never match.
+  const handleSelectedLabelIdsChange = (labelIds: string[]) => {
+    setSelectedLabelIds(labelIds);
+    setExcludedLabelIds((prev) => prev.filter((id) => !labelIds.includes(id)));
+  };
+
+  const handleExcludedLabelIdsChange = (labelIds: string[]) => {
+    setExcludedLabelIds(labelIds);
+    setSelectedLabelIds((prev) => prev.filter((id) => !labelIds.includes(id)));
+  };
+
+  const savedFilterProps = {
+    savedFilters,
+    activeFilterId,
+    savedFiltersLoading,
+    onSaveFilter: saveCurrentFilter,
+    onUpdateFilter: updateCurrentFilter,
+    onLoadFilter: loadFilter,
+    onDeleteFilter: deleteFilter,
+    onRenameFilter: renameFilter,
+    onClearActiveFilter: clearActiveFilter,
+    onReorderFilter: reorderFilter,
+    selectedLabelIds,
+    excludedLabelIds,
+    sortOption: `${sortBy}_${sortOrder}` as SortValue,
+  };
 
   // Render Filter Form
   const handleResetFilters = () => {
     setCounterpartyFilter('');
     setStatusFilter(DebtStatus.active);
+    setSelectedLabelIds([]);
+    setExcludedLabelIds([]);
     setSortBy('date');
     setSortOrder('desc');
+    clearActiveFilter();
   };
 
   const renderFilterForm = () => (
     <div className="d-flex flex-column h-100">
       <div className="flex-grow-1 p-4" style={{ paddingBottom: '32px' }}>
+        {/* Saved presets */}
+        <SavedFiltersManager {...savedFilterProps} handleResetFilters={handleResetFilters} />
+
         <Form>
           {/* Search Filter */}
           <Form.Group className="mb-4" controlId="searchTerm">
@@ -240,6 +351,27 @@ export default function DebtsPage() {
               <option value={DebtStatus.active}>Active</option>
               <option value={DebtStatus.settled}>Settled</option>
             </Form.Select>
+          </Form.Group>
+
+          {/* Label filters */}
+          <Form.Group className="mb-4" controlId="debtLabelFilter">
+            <Form.Label className="fw-semibold text-muted small">Labels</Form.Label>
+            <LabelMultiSelect
+              labels={labels}
+              selectedLabelIds={selectedLabelIds}
+              onChange={handleSelectedLabelIdsChange}
+              placeholder="All labels"
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-4" controlId="debtExcludeLabelFilter">
+            <Form.Label className="fw-semibold text-muted small">Exclude labels</Form.Label>
+            <LabelMultiSelect
+              labels={labels}
+              selectedLabelIds={excludedLabelIds}
+              onChange={handleExcludedLabelIdsChange}
+              placeholder="Exclude none"
+            />
           </Form.Group>
         </Form>
       </div>
@@ -356,6 +488,8 @@ export default function DebtsPage() {
               debtType="lend"
               statusFilter={statusFilter}
               counterpartyFilter={counterpartyFilter}
+              selectedLabelIds={selectedLabelIds}
+              excludedLabelIds={excludedLabelIds}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onMutated={fetchSummary}
@@ -368,6 +502,8 @@ export default function DebtsPage() {
               debtType="borrow"
               statusFilter={statusFilter}
               counterpartyFilter={counterpartyFilter}
+              selectedLabelIds={selectedLabelIds}
+              excludedLabelIds={excludedLabelIds}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onMutated={fetchSummary}

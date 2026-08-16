@@ -10,6 +10,7 @@ export const FiltersSchema = z.object({
   selectedAccountIds: z.array(z.string()).optional(),
   selectedCurrencies: z.array(z.string()).optional(),
   selectedLabelIds: z.array(z.string()).optional(),
+  excludedLabelIds: z.array(z.string()).optional(),
   sortOption: z.string().optional(),
 });
 

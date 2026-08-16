@@ -21,6 +21,7 @@ interface BalanceTrendReportProps {
   transferOption?: string;
   debtOption?: string;
   selectedLabelIds?: string[];
+  excludedLabelIds?: string[];
 }
 
 const formatNumberAbbreviation = (value: number): string => {
@@ -54,6 +55,7 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
   transferOption,
   debtOption,
   selectedLabelIds,
+  excludedLabelIds,
 }) => {
   const [data, setData] = useState<BalanceTrendResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +80,7 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
           transfer_option?: string;
           debt_option?: string;
           label_ids?: string[];
+          exclude_label_ids?: string[];
         } = {};
         if (startDate) params.start_date = startDate;
         if (endDate) params.end_date = endDate;
@@ -89,6 +92,7 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
         if (transferOption) params.transfer_option = transferOption;
         if (debtOption) params.debt_option = debtOption;
         if (selectedLabelIds?.length) params.label_ids = selectedLabelIds;
+        if (excludedLabelIds?.length) params.exclude_label_ids = excludedLabelIds;
 
         const response = await analyticsService.fetchBalanceTrend(params);
         setData(response);
@@ -111,6 +115,7 @@ const BalanceTrendReport: React.FC<BalanceTrendReportProps> = ({
     transferOption,
     debtOption,
     selectedLabelIds,
+    excludedLabelIds,
   ]);
 
   const CustomTooltip = ({ active, payload }: {

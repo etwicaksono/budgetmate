@@ -71,6 +71,7 @@ export interface TransactionFilters {
   keyword?: string;
   search?: string;
   label_ids?: string[] | string;
+  exclude_label_ids?: string[] | string;
   account_ids?: string;
   category_ids?: string;
   transfer_option?: string;

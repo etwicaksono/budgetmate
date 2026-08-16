@@ -37,6 +37,21 @@
   color: #fff;
 }
 
+/* Count of active filter groups, shown inside the chip */
+.dashboard-filter-chip__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.3);
+  color: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
 /* Stat Cards */
 .stat-card {
   border: none;

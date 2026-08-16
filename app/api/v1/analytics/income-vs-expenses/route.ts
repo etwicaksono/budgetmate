@@ -2,6 +2,7 @@
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { parseAnalyticsFilters, buildAnalyticsTransactionWhere } from '@/lib/api/analyticsFilters';
 import { logError } from '@/lib/logger';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
+  const filters = parseAnalyticsFilters(searchParams);
 
   try {
     const dateFilter: { gte?: Date; lte?: Date } = {};
@@ -31,8 +33,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where: {
         user_id: user.user_id,
         deleted_at: null,
-        is_draft: false,
         type: { in: ['income', 'expense'] },
+        ...buildAnalyticsTransactionWhere(filters),
         ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
       },
       select: {

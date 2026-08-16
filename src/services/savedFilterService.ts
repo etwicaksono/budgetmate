@@ -6,6 +6,7 @@ export interface SavedFilterPayload {
    selectedAccountIds?: string[];
    selectedCurrencies?: string[];
    selectedLabelIds?: string[];
+   excludedLabelIds?: string[];
    sortOption?: string;
    transferOption?: string;
    debtOption?: string;

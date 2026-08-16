@@ -26,8 +26,8 @@ export const GlobalDebtModal: React.FC = () => {
     closeModal 
   } = useDebt();
 
-  // Load accounts globally for the modal
-  const { accounts } = useTransactionData();
+  // Load accounts and labels globally for the modal
+  const { accounts, labels } = useTransactionData();
 
   // Handle generic dispatch so panes can refetch
   const dispatchMutated = () => {
@@ -126,6 +126,7 @@ export const GlobalDebtModal: React.FC = () => {
         onSave={handleSaveDebt}
         editDebt={modalType === 'debt' ? initialData : null}
         accounts={accounts}
+        labels={labels}
         defaultType={defaultDebtType}
       />
       

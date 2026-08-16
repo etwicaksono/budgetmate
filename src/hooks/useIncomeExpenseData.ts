@@ -19,6 +19,7 @@ interface UseIncomeExpenseDataParams {
   debtOption?: string | undefined;
   draftOption?: string | undefined;
   selectedLabelIds?: string[] | undefined;
+  excludedLabelIds?: string[] | undefined;
 }
 
 interface UseIncomeExpenseDataResult {
@@ -41,6 +42,7 @@ export function useIncomeExpenseData({
   debtOption,
   draftOption,
   selectedLabelIds,
+  excludedLabelIds,
 }: UseIncomeExpenseDataParams): UseIncomeExpenseDataResult {
   const [data, setData] = useState<IncomeExpenseReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,6 +68,7 @@ export function useIncomeExpenseData({
           debt_option?: string;
           draft_option?: string;
           label_ids?: string[];
+          exclude_label_ids?: string[];
         } = {
           period_type: periodType,
           periods: numberOfColumns,
@@ -81,6 +84,7 @@ export function useIncomeExpenseData({
         if (debtOption) params.debt_option = debtOption;
         if (draftOption) params.draft_option = draftOption;
         if (selectedLabelIds?.length) params.label_ids = selectedLabelIds;
+        if (excludedLabelIds?.length) params.exclude_label_ids = excludedLabelIds;
 
         const reportData = await analyticsService.fetchIncomeExpenseReport(params);
         setData(reportData);
@@ -91,7 +95,7 @@ export function useIncomeExpenseData({
       }
     };
     fetchData();
-  }, [startDate, endDate, numberOfColumns, periodType, selectedCategories, selectedAccounts, searchTerm, minAmount, maxAmount, transferOption, debtOption, draftOption, selectedLabelIds]);
+  }, [startDate, endDate, numberOfColumns, periodType, selectedCategories, selectedAccounts, searchTerm, minAmount, maxAmount, transferOption, debtOption, draftOption, selectedLabelIds, excludedLabelIds]);
 
   return { data, loading, error };
 }

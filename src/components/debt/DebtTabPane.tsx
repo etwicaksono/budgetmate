@@ -24,6 +24,8 @@ export interface DebtTabPaneProps {
   debtType: DebtType;
   statusFilter: string;
   counterpartyFilter: string;
+  selectedLabelIds?: string[];
+  excludedLabelIds?: string[];
   sortBy: string;
   sortOrder: string;
   onMutated: () => void;
@@ -39,6 +41,8 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
   debtType,
   statusFilter,
   counterpartyFilter,
+  selectedLabelIds = [],
+  excludedLabelIds = [],
   sortBy,
   sortOrder,
   onMutated,
@@ -67,6 +71,10 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailDebt, setDetailDebt] = useState<Debt | null>(null);
 
+  // Serialized once so both the request and the effect deps use a stable value
+  const labelIdsParam = selectedLabelIds.join(',');
+  const excludeLabelIdsParam = excludedLabelIds.join(',');
+
   const fetchDebts = useCallback(async (isLoadMore = false, quiet = false) => {
     try {
       if (!isLoadMore && !quiet) setIsLoading(true);
@@ -80,6 +88,8 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
         type: debtType,
         ...(statusFilter && statusFilter !== 'all' ? { status: statusFilter } : {}),
         ...(counterpartyFilter ? { counterparty: counterpartyFilter } : {}),
+        ...(labelIdsParam ? { label_ids: labelIdsParam } : {}),
+        ...(excludeLabelIdsParam ? { exclude_label_ids: excludeLabelIdsParam } : {}),
         sort_by: sortBy,
         sort_order: sortOrder,
       });
@@ -97,7 +107,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
     } finally {
       setIsLoading(false);
     }
-  }, [debtType, statusFilter, counterpartyFilter, sortBy, sortOrder, page]);
+  }, [debtType, statusFilter, counterpartyFilter, labelIdsParam, excludeLabelIdsParam, sortBy, sortOrder, page]);
 
   useImperativeHandle(ref, () => ({
     openNewDebtModal: handleOpenNewDebt
@@ -116,7 +126,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
     fetchDebts();
     // intentionally omitting `page` so this only triggers on filter/type changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debtType, statusFilter, counterpartyFilter, sortBy, sortOrder]);
+  }, [debtType, statusFilter, counterpartyFilter, labelIdsParam, excludeLabelIdsParam, sortBy, sortOrder]);
 
   // Listen to global events for refresh
   useEffect(() => {

@@ -69,6 +69,8 @@ class BudgetService {
     start_date?: string;
     end_date?: string;
     limit?: number;
+    account_ids?: string;
+    category_ids?: string;
     drafts?: string;
   }): Promise<BudgetStatus[]> {
     const response = await api.get<{ success: boolean; data: BudgetStatus[] }>(

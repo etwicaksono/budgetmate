@@ -37,6 +37,8 @@ function TransactionsContent() {
     selectedAccounts,
     selectedLabelIds,
     setSelectedLabelIds,
+    excludedLabelIds,
+    setExcludedLabelIds,
     sortOption,
     transferOption,
     debtOption,
@@ -47,6 +49,7 @@ function TransactionsContent() {
     categoryTree,
     categories, // Full category objects
     apiAccounts, // Full account objects
+    labels, // Full label objects
   } = filterData;
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -73,11 +76,12 @@ function TransactionsContent() {
   const savedFiltersData = useSavedFilters({
     categories,
     accounts: apiAccounts,
-    current: { selectedCategories, selectedAccounts, selectedLabelIds, sortOption, transferOption, debtOption, draftOption },
+    current: { selectedCategories, selectedAccounts, selectedLabelIds, excludedLabelIds, sortOption, transferOption, debtOption, draftOption },
     dispatchers: { 
       setSelectedCategories: filterData.setSelectedCategories, 
       setSelectedAccounts: filterData.setSelectedAccounts, 
       setSelectedLabelIds, 
+      setExcludedLabelIds,
       setSortOption: filterData.setSortOption, 
       setTransferOption: filterData.setTransferOption, 
       setDebtOption: filterData.setDebtOption,
@@ -179,6 +183,11 @@ function TransactionsContent() {
         filters['label_ids'] = selectedLabelIds.join(',');
       }
 
+      // Add excluded label filter
+      if (excludedLabelIds.length > 0) {
+        filters['exclude_label_ids'] = excludedLabelIds.join(',');
+      }
+
       // Add amount range filter
       if (minAmount > 0) {
         filters['min_amount'] = minAmount;
@@ -266,6 +275,7 @@ function TransactionsContent() {
     selectedCategories,
     selectedAccounts,
     selectedLabelIds,
+    excludedLabelIds,
     minAmount,
     maxAmount,
     sortOption,
@@ -379,6 +389,16 @@ function TransactionsContent() {
               }
             }
 
+            // The modal sends label_ids, but rows render the `labels` relation
+            // (name/color badges). Resolve the IDs so badges update optimistically
+            // instead of keeping the pre-edit set until the next fetch.
+            if (Array.isArray(data.label_ids)) {
+              merged.labels = (data.label_ids as string[])
+                .map(labelId => labels.find(label => label.id === labelId))
+                .filter((label): label is NonNullable<typeof label> => !!label)
+                .map(label => ({ id: label.id, name: label.name, color: label.color }));
+            }
+
             if (typeof merged.amount === 'number') {
               const absAmount = Math.abs(merged.amount);
               // Debt rows keep their original directional type; only regular
@@ -418,7 +438,7 @@ function TransactionsContent() {
     
     window.addEventListener('transaction-updated', handleUpdate);
     return () => window.removeEventListener('transaction-updated', handleUpdate);
-  }, [fetchTransactions, apiAccounts, categories]);
+  }, [fetchTransactions, apiAccounts, categories, labels]);
 
   // Infinite scroll implementation
   useEffect(() => {
@@ -580,6 +600,7 @@ function TransactionsContent() {
         account_ids: apiAccounts.filter(acc => selectedAccounts.includes(acc.name)).map(acc => acc.id).join(',')
       }),
       ...(selectedLabelIds.length > 0 && { label_ids: selectedLabelIds.join(',') }),
+      ...(excludedLabelIds.length > 0 && { exclude_label_ids: excludedLabelIds.join(',') }),
       ...(minAmount > 0 && { min_amount: minAmount }),
       ...(maxAmount < Infinity && { max_amount: maxAmount }),
       ...(transferOption && { transfer_option: transferOption }),
@@ -594,6 +615,7 @@ function TransactionsContent() {
     selectedAccounts,
     apiAccounts,
     selectedLabelIds,
+    excludedLabelIds,
     minAmount,
     maxAmount,
     transferOption,

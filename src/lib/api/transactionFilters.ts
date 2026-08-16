@@ -199,6 +199,19 @@ export async function buildTransactionWhere(
     };
   }
 
+  // Excluded labels go through AND so they compose with the include filter above
+  // instead of overwriting `where.labels`
+  const excludeLabelIds = parseIdList(f['exclude_label_ids']);
+  if (excludeLabelIds.length > 0) {
+    and.push({
+      labels: {
+        none: {
+          label_id: { in: excludeLabelIds }
+        }
+      }
+    });
+  }
+
   if (and.length > 0) {
     where.AND = and;
   }

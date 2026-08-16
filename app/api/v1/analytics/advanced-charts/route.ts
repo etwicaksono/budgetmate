@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { buildLabelWhereConditions } from '@/lib/api/labelFilters';
 import { generateAnalyticsPeriods } from '@/lib/timezone';
 import { logError } from '@/lib/logger';
 
@@ -102,6 +103,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const search = searchParams.get('search');
   const minAmount = searchParams.get('min_amount');
   const maxAmount = searchParams.get('max_amount');
+  const labelConditions = buildLabelWhereConditions(
+    searchParams.get('label_ids'),
+    searchParams.get('exclude_label_ids')
+  );
 
   try {
     const { start, end, startLocal, endLocal, offsetMinutes } = generateAnalyticsPeriods(startDate, endDate);
@@ -156,6 +161,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       transactionWhereClause.amount = {};
       if (minAmount !== null) transactionWhereClause.amount.gte = Number(minAmount);
       if (maxAmount !== null) transactionWhereClause.amount.lte = Number(maxAmount);
+    }
+
+    if (labelConditions.length > 0) {
+      transactionWhereClause.AND = labelConditions;
     }
 
     const transactions = await prisma.transaction.findMany({
@@ -289,6 +298,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               ...(maxAmount !== null && { lte: Number(maxAmount) }),
             },
           }),
+          ...(labelConditions.length > 0 && { AND: labelConditions }),
         },
         select: {
           amount: true,

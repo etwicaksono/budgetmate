@@ -107,6 +107,28 @@ export const DebtDetailModal: React.FC<DebtDetailModalProps> = ({
                   <div className="debt-detail-label">Description:</div>
                   <div className="debt-detail-value fw-normal">{debt.description || <span className="text-muted">No description provided</span>}</div>
                </Col>
+               {Array.isArray(debt.labels) && debt.labels.length > 0 && (
+                  <Col xs={12} className="mt-3">
+                     <div className="debt-detail-label">Labels:</div>
+                     <div className="d-flex flex-wrap gap-1 mt-1">
+                        {debt.labels.map((label) => (
+                           <span
+                              key={label.id}
+                              className="badge text-uppercase"
+                              style={{
+                                 backgroundColor: label.color || '#6c757d',
+                                 color: '#fff',
+                                 fontSize: '0.65rem',
+                                 padding: '0.2rem 0.5rem',
+                                 fontWeight: '600'
+                              }}
+                           >
+                              {label.name}
+                           </span>
+                        ))}
+                     </div>
+                  </Col>
+               )}
             </Row>
 
             <div className="mb-4">

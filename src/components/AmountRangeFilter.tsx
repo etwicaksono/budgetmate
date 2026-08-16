@@ -12,6 +12,43 @@ const NumericFormControl = React.forwardRef<HTMLInputElement, FormControlProps>(
 );
 NumericFormControl.displayName = 'NumericFormControl';
 
+const MAX_LIMIT_STORAGE_KEY = 'amount-range-max-limit';
+
+// The slider ceiling grows whenever a larger amount is entered. Persisting it
+// keeps big transactions reachable after a reload instead of being clipped by
+// the default limit.
+function loadStoredMaxLimit(): number | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const stored = window.localStorage.getItem(MAX_LIMIT_STORAGE_KEY);
+    if (!stored) return null;
+
+    const parsed = Number(stored);
+    return Number.isFinite(parsed) && parsed > 0 && parsed <= Number.MAX_SAFE_INTEGER
+      ? parsed
+      : null;
+  } catch {
+    // Ignore unreadable storage and fall back to the prop-provided limit.
+    return null;
+  }
+}
+
+function saveStoredMaxLimit(value: number): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    // The ceiling only ever grows, so never write a value below the stored one —
+    // this also makes the write order on mount irrelevant.
+    const stored = loadStoredMaxLimit();
+    if (stored !== null && stored >= value) return;
+
+    window.localStorage.setItem(MAX_LIMIT_STORAGE_KEY, String(value));
+  } catch {
+    // Ignore storage write failures (private mode, quota exceeded, ...).
+  }
+}
+
 interface AmountRangeFilterProps {
   minAmount: number;
   maxAmount: number;
@@ -41,6 +78,15 @@ const AmountRangeFilter: React.FC<AmountRangeFilterProps> = ({
     setMinInputValue(minAmount.toString());
   }, [minAmount]);
 
+  // Restore the previously reached ceiling once the client is mounted, so the
+  // initial render still matches the server output.
+  useEffect(() => {
+    const stored = loadStoredMaxLimit();
+    if (stored !== null) {
+      setDynamicMaxLimit((previous) => Math.max(previous, stored));
+    }
+  }, []);
+
   useEffect(() => {
     setMaxInputValue(maxAmount.toString());
     setDynamicMaxLimit((previous) => Math.max(previous, maxAmount, maxLimit));
@@ -49,6 +95,10 @@ const AmountRangeFilter: React.FC<AmountRangeFilterProps> = ({
   useEffect(() => {
     setDynamicMaxLimit((previous) => (maxLimit > previous ? maxLimit : previous));
   }, [maxLimit]);
+
+  useEffect(() => {
+    saveStoredMaxLimit(dynamicMaxLimit);
+  }, [dynamicMaxLimit]);
 
   const clampValue = (value: number, min: number, max: number): number =>
     Math.min(Math.max(value, min), max);

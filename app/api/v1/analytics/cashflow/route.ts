@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { buildLabelWhereConditions } from '@/lib/api/labelFilters';
 import { logError } from '@/lib/logger';
 import {
   generateAnalyticsPeriods,
@@ -62,6 +63,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const search = searchParams.get('search');
   const minAmount = searchParams.get('min_amount');
   const maxAmount = searchParams.get('max_amount');
+  const labelConditions = buildLabelWhereConditions(
+    searchParams.get('label_ids'),
+    searchParams.get('exclude_label_ids')
+  );
 
   try {
     const {
@@ -105,6 +110,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         is_included_in_total: true,
         id: { in: accountIds },
       };
+    }
+
+    if (labelConditions.length > 0) {
+      baseWhereClause.AND = labelConditions;
     }
 
     const currentTransactions = await prisma.transaction.findMany({

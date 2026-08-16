@@ -148,6 +148,26 @@ export function BulkEditModal({
         </Form.Group>
 
         <Form.Group className="mb-3">
+          <Form.Check
+            type="checkbox"
+            id="bulk-edit-replace-labels"
+            label="Replace existing labels"
+            checked={replaceLabels}
+            onChange={(e) => handleReplaceLabelsChange(e.target.checked)}
+            disabled={isSubmitting}
+            className="mb-2"
+          />
+          <LabelMultiSelect
+            labels={labels}
+            selectedLabelIds={labelIds}
+            onChange={handleLabelsChange}
+            disabled={isSubmitting || isLoading}
+            placeholder="Select labels"
+          />
+          <Form.Text muted>{labelHelpText}</Form.Text>
+        </Form.Group>
+
+        <Form.Group className="mb-3">
           <Form.Label>Description</Form.Label>
           <Form.Control
             type="text"
@@ -201,25 +221,6 @@ export function BulkEditModal({
           </Form.Select>
         </Form.Group>
 
-        <Form.Group className="mb-3">
-          <Form.Check
-            type="checkbox"
-            id="bulk-edit-replace-labels"
-            label="Replace existing labels"
-            checked={replaceLabels}
-            onChange={(e) => handleReplaceLabelsChange(e.target.checked)}
-            disabled={isSubmitting}
-            className="mb-2"
-          />
-          <LabelMultiSelect
-            labels={labels}
-            selectedLabelIds={labelIds}
-            onChange={handleLabelsChange}
-            disabled={isSubmitting || isLoading}
-            placeholder="Select labels"
-          />
-          <Form.Text muted>{labelHelpText}</Form.Text>
-        </Form.Group>
       </Modal.Body>
 
       <Modal.Footer>

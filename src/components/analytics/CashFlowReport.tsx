@@ -31,6 +31,7 @@ interface CashFlowReportProps {
   transferOption?: string;
   debtOption?: string;
   selectedLabelIds?: string[];
+  excludedLabelIds?: string[];
 }
 
 const formatNumberAbbreviation = (value: number): string => {
@@ -53,6 +54,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
   transferOption,
   debtOption,
   selectedLabelIds,
+  excludedLabelIds,
   selectedCategories,
   selectedAccounts,
 }) => {
@@ -79,6 +81,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
           transfer_option?: string;
           debt_option?: string;
           label_ids?: string[];
+          exclude_label_ids?: string[];
         } = {};
         if (startDate) params.start_date = startDate;
         if (endDate) params.end_date = endDate;
@@ -90,6 +93,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
         if (transferOption) params.transfer_option = transferOption;
         if (debtOption) params.debt_option = debtOption;
         if (selectedLabelIds?.length) params.label_ids = selectedLabelIds;
+        if (excludedLabelIds?.length) params.exclude_label_ids = excludedLabelIds;
 
         const response = await analyticsService.fetchCashFlowReport(params);
         setData(response);
@@ -101,7 +105,7 @@ const CashFlowReport: React.FC<CashFlowReportProps> = ({
     };
 
     fetchData();
-  }, [startDate, endDate, searchTerm, minAmount, maxAmount, transferOption, debtOption, selectedLabelIds, selectedCategories, selectedAccounts]);
+  }, [startDate, endDate, searchTerm, minAmount, maxAmount, transferOption, debtOption, selectedLabelIds, excludedLabelIds, selectedCategories, selectedAccounts]);
 
   const comparisonChartData = useMemo(() => {
     if (!data) return [];

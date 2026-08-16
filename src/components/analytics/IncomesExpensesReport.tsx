@@ -28,11 +28,20 @@ interface IncomesExpensesReportProps {
   debtOption?: string;
   draftOption?: string;
   selectedLabelIds?: string[];
+  excludedLabelIds?: string[];
   sortOption?: SortValue;
   onSortOptionChange?: (value: SortValue) => void;
   numberOfColumns?: number;
   onNumberOfColumnsChange?: (val: number) => void;
 }
+
+// Amounts are only shown with decimals when they actually carry a fractional
+// part; anything that rounds to a whole unit stays free of ",00" noise.
+const DECIMAL_DIGITS = 2;
+const ROUNDING_TOLERANCE = 0.5 / 10 ** DECIMAL_DIGITS;
+
+const hasVisibleDecimals = (value: number): boolean =>
+  Math.abs(value - Math.round(value)) >= ROUNDING_TOLERANCE;
 
 interface SelectedCategory {
   id: string;
@@ -59,6 +68,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   debtOption,
   draftOption,
   selectedLabelIds,
+  excludedLabelIds,
   sortOption: externalSortOption = 'timeDesc',
   onSortOptionChange,
   numberOfColumns = 2,
@@ -70,6 +80,15 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const [showPercentageDiff, setShowPercentageDiff] = useState(false);
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const { formatCurrency } = useFormattedCurrency();
+
+  // Keeps whole amounts unchanged while restoring decimals for fractional ones.
+  const formatAmount = useCallback(
+    (value: number) =>
+      hasVisibleDecimals(value)
+        ? formatCurrency(value, { forceDecimals: DECIMAL_DIGITS })
+        : formatCurrency(value),
+    [formatCurrency]
+  );
 
   const { data, loading, error } = useIncomeExpenseData({
     startDate,
@@ -84,6 +103,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     debtOption,
     draftOption,
     selectedLabelIds,
+    excludedLabelIds,
     numberOfColumns,
   });
 
@@ -265,7 +285,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 )}
                 <span className={Object.is(amount, -0) || amount < 0 ? (type === 'income' ? 'text-danger' : 'text-success') : ''}>
                   {type === 'expense' ? (amount >= 0 ? '-' : '+') : (amount < 0 ? '-' : '')}
-                  {formatCurrency(Math.abs(amount))}
+                  {formatAmount(Math.abs(amount))}
                 </span>
                 {monthIndex === 0 && (() => {
                   const pctDiff = calculatePercentageDiff(category.amounts[0] || 0, category.amounts[1] || 0);
@@ -326,7 +346,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <td><strong>Total Income</strong></td>
             {reportData.totalIncomes.map((total, idx) => (
               <td key={idx} className="text-end total-income">
-                {total < 0 ? '-' : ''}{formatCurrency(Math.abs(total))}
+                {total < 0 ? '-' : ''}{formatAmount(Math.abs(total))}
               </td>
             ))}
           </tr>
@@ -341,7 +361,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <td><strong>Total Expense</strong></td>
             {reportData.totalExpenses.map((total, idx) => (
               <td key={idx} className="text-end total-expense">
-                {total >= 0 ? '-' : '+'}{formatCurrency(Math.abs(total))}
+                {total >= 0 ? '-' : '+'}{formatAmount(Math.abs(total))}
               </td>
             ))}
           </tr>
@@ -429,7 +449,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 if (currentAmount !== 0) handleShowTransactions(category, 0, e);
               }}
             >
-              {prefix}{formatCurrency(Math.abs(currentAmount))}
+              {prefix}{formatAmount(Math.abs(currentAmount))}
             </span>
             {diffNode}
           </div>
@@ -460,7 +480,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <span className="text-truncate" style={{ fontSize: '16px', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
               {(() => {
                 const total = reportData.totalIncomes[0] || 0;
-                return `${total < 0 ? '-' : ''}${formatCurrency(Math.abs(total))}`;
+                return `${total < 0 ? '-' : ''}${formatAmount(Math.abs(total))}`;
               })()}
             </span>
             {(() => {
@@ -492,7 +512,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             <span className="text-truncate" style={{ fontSize: '16px', fontWeight: 700, color: '#DC2626', whiteSpace: 'nowrap' }}>
               {(() => {
                 const total = reportData.totalExpenses[0] || 0;
-                return `${total >= 0 ? '-' : '+'}${formatCurrency(Math.abs(total))}`;
+                return `${total >= 0 ? '-' : '+'}${formatAmount(Math.abs(total))}`;
               })()}
             </span>
             {(() => {

@@ -1,9 +1,9 @@
 ﻿'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Row, Col, Dropdown, Form, Alert } from 'react-bootstrap';
-import { FaWallet, FaUniversity, FaPiggyBank, FaPencilAlt, FaFileAlt, FaCheck } from 'react-icons/fa';
+import { FaWallet, FaUniversity, FaPiggyBank, FaPencilAlt, FaFilter } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
 import {
   DndContext,
@@ -43,6 +43,10 @@ import { analyticsService, type ExpenseByCategory } from '@/services/analyticsSe
 import { budgetService, type BudgetStatus } from '@/services/budgetService';
 import { transactionService, type Transaction as ApiTransaction } from '@/services/transactionService';
 import { localStorageService } from '@/mocks/localStorageService';
+import { useFilterData } from '@/hooks/useFilterData';
+import { useSavedFilters } from '@/hooks/useSavedFilters';
+import { useDashboardFilters } from '@/hooks/useDashboardFilters';
+import { DashboardFilterModal } from './_components/DashboardFilterModal';
 import './Dashboard.css';
 
 // Widget order and visibility now managed by localStorageService
@@ -64,6 +68,7 @@ const getIconComponent = (iconName: string): React.ComponentType<{ size?: number
 import { useTransactionActions } from '@/hooks/useTransactionActions';
 import { useNetWorth } from '@/hooks/useNetWorth';
 import { logError } from '@/lib/logger';
+import { SavedFilterContext } from '@prisma/client';
 import {
   BalanceTrendWidget,
   BudgetStatusWidget,
@@ -78,11 +83,70 @@ function DashboardContent(): React.ReactElement {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showControlPanel, setShowControlPanel] = useState(false);
   const [widgetVisibility, setWidgetVisibility] = useState(() => localStorageService.loadWidgetVisibility());
-  const [includeDraft, setIncludeDraft] = useState<boolean>(() => localStorageService.loadIncludeDraft());
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
-  useEffect(() => {
-    localStorageService.saveIncludeDraft(includeDraft);
-  }, [includeDraft]);
+  // Shared filter state (accounts, categories, labels, drafts) reused from the
+  // transactions/analytics sidebars so the same dropdowns work here.
+  const filterData = useFilterData();
+  const {
+    selectedAccounts,
+    setSelectedAccounts,
+    selectedCategories,
+    setSelectedCategories,
+    selectedLabelIds,
+    setSelectedLabelIds,
+    excludedLabelIds,
+    setExcludedLabelIds,
+    draftOption,
+    setDraftOption,
+    sortOption,
+    setSortOption,
+    transferOption,
+    setTransferOption,
+    debtOption,
+    setDebtOption,
+    categories,
+    apiAccounts,
+  } = filterData;
+
+  const savedFiltersData = useSavedFilters({
+    categories,
+    accounts: apiAccounts,
+    context: SavedFilterContext.dashboard,
+    current: {
+      selectedCategories,
+      selectedAccounts,
+      selectedLabelIds,
+      excludedLabelIds,
+      sortOption,
+      transferOption,
+      debtOption,
+      draftOption,
+    },
+    dispatchers: {
+      setSelectedCategories,
+      setSelectedAccounts,
+      setSelectedLabelIds,
+      setExcludedLabelIds,
+      setSortOption,
+      setTransferOption,
+      setDebtOption,
+      setDraftOption,
+    },
+  });
+
+  const { hydrated: filtersHydrated, activeFilterCount, resetFilters, includeDraft } = useDashboardFilters({
+    selectedAccounts,
+    setSelectedAccounts,
+    selectedCategories,
+    setSelectedCategories,
+    selectedLabelIds,
+    setSelectedLabelIds,
+    excludedLabelIds,
+    setExcludedLabelIds,
+    draftOption,
+    setDraftOption,
+  });
 
   const [loading, setLoading] = useState(true);
   const [accountsLoading, setAccountsLoading] = useState(true);
@@ -107,12 +171,59 @@ function DashboardContent(): React.ReactElement {
 
   const { formatCurrency } = useFormattedCurrency();
 
-  // Net Worth data
-  const { data: netWorthData, accountBalance: netWorthAccountBalance, totalCredit: netWorthTotalCredit, totalDebt: netWorthTotalDebt, isLoading: netWorthLoading } = useNetWorth(includeDraft);
-
   const {
     state: { periodLabel, activePeriod, customRangeDraft, dateRange },
   } = usePeriodNavigation();
+
+  // The dropdowns hold names; the API expects IDs.
+  const selectedAccountIds = useMemo(() => {
+    if (!selectedAccounts.length || !apiAccounts.length) return [];
+    return apiAccounts.filter((acc) => selectedAccounts.includes(acc.name)).map((acc) => acc.id);
+  }, [selectedAccounts, apiAccounts]);
+
+  // Net Worth data — categories and labels do not apply to account balances,
+  // so it only follows the account and draft filters.
+  const { data: netWorthData, accountBalance: netWorthAccountBalance, totalCredit: netWorthTotalCredit, totalDebt: netWorthTotalDebt, isLoading: netWorthLoading } = useNetWorth(includeDraft, selectedAccountIds);
+
+  const selectedCategoryIds = useMemo(() => {
+    if (!selectedCategories.length || !categories.length) return [];
+    return categories.filter((cat) => selectedCategories.includes(cat.name)).map((cat) => cat.id);
+  }, [selectedCategories, categories]);
+
+  // Comma-separated query params shared by the widgets. Kept as primitive strings
+  // so the fetch callbacks below don't rerun on every render.
+  const accountIdsParam = selectedAccountIds.join(',');
+  const categoryIdsParam = selectedCategoryIds.join(',');
+  const labelIdsParam = selectedLabelIds.join(',');
+  const excludeLabelIdsParam = excludedLabelIds.join(',');
+
+  // The analytics and transactions routes share these param names and both
+  // default to excluding drafts, so one object covers all four widgets.
+  const widgetFilters = useMemo(() => {
+    const filters: {
+      account_ids?: string;
+      category_ids?: string;
+      label_ids?: string;
+      exclude_label_ids?: string;
+      draft_option?: string;
+    } = {};
+    if (accountIdsParam) filters.account_ids = accountIdsParam;
+    if (categoryIdsParam) filters.category_ids = categoryIdsParam;
+    if (labelIdsParam) filters.label_ids = labelIdsParam;
+    if (excludeLabelIdsParam) filters.exclude_label_ids = excludeLabelIdsParam;
+    if (draftOption !== 'exclude') filters.draft_option = draftOption;
+    return filters;
+  }, [accountIdsParam, categoryIdsParam, labelIdsParam, excludeLabelIdsParam, draftOption]);
+
+  // Budget Status aggregates by category, so labels cannot be applied there
+  const budgetFilters = useMemo(() => {
+    const filters: { account_ids?: string; category_ids?: string; drafts?: string } = {
+      drafts: draftOption,
+    };
+    if (accountIdsParam) filters.account_ids = accountIdsParam;
+    if (categoryIdsParam) filters.category_ids = categoryIdsParam;
+    return filters;
+  }, [accountIdsParam, categoryIdsParam, draftOption]);
 
   // Fetch accounts
   const fetchAccounts = useCallback(async () => {
@@ -150,15 +261,15 @@ function DashboardContent(): React.ReactElement {
 
       // Build conditional promises based on widgetVisibility
       const expensesPromise = widgetVisibility.expensesByCategory
-        ? analyticsService.fetchExpensesByCategory({ ...dateFilters })
+        ? analyticsService.fetchExpensesByCategory({ ...dateFilters, ...widgetFilters })
         : Promise.resolve({ expenses: [] as ExpenseByCategory[] });
 
       const transactionsPromise = (widgetVisibility.recentTransactions && !options?.preserveTransactions)
-        ? transactionService.fetchTransactions({ ...dateFilters, limit: 10 })
+        ? transactionService.fetchTransactions({ ...dateFilters, ...widgetFilters, limit: 10 })
         : Promise.resolve(null);
 
       const budgetsPromise = widgetVisibility.budgetStatus
-        ? budgetService.fetchBudgetStatus({ ...dateFilters })
+        ? budgetService.fetchBudgetStatus({ ...dateFilters, ...budgetFilters })
         : Promise.resolve([] as BudgetStatus[]);
 
       const trendsPromise = widgetVisibility.balanceTrend
@@ -166,11 +277,12 @@ function DashboardContent(): React.ReactElement {
           metric: 'balance',
           period: 'daily',
           ...dateFilters,
+          ...widgetFilters,
         })
         : Promise.resolve({ labels: [], datasets: [] });
 
       const incomeExpensePromise = widgetVisibility.incomeVsExpenses
-        ? analyticsService.fetchIncomeVsExpenses({ ...dateFilters })
+        ? analyticsService.fetchIncomeVsExpenses({ ...dateFilters, ...widgetFilters })
         : Promise.resolve({ data: [] as BarChartData[] });
 
       const [expensesData, transactionsResponse, budgetsData, trendData, incomeExpenseResponse] = await Promise.all([
@@ -219,7 +331,7 @@ function DashboardContent(): React.ReactElement {
     } finally {
       setLoading(false);
     }
-  }, [dateRange.start, dateRange.end, widgetVisibility]);
+  }, [dateRange.start, dateRange.end, widgetVisibility, widgetFilters, budgetFilters]);
 
   const loadMoreTransactions = useCallback(async () => {
     if (isLoadingMoreTx || !hasMoreTransactions || !widgetVisibility.recentTransactions) return;
@@ -234,7 +346,7 @@ function DashboardContent(): React.ReactElement {
       if (startDateTime) dateFilters.start_date = startDateTime;
       if (endDateTime) dateFilters.end_date = endDateTime;
 
-      const response = await transactionService.fetchTransactions({ ...dateFilters, limit: 10, page: nextPage });
+      const response = await transactionService.fetchTransactions({ ...dateFilters, ...widgetFilters, limit: 10, page: nextPage });
       setTransactions(prev => [...prev, ...(response.transactions || [])]);
       setTransactionsPage(nextPage);
 
@@ -245,16 +357,19 @@ function DashboardContent(): React.ReactElement {
     } finally {
       setIsLoadingMoreTx(false);
     }
-  }, [isLoadingMoreTx, hasMoreTransactions, transactionsPage, dateRange, widgetVisibility.recentTransactions]);
+  }, [isLoadingMoreTx, hasMoreTransactions, transactionsPage, dateRange, widgetVisibility.recentTransactions, widgetFilters]);
 
-  // Initial data fetch
+  // Initial data fetch — waits for the persisted filters so the widgets are not
+  // fetched twice (once unfiltered, then again once the filters are restored)
   useEffect(() => {
+    if (!filtersHydrated) return;
     fetchAccounts();
-  }, [fetchAccounts]);
+  }, [filtersHydrated, fetchAccounts]);
 
   useEffect(() => {
+    if (!filtersHydrated) return;
     fetchDashboardData();
-  }, [fetchDashboardData]);
+  }, [filtersHydrated, fetchDashboardData]);
 
   // Auto-refresh dashboard when transactions or accounts are created/updated/deleted
   useEffect(() => {
@@ -420,7 +535,7 @@ function DashboardContent(): React.ReactElement {
           isLoading={netWorthLoading}
           formatCurrencyValue={formatCurrencyValue}
           includeDraft={includeDraft}
-          onToggleDraft={setIncludeDraft}
+          onToggleDraft={(next) => setDraftOption(next ? 'include' : 'exclude')}
         />
       ),
     },
@@ -587,20 +702,18 @@ function DashboardContent(): React.ReactElement {
 
               {/* Period Navigation — centered on all screens */}
               <div className="d-flex align-items-center justify-content-center gap-2">
-                {/* Draft Filter Chip — desktop only (next to Period Navigation) */}
+                {/* Filter Chip — desktop only (next to Period Navigation) */}
                 <button
-                  id="dashboard-draft-chip"
-                  className={`dashboard-filter-chip d-none d-lg-inline-flex${includeDraft ? ' dashboard-filter-chip--active' : ''}`}
-                  onClick={() => {
-                    const next = !includeDraft;
-                    setIncludeDraft(next);
-                    localStorageService.saveIncludeDraft(next);
-                  }}
-                  title="Include draft transactions in balances"
+                  id="dashboard-filter-chip"
+                  className={`dashboard-filter-chip d-none d-lg-inline-flex${activeFilterCount > 0 ? ' dashboard-filter-chip--active' : ''}`}
+                  onClick={() => setShowFilterModal(true)}
+                  title="Filter dashboard widgets"
                 >
-                  <FaFileAlt size={11} />
-                  <span>Draft</span>
-                  {includeDraft && <FaCheck size={10} />}
+                  <FaFilter size={11} />
+                  <span>Filter</span>
+                  {activeFilterCount > 0 && (
+                    <span className="dashboard-filter-chip__count">{activeFilterCount}</span>
+                  )}
                 </button>
 
                 <PeriodNavigation>
@@ -612,21 +725,19 @@ function DashboardContent(): React.ReactElement {
                 </PeriodNavigation>
               </div>
 
-              {/* Draft chip (mobile) + Widget Controls — spread on mobile, right on desktop */}
+              {/* Filter chip (mobile) + Widget Controls — spread on mobile, right on desktop */}
               <div className="d-flex align-items-center justify-content-between justify-content-lg-end w-100 gap-2" style={{ flex: 1 }}>
-                {/* Draft Filter Chip — mobile only (left side) */}
+                {/* Filter Chip — mobile only (left side) */}
                 <button
-                  className={`dashboard-filter-chip d-inline-flex d-lg-none${includeDraft ? ' dashboard-filter-chip--active' : ''}`}
-                  onClick={() => {
-                    const next = !includeDraft;
-                    setIncludeDraft(next);
-                    localStorageService.saveIncludeDraft(next);
-                  }}
-                  title="Include draft transactions in balances"
+                  className={`dashboard-filter-chip d-inline-flex d-lg-none${activeFilterCount > 0 ? ' dashboard-filter-chip--active' : ''}`}
+                  onClick={() => setShowFilterModal(true)}
+                  title="Filter dashboard widgets"
                 >
-                  <FaFileAlt size={11} />
-                  <span>Draft</span>
-                  {includeDraft && <FaCheck size={10} />}
+                  <FaFilter size={11} />
+                  <span>Filter</span>
+                  {activeFilterCount > 0 && (
+                    <span className="dashboard-filter-chip__count">{activeFilterCount}</span>
+                  )}
                 </button>
                 {/* Widget Control Panel */}
                 <Dropdown show={showControlPanel} onToggle={setShowControlPanel}>
@@ -735,6 +846,15 @@ function DashboardContent(): React.ReactElement {
           </DragOverlay>
         </DndContext>
       </section>
+
+      {/* Widget Filter Modal */}
+      <DashboardFilterModal
+        show={showFilterModal}
+        onHide={() => setShowFilterModal(false)}
+        filterData={filterData}
+        savedFiltersData={savedFiltersData}
+        onResetFilters={resetFilters}
+      />
 
       {/* Account Modal */}
       {accountModal.showModal && (

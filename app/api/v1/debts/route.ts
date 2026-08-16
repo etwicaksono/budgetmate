@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { CreateDebtSchema } from '@/lib/validation/debt';
+import { buildDebtLabelWhereConditions } from '@/lib/api/debtLabelFilters';
+import { LabelNotFoundError, replaceDebtLabels } from '@/lib/api/debtLabels';
 import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -39,6 +41,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       };
    }
 
+   // Label filters are composed as separate AND entries so include and exclude
+   // never overwrite each other on the same `labels` key.
+   const labelConditions = buildDebtLabelWhereConditions(
+      searchParams.get('label_ids'),
+      searchParams.get('exclude_label_ids')
+   );
+   if (labelConditions.length > 0) {
+      where.AND = labelConditions;
+   }
+
    // Base pagination computation
    let totalData = 0;
    if (limit > 0) {
@@ -50,12 +62,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       account: {
          select: { name: true, icon: true, color: true }
       },
+      labels: {
+         include: { label: { select: { id: true, name: true, color: true } } }
+      },
       transactions: {
          // Deleted ledger rows must not count toward the debt amount or repayments
          where: { deleted_at: null },
          orderBy: { created_at: 'asc' },
          include: {
-            account: { select: { name: true, icon: true, color: true } }
+            account: { select: { id: true, name: true, icon: true, color: true } }
          }
       }
    } satisfies Prisma.DebtInclude;
@@ -116,11 +131,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             remaining_amount: remainingAmount,
             account: debt.account,
             account_id: debt.account_id,
+            // The manual projection means new relations must be mapped explicitly
+            labels: debt.labels.map((dl) => dl.label),
             repayments: repaymentTxs.map((tx: typeof allTxs[0]) => ({
                id: tx.id,
                date: tx.date.toISOString(),
                description: tx.description,
                amount: Math.abs(Number(tx.amount)),
+               account_id: tx.account_id,
                account: tx.account
             })),
             transactions: allTxs.map((tx: typeof allTxs[0]) => ({
@@ -129,6 +147,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                date: tx.date.toISOString(),
                description: tx.description,
                amount: Math.abs(Number(tx.amount)),
+               account_id: tx.account_id,
                account: tx.account
             }))
          };
@@ -250,13 +269,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             }
          });
 
-         return await tx.debt.findUnique({
+         // 3. Attach labels, verifying they all belong to the user
+         const createdLabels = data.label_ids?.length
+            ? await replaceDebtLabels(tx, user.user_id, debtEntry.id, data.label_ids)
+            : [];
+
+         const created = await tx.debt.findUnique({
             where: { id: debtEntry.id },
             include: {
                account: { select: { name: true, icon: true, color: true } },
                transactions: { orderBy: { created_at: 'asc' } }
             }
          });
+
+         // Expose the resolved labels so the client can render badges right away.
+         return { ...created, labels: createdLabels };
       });
 
       return successResponse(
@@ -270,6 +297,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
    } catch (error) {
       logError('Create debt error:', error);
+
+      if (error instanceof LabelNotFoundError) {
+         return errorResponse('INVALID_LABEL', error.message, 404);
+      }
+
       return errorResponse(
          'INTERNAL_ERROR',
          'Failed to create debt',

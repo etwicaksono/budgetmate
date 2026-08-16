@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { buildLabelWhereConditions } from '@/lib/api/labelFilters';
 import { balanceService } from '@/services/balanceService';
 import { logError } from '@/lib/logger';
 import {
@@ -46,6 +47,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const endDate = searchParams.get('end_date');
   const categoryIds = searchParams.get('category_ids')?.split(',').filter(Boolean) || [];
   const accountIdsParam = searchParams.get('account_ids')?.split(',').filter(Boolean) || [];
+  const labelConditions = buildLabelWhereConditions(
+    searchParams.get('label_ids'),
+    searchParams.get('exclude_label_ids')
+  );
 
   try {
     const { start, end, previousEnd, offsetMinutes } = generateAnalyticsPeriods(startDate, endDate);
@@ -110,6 +115,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (categoryIds.length > 0) {
       transactionWhereClause.category_id = { in: categoryIds };
+    }
+
+    if (labelConditions.length > 0) {
+      transactionWhereClause.AND = labelConditions;
     }
 
     const transactions = await prisma.transaction.findMany({

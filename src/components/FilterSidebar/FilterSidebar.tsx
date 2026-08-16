@@ -16,6 +16,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = (props) => {
     if (props.onSelectedCategoriesChange) props.onSelectedCategoriesChange([]);
     if (props.onSelectedAccountsChange) props.onSelectedAccountsChange([]);
     if (props.onSelectedLabelIdsChange) props.onSelectedLabelIdsChange([]);
+    if (props.onExcludedLabelIdsChange) props.onExcludedLabelIdsChange([]);
     if (props.onSelectedCurrenciesChange) props.onSelectedCurrenciesChange([]);
     if (props.onMinAmountChange) props.onMinAmountChange(0);
     if (props.onMaxAmountChange) props.onMaxAmountChange(20000000);

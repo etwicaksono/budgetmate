@@ -30,6 +30,7 @@ export interface FilterVisibility {
 
 const DEFAULT_MIN_AMOUNT = 0;
 const DEFAULT_MAX_AMOUNT = 20000000;
+const AMOUNT_RANGE_STORAGE_KEY = 'filter-amount-range';
 
 export const useFilterData = () => {
   // Filter state
@@ -50,6 +51,7 @@ export const useFilterData = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [excludedLabelIds, setExcludedLabelIds] = useState<string[]>([]);
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
   const availableCurrencies = useMemo<string[]>(() => ['IDR'], []);
   const [sortOption, setSortOption] = useState<SortValue>('timeDesc');
@@ -100,6 +102,48 @@ export const useFilterData = () => {
       logError('Failed to persist filter visibility to localStorage:', error);
     }
   }, [filterVisibility]);
+
+  // Restore the amount range so a widened ceiling keeps large transactions
+  // visible after a reload instead of snapping back to the default maximum.
+  const restoredAmountRange = useRef(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(AMOUNT_RANGE_STORAGE_KEY);
+    if (!stored) return;
+
+    try {
+      const parsed = JSON.parse(stored) as { minAmount?: unknown; maxAmount?: unknown };
+      const storedMin = Number(parsed.minAmount);
+      const storedMax = Number(parsed.maxAmount);
+
+      if (Number.isFinite(storedMin) && storedMin >= 0) {
+        setMinAmount(storedMin);
+        restoredAmountRange.current = true;
+      }
+      if (Number.isFinite(storedMax) && storedMax > 0) {
+        setMaxAmount(storedMax);
+        restoredAmountRange.current = true;
+      }
+    } catch (error) {
+      logError('Failed to parse persisted amount range:', error);
+    }
+  }, []);
+
+  // Save the amount range to localStorage
+  useEffect(() => {
+    // The restore above schedules a state update, so this first pass still holds
+    // the defaults — skip it to avoid overwriting what was just read back.
+    if (restoredAmountRange.current) {
+      restoredAmountRange.current = false;
+      return;
+    }
+
+    try {
+      localStorage.setItem(AMOUNT_RANGE_STORAGE_KEY, JSON.stringify({ minAmount, maxAmount }));
+    } catch (error) {
+      logError('Failed to persist amount range to localStorage:', error);
+    }
+  }, [minAmount, maxAmount]);
 
   // Fetch categories and accounts
   useEffect(() => {
@@ -274,6 +318,8 @@ export const useFilterData = () => {
     labels,
     selectedLabelIds,
     setSelectedLabelIds,
+    excludedLabelIds,
+    setExcludedLabelIds,
     selectedCurrencies,
     setSelectedCurrencies,
     availableCurrencies,

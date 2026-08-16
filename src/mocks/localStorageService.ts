@@ -15,6 +15,7 @@ const STORAGE_KEYS = {
   REFRESH_TOKEN: 'refresh_token',
   USER_PREFERENCES: 'user-preferences',
   INCLUDE_DRAFT: 'dashboard-include-draft',
+  DASHBOARD_FILTERS: 'dashboard-filters',
 } as const;
 
 // Default Values
@@ -38,6 +39,26 @@ export const DEFAULT_WIDGET_VISIBILITY = {
 
 // Type Definitions
 export type WidgetVisibility = typeof DEFAULT_WIDGET_VISIBILITY;
+
+export type DashboardDraftOption = 'include' | 'only' | 'exclude';
+
+/** Dashboard-wide widget filters. Accounts and categories are held as names to
+ *  match what useFilterData exposes to the dropdown components. */
+export interface DashboardFilters {
+  selectedAccounts: string[];
+  selectedCategories: string[];
+  selectedLabelIds: string[];
+  excludedLabelIds: string[];
+  draftOption: DashboardDraftOption;
+}
+
+export const DEFAULT_DASHBOARD_FILTERS: DashboardFilters = {
+  selectedAccounts: [],
+  selectedCategories: [],
+  selectedLabelIds: [],
+  excludedLabelIds: [],
+  draftOption: 'exclude',
+};
 
 /**
  * Check if localStorage is available (SSR safety)
@@ -323,6 +344,52 @@ export const saveIncludeDraft = (value: boolean): boolean => {
 };
 
 // ============================================================================
+// Dashboard Filter Operations
+// ============================================================================
+
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+
+const isDraftOption = (value: unknown): value is DashboardDraftOption =>
+  value === 'include' || value === 'only' || value === 'exclude';
+
+/**
+ * Load the dashboard widget filters.
+ *
+ * Falls back to the legacy "include draft" toggle for the draft option so an
+ * existing preference survives the switch to the three-way filter.
+ */
+export const loadDashboardFilters = (): DashboardFilters => {
+  const stored = getItem<Partial<DashboardFilters> | null>(STORAGE_KEYS.DASHBOARD_FILTERS, null);
+
+  if (!stored || typeof stored !== 'object') {
+    return {
+      ...DEFAULT_DASHBOARD_FILTERS,
+      draftOption: loadIncludeDraft() ? 'include' : 'exclude',
+    };
+  }
+
+  return {
+    selectedAccounts: isStringArray(stored.selectedAccounts) ? stored.selectedAccounts : [],
+    selectedCategories: isStringArray(stored.selectedCategories) ? stored.selectedCategories : [],
+    selectedLabelIds: isStringArray(stored.selectedLabelIds) ? stored.selectedLabelIds : [],
+    excludedLabelIds: isStringArray(stored.excludedLabelIds) ? stored.excludedLabelIds : [],
+    draftOption: isDraftOption(stored.draftOption)
+      ? stored.draftOption
+      : loadIncludeDraft()
+        ? 'include'
+        : 'exclude',
+  };
+};
+
+/**
+ * Save the dashboard widget filters
+ */
+export const saveDashboardFilters = (filters: DashboardFilters): boolean => {
+  return setItem(STORAGE_KEYS.DASHBOARD_FILTERS, filters);
+};
+
+// ============================================================================
 // Export Service Object
 // ============================================================================
 
@@ -350,6 +417,10 @@ export const localStorageService = {
   // Draft Filter
   loadIncludeDraft,
   saveIncludeDraft,
+
+  // Dashboard Filters
+  loadDashboardFilters,
+  saveDashboardFilters,
   
   // Generic Operations
   clear,

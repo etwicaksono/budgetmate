@@ -19,6 +19,16 @@ export const DebtSchema = registry.register(
     settled_amount: z.number().openapi({ example: 50000 }),
     status: z.nativeEnum(DebtStatus).openapi({ example: DebtStatus.active }),
     initial_transaction_id: z.string().nullable().openapi({ example: 'clqtx1234' }),
+    labels: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          color: z.string()
+        })
+      )
+      .optional()
+      .openapi({ example: [{ id: 'clqlabel1234560000000000', name: 'Family', color: '#f59e0b' }] }),
     created_at: z.date().openapi({ example: '2023-12-01T00:00:00Z' }),
     updated_at: z.date().openapi({ example: '2023-12-01T00:00:00Z' })
   })

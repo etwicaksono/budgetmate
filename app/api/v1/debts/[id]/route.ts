@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, errorResponse } from '@/lib/api/response';
 import { handlePrismaError } from '@/lib/api/prisma-errors';
 import { UpdateDebtSchema } from '@/lib/validation/debt';
+import { LabelNotFoundError, replaceDebtLabels, type ResolvedLabel } from '@/lib/api/debtLabels';
 import { logError } from '@/lib/logger';
 
 export async function GET(
@@ -30,12 +31,15 @@ export async function GET(
             account: {
                select: { name: true, icon: true, color: true },
             },
+            labels: {
+               include: { label: { select: { id: true, name: true, color: true } } }
+            },
             transactions: {
                // Deleted ledger rows must not count toward the debt amount or repayments
                where: { deleted_at: null },
                orderBy: { created_at: 'asc' },
                include: {
-                  account: { select: { name: true, icon: true, color: true } }
+                  account: { select: { id: true, name: true, icon: true, color: true } }
                }
             },
          },
@@ -75,11 +79,14 @@ export async function GET(
          remaining_amount: remainingAmount,
          account: debt.account,
          account_id: debt.account_id,
+         // The manual projection means new relations must be mapped explicitly
+         labels: debt.labels.map((dl) => dl.label),
          repayments: repaymentTxs.map((tx) => ({
             id: tx.id,
             date: tx.date.toISOString(),
             description: tx.description,
             amount: Math.abs(Number(tx.amount)),
+            account_id: tx.account_id,
             account: tx.account
          })),
          transactions: allTxs.map((tx) => ({
@@ -88,6 +95,7 @@ export async function GET(
             date: tx.date.toISOString(),
             description: tx.description,
             amount: Math.abs(Number(tx.amount)),
+            account_id: tx.account_id,
             account: tx.account
          }))
       };
@@ -169,11 +177,21 @@ export async function PUT(
             },
          });
 
-         return updated;
+         // Labels are replaced wholesale; omitting the key leaves them untouched
+         let labels: ResolvedLabel[] | undefined;
+         if (data.label_ids !== undefined) {
+            labels = await replaceDebtLabels(tx, authResult.user.user_id, debtId, data.label_ids);
+         }
+
+         return labels === undefined ? updated : { ...updated, labels };
       });
 
       return successResponse(updatedDebt, { message: 'Debt updated successfully' });
    } catch (error) {
+      if (error instanceof LabelNotFoundError) {
+         return errorResponse('INVALID_LABEL', error.message, 404);
+      }
+
       const prismaError = handlePrismaError(error, 'Debt', 'update');
       if (prismaError) return prismaError;
       logError('Unexpected error:', error);

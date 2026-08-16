@@ -173,6 +173,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Excluded label filter (max 50 IDs) — pushed into AND so it composes with the
+    // include filter above instead of overwriting `where.labels`
+    if (filters.exclude_label_ids) {
+      const excludeLabelIds = filters.exclude_label_ids.split(',').filter(Boolean).slice(0, 50);
+      if (excludeLabelIds.length > 0) {
+        (where.AND as Prisma.TransactionWhereInput[]).push({
+          labels: {
+            none: {
+              label_id: { in: excludeLabelIds }
+            }
+          }
+        });
+      }
+    }
 
     // Prisma cannot order by abs(amount), so magnitude ordering is resolved here:
     // fetch the matching ids with their amounts, rank them, then load just that page.
@@ -425,6 +439,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
 
       // Create label associations if provided
+      let createdLabels: Array<{ id: string; name: string; color: string }> = [];
       if (data.label_ids && data.label_ids.length > 0) {
         // Deduplicate to prevent false ownership mismatch and unique constraint violations
         const uniqueLabelIds = [...new Set(data.label_ids)];
@@ -434,7 +449,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           where: {
             id: { in: uniqueLabelIds },
             user_id: user.user_id
-          }
+          },
+          select: { id: true, name: true, color: true }
         });
 
         if (labels.length !== uniqueLabelIds.length) {
@@ -447,11 +463,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             label_id
           }))
         });
+
+        createdLabels = labels;
       }
 
       // ✅ Balance is now calculated on-demand, no need to update
 
-      return created;
+      // Expose the resolved labels so the client can render badges right away.
+      return { ...created, labels: createdLabels };
     });
 
     // Transform response
@@ -468,6 +487,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payee: transaction.payee,
       payment_method: transaction.payment_method,
       payment_status: transaction.payment_status,
+      labels: transaction.labels,
       is_draft: transaction.is_draft,
       created_at: transaction.created_at
     };

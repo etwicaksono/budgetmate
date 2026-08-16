@@ -2,6 +2,7 @@
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { successResponse, errorResponse } from '@/lib/api/response';
+import { parseAnalyticsFilters, buildAnalyticsTransactionWhere } from '@/lib/api/analyticsFilters';
 import { logError } from '@/lib/logger';
 
 interface ExpenseCategoryItem {
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
   const limit = parseInt(searchParams.get('limit') || '500', 10);
+  const filters = parseAnalyticsFilters(searchParams);
 
   try {
     const dateFilter: { gte?: Date; lte?: Date } = {};
@@ -40,9 +42,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where: {
         user_id: user.user_id,
         deleted_at: null,
-        is_draft: false,
         type: 'expense',
+        // An explicit category filter already implies a non-null category
         category_id: { not: null },
+        ...buildAnalyticsTransactionWhere(filters),
         ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
       },
       include: {

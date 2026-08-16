@@ -3,6 +3,12 @@ import type { DebtStatus, DebtType } from '@prisma/client';
 import { Account } from './accountService';
 import { Transaction } from './transactionService';
 
+export interface DebtLabel {
+   id: string;
+   name: string;
+   color: string;
+}
+
 export interface Debt {
    id: string;
    user_id: string;
@@ -16,6 +22,7 @@ export interface Debt {
    amount: number;
    remaining_amount: number;
    account?: Account;
+   labels?: DebtLabel[];
    repayments: Debt[];
    transactions?: Transaction[];
    created_at: string;
@@ -39,6 +46,7 @@ export interface CreateDebtPayload {
    amount: number;
    counterparty: string;
    description?: string;
+   label_ids?: string[];
 }
 
 export interface UpdateDebtPayload {
@@ -47,6 +55,8 @@ export interface UpdateDebtPayload {
    counterparty?: string;
    description?: string;
    status?: DebtStatus;
+   /** Omit to leave the labels untouched; pass an empty array to clear them. */
+   label_ids?: string[];
 }
 
 export interface CreateRepaymentPayload {
@@ -64,6 +74,8 @@ interface FetchDebtsFilters {
    counterparty?: string;
    sort_by?: string;
    sort_order?: string;
+   label_ids?: string;
+   exclude_label_ids?: string;
 }
 
 class DebtService {
@@ -78,6 +90,8 @@ class DebtService {
          if (filters.counterparty) params.append('counterparty', filters.counterparty);
          if (filters.sort_by) params.append('sort_by', filters.sort_by);
          if (filters.sort_order) params.append('sort_order', filters.sort_order);
+         if (filters.label_ids) params.append('label_ids', filters.label_ids);
+         if (filters.exclude_label_ids) params.append('exclude_label_ids', filters.exclude_label_ids);
       }
 
       const queryString = params.toString() ? `?${params.toString()}` : '';

@@ -50,6 +50,8 @@ export interface FilterSidebarProps {
   selectableAccounts?: string[];
   selectedLabelIds?: string[];
   onSelectedLabelIdsChange?: React.Dispatch<React.SetStateAction<string[]>>;
+  excludedLabelIds?: string[];
+  onExcludedLabelIdsChange?: React.Dispatch<React.SetStateAction<string[]>>;
   labels?: Label[];
   selectedCurrencies?: string[];
   onSelectedCurrenciesChange?: React.Dispatch<React.SetStateAction<string[]>>;
