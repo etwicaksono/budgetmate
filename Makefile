@@ -1,16 +1,21 @@
 # Finance App - Development Makefile
 # Quick commands for common development tasks
 
+# Port used by the dev and production servers.
+# Override per invocation: make dev PORT=4000
+PORT ?= 3001
+
 .PHONY: help
 help: ## Show this help message
 	@echo ==================================================
 	@echo Finance App - Available Commands
 	@echo ==================================================
 	@echo DEVELOPMENT:
-	@echo   dev            - Start development server
+	@echo   dev            - Start development server (port $(PORT))
 	@echo   build          - Build for production
-	@echo   start          - Start production server
-	@echo   dev-clean      - Clean and start dev server
+	@echo   start          - Start production server (port $(PORT))
+	@echo   dev-clean      - Clean and start dev server (port $(PORT))
+	@echo   ^(override with PORT=4000, e.g. make dev PORT=4000^)
 	@echo QUALITY CHECKS:
 	@echo   check          - Run type-check only
 	@echo   lint           - Run ESLint
@@ -55,8 +60,8 @@ help: ## Show this help message
 
 .PHONY: dev d
 dev d: ## Start development server
-	@echo [DEV] Starting development server...
-	@npm run dev
+	@echo [DEV] Starting development server on http://localhost:$(PORT)...
+	@npm run dev -- --port $(PORT)
 
 .PHONY: build b
 build b: ## Build for production
@@ -65,13 +70,13 @@ build b: ## Build for production
 
 .PHONY: start
 start: ## Start production server
-	@echo [START] Starting production server...
-	@npm run start
+	@echo [START] Starting production server on http://localhost:$(PORT)...
+	@npm run start -- --port $(PORT)
 
 .PHONY: dev-clean
 dev-clean: clean ## Clean cache and start dev server
-	@echo [DEV] Starting clean development server...
-	@npm run dev
+	@echo [DEV] Starting clean development server on http://localhost:$(PORT)...
+	@npm run dev -- --port $(PORT)
 
 # ===========================
 # QUALITY CHECKS

@@ -27,6 +27,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       name: 'SwiftRouter',
       models: getAvailableModels('swiftrouter'),
     },
+    {
+      id: 'vyceai',
+      name: 'VyceAI',
+      models: getAvailableModels('vyceai'),
+    },
   ].filter((p) => p.models.length > 0); // hide providers with no models configured
 
   return NextResponse.json({

@@ -1,15 +1,38 @@
 'use client';
 
 import { Button, Card, Col, Dropdown, Form, Offcanvas } from 'react-bootstrap';
-import { RiListSettingsLine } from 'react-icons/ri';
 import { FaFileAlt, FaCheck, FaTags } from 'react-icons/fa';
 import { AccountDropdown } from '@/components/FilterSidebar/AccountDropdown';
 import { CategoryDropdown } from '@/components/FilterSidebar/CategoryDropdown';
 import { SavedFiltersManager } from '@/components/FilterSidebar/SavedFiltersManager';
+import { FilterVisibilityDropdown } from '@/components/FilterSidebar/FilterVisibilityDropdown';
+import type { FilterVisibilityItem } from '@/components/FilterSidebar/FilterVisibilityDropdown';
 import { LabelMultiSelect } from '@/components/transaction/LabelMultiSelect';
+import { useFilterVisibility } from '@/hooks/useFilterVisibility';
 import '@/components/FilterSidebar/FilterSidebar.css';
 import type { useFilterData } from '@/hooks/useFilterData';
 import type { useSavedFilters } from '@/hooks/useSavedFilters';
+
+// Only the filters this sidebar actually renders
+type AnalyticsFilterKey = 'categories' | 'accounts' | 'labels' | 'drafts';
+
+const VISIBILITY_ITEMS: ReadonlyArray<FilterVisibilityItem<AnalyticsFilterKey>> = [
+  { id: 'categories', label: 'Categories' },
+  { id: 'accounts', label: 'Accounts' },
+  { id: 'labels', label: 'Labels' },
+  { id: 'drafts', label: 'Drafts' },
+];
+
+// Own storage key: useFilterData's 'filter-visibility' is shared with the
+// transactions sidebar, which renders a different set of filters.
+const VISIBILITY_STORAGE_KEY = 'analytics-filter-visibility';
+
+const VISIBILITY_DEFAULTS: Record<AnalyticsFilterKey, boolean> = {
+  categories: true,
+  accounts: true,
+  labels: true,
+  drafts: true,
+};
 
 interface AnalyticsFilterSidebarProps {
   /** Return value of useFilterData() */
@@ -59,6 +82,11 @@ function AnalyticsFilterPanel({
     clearActiveFilter,
     reorderFilter,
   } = savedFiltersData;
+
+  const { visibility, toggle: toggleVisibility } = useFilterVisibility(
+    VISIBILITY_STORAGE_KEY,
+    VISIBILITY_DEFAULTS
+  );
 
   const handleReset = () => {
     setSelectedAccounts([]);
@@ -112,23 +140,11 @@ function AnalyticsFilterPanel({
       {/* Header */}
       <Card.Header className="d-flex align-items-center justify-content-between bg-white border-bottom">
         <span className="h4 mb-0 fw-bold">Analytics</span>
-        <button
-          type="button"
-          style={{
-            width: '36px', height: '36px', borderRadius: '8px',
-            backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-          aria-label="Reset filters"
-          title="Reset filters"
-          onClick={handleReset}
-        >
-          {/* TODO: Replace RiListSettingsLine with a proper reset/refresh icon (e.g., FaUndo or FaRedo). */}
-          <RiListSettingsLine size={20} color="#6b7280" />
-        </button>
+        <FilterVisibilityDropdown
+          items={VISIBILITY_ITEMS}
+          visibility={visibility}
+          onToggle={toggleVisibility}
+        />
       </Card.Header>
 
       {/* Body */}
@@ -138,6 +154,7 @@ function AnalyticsFilterPanel({
 
         <Form>
           {/* Category filter */}
+          {visibility.categories && (
           <Form.Group className="mb-4" controlId="analyticsCategoryFilter">
             <Form.Label className="fw-semibold text-muted small">Categories</Form.Label>
             <CategoryDropdown
@@ -154,8 +171,10 @@ function AnalyticsFilterPanel({
               isSingleSelect={false}
             />
           </Form.Group>
+          )}
 
           {/* Account filter */}
+          {visibility.accounts && (
           <Form.Group className="mb-4" controlId="analyticsAccountFilter">
             <Form.Label className="fw-semibold text-muted small">Accounts</Form.Label>
             <AccountDropdown
@@ -170,8 +189,10 @@ function AnalyticsFilterPanel({
               isSingleSelect={false}
             />
           </Form.Group>
+          )}
 
-          {/* Labels Filter */}
+          {/* Labels Filter — include and exclude share one visibility key */}
+          {visibility.labels && (
           <Form.Group className="mb-3" controlId="analyticsLabelFilter">
             <Form.Label className="fw-semibold text-muted small">Labels</Form.Label>
             <LabelMultiSelect
@@ -181,7 +202,9 @@ function AnalyticsFilterPanel({
               placeholder="All labels"
             />
           </Form.Group>
+          )}
 
+          {visibility.labels && (
           <Form.Group className="mb-4" controlId="analyticsExcludeLabelFilter">
             <Form.Label className="fw-semibold text-muted small">Exclude labels</Form.Label>
             <LabelMultiSelect
@@ -191,8 +214,10 @@ function AnalyticsFilterPanel({
               placeholder="No excluded labels"
             />
           </Form.Group>
+          )}
 
           {/* Drafts Filter */}
+          {visibility.drafts && (
           <Form.Group className="mb-4" controlId="analyticsDraftFilter">
             <Form.Label className="fw-semibold text-muted small">Drafts</Form.Label>
             <Dropdown>
@@ -241,6 +266,7 @@ function AnalyticsFilterPanel({
               </Dropdown.Menu>
             </Dropdown>
           </Form.Group>
+          )}
         </Form>
       </Card.Body>
 

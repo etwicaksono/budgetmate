@@ -14,6 +14,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Spinner, Form } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { FaMinimize, FaMaximize, FaClockRotateLeft, FaXmark } from 'react-icons/fa6';
 import type { ContextSnapshot } from '@/lib/ai/types';
 import { apiClient } from '@/services/api';
@@ -81,6 +82,107 @@ function contextLabel(ctx: ContextSnapshot): string {
   if (ctx.accountIds?.length) parts.push(`${ctx.accountIds.length} akun`);
   return parts.join(' · ');
 }
+
+// ─── Markdown rendering ──────────────────────────────────────────────────────
+
+// Tables come from remark-gfm (not part of CommonMark). They are wrapped in a
+// horizontally scrollable div so a wide table scrolls instead of stretching the
+// chat bubble. Defined at module scope so the map isn't rebuilt on every render.
+const MARKDOWN_COMPONENTS: React.ComponentProps<typeof ReactMarkdown>['components'] = {
+  p: ({ node: _node, ...props }) => <p style={{ margin: '0 0 8px 0' }} {...props} />,
+  ul: ({ node: _node, ...props }) => <ul style={{ margin: '0 0 8px 0', paddingLeft: '20px' }} {...props} />,
+  ol: ({ node: _node, ...props }) => <ol style={{ margin: '0 0 8px 0', paddingLeft: '20px' }} {...props} />,
+  li: ({ node: _node, ...props }) => <li style={{ marginBottom: '4px' }} {...props} />,
+  h3: ({ node: _node, ...props }) => <h3 style={{ fontSize: '14px', margin: '12px 0 8px 0' }} {...props} />,
+  h4: ({ node: _node, ...props }) => <h4 style={{ fontSize: '13px', margin: '10px 0 6px 0' }} {...props} />,
+
+  table: ({ node: _node, ...props }) => (
+    <div style={{ overflowX: 'auto', margin: '0 0 8px 0', maxWidth: '100%' }}>
+      <table
+        style={{
+          borderCollapse: 'collapse',
+          fontSize: '12px',
+          width: 'auto',
+          minWidth: '100%',
+          background: '#fff',
+        }}
+        {...props}
+      />
+    </div>
+  ),
+  thead: ({ node: _node, ...props }) => <thead style={{ background: '#e9ecef' }} {...props} />,
+  th: ({ node: _node, ...props }) => (
+    <th
+      style={{
+        border: '1px solid #dee2e6',
+        padding: '5px 8px',
+        textAlign: 'left',
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+      }}
+      {...props}
+    />
+  ),
+  td: ({ node: _node, ...props }) => (
+    <td style={{ border: '1px solid #dee2e6', padding: '5px 8px', verticalAlign: 'top' }} {...props} />
+  ),
+
+  code: ({ node: _node, className, ...props }) => {
+    // Fenced blocks arrive with a language- class and are wrapped in <pre>,
+    // which owns the scrolling; inline code needs its own chip styling.
+    const isBlock = /language-/.test(className ?? '');
+    if (isBlock) {
+      return <code className={className} style={{ fontFamily: 'monospace', fontSize: '12px' }} {...props} />;
+    }
+    return (
+      <code
+        style={{
+          background: '#e9ecef',
+          borderRadius: '3px',
+          padding: '1px 4px',
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          wordBreak: 'break-word',
+        }}
+        {...props}
+      />
+    );
+  },
+  pre: ({ node: _node, ...props }) => (
+    <pre
+      style={{
+        background: '#e9ecef',
+        borderRadius: '6px',
+        padding: '8px 10px',
+        margin: '0 0 8px 0',
+        overflowX: 'auto',
+        maxWidth: '100%',
+        fontSize: '12px',
+      }}
+      {...props}
+    />
+  ),
+
+  blockquote: ({ node: _node, ...props }) => (
+    <blockquote
+      style={{
+        borderLeft: '3px solid #ced4da',
+        margin: '0 0 8px 0',
+        padding: '2px 0 2px 10px',
+        color: '#495057',
+      }}
+      {...props}
+    />
+  ),
+  a: ({ node: _node, ...props }) => (
+    <a
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ color: '#2A5288', textDecoration: 'underline' }}
+      {...props}
+    />
+  ),
+};
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -852,6 +954,9 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
                 <div
                   style={{
                     maxWidth: '82%',
+                    // Flex items default to min-width:auto, which lets a wide
+                    // table push the bubble past maxWidth instead of scrolling.
+                    minWidth: 0,
                     padding: '8px 12px',
                     borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                     background: msg.role === 'user'
@@ -869,14 +974,8 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
                     msg.content
                   ) : (
                     <ReactMarkdown
-                      components={{
-                        p: ({ node: _node, ...props }) => <p style={{ margin: '0 0 8px 0' }} {...props} />,
-                        ul: ({ node: _node, ...props }) => <ul style={{ margin: '0 0 8px 0', paddingLeft: '20px' }} {...props} />,
-                        ol: ({ node: _node, ...props }) => <ol style={{ margin: '0 0 8px 0', paddingLeft: '20px' }} {...props} />,
-                        li: ({ node: _node, ...props }) => <li style={{ marginBottom: '4px' }} {...props} />,
-                        h3: ({ node: _node, ...props }) => <h3 style={{ fontSize: '14px', margin: '12px 0 8px 0' }} {...props} />,
-                        h4: ({ node: _node, ...props }) => <h4 style={{ fontSize: '13px', margin: '10px 0 6px 0' }} {...props} />,
-                      }}
+                      remarkPlugins={[remarkGfm]}
+                      components={MARKDOWN_COMPONENTS}
                     >
                       {msg.content}
                     </ReactMarkdown>

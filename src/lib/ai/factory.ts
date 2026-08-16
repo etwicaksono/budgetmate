@@ -1,8 +1,8 @@
 /**
  * LLM Provider Factory
  *
- * Reads AI_PROVIDER + GEMINI_MODELS / SWIFTROUTER_MODELS from environment
- * and returns the appropriate LLMProvider.
+ * Reads AI_PROVIDER + GEMINI_MODELS / SWIFTROUTER_MODELS / VYCEAI_MODELS from
+ * environment and returns the appropriate LLMProvider.
  *
  * Model list: comma-separated env var — first item is the default.
  * Both provider and model can be overridden at call-time (used by the messages
@@ -11,24 +11,32 @@
  * Supported providers:
  *   - 'gemini'      → Google Gemini via @google/generative-ai
  *   - 'swiftrouter' → SwiftRouter (OpenAI-compatible) via openai package
+ *   - 'vyceai'      → VyceAI (OpenAI-compatible) via openai package
  */
 
 import type { LLMProvider } from './types';
 import { GeminiProvider } from './providers/gemini';
 import { SwiftRouterProvider } from './providers/swiftrouter';
+import { VyceAIProvider } from './providers/vyceai';
 
-export type SupportedProvider = 'gemini' | 'swiftrouter';
+export type SupportedProvider = 'gemini' | 'swiftrouter' | 'vyceai';
+
+/** Env var holding the comma-separated model list for each provider. */
+const MODELS_ENV_VAR: Record<SupportedProvider, string> = {
+  gemini: 'GEMINI_MODELS',
+  swiftrouter: 'SWIFTROUTER_MODELS',
+  vyceai: 'VYCEAI_MODELS',
+};
 
 /** Returns the ordered list of available models for a provider. */
 export function getAvailableModels(provider: SupportedProvider): string[] {
-  if (provider === 'gemini') {
-    const raw = process.env['GEMINI_MODELS'] ?? '';
-    const list = raw.split(',').map((s) => s.trim()).filter(Boolean);
-    return list.length > 0 ? list : ['gemini-2.5-flash'];
-  }
-  const raw = process.env['SWIFTROUTER_MODELS'] ?? '';
+  const envVar = MODELS_ENV_VAR[provider];
+  const raw = (envVar ? process.env[envVar] : undefined) ?? '';
   const list = raw.split(',').map((s) => s.trim()).filter(Boolean);
-  return list.length > 0 ? list : [];
+  if (list.length > 0) return list;
+  // Gemini keeps a built-in fallback; the OpenAI-compatible providers are only
+  // offered once their model list is configured.
+  return provider === 'gemini' ? ['gemini-2.5-flash'] : [];
 }
 
 /** Returns the default (first) model for a provider. */
@@ -60,9 +68,18 @@ export function createLLMProvider(
       return new SwiftRouterProvider(apiKey, baseURL, model);
     }
 
+    case 'vyceai': {
+      const apiKey = process.env['VYCEAI_API_KEY'];
+      const baseURL = process.env['VYCEAI_BASE_URL'] ?? 'https://vyceai.com/v1';
+      const model = modelOverride ?? getDefaultModel('vyceai');
+      if (!apiKey) throw new Error('VYCEAI_API_KEY is not set in environment');
+      if (!model) throw new Error('No VyceAI model configured. Set VYCEAI_MODELS in .env');
+      return new VyceAIProvider(apiKey, baseURL, model);
+    }
+
     default:
       throw new Error(
-        `Unsupported AI_PROVIDER: "${providerName}". Supported values: gemini, swiftrouter`
+        `Unsupported AI_PROVIDER: "${providerName}". Supported values: gemini, swiftrouter, vyceai`
       );
   }
 }

@@ -3,13 +3,31 @@
 
 import { Col, Offcanvas, Form, Card, Dropdown } from 'react-bootstrap';
 import { FaFileAlt, FaCheck } from 'react-icons/fa';
-import { RiListSettingsLine } from 'react-icons/ri';
 import type { Account } from '@/services/accountService';
 import type { useSavedFilters } from '@/hooks/useSavedFilters';
 import { AccountDropdown } from '@/components/FilterSidebar/AccountDropdown';
 import { SavedFiltersManager } from '@/components/FilterSidebar/SavedFiltersManager';
+import { FilterVisibilityDropdown } from '@/components/FilterSidebar/FilterVisibilityDropdown';
+import type { FilterVisibilityItem } from '@/components/FilterSidebar/FilterVisibilityDropdown';
+import { useFilterVisibility } from '@/hooks/useFilterVisibility';
 import type { DraftOption } from '@/hooks/useFilterData';
 import '@/components/FilterSidebar/FilterSidebar.css';
+
+// Only the filters this sidebar renders. "Display" (show projections) is a
+// display toggle rather than a filter, so it stays always visible.
+type BudgetFilterKey = 'accounts' | 'drafts';
+
+const VISIBILITY_ITEMS: ReadonlyArray<FilterVisibilityItem<BudgetFilterKey>> = [
+  { id: 'accounts', label: 'Accounts' },
+  { id: 'drafts', label: 'Drafts' },
+];
+
+const VISIBILITY_STORAGE_KEY = 'budget-filter-visibility';
+
+const VISIBILITY_DEFAULTS: Record<BudgetFilterKey, boolean> = {
+  accounts: true,
+  drafts: true,
+};
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -82,6 +100,11 @@ function BudgetFilterPanel({
     clearActiveFilter();
   };
 
+  const { visibility, toggle: toggleVisibility } = useFilterVisibility(
+    VISIBILITY_STORAGE_KEY,
+    VISIBILITY_DEFAULTS
+  );
+
   // Build a minimal FilterSidebarProps-compatible object for SavedFiltersManager
   const savedFilterProps = {
     savedFilters,
@@ -112,23 +135,11 @@ function BudgetFilterPanel({
       {/* ── Header ── */}
       <Card.Header className="d-flex align-items-center justify-content-between bg-white border-bottom">
         <span className="h4 mb-0 fw-bold">Budgets</span>
-        {/* Settings gear (placeholder for future filter visibility config) */}
-        <button
-          type="button"
-          style={{
-            width: '36px', height: '36px', borderRadius: '8px',
-            backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-          aria-label="Filter settings"
-          title="Filter settings"
-          onClick={handleReset}
-        >
-          <RiListSettingsLine size={20} color="#6b7280" />
-        </button>
+        <FilterVisibilityDropdown
+          items={VISIBILITY_ITEMS}
+          visibility={visibility}
+          onToggle={toggleVisibility}
+        />
       </Card.Header>
 
       {/* ── Body ── */}
@@ -139,6 +150,7 @@ function BudgetFilterPanel({
         <Form>
 
           {/* Account filter */}
+          {visibility.accounts && (
           <Form.Group className="mb-4" controlId="budgetAccountFilter">
             <Form.Label className="fw-semibold text-muted small">Accounts</Form.Label>
             <AccountDropdown
@@ -155,6 +167,7 @@ function BudgetFilterPanel({
               isSingleSelect={false}
             />
           </Form.Group>
+          )}
 
 
 
@@ -179,6 +192,7 @@ function BudgetFilterPanel({
           </Form.Group>
 
           {/* Drafts Filter */}
+          {visibility.drafts && (
           <Form.Group className="mb-4" controlId="budgetDraftFilter">
             <Form.Label className="fw-semibold text-muted small">Drafts</Form.Label>
             <Dropdown>
@@ -229,6 +243,7 @@ function BudgetFilterPanel({
               </Dropdown.Menu>
             </Dropdown>
           </Form.Group>
+          )}
 
 
         </Form>
