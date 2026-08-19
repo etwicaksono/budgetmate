@@ -21,6 +21,8 @@ const BackupAccountSchema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   is_active: z.boolean(),
   is_included_in_total: z.boolean(),
+  // Added in exportVersion 1.1.0 — optional so 1.0.x backups still validate
+  order: z.number().int().optional(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
 });
@@ -34,6 +36,8 @@ const BackupCategorySchema = z.object({
   icon: z.string().min(1).max(50),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(),
   is_active: z.boolean(),
+  // Added in exportVersion 1.1.0 — only meaningful when type === 'both'
+  analytic_flag: z.string().max(20).optional(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
 });
@@ -51,6 +55,8 @@ const BackupTransactionSchema = z.object({
   payment_status: z.string().max(32).nullable().optional(),
   transfer_id: z.string().nullable().optional(),
   debt_id: z.string().nullable().optional(),
+  // Added in exportVersion 1.1.0
+  is_draft: z.boolean().optional(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
 });
@@ -103,6 +109,13 @@ const BackupTransactionLabelSchema = z.object({
   label_id: z.string(),
 });
 
+// Added in exportVersion 1.1.0 — labels attached to the debt entity itself
+const BackupDebtLabelSchema = z.object({
+  id: z.string(),
+  debt_id: z.string(),
+  label_id: z.string(),
+});
+
 // =============================================================================
 // Main Backup Data Schema
 // =============================================================================
@@ -129,6 +142,8 @@ export const BackupDataSchema = z.object({
     transfers: z.array(BackupTransferSchema),
     labels: z.array(BackupLabelSchema),
     transactionLabels: z.array(BackupTransactionLabelSchema),
+    // Added in exportVersion 1.1.0 — defaults to [] so 1.0.x backups still validate
+    debtLabels: z.array(BackupDebtLabelSchema).optional().default([]),
   }),
   metadata: z.object({
     totalRecords: z.number().int().nonnegative(),
@@ -142,6 +157,7 @@ export const BackupDataSchema = z.object({
       transfers: z.number().int().nonnegative(),
       labels: z.number().int().nonnegative(),
       transactionLabels: z.number().int().nonnegative(),
+      debtLabels: z.number().int().nonnegative().optional(),
     }),
   }),
 });
@@ -217,3 +233,4 @@ export type BackupDebt = z.infer<typeof BackupDebtSchema>;
 export type BackupTransfer = z.infer<typeof BackupTransferSchema>;
 export type BackupLabel = z.infer<typeof BackupLabelSchema>;
 export type BackupTransactionLabel = z.infer<typeof BackupTransactionLabelSchema>;
+export type BackupDebtLabel = z.infer<typeof BackupDebtLabelSchema>;

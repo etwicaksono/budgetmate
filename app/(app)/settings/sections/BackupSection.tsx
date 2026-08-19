@@ -155,6 +155,37 @@ export function BackupSection(): React.ReactElement {
       setImportProgress(100);
 
       // Show success message
+      const imported = result.data?.imported;
+      const updated = result.data?.updated;
+      const skipped = result.data?.skipped;
+
+      const ENTITY_LABELS: { key: keyof NonNullable<typeof imported>; label: string }[] = [
+        { key: 'accounts', label: 'accounts' },
+        { key: 'categories', label: 'categories' },
+        { key: 'categoryBudgets', label: 'category budgets' },
+        { key: 'debts', label: 'debts' },
+        { key: 'transactions', label: 'transactions' },
+        { key: 'transfers', label: 'transfers' },
+        { key: 'labels', label: 'labels' },
+        { key: 'transactionLabels', label: 'transaction-label links' },
+        { key: 'debtLabels', label: 'debt-label links' },
+      ];
+
+      const importedRows = ENTITY_LABELS.map(({ key, label }) => {
+        const total = imported?.[key] ?? 0;
+        const updatedCount = updated?.[key] ?? 0;
+        const suffix = updatedCount > 0 ? ` <em>(${updatedCount} updated)</em>` : '';
+        return `<li>✓ ${total} ${label}${suffix}</li>`;
+      }).join('');
+
+      const skippedTotal = skipped
+        ? ENTITY_LABELS.reduce((sum, { key }) => sum + (skipped[key] ?? 0), 0)
+        : 0;
+      const skippedBlock =
+        skippedTotal > 0
+          ? `<p style="color: #f59e0b; margin-top: 1rem;">⚠️ ${skippedTotal} record(s) were skipped because a referenced account, category or label was missing from the backup.</p>`
+          : '';
+
       const successResult = await Swal.fire({
         icon: 'success',
         title: 'Import Successful',
@@ -162,15 +193,9 @@ export function BackupSection(): React.ReactElement {
           <p><strong>Data ${importMode === 'replace' ? 'restored' : 'merged'} successfully!</strong></p>
           ${result.data?.warning ? `<p style="color: #f59e0b; margin-bottom: 1rem;">⚠️ ${result.data.warning}</p>` : ''}
           <ul style="text-align: left; list-style: none; padding: 0;">
-            <li>✓ ${result.data?.imported.accounts || 0} accounts</li>
-            <li>✓ ${result.data?.imported.categories || 0} categories</li>
-            <li>✓ ${result.data?.imported.categoryBudgets || 0} category budgets</li>
-            <li>✓ ${result.data?.imported.debts || 0} debts</li>
-            <li>✓ ${result.data?.imported.transactions || 0} transactions</li>
-            <li>✓ ${result.data?.imported.transfers || 0} transfers</li>
-            <li>✓ ${result.data?.imported.labels || 0} labels</li>
-            <li>✓ ${result.data?.imported.transactionLabels || 0} transaction-label links</li>
+            ${importedRows}
           </ul>
+          ${skippedBlock}
         `,
         confirmButtonColor: '#28a745',
         confirmButtonText: 'Go to Dashboard',

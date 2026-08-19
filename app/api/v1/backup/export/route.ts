@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch ALL user data with relations in a transaction
     const userData = await prisma.$transaction(async (tx) => {
-      const [accounts, categories, categoryBudgets, debts, transactions, transfers, labels, transactionLabels, user] =
+      const [accounts, categories, categoryBudgets, debts, transactions, transfers, labels, transactionLabels, debtLabels, user] =
         await Promise.all([
           // Accounts
           tx.account.findMany({
@@ -101,6 +101,11 @@ export async function GET(request: NextRequest) {
             },
           }),
 
+          // Debt-Label relations (labels on the debt entity itself)
+          tx.debtLabel.findMany({
+            where: { debt: { user_id: userId } },
+          }),
+
           // User settings
           tx.user.findUnique({
             where: { id: userId },
@@ -124,6 +129,7 @@ export async function GET(request: NextRequest) {
         transfers,
         labels,
         transactionLabels,
+        debtLabels,
         user,
       };
     });
@@ -143,6 +149,7 @@ export async function GET(request: NextRequest) {
         color: acc.color,
         is_active: acc.is_active,
         is_included_in_total: acc.is_included_in_total,
+        order: acc.order,
         created_at: acc.created_at.toISOString(),
         updated_at: acc.updated_at.toISOString(),
       })),
@@ -155,6 +162,7 @@ export async function GET(request: NextRequest) {
         icon: cat.icon,
         color: cat.color,
         is_active: cat.is_active,
+        analytic_flag: cat.analytic_flag,
         created_at: cat.created_at.toISOString(),
         updated_at: cat.updated_at.toISOString(),
       })),
@@ -192,6 +200,7 @@ export async function GET(request: NextRequest) {
         payment_status: tx.payment_status,
         transfer_id: tx.transfer_id,
         debt_id: tx.debt_id,
+        is_draft: tx.is_draft,
         created_at: tx.created_at.toISOString(),
         updated_at: tx.updated_at.toISOString(),
       })),
@@ -217,11 +226,18 @@ export async function GET(request: NextRequest) {
         transaction_id: tl.transaction_id,
         label_id: tl.label_id,
       })),
+      debtLabels: userData.debtLabels.map((dl) => ({
+        id: dl.id,
+        debt_id: dl.debt_id,
+        label_id: dl.label_id,
+      })),
     };
 
     // Build complete backup data structure
     const sanitizedData = {
-      exportVersion: '1.0.0',
+      // 1.1.0 adds Account.order, Category.analytic_flag, Transaction.is_draft and
+      // the debtLabels collection. Major stays 1 so 1.0.x files remain importable.
+      exportVersion: '1.1.0',
       exportDate: new Date().toISOString(),
       appVersion: APP_VERSION,
       user: {
@@ -243,7 +259,8 @@ export async function GET(request: NextRequest) {
           userData.transactions.length +
           userData.transfers.length +
           userData.labels.length +
-          userData.transactionLabels.length,
+          userData.transactionLabels.length +
+          userData.debtLabels.length,
         checksum: generateChecksum(sanitizedDataContent),
         recordCounts: {
           accounts: userData.accounts.length,
@@ -254,6 +271,7 @@ export async function GET(request: NextRequest) {
           transfers: userData.transfers.length,
           labels: userData.labels.length,
           transactionLabels: userData.transactionLabels.length,
+          debtLabels: userData.debtLabels.length,
         },
       },
     };

@@ -170,6 +170,8 @@ class BackupService {
             step?: string;
             done?: boolean;
             result?: NonNullable<ImportResponse['data']>['imported'];
+            updated?: NonNullable<ImportResponse['data']>['updated'];
+            skipped?: NonNullable<ImportResponse['data']>['skipped'];
             warning?: string;
           };
           try {
@@ -199,6 +201,8 @@ class BackupService {
               data: {
                 message: 'Import successful',
                 imported: event.result!,
+                ...(event.updated ? { updated: event.updated } : {}),
+                ...(event.skipped ? { skipped: event.skipped } : {}),
                 ...(event.warning ? { warning: event.warning } : {}),
               },
             };

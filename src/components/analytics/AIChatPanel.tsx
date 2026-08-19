@@ -607,6 +607,13 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  // The expanded sidebar and the collapsed history dropdown each already carry
+  // their own "Chat baru" button, so the inline one is only offered when neither
+  // of them is on screen.
+  const isSidebarVisible = isExpanded && !isMobile;
+  const isHistoryDropdownVisible = (!isExpanded || isMobile) && showSessionList;
+  const showInlineNewChat = !isSidebarVisible && !isHistoryDropdownVisible;
+
   return (
     <>
       {/* ── Floating chat panel ── */}
@@ -916,8 +923,17 @@ export default function AIChatPanel({ context, onRestoreContext }: AIChatPanelPr
           )}
 
           {/* Context label */}
-          <div style={{ padding: '5px 12px', background: '#f8f9fa', borderBottom: '1px solid #e9ecef', flexShrink: 0 }}>
-            <span style={{ fontSize: '10px', color: '#6c757d' }}>📌 {contextLabel(context)}</span>
+          <div style={{ padding: '5px 12px', background: '#f8f9fa', borderBottom: '1px solid #e9ecef', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+            <span style={{ fontSize: '10px', color: '#6c757d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📌 {contextLabel(context)}</span>
+            {showInlineNewChat && (
+              <button
+                onClick={() => void handleNewChat()}
+                title="Chat baru"
+                style={{ background: 'none', border: '1px solid #1E3A5F', borderRadius: '10px', color: '#1E3A5F', cursor: 'pointer', fontSize: '11px', padding: '2px 8px', flexShrink: 0, whiteSpace: 'nowrap' }}
+              >
+                + Chat baru
+              </button>
+            )}
           </div>
 
           {/* Messages area */}

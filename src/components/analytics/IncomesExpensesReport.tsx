@@ -342,6 +342,21 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           </tr>
         </thead>
         <tbody>
+          {/* Margin Row */}
+          <tr className="margin-row">
+            <td><strong>Net Margin</strong></td>
+            {reportData.totalIncomes.map((income, i) => {
+              const expense = reportData.totalExpenses[i] || 0;
+              const margin = income - expense;
+              const isPositive = margin >= 0;
+              return (
+                <td key={i} className="text-end" style={{ color: isPositive ? '#198754' : '#dc3545' }}>
+                  {formatAmount(margin)}
+                </td>
+              );
+            })}
+          </tr>
+
           <tr className="total-row">
             <td><strong>Total Income</strong></td>
             {reportData.totalIncomes.map((total, idx) => (
@@ -647,6 +662,11 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
         .incomes-expenses-report .total-row {
           background-color: #f8f9fa;
           font-weight: 600;
+        }
+        .incomes-expenses-report .margin-row {
+          background-color: #f8f9fa;
+          font-weight: 600;
+          font-size: 0.95rem;
         }
         .incomes-expenses-report .total-income {
           color: #198754;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Backup Import API Endpoint
  *
  * POST /api/v1/backup/import?mode=replace|merge
@@ -9,11 +9,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { AccountType, CategoryNature, CategoryType, DebtStatus, DebtType, TransactionType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { commonErrors } from '@/lib/api/response';
 import { BackupDataSchema, isVersionCompatible } from '@/lib/validation/backupSchemas';
+import { dedupePairs, resolveAnalyticFlag, resolveImportId } from '@/lib/api/backupImport';
 import { createId } from '@paralleldrive/cuid2';
 import crypto from 'crypto';
 import { logError } from '@/lib/logger';
@@ -42,8 +42,9 @@ const PROGRESS_RANGES = {
   debts: { start: 35, end: 45 },
   labels: { start: 45, end: 55 },
   transfers: { start: 55, end: 65 },
-  transactions: { start: 65, end: 90 },
-  transactionLabels: { start: 90, end: 100 },
+  transactions: { start: 65, end: 88 },
+  transactionLabels: { start: 88, end: 96 },
+  debtLabels: { start: 96, end: 100 },
 } as const;
 
 function calculateProgress(
@@ -55,6 +56,30 @@ function calculateProgress(
   if (totalCount === 0) return end;
   return Math.min(end, Math.round(start + (currentIndex / totalCount) * (end - start)));
 }
+
+const ENTITY_KEYS = [
+  'accounts',
+  'categories',
+  'categoryBudgets',
+  'debts',
+  'transactions',
+  'transfers',
+  'labels',
+  'transactionLabels',
+  'debtLabels',
+] as const;
+
+type EntityKey = (typeof ENTITY_KEYS)[number];
+
+interface Counter {
+  created: number;
+  updated: number;
+  skipped: number;
+}
+
+/** Binds the shared resolver to this route's ID factory. */
+const resolveId = (backupId: string, owners: Map<string, string>, userId: string) =>
+  resolveImportId(backupId, owners, userId, createId);
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,9 +125,9 @@ export async function POST(request: NextRequest) {
 
     // Verify checksum if present
     // IMPORTANT: Compute checksum on body.data (raw parsed JSON) NOT backupData.data (Zod-parsed).
-    // Zod's safeParse reorders object keys to match schema definition order, which changes
-    // the JSON.stringify output and would cause checksum mismatches for backups exported
-    // from versions with different key ordering.
+    // Zod's safeParse reorders object keys to match schema definition order and fills in
+    // defaults for fields absent from older backups (e.g. debtLabels), both of which change
+    // the JSON.stringify output and would cause checksum mismatches.
     if (backupData.metadata.checksum) {
       const expectedChecksum = backupData.metadata.checksum;
       const rawDataString = JSON.stringify(body.data);
@@ -113,6 +138,7 @@ export async function POST(request: NextRequest) {
         .substring(0, 16);
 
       if (computedChecksum !== expectedChecksum) {
+        const metadataCounts = backupData.metadata.recordCounts;
         const recordCounts = {
           accounts: backupData.data.accounts.length,
           categories: backupData.data.categories.length,
@@ -122,8 +148,12 @@ export async function POST(request: NextRequest) {
           transfers: backupData.data.transfers.length,
           labels: backupData.data.labels.length,
           transactionLabels: backupData.data.transactionLabels.length,
+          // Only compare debtLabels when the file actually declares it (1.1.0+),
+          // otherwise Zod's [] default would fake a mismatch on 1.0.x backups.
+          ...(metadataCounts.debtLabels !== undefined
+            ? { debtLabels: backupData.data.debtLabels.length }
+            : {}),
         };
-        const metadataCounts = backupData.metadata.recordCounts;
 
         logError('[Backup Import] Checksum mismatch:', {
           expected: expectedChecksum,
@@ -179,21 +209,22 @@ export async function POST(request: NextRequest) {
     // ID mapping tables (maintained across chunks)
     const accountIdMap = new Map<string, string>();
     const categoryIdMap = new Map<string, string>();
-    const categoryBudgetIdMap = new Map<string, string>();
     const debtIdMap = new Map<string, string>();
     const labelIdMap = new Map<string, string>();
     const transferIdMap = new Map<string, string>();
     const transactionIdMap = new Map<string, string>();
 
-    // Result counters
-    let createdAccounts = 0;
-    let createdCategories = 0;
-    let createdCategoryBudgets = 0;
-    let createdDebts = 0;
-    let createdLabels = 0;
-    let createdTransfers = 0;
-    let createdTransactions = 0;
-    let createdTransactionLabels = 0;
+    // Per-entity outcome counters
+    const counters = ENTITY_KEYS.reduce((acc, key) => {
+      acc[key] = { created: 0, updated: 0, skipped: 0 };
+      return acc;
+    }, {} as Record<EntityKey, Counter>);
+
+    const tally = (pick: (counter: Counter) => number): Record<EntityKey, number> =>
+      ENTITY_KEYS.reduce((acc, key) => {
+        acc[key] = pick(counters[key]);
+        return acc;
+      }, {} as Record<EntityKey, number>);
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -213,6 +244,9 @@ export async function POST(request: NextRequest) {
               await tx.transactionLabel.deleteMany({
                 where: { transaction: { user_id: userId } },
               });
+              await tx.debtLabel.deleteMany({
+                where: { debt: { user_id: userId } },
+              });
               await tx.transaction.deleteMany({ where: { user_id: userId } });
               await tx.transfer.deleteMany({ where: { user_id: userId } });
               await tx.debt.deleteMany({ where: { user_id: userId } });
@@ -226,65 +260,44 @@ export async function POST(request: NextRequest) {
             sendEvent({ progress: 5, step: 'cleared', message: 'Existing data cleared' });
           }
 
-          // Step 2: Import Accounts in chunks
+          // Step 2: Import Accounts
           const accountChunks = chunkArray(backupData.data.accounts, CHUNK_SIZE);
-          for (let i = 0; i < accountChunks.length; i++) {
+          for (const [i, chunk] of accountChunks.entries()) {
             await prisma.$transaction(async (tx) => {
-              for (const account of accountChunks[i]!) {
-                if (mode === 'merge') {
-                  const existing = await tx.account.findFirst({
-                    where: { user_id: userId, id: account.id },
-                  });
+              const rows = await tx.account.findMany({
+                where: { id: { in: chunk.map((a) => a.id) } },
+                select: { id: true, user_id: true },
+              });
+              const owners = new Map(rows.map((r) => [r.id, r.user_id] as const));
 
-                  if (existing) {
-                    await tx.account.update({
-                      where: { id: existing.id },
-                      data: {
-                        name: account.name,
-                        account_type: account.account_type as AccountType,
-                        initial_balance: account.initial_balance,
-                        icon: account.icon,
-                        color: account.color,
-                        is_active: account.is_active,
-                        is_included_in_total: account.is_included_in_total,
-                      },
-                    });
-                    accountIdMap.set(account.id, existing.id);
-                  } else {
-                    const newId = createId();
-                    await tx.account.create({
-                      data: {
-                        id: newId,
-                        user_id: userId,
-                        name: account.name,
-                        account_type: account.account_type as AccountType,
-                        initial_balance: account.initial_balance,
-                        icon: account.icon,
-                        color: account.color,
-                        is_active: account.is_active,
-                        is_included_in_total: account.is_included_in_total,
-                      },
-                    });
-                    accountIdMap.set(account.id, newId);
-                  }
-                } else {
-                  const newId = createId();
-                  await tx.account.create({
-                    data: {
-                      id: newId,
-                      user_id: userId,
-                      name: account.name,
-                      account_type: account.account_type as AccountType,
-                      initial_balance: account.initial_balance,
-                      icon: account.icon,
-                      color: account.color,
-                      is_active: account.is_active,
-                      is_included_in_total: account.is_included_in_total,
-                    },
+              for (const account of chunk) {
+                const { update, id } = resolveId(account.id, owners, userId);
+                const fields = {
+                  name: account.name,
+                  account_type: account.account_type,
+                  initial_balance: account.initial_balance,
+                  icon: account.icon,
+                  color: account.color,
+                  is_active: account.is_active,
+                  is_included_in_total: account.is_included_in_total,
+                  order: account.order ?? 0,
+                };
+
+                if (update) {
+                  await tx.account.update({
+                    where: { id },
+                    // Backups only carry live rows, so a locally soft-deleted account
+                    // present in the file is meant to come back.
+                    data: { ...fields, deleted_at: null },
                   });
-                  accountIdMap.set(account.id, newId);
+                  counters.accounts.updated++;
+                } else {
+                  await tx.account.create({
+                    data: { id, user_id: userId, ...fields },
+                  });
+                  counters.accounts.created++;
                 }
-                createdAccounts++;
+                accountIdMap.set(account.id, id);
               }
             });
             sendEvent({
@@ -295,200 +308,122 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          // Step 3: Import Categories in chunks (root first, then children)
+          // Step 3: Import Categories (root first, then children so parents resolve)
           const rootCategories = backupData.data.categories.filter((c) => !c.parent_id);
           const childCategories = backupData.data.categories.filter((c) => c.parent_id);
+          const totalCategories = backupData.data.categories.length;
+
+          const importCategoryChunk = async (
+            chunk: typeof backupData.data.categories,
+            withParent: boolean
+          ) => {
+            await prisma.$transaction(async (tx) => {
+              const rows = await tx.category.findMany({
+                where: { id: { in: chunk.map((c) => c.id) } },
+                select: { id: true, user_id: true },
+              });
+              const owners = new Map(rows.map((r) => [r.id, r.user_id] as const));
+
+              for (const category of chunk) {
+                const { update, id } = resolveId(category.id, owners, userId);
+                const fields = {
+                  name: category.name,
+                  // Preserve 'both' — the previous income/expense ternary silently
+                  // downgraded it to 'expense' and broke analytic_flag handling.
+                  type: category.type,
+                  nature: category.nature,
+                  analytic_flag: resolveAnalyticFlag(category),
+                  icon: category.icon,
+                  color: category.color ?? null,
+                  is_active: category.is_active,
+                  ...(withParent
+                    ? { parent_id: categoryIdMap.get(category.parent_id!) ?? null }
+                    : {}),
+                };
+
+                if (update) {
+                  await tx.category.update({ where: { id }, data: fields });
+                  counters.categories.updated++;
+                } else {
+                  await tx.category.create({ data: { id, user_id: userId, ...fields } });
+                  counters.categories.created++;
+                }
+                categoryIdMap.set(category.id, id);
+              }
+            });
+          };
 
           const rootChunks = chunkArray(rootCategories, CHUNK_SIZE);
-          for (let i = 0; i < rootChunks.length; i++) {
-            await prisma.$transaction(async (tx) => {
-              for (const category of rootChunks[i]!) {
-                if (mode === 'merge') {
-                  const existing = await tx.category.findFirst({
-                    where: { user_id: userId, id: category.id },
-                  });
-
-                  if (existing) {
-                    await tx.category.update({
-                      where: { id: existing.id },
-                      data: {
-                        name: category.name,
-                        type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                        nature: category.nature as CategoryNature,
-                        icon: category.icon,
-                        color: category.color ?? null,
-                        is_active: category.is_active,
-                      },
-                    });
-                    categoryIdMap.set(category.id, existing.id);
-                  } else {
-                    const newId = createId();
-                    await tx.category.create({
-                      data: {
-                        id: newId,
-                        user_id: userId,
-                        name: category.name,
-                        type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                        nature: category.nature as CategoryNature,
-                        icon: category.icon,
-                        color: category.color ?? null,
-                        is_active: category.is_active,
-                      },
-                    });
-                    categoryIdMap.set(category.id, newId);
-                  }
-                } else {
-                  const newId = createId();
-                  await tx.category.create({
-                    data: {
-                      id: newId,
-                      user_id: userId,
-                      name: category.name,
-                      type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                      nature: category.nature as CategoryNature,
-                      icon: category.icon,
-                      color: category.color ?? null,
-                      is_active: category.is_active,
-                    },
-                  });
-                  categoryIdMap.set(category.id, newId);
-                }
-                createdCategories++;
-              }
-            });
+          for (const [i, chunk] of rootChunks.entries()) {
+            await importCategoryChunk(chunk, false);
             sendEvent({
-              progress: calculateProgress('categories', (i + 1) * CHUNK_SIZE, backupData.data.categories.length),
+              progress: calculateProgress('categories', (i + 1) * CHUNK_SIZE, totalCategories),
               step: 'categories',
-              done: Math.min((i + 1) * CHUNK_SIZE, backupData.data.categories.length),
-              total: backupData.data.categories.length,
+              done: Math.min((i + 1) * CHUNK_SIZE, totalCategories),
+              total: totalCategories,
             });
           }
 
-          // Child categories (need parent IDs from root pass)
           const childChunks = chunkArray(childCategories, CHUNK_SIZE);
-          for (let i = 0; i < childChunks.length; i++) {
-            await prisma.$transaction(async (tx) => {
-              for (const category of childChunks[i]!) {
-                const newParentId = categoryIdMap.get(category.parent_id!);
-
-                if (mode === 'merge') {
-                  const existing = await tx.category.findFirst({
-                    where: { user_id: userId, id: category.id },
-                  });
-
-                  if (existing) {
-                    await tx.category.update({
-                      where: { id: existing.id },
-                      data: {
-                        parent_id: newParentId || null,
-                        name: category.name,
-                        type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                        nature: category.nature as CategoryNature,
-                        icon: category.icon,
-                        color: category.color ?? null,
-                        is_active: category.is_active,
-                      },
-                    });
-                    categoryIdMap.set(category.id, existing.id);
-                  } else {
-                    const newId = createId();
-                    await tx.category.create({
-                      data: {
-                        id: newId,
-                        user_id: userId,
-                        parent_id: newParentId || null,
-                        name: category.name,
-                        type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                        nature: category.nature as CategoryNature,
-                        icon: category.icon,
-                        color: category.color ?? null,
-                        is_active: category.is_active,
-                      },
-                    });
-                    categoryIdMap.set(category.id, newId);
-                  }
-                } else {
-                  const newId = createId();
-                  await tx.category.create({
-                    data: {
-                      id: newId,
-                      user_id: userId,
-                      parent_id: newParentId || null,
-                      name: category.name,
-                      type: category.type === 'income' ? CategoryType.income : CategoryType.expense,
-                      nature: category.nature as CategoryNature,
-                      icon: category.icon,
-                      color: category.color ?? null,
-                      is_active: category.is_active,
-                    },
-                  });
-                  categoryIdMap.set(category.id, newId);
-                }
-                createdCategories++;
-              }
-            });
+          for (const [i, chunk] of childChunks.entries()) {
+            await importCategoryChunk(chunk, true);
+            const done = Math.min(rootCategories.length + (i + 1) * CHUNK_SIZE, totalCategories);
             sendEvent({
-              progress: calculateProgress('categories', rootCategories.length + (i + 1) * CHUNK_SIZE, backupData.data.categories.length),
+              progress: calculateProgress('categories', done, totalCategories),
               step: 'categories',
-              done: Math.min(rootCategories.length + (i + 1) * CHUNK_SIZE, backupData.data.categories.length),
-              total: backupData.data.categories.length,
+              done,
+              total: totalCategories,
             });
           }
 
-          // Step 4: Import Category Budgets in chunks
+          // Step 4: Import Category Budgets
+          // CategoryBudget.category_id is UNIQUE (one budget per category), so the
+          // category is the merge key — matching on the budget's own id let a second
+          // import insert a duplicate or trip the unique constraint.
           const categoryBudgetChunks = chunkArray(backupData.data.categoryBudgets, CHUNK_SIZE);
-          for (let i = 0; i < categoryBudgetChunks.length; i++) {
+          for (const [i, chunk] of categoryBudgetChunks.entries()) {
             await prisma.$transaction(async (tx) => {
-              for (const cb of categoryBudgetChunks[i]!) {
+              const takenRows = await tx.categoryBudget.findMany({
+                where: { id: { in: chunk.map((cb) => cb.id) } },
+                select: { id: true },
+              });
+              const takenIds = new Set(takenRows.map((r) => r.id));
+
+              for (const cb of chunk) {
                 const newCategoryId = categoryIdMap.get(cb.category_id);
 
-                if (newCategoryId) {
-                  if (mode === 'merge') {
-                    const existing = await tx.categoryBudget.findFirst({
-                      where: { id: cb.id, category: { user_id: userId } },
-                    });
+                if (!newCategoryId) {
+                  counters.categoryBudgets.skipped++;
+                  continue;
+                }
 
-                    if (existing) {
-                      await tx.categoryBudget.update({
-                        where: { id: existing.id },
-                        data: {
-                          category_id: newCategoryId,
-                          basic_monthly_amount: cb.basic_monthly_amount,
-                          extend_monthly_amount: cb.extend_monthly_amount,
-                          basic_annual_amount: cb.basic_annual_amount,
-                          extend_annual_amount: cb.extend_annual_amount,
-                        },
-                      });
-                      categoryBudgetIdMap.set(cb.id, existing.id);
-                    } else {
-                      const newId = createId();
-                      await tx.categoryBudget.create({
-                        data: {
-                          id: newId,
-                          category_id: newCategoryId,
-                          basic_monthly_amount: cb.basic_monthly_amount,
-                          extend_monthly_amount: cb.extend_monthly_amount,
-                          basic_annual_amount: cb.basic_annual_amount,
-                          extend_annual_amount: cb.extend_annual_amount,
-                        },
-                      });
-                      categoryBudgetIdMap.set(cb.id, newId);
-                    }
-                  } else {
-                    const newId = createId();
-                    await tx.categoryBudget.create({
-                      data: {
-                        id: newId,
-                        category_id: newCategoryId,
-                        basic_monthly_amount: cb.basic_monthly_amount,
-                        extend_monthly_amount: cb.extend_monthly_amount,
-                        basic_annual_amount: cb.basic_annual_amount,
-                        extend_annual_amount: cb.extend_annual_amount,
-                      },
-                    });
-                    categoryBudgetIdMap.set(cb.id, newId);
-                  }
-                  createdCategoryBudgets++;
+                const amounts = {
+                  basic_monthly_amount: cb.basic_monthly_amount,
+                  extend_monthly_amount: cb.extend_monthly_amount,
+                  basic_annual_amount: cb.basic_annual_amount,
+                  extend_annual_amount: cb.extend_annual_amount,
+                };
+
+                const existing = await tx.categoryBudget.findUnique({
+                  where: { category_id: newCategoryId },
+                  select: { id: true },
+                });
+
+                if (existing) {
+                  await tx.categoryBudget.update({
+                    where: { category_id: newCategoryId },
+                    data: amounts,
+                  });
+                  counters.categoryBudgets.updated++;
+                } else {
+                  await tx.categoryBudget.create({
+                    data: {
+                      id: takenIds.has(cb.id) ? createId() : cb.id,
+                      category_id: newCategoryId,
+                      ...amounts,
+                    },
+                  });
+                  counters.categoryBudgets.created++;
                 }
               }
             });
@@ -500,66 +435,42 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          // Step 5: Import Debts in chunks
+          // Step 5: Import Debts
           const debtChunks = chunkArray(backupData.data.debts, CHUNK_SIZE);
-          for (let i = 0; i < debtChunks.length; i++) {
+          for (const [i, chunk] of debtChunks.entries()) {
             await prisma.$transaction(async (tx) => {
-              for (const debt of debtChunks[i]!) {
+              const rows = await tx.debt.findMany({
+                where: { id: { in: chunk.map((d) => d.id) } },
+                select: { id: true, user_id: true },
+              });
+              const owners = new Map(rows.map((r) => [r.id, r.user_id] as const));
+
+              for (const debt of chunk) {
                 const newAccountId = accountIdMap.get(debt.account_id);
 
-                if (newAccountId) {
-                  if (mode === 'merge') {
-                    const existing = await tx.debt.findFirst({
-                      where: { user_id: userId, id: debt.id },
-                    });
-
-                    if (existing) {
-                      await tx.debt.update({
-                        where: { id: existing.id },
-                        data: {
-                          date: new Date(debt.date),
-                          type: debt.type as DebtType,
-                          account_id: newAccountId,
-                          counterparty: debt.counterparty,
-                          description: debt.description ?? null,
-                          status: debt.status as DebtStatus,
-                        },
-                      });
-                      debtIdMap.set(debt.id, existing.id);
-                    } else {
-                      const newId = createId();
-                      await tx.debt.create({
-                        data: {
-                          id: newId,
-                          user_id: userId,
-                          date: new Date(debt.date),
-                          type: debt.type as DebtType,
-                          account_id: newAccountId,
-                          counterparty: debt.counterparty,
-                          description: debt.description ?? null,
-                          status: debt.status as DebtStatus,
-                        },
-                      });
-                      debtIdMap.set(debt.id, newId);
-                    }
-                  } else {
-                    const newId = createId();
-                    await tx.debt.create({
-                      data: {
-                        id: newId,
-                        user_id: userId,
-                        date: new Date(debt.date),
-                        type: debt.type as DebtType,
-                        account_id: newAccountId,
-                        counterparty: debt.counterparty,
-                        description: debt.description ?? null,
-                        status: debt.status as DebtStatus,
-                      },
-                    });
-                    debtIdMap.set(debt.id, newId);
-                  }
-                  createdDebts++;
+                if (!newAccountId) {
+                  counters.debts.skipped++;
+                  continue;
                 }
+
+                const { update, id } = resolveId(debt.id, owners, userId);
+                const fields = {
+                  date: new Date(debt.date),
+                  type: debt.type,
+                  account_id: newAccountId,
+                  counterparty: debt.counterparty,
+                  description: debt.description ?? null,
+                  status: debt.status,
+                };
+
+                if (update) {
+                  await tx.debt.update({ where: { id }, data: fields });
+                  counters.debts.updated++;
+                } else {
+                  await tx.debt.create({ data: { id, user_id: userId, ...fields } });
+                  counters.debts.created++;
+                }
+                debtIdMap.set(debt.id, id);
               }
             });
             sendEvent({
@@ -570,50 +481,28 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          // Step 6: Import Labels in chunks
+          // Step 6: Import Labels
           const labelChunks = chunkArray(backupData.data.labels, CHUNK_SIZE);
-          for (let i = 0; i < labelChunks.length; i++) {
+          for (const [i, chunk] of labelChunks.entries()) {
             await prisma.$transaction(async (tx) => {
-              for (const label of labelChunks[i]!) {
-                if (mode === 'merge') {
-                  const existing = await tx.label.findFirst({
-                    where: { user_id: userId, id: label.id },
-                  });
+              const rows = await tx.label.findMany({
+                where: { id: { in: chunk.map((l) => l.id) } },
+                select: { id: true, user_id: true },
+              });
+              const owners = new Map(rows.map((r) => [r.id, r.user_id] as const));
 
-                  if (existing) {
-                    await tx.label.update({
-                      where: { id: existing.id },
-                      data: {
-                        name: label.name,
-                        color: label.color,
-                      },
-                    });
-                    labelIdMap.set(label.id, existing.id);
-                  } else {
-                    const newId = createId();
-                    await tx.label.create({
-                      data: {
-                        id: newId,
-                        user_id: userId,
-                        name: label.name,
-                        color: label.color,
-                      },
-                    });
-                    labelIdMap.set(label.id, newId);
-                  }
+              for (const label of chunk) {
+                const { update, id } = resolveId(label.id, owners, userId);
+                const fields = { name: label.name, color: label.color };
+
+                if (update) {
+                  await tx.label.update({ where: { id }, data: fields });
+                  counters.labels.updated++;
                 } else {
-                  const newId = createId();
-                  await tx.label.create({
-                    data: {
-                      id: newId,
-                      user_id: userId,
-                      name: label.name,
-                      color: label.color,
-                    },
-                  });
-                  labelIdMap.set(label.id, newId);
+                  await tx.label.create({ data: { id, user_id: userId, ...fields } });
+                  counters.labels.created++;
                 }
-                createdLabels++;
+                labelIdMap.set(label.id, id);
               }
             });
             sendEvent({
@@ -624,64 +513,42 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          // Step 7: Import Transfers in chunks
+          // Step 7: Import Transfers
           const transferChunks = chunkArray(backupData.data.transfers, CHUNK_SIZE);
-          for (let i = 0; i < transferChunks.length; i++) {
+          for (const [i, chunk] of transferChunks.entries()) {
             await prisma.$transaction(async (tx) => {
-              for (const transfer of transferChunks[i]!) {
+              const rows = await tx.transfer.findMany({
+                where: { id: { in: chunk.map((t) => t.id) } },
+                select: { id: true, user_id: true },
+              });
+              const owners = new Map(rows.map((r) => [r.id, r.user_id] as const));
+
+              for (const transfer of chunk) {
                 const newFromAccountId = accountIdMap.get(transfer.from_account);
                 const newToAccountId = accountIdMap.get(transfer.to_account);
 
-                if (newFromAccountId && newToAccountId) {
-                  if (mode === 'merge') {
-                    const existing = await tx.transfer.findFirst({
-                      where: { user_id: userId, id: transfer.id },
-                    });
-
-                    if (existing) {
-                      await tx.transfer.update({
-                        where: { id: existing.id },
-                        data: {
-                          date: new Date(transfer.date),
-                          from_account: newFromAccountId,
-                          to_account: newToAccountId,
-                          amount: transfer.amount,
-                          description: transfer.description ?? null,
-                        },
-                      });
-                      transferIdMap.set(transfer.id, existing.id);
-                    } else {
-                      const newId = createId();
-                      await tx.transfer.create({
-                        data: {
-                          id: newId,
-                          user_id: userId,
-                          date: new Date(transfer.date),
-                          from_account: newFromAccountId,
-                          to_account: newToAccountId,
-                          amount: transfer.amount,
-                          description: transfer.description ?? null,
-                        },
-                      });
-                      transferIdMap.set(transfer.id, newId);
-                    }
-                  } else {
-                    const newId = createId();
-                    await tx.transfer.create({
-                      data: {
-                        id: newId,
-                        user_id: userId,
-                        date: new Date(transfer.date),
-                        from_account: newFromAccountId,
-                        to_account: newToAccountId,
-                        amount: transfer.amount,
-                        description: transfer.description ?? null,
-                      },
-                    });
-                    transferIdMap.set(transfer.id, newId);
-                  }
-                  createdTransfers++;
+                if (!newFromAccountId || !newToAccountId) {
+                  counters.transfers.skipped++;
+                  continue;
                 }
+
+                const { update, id } = resolveId(transfer.id, owners, userId);
+                const fields = {
+                  date: new Date(transfer.date),
+                  from_account: newFromAccountId,
+                  to_account: newToAccountId,
+                  amount: transfer.amount,
+                  description: transfer.description ?? null,
+                };
+
+                if (update) {
+                  await tx.transfer.update({ where: { id }, data: fields });
+                  counters.transfers.updated++;
+                } else {
+                  await tx.transfer.create({ data: { id, user_id: userId, ...fields } });
+                  counters.transfers.created++;
+                }
+                transferIdMap.set(transfer.id, id);
               }
             });
             sendEvent({
@@ -692,12 +559,24 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          // Step 8: Import Transactions in chunks
+          // Step 8: Import Transactions
           const transactionChunks = chunkArray(backupData.data.transactions, CHUNK_SIZE);
-          for (let i = 0; i < transactionChunks.length; i++) {
+          for (const [i, chunk] of transactionChunks.entries()) {
             await prisma.$transaction(async (tx) => {
-              for (const transaction of transactionChunks[i]!) {
+              const rows = await tx.transaction.findMany({
+                where: { id: { in: chunk.map((t) => t.id) } },
+                select: { id: true, user_id: true },
+              });
+              const owners = new Map(rows.map((r) => [r.id, r.user_id] as const));
+
+              for (const transaction of chunk) {
                 const newAccountId = accountIdMap.get(transaction.account_id);
+
+                if (!newAccountId) {
+                  counters.transactions.skipped++;
+                  continue;
+                }
+
                 const newCategoryId = transaction.category_id
                   ? categoryIdMap.get(transaction.category_id)
                   : null;
@@ -708,74 +587,36 @@ export async function POST(request: NextRequest) {
                   ? debtIdMap.get(transaction.debt_id)
                   : null;
 
-                if (newAccountId) {
-                  if (mode === 'merge') {
-                    const existing = await tx.transaction.findFirst({
-                      where: { user_id: userId, id: transaction.id },
-                    });
+                const { update, id } = resolveId(transaction.id, owners, userId);
+                const fields = {
+                  account_id: newAccountId,
+                  category_id: newCategoryId ?? null,
+                  type: transaction.type,
+                  amount: transaction.amount,
+                  date: new Date(transaction.date),
+                  description: transaction.description ?? null,
+                  payee: transaction.payee ?? null,
+                  payment_method: transaction.payment_method ?? null,
+                  payment_status: transaction.payment_status ?? null,
+                  transfer_id: newTransferId ?? null,
+                  debt_id: newDebtId ?? null,
+                  is_draft: transaction.is_draft ?? false,
+                };
 
-                    if (existing) {
-                      await tx.transaction.update({
-                        where: { id: existing.id },
-                        data: {
-                          account_id: newAccountId,
-                          category_id: newCategoryId ?? null,
-                          type: transaction.type as TransactionType,
-                          amount: transaction.amount,
-                          date: new Date(transaction.date),
-                          description: transaction.description ?? null,
-                          payee: transaction.payee ?? null,
-                          payment_method: transaction.payment_method ?? null,
-                          payment_status: transaction.payment_status ?? null,
-                          transfer_id: newTransferId ?? null,
-                          debt_id: newDebtId ?? null,
-                        },
-                      });
-                      transactionIdMap.set(transaction.id, existing.id);
-                    } else {
-                      const newId = createId();
-                      await tx.transaction.create({
-                        data: {
-                          id: newId,
-                          user_id: userId,
-                          account_id: newAccountId,
-                          category_id: newCategoryId ?? null,
-                          type: transaction.type as TransactionType,
-                          amount: transaction.amount,
-                          date: new Date(transaction.date),
-                          description: transaction.description ?? null,
-                          payee: transaction.payee ?? null,
-                          payment_method: transaction.payment_method ?? null,
-                          payment_status: transaction.payment_status ?? null,
-                          transfer_id: newTransferId ?? null,
-                          debt_id: newDebtId ?? null,
-                        },
-                      });
-                      transactionIdMap.set(transaction.id, newId);
-                    }
-                  } else {
-                    const newId = createId();
-                    await tx.transaction.create({
-                      data: {
-                        id: newId,
-                        user_id: userId,
-                        account_id: newAccountId,
-                        category_id: newCategoryId ?? null,
-                        type: transaction.type as TransactionType,
-                        amount: transaction.amount,
-                        date: new Date(transaction.date),
-                        description: transaction.description ?? null,
-                        payee: transaction.payee ?? null,
-                        payment_method: transaction.payment_method ?? null,
-                        payment_status: transaction.payment_status ?? null,
-                        transfer_id: newTransferId ?? null,
-                        debt_id: newDebtId ?? null,
-                      },
-                    });
-                    transactionIdMap.set(transaction.id, newId);
-                  }
-                  createdTransactions++;
+                if (update) {
+                  await tx.transaction.update({
+                    where: { id },
+                    // Backups only carry live rows, so restore soft-deleted matches.
+                    data: { ...fields, deleted_at: null },
+                  });
+                  counters.transactions.updated++;
+                } else {
+                  await tx.transaction.create({
+                    data: { id, user_id: userId, ...fields },
+                  });
+                  counters.transactions.created++;
                 }
+                transactionIdMap.set(transaction.id, id);
               }
             });
             sendEvent({
@@ -786,51 +627,149 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          // Step 9: Import Transaction-Label relations in chunks
-          const tlChunks = chunkArray(backupData.data.transactionLabels, CHUNK_SIZE * 2);
-          for (let i = 0; i < tlChunks.length; i++) {
+          // Step 9: Import Transaction-Label relations
+          // Junction rows carry a UNIQUE(transaction_id, label_id); duplicate pairs
+          // inside the file would otherwise abort the whole chunk on insert.
+          const JUNCTION_CHUNK_SIZE = CHUNK_SIZE * 2;
+          const uniqueTransactionLabels = dedupePairs(
+            backupData.data.transactionLabels,
+            (tl) => `${tl.transaction_id}|${tl.label_id}`
+          );
+          const totalTransactionLabels = backupData.data.transactionLabels.length;
+          counters.transactionLabels.skipped +=
+            totalTransactionLabels - uniqueTransactionLabels.length;
+
+          const tlChunks = chunkArray(uniqueTransactionLabels, JUNCTION_CHUNK_SIZE);
+          for (const [i, chunk] of tlChunks.entries()) {
             await prisma.$transaction(async (tx) => {
-              for (const tl of tlChunks[i]!) {
+              const pending: { id: string; transaction_id: string; label_id: string }[] = [];
+
+              for (const tl of chunk) {
                 const newTransactionId = transactionIdMap.get(tl.transaction_id);
                 const newLabelId = labelIdMap.get(tl.label_id);
 
-                if (newTransactionId && newLabelId) {
-                  if (mode === 'merge') {
-                    const existing = await tx.transactionLabel.findFirst({
-                      where: {
-                        transaction_id: newTransactionId,
-                        label_id: newLabelId,
-                      },
-                    });
-
-                    if (!existing) {
-                      await tx.transactionLabel.create({
-                        data: {
-                          id: createId(),
-                          transaction_id: newTransactionId,
-                          label_id: newLabelId,
-                        },
-                      });
-                      createdTransactionLabels++;
-                    }
-                  } else {
-                    await tx.transactionLabel.create({
-                      data: {
-                        id: createId(),
-                        transaction_id: newTransactionId,
-                        label_id: newLabelId,
-                      },
-                    });
-                    createdTransactionLabels++;
-                  }
+                if (!newTransactionId || !newLabelId) {
+                  counters.transactionLabels.skipped++;
+                  continue;
                 }
+                pending.push({ id: tl.id, transaction_id: newTransactionId, label_id: newLabelId });
+              }
+
+              if (pending.length === 0) return;
+
+              const [existingRows, takenRows] = await Promise.all([
+                tx.transactionLabel.findMany({
+                  where: {
+                    transaction_id: { in: pending.map((p) => p.transaction_id) },
+                    label_id: { in: pending.map((p) => p.label_id) },
+                  },
+                  select: { transaction_id: true, label_id: true },
+                }),
+                tx.transactionLabel.findMany({
+                  where: { id: { in: pending.map((p) => p.id) } },
+                  select: { id: true },
+                }),
+              ]);
+              const existingPairs = new Set(
+                existingRows.map((r) => `${r.transaction_id}|${r.label_id}`)
+              );
+              const takenIds = new Set(takenRows.map((r) => r.id));
+
+              const toCreate = pending.filter((p) => {
+                if (existingPairs.has(`${p.transaction_id}|${p.label_id}`)) {
+                  counters.transactionLabels.updated++;
+                  return false;
+                }
+                return true;
+              });
+
+              if (toCreate.length > 0) {
+                const result = await tx.transactionLabel.createMany({
+                  data: toCreate.map((p) => ({
+                    id: takenIds.has(p.id) ? createId() : p.id,
+                    transaction_id: p.transaction_id,
+                    label_id: p.label_id,
+                  })),
+                  skipDuplicates: true,
+                });
+                counters.transactionLabels.created += result.count;
               }
             });
             sendEvent({
-              progress: calculateProgress('transactionLabels', (i + 1) * CHUNK_SIZE * 2, backupData.data.transactionLabels.length),
+              progress: calculateProgress('transactionLabels', (i + 1) * JUNCTION_CHUNK_SIZE, uniqueTransactionLabels.length),
               step: 'transactionLabels',
-              done: Math.min((i + 1) * CHUNK_SIZE * 2, backupData.data.transactionLabels.length),
-              total: backupData.data.transactionLabels.length,
+              done: Math.min((i + 1) * JUNCTION_CHUNK_SIZE, uniqueTransactionLabels.length),
+              total: uniqueTransactionLabels.length,
+            });
+          }
+
+          // Step 10: Import Debt-Label relations (absent from exportVersion 1.0.x files)
+          const uniqueDebtLabels = dedupePairs(
+            backupData.data.debtLabels,
+            (dl) => `${dl.debt_id}|${dl.label_id}`
+          );
+          counters.debtLabels.skipped +=
+            backupData.data.debtLabels.length - uniqueDebtLabels.length;
+
+          const dlChunks = chunkArray(uniqueDebtLabels, JUNCTION_CHUNK_SIZE);
+          for (const [i, chunk] of dlChunks.entries()) {
+            await prisma.$transaction(async (tx) => {
+              const pending: { id: string; debt_id: string; label_id: string }[] = [];
+
+              for (const dl of chunk) {
+                const newDebtId = debtIdMap.get(dl.debt_id);
+                const newLabelId = labelIdMap.get(dl.label_id);
+
+                if (!newDebtId || !newLabelId) {
+                  counters.debtLabels.skipped++;
+                  continue;
+                }
+                pending.push({ id: dl.id, debt_id: newDebtId, label_id: newLabelId });
+              }
+
+              if (pending.length === 0) return;
+
+              const [existingRows, takenRows] = await Promise.all([
+                tx.debtLabel.findMany({
+                  where: {
+                    debt_id: { in: pending.map((p) => p.debt_id) },
+                    label_id: { in: pending.map((p) => p.label_id) },
+                  },
+                  select: { debt_id: true, label_id: true },
+                }),
+                tx.debtLabel.findMany({
+                  where: { id: { in: pending.map((p) => p.id) } },
+                  select: { id: true },
+                }),
+              ]);
+              const existingPairs = new Set(existingRows.map((r) => `${r.debt_id}|${r.label_id}`));
+              const takenIds = new Set(takenRows.map((r) => r.id));
+
+              const toCreate = pending.filter((p) => {
+                if (existingPairs.has(`${p.debt_id}|${p.label_id}`)) {
+                  counters.debtLabels.updated++;
+                  return false;
+                }
+                return true;
+              });
+
+              if (toCreate.length > 0) {
+                const result = await tx.debtLabel.createMany({
+                  data: toCreate.map((p) => ({
+                    id: takenIds.has(p.id) ? createId() : p.id,
+                    debt_id: p.debt_id,
+                    label_id: p.label_id,
+                  })),
+                  skipDuplicates: true,
+                });
+                counters.debtLabels.created += result.count;
+              }
+            });
+            sendEvent({
+              progress: calculateProgress('debtLabels', (i + 1) * JUNCTION_CHUNK_SIZE, uniqueDebtLabels.length),
+              step: 'debtLabels',
+              done: Math.min((i + 1) * JUNCTION_CHUNK_SIZE, uniqueDebtLabels.length),
+              total: uniqueDebtLabels.length,
             });
           }
 
@@ -838,16 +777,9 @@ export async function POST(request: NextRequest) {
           sendEvent({
             progress: 100,
             done: true,
-            result: {
-              accounts: createdAccounts,
-              categories: createdCategories,
-              categoryBudgets: createdCategoryBudgets,
-              debts: createdDebts,
-              transactions: createdTransactions,
-              transfers: createdTransfers,
-              labels: createdLabels,
-              transactionLabels: createdTransactionLabels,
-            },
+            result: tally((c) => c.created + c.updated),
+            updated: tally((c) => c.updated),
+            skipped: tally((c) => c.skipped),
             ...(mode === 'replace' && !isOwner
               ? { warning: 'Restored data from a different account' }
               : {}),

@@ -31,6 +31,7 @@ export interface BackupData {
     transfers: BackupTransfer[];
     labels: BackupLabel[];
     transactionLabels: BackupTransactionLabel[];
+    debtLabels?: BackupDebtLabel[];
   };
   metadata: {
     totalRecords: number;
@@ -44,6 +45,7 @@ export interface BackupData {
       transfers: number;
       labels: number;
       transactionLabels: number;
+      debtLabels?: number;
     };
   };
 }
@@ -61,6 +63,7 @@ export interface BackupAccount {
   color: string;
   is_active: boolean;
   is_included_in_total: boolean;
+  order?: number; // Added in exportVersion 1.1.0
   created_at: string;
   updated_at: string;
 }
@@ -69,11 +72,12 @@ export interface BackupCategory {
   id: string;
   parent_id?: string | null;
   name: string;
-  type: string; // 'income' | 'expense'
+  type: string; // 'income' | 'expense' | 'both'
   nature: string; // 'WANT' | 'NEED' | 'MUST'
   icon: string;
   color?: string | null;
   is_active: boolean;
+  analytic_flag?: string; // Added in exportVersion 1.1.0, used when type === 'both'
   created_at: string;
   updated_at: string;
 }
@@ -105,7 +109,7 @@ export interface BackupTransaction {
   id: string;
   account_id: string; // Reference to account
   category_id?: string | null; // Reference to category
-  type: string; // 'income' | 'expense' | 'transfer_in' | 'transfer_out'
+  type: string; // 'income' | 'expense' | 'transfer_in' | 'transfer_out' | 'debt_in' | 'debt_out'
   amount: number;
   date: string; // ISO timestamp
   description?: string | null;
@@ -113,6 +117,8 @@ export interface BackupTransaction {
   payment_method?: string | null;
   payment_status?: string | null;
   transfer_id?: string | null;
+  debt_id?: string | null;
+  is_draft?: boolean; // Added in exportVersion 1.1.0
   created_at: string;
   updated_at: string;
 }
@@ -142,6 +148,12 @@ export interface BackupTransactionLabel {
   label_id: string;
 }
 
+export interface BackupDebtLabel {
+  id: string;
+  debt_id: string;
+  label_id: string;
+}
+
 // =============================================================================
 // API Response Types
 // =============================================================================
@@ -151,20 +163,28 @@ export interface BackupTransactionLabel {
 // typed JSON API response. The backupService.exportData() method uses
 // responseType: 'blob' and does not rely on a typed response.
 
+export interface BackupRecordCounts {
+  accounts: number;
+  categories: number;
+  categoryBudgets: number;
+  debts: number;
+  transactions: number;
+  transfers: number;
+  labels: number;
+  transactionLabels: number;
+  debtLabels: number;
+}
+
 export interface ImportResponse {
   success: boolean;
   data?: {
     message: string;
-    imported: {
-      accounts: number;
-      categories: number;
-      categoryBudgets: number;
-      debts: number;
-      transactions: number;
-      transfers: number;
-      labels: number;
-      transactionLabels: number;
-    };
+    /** Records created plus records updated, per entity. */
+    imported: BackupRecordCounts;
+    /** Subset of `imported` that matched an existing record and was updated in place. */
+    updated?: BackupRecordCounts;
+    /** Records dropped because a referenced parent could not be resolved. */
+    skipped?: BackupRecordCounts;
     warning?: string;
   };
   error?: string;
