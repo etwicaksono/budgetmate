@@ -11,6 +11,7 @@ export interface SavedFilterPayload {
    transferOption?: string;
    debtOption?: string;
    draftOption?: string;
+   recordTypeOption?: string;
 }
 
 export interface SavedFilter {

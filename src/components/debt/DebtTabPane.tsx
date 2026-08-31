@@ -55,21 +55,22 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
   const [hasMore, setHasMore] = useState(true);
 
   // Modals
-  const { 
-    openAddDebtModal, 
-    openEditDebtModal, 
-    openRepaymentModal, 
+  const {
+    openAddDebtModal,
+    openEditDebtModal,
+    openRepaymentModal,
     openIncreaseModal,
     isOpen: isGlobalDebtModalOpen,
-    modalType: globalDebtModalType
+    modalType: globalDebtModalType,
+    isDetailOpen,
+    detailDebt,
+    openDetailModal,
+    closeDetailModal,
+    updateDetailDebt
   } = useDebt();
 
-  const isNestedModalOpen = isGlobalDebtModalOpen && 
+  const isNestedModalOpen = isGlobalDebtModalOpen &&
     (globalDebtModalType === 'repayment' || globalDebtModalType === 'increase' || globalDebtModalType === 'debt');
-
-
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [detailDebt, setDetailDebt] = useState<Debt | null>(null);
 
   // Serialized once so both the request and the effect deps use a stable value
   const labelIdsParam = selectedLabelIds.join(',');
@@ -135,21 +136,21 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
       onMutated();
 
       // Refresh detail modal if open
-      if (showDetailModal && detailDebt) {
+      if (isDetailOpen && detailDebt) {
         try {
           const updated = await debtService.getDebtById(detailDebt.id);
-          setDetailDebt(updated);
+          updateDetailDebt(updated);
         } catch (err) {
           logError('Failed to refresh detail modal', err);
         }
       }
     };
-    
+
     window.addEventListener('debt-mutated', handleDebtMutated);
     return () => window.removeEventListener('debt-mutated', handleDebtMutated);
-  }, [fetchDebts, onMutated, showDetailModal, detailDebt]);
+  }, [fetchDebts, onMutated, isDetailOpen, detailDebt, updateDetailDebt]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // -- Handlers --------------------------------------------------------------
 
   const handleOpenNewDebt = () => {
     openAddDebtModal(debtType);
@@ -160,8 +161,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
   };
 
   const handleOpenDetail = (debt: Debt) => {
-    setDetailDebt(debt);
-    setShowDetailModal(true);
+    openDetailModal(debt);
   };
 
   const handleOpenRepay = (debt: Debt) => {
@@ -206,7 +206,7 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
         Toast.fire({ icon: 'success', title: 'Debt deleted' });
         fetchDebts(false, true);
         onMutated();
-        if (detailDebt && detailDebt.id === debt.id) setShowDetailModal(false);
+        if (detailDebt && detailDebt.id === debt.id) closeDetailModal();
       } catch (err: unknown) {
         Toast.fire({ icon: 'error', title: err instanceof Error ? err.message : 'Failed to delete debt' });
       } finally {
@@ -291,8 +291,8 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
 
       {/* Modals scoped to this pane */}
       <DebtDetailModal
-        show={showDetailModal && !isNestedModalOpen}
-        onHide={() => setShowDetailModal(false)}
+        show={isDetailOpen && !isNestedModalOpen}
+        onHide={closeDetailModal}
         debt={detailDebt}
         onIncreaseClick={handleOpenIncrease}
         onRepayClick={handleOpenRepay}
@@ -304,3 +304,14 @@ export const DebtTabPane = forwardRef<DebtTabPaneHandle, DebtTabPaneProps>(({
 });
 
 DebtTabPane.displayName = 'DebtTabPane';
+
+
+
+
+
+
+
+
+
+
+

@@ -43,6 +43,7 @@ function TransactionsContent() {
     transferOption,
     debtOption,
     draftOption,
+    recordTypeOption,
     minAmount,
     maxAmount,
     parentCategoryColors,
@@ -76,7 +77,7 @@ function TransactionsContent() {
   const savedFiltersData = useSavedFilters({
     categories,
     accounts: apiAccounts,
-    current: { selectedCategories, selectedAccounts, selectedLabelIds, excludedLabelIds, sortOption, transferOption, debtOption, draftOption },
+    current: { selectedCategories, selectedAccounts, selectedLabelIds, excludedLabelIds, sortOption, transferOption, debtOption, draftOption, recordTypeOption },
     dispatchers: { 
       setSelectedCategories: filterData.setSelectedCategories, 
       setSelectedAccounts: filterData.setSelectedAccounts, 
@@ -85,7 +86,8 @@ function TransactionsContent() {
       setSortOption: filterData.setSortOption, 
       setTransferOption: filterData.setTransferOption, 
       setDebtOption: filterData.setDebtOption,
-      setDraftOption: filterData.setDraftOption
+      setDraftOption: filterData.setDraftOption,
+      setRecordTypeOption: filterData.setRecordTypeOption
     },
   });
 
@@ -210,6 +212,11 @@ function TransactionsContent() {
       if (draftOption) {
         filters['draft_option'] = draftOption;
       }
+      // Add record type filter — an explicit type wins over the transfer/debt
+      // toggles server-side, so only send it when narrowed beyond "all"
+      if (recordTypeOption && recordTypeOption !== 'all') {
+        filters['type'] = recordTypeOption;
+      }
 
       // Add sort option - convert frontend format to API format
       if (sortOption) {
@@ -282,6 +289,7 @@ function TransactionsContent() {
     transferOption,
     debtOption,
     draftOption,
+    recordTypeOption,
     categories,
     apiAccounts
   ]);

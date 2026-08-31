@@ -14,6 +14,7 @@ export type SortValue =
 export type TransferOption = 'include' | 'only' | 'exclude';
 export type DebtOption = 'include' | 'only' | 'exclude';
 export type DraftOption = 'include' | 'only' | 'exclude';
+export type RecordTypeOption = 'all' | 'income' | 'expense';
 
 export interface FilterVisibility {
   search: boolean;
@@ -26,6 +27,7 @@ export interface FilterVisibility {
   transfers?: boolean;
   debts?: boolean;
   drafts?: boolean;
+  recordTypes?: boolean;
 }
 
 const DEFAULT_MIN_AMOUNT = 0;
@@ -58,6 +60,7 @@ export const useFilterData = () => {
   const [transferOption, setTransferOption] = useState<TransferOption>('include');
   const [debtOption, setDebtOption] = useState<DebtOption>('include');
   const [draftOption, setDraftOption] = useState<DraftOption>('exclude');
+  const [recordTypeOption, setRecordTypeOption] = useState<RecordTypeOption>('all');
   const [minAmount, setMinAmount] = useState<number>(DEFAULT_MIN_AMOUNT);
   const [maxAmount, setMaxAmount] = useState<number>(DEFAULT_MAX_AMOUNT);
   const [filterVisibility, setFilterVisibility] = useState<FilterVisibility>({
@@ -71,6 +74,7 @@ export const useFilterData = () => {
     transfers: true,
     debts: true,
     drafts: true,
+    recordTypes: true,
   });
   const [numberOfColumns, setNumberOfColumns] = useState<number>(2);
 
@@ -289,6 +293,8 @@ export const useFilterData = () => {
     setDebtOption,
     draftOption,
     setDraftOption,
+    recordTypeOption,
+    setRecordTypeOption,
     minAmount,
     setMinAmount,
     maxAmount,

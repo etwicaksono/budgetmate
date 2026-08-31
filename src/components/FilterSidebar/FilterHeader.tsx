@@ -98,6 +98,7 @@ export const FilterHeader: React.FC<FilterHeaderProps> = ({
                 { id: 'categories', label: 'Categories' },
                 { id: 'accounts', label: 'Accounts' },
                 { id: 'labels', label: 'Labels' },
+                { id: 'recordTypes', label: 'Record Types', defaultState: true },
                 { id: 'amountRange', label: 'Amount Range' },
                 { id: 'currencies', label: 'Currencies' },
                 { id: 'transfers', label: 'Transfers', defaultState: true },

@@ -19,6 +19,11 @@ export interface DebtContextValue {
   openRepaymentModal: (debt: Debt, transaction?: import('@/services/transactionService').Transaction) => void;
   openIncreaseModal: (debt: Debt, transaction?: import('@/services/transactionService').Transaction) => void;
   closeModal: () => void;
+  isDetailOpen: boolean;
+  detailDebt: Debt | null;
+  openDetailModal: (debt: Debt) => void;
+  closeDetailModal: () => void;
+  updateDetailDebt: (debt: Debt) => void;
 }
 
 const DebtContext = createContext<DebtContextValue | undefined>(undefined);
@@ -78,6 +83,29 @@ export const DebtProvider: React.FC<DebtProviderProps> = ({ children }) => {
     }, 300);
   }, []);
 
+  // Detail modal (can sit underneath the global modal, e.g. repayment opened
+  // from the debt detail view). Lives in context so the always-mounted
+  // GlobalDebtModal can track both layers for the mobile back button.
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailDebt, setDetailDebt] = useState<Debt | null>(null);
+
+  const openDetailModal = useCallback((debt: Debt) => {
+    setDetailDebt(debt);
+    setIsDetailOpen(true);
+  }, []);
+
+  const closeDetailModal = useCallback(() => {
+    setIsDetailOpen(false);
+    // Clear data after animation completes
+    setTimeout(() => {
+      setDetailDebt(null);
+    }, 300);
+  }, []);
+
+  const updateDetailDebt = useCallback((debt: Debt) => {
+    setDetailDebt(debt);
+  }, []);
+
   const value: DebtContextValue = {
     isOpen,
     modalType,
@@ -92,6 +120,11 @@ export const DebtProvider: React.FC<DebtProviderProps> = ({ children }) => {
     openRepaymentModal,
     openIncreaseModal,
     closeModal,
+    isDetailOpen,
+    detailDebt,
+    openDetailModal,
+    closeDetailModal,
+    updateDetailDebt,
   };
 
   return (

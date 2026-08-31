@@ -13,6 +13,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = (props) => {
     if (props.onSortOptionChange) props.onSortOptionChange('timeDesc' as SortValue);
     if (props.onTransferOptionChange) props.onTransferOptionChange('include');
     if (props.onDebtOptionChange) props.onDebtOptionChange('include');
+    if (props.onRecordTypeOptionChange) props.onRecordTypeOptionChange('all');
     if (props.onSelectedCategoriesChange) props.onSelectedCategoriesChange([]);
     if (props.onSelectedAccountsChange) props.onSelectedAccountsChange([]);
     if (props.onSelectedLabelIdsChange) props.onSelectedLabelIdsChange([]);

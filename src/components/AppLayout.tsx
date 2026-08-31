@@ -8,6 +8,7 @@ import { TransactionProvider } from '@/context/TransactionContext';
 import { DebtProvider } from '@/context/DebtContext';
 import { GlobalTransactionModal } from './transactions/GlobalTransactionModal';
 import { GlobalDebtModal } from './debt/GlobalDebtModal';
+import { ModalBackCloseManager } from './ModalBackCloseManager';
 import './AppLayout.css';
 
 interface AppLayoutProps {
@@ -28,6 +29,7 @@ export default function AppLayout({ children }: AppLayoutProps): React.ReactElem
             </main>
             <GlobalTransactionModal />
             <GlobalDebtModal />
+            <ModalBackCloseManager />
           </div>
         </DebtProvider>
       </TransactionProvider>

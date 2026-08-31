@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useDebt } from '@/context/DebtContext';
 import { debtService, CreateDebtPayload, UpdateDebtPayload, CreateRepaymentPayload } from '@/services/debtService';
@@ -17,14 +17,96 @@ const Toast = Swal.mixin({
 });
 
 export const GlobalDebtModal: React.FC = () => {
-  const { 
-    isOpen, 
-    modalType, 
-    initialData, 
-    editTransaction, 
-    defaultDebtType, 
-    closeModal 
+  const {
+    isOpen,
+    modalType,
+    initialData,
+    editTransaction,
+    defaultDebtType,
+    closeModal,
+    isDetailOpen,
+    closeDetailModal
   } = useDebt();
+
+  // -- Mobile back button handling -------------------------------------------
+  // Keep one history entry per open modal layer (global modal + detail modal)
+  // so the device back button closes one layer at a time instead of leaving
+  // the page. Debt modals are excluded from ModalBackCloseManager (via the
+  // `debt-back-managed` class) because layer state lives in React, not the DOM.
+  const layerCountRef = useRef(0);      // history entries currently pushed
+  const pendingCleanupRef = useRef(0);  // popstate events to skip (own back() calls)
+  const isOpenRef = useRef(isOpen);
+  const isDetailOpenRef = useRef(isDetailOpen);
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  useEffect(() => {
+    isDetailOpenRef.current = isDetailOpen;
+  }, [isDetailOpen]);
+
+  useEffect(() => {
+    const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
+    const layerCount = (isOpen ? 1 : 0) + (isDetailOpen ? 1 : 0);
+
+    if (!isMobile) {
+      // Viewport left mobile size while entries are still pushed: consume them.
+      if (layerCountRef.current > 0) {
+        pendingCleanupRef.current += layerCountRef.current;
+        layerCountRef.current = 0;
+        window.history.back();
+      }
+      return;
+    }
+
+    if (layerCount > layerCountRef.current) {
+      // Modal layer(s) opened: push one entry per new layer.
+      for (let i = layerCountRef.current; i < layerCount; i++) {
+        window.history.pushState(
+          { ...window.history.state, debtModalLayer: true },
+          '',
+          window.location.href
+        );
+      }
+      layerCountRef.current = layerCount;
+    } else if (layerCount < layerCountRef.current) {
+      // Modal layer(s) closed through the UI: consume the stale entries so the
+      // next back press navigates normally instead of doing nothing.
+      pendingCleanupRef.current += layerCountRef.current - layerCount;
+      layerCountRef.current = layerCount;
+      window.history.back();
+    }
+  }, [isOpen, isDetailOpen]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      // Skip popstate events triggered by our own cleanup back() calls and
+      // chain the next one when several entries must be consumed.
+      if (pendingCleanupRef.current > 0) {
+        pendingCleanupRef.current--;
+        if (pendingCleanupRef.current > 0) window.history.back();
+        return;
+      }
+
+      if (layerCountRef.current === 0) return;
+      layerCountRef.current--;
+
+      // Close the top layer: the global modal sits above the detail modal.
+      // Refs are updated eagerly so rapid consecutive back presses peel one
+      // layer at a time.
+      if (isOpenRef.current) {
+        isOpenRef.current = false;
+        closeModal();
+      } else if (isDetailOpenRef.current) {
+        isDetailOpenRef.current = false;
+        closeDetailModal();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [closeModal, closeDetailModal]);
 
   // Load accounts and labels globally for the modal
   const { accounts, labels } = useTransactionData();

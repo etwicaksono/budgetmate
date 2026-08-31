@@ -12,6 +12,10 @@ export const FiltersSchema = z.object({
   selectedLabelIds: z.array(z.string()).optional(),
   excludedLabelIds: z.array(z.string()).optional(),
   sortOption: z.string().optional(),
+  transferOption: z.string().optional(),
+  debtOption: z.string().optional(),
+  draftOption: z.string().optional(),
+  recordTypeOption: z.string().optional(),
 });
 
 export const CreateSavedFilterSchema = z.object({

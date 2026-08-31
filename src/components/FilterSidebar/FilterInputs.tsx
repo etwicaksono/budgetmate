@@ -1,6 +1,6 @@
 import React from 'react';
 import { Form, InputGroup, Dropdown } from 'react-bootstrap';
-import { FaSearch, FaTags, FaWallet, FaCheck, FaExchangeAlt, FaHandHoldingUsd, FaFileAlt } from 'react-icons/fa';
+import { FaSearch, FaTags, FaWallet, FaCheck, FaExchangeAlt, FaHandHoldingUsd, FaFileAlt, FaCoins } from 'react-icons/fa';
 import AmountRangeFilter from '../AmountRangeFilter';
 import { CategoryDropdown } from './CategoryDropdown';
 import { AccountDropdown } from './AccountDropdown';
@@ -8,7 +8,7 @@ import { LabelMultiSelect } from '../transaction/LabelMultiSelect';
 import { ClearButton } from '@/components/common/ClearButton';
 import { renderIcon } from './FilterSidebar.utils';
 import type { FilterSidebarProps } from './FilterSidebar.types';
-import type { TransferOption, DebtOption, DraftOption } from '@/hooks/useFilterData';
+import type { TransferOption, DebtOption, DraftOption, RecordTypeOption } from '@/hooks/useFilterData';
 
 type FilterInputsProps = Pick<
   FilterSidebarProps,
@@ -23,6 +23,8 @@ type FilterInputsProps = Pick<
   | 'onDebtOptionChange'
   | 'draftOption'
   | 'onDraftOptionChange'
+  | 'recordTypeOption'
+  | 'onRecordTypeOptionChange'
   | 'disableDraftFilter'
   | 'selectedCategories'
   | 'onSelectedCategoriesChange'
@@ -69,6 +71,8 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
   onDebtOptionChange = () => {},
   draftOption = 'exclude',
   onDraftOptionChange = () => {},
+  recordTypeOption = 'all',
+  onRecordTypeOptionChange = () => {},
   disableDraftFilter = false,
   selectedCategories = [],
   onSelectedCategoriesChange = () => {},
@@ -213,6 +217,59 @@ export const FilterInputs: React.FC<FilterInputsProps> = ({
             />
           </Form.Group>
         </>
+      )}
+
+      {filterVisibility.recordTypes && (
+        <Form.Group className="mb-4" controlId="recordTypeFilter">
+          <Form.Label className="fw-semibold text-muted small">Record types</Form.Label>
+          <Dropdown>
+            <Dropdown.Toggle
+              variant="outline-secondary"
+              className="w-100 d-flex align-items-center justify-content-between"
+              style={{ textAlign: 'left' }}
+            >
+              <span className="d-flex align-items-center gap-2">
+                {renderIcon(FaCoins, { size: 14 })}
+                <span className="d-inline-flex align-items-center gap-1">
+                  {recordTypeOption === 'income'
+                    ? 'Income only'
+                    : recordTypeOption === 'expense'
+                      ? 'Expense only'
+                      : 'All types'}
+                </span>
+              </span>
+            </Dropdown.Toggle>
+            <Dropdown.Menu className="w-100 p-1">
+              {[
+                { label: 'All types', value: 'all' },
+                { label: 'Income', value: 'income' },
+                { label: 'Expense', value: 'expense' },
+              ].map((option) => {
+                const isSelected = recordTypeOption === option.value;
+                return (
+                  <Dropdown.Item
+                    key={option.value}
+                    as="button"
+                    type="button"
+                    className={`d-flex align-items-center gap-2 w-100 bg-white ${
+                      isSelected ? 'selected' : ''
+                    }`}
+                    style={isSelected ? { backgroundColor: '#e9ecef' } : {}}
+                    onClick={() => onRecordTypeOptionChange(option.value as RecordTypeOption)}
+                  >
+                    {isSelected && (
+                      <span className="d-inline-flex justify-content-center" style={{ width: '1.25rem' }}>
+                        {renderIcon(FaCheck, { className: 'text-success' })}
+                      </span>
+                    )}
+                    {!isSelected && <span style={{ width: '1.25rem' }}></span>}
+                    <span className="flex-grow-1 text-start">{option.label}</span>
+                  </Dropdown.Item>
+                );
+              })}
+            </Dropdown.Menu>
+          </Dropdown>
+        </Form.Group>
       )}
 
       {filterVisibility.amountRange && (

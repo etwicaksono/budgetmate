@@ -110,7 +110,7 @@ export const DebtIncreaseModal: React.FC<DebtIncreaseModalProps> = ({
   };
 
   return (
-    <Modal show={show} onHide={onHide} centered backdrop="static">
+    <Modal show={show} onHide={onHide} centered backdrop="static" className="debt-back-managed">
       <Form onSubmit={handleSubmit}>
         <Modal.Header closeButton>
           <Modal.Title className="d-flex align-items-center gap-2">

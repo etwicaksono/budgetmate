@@ -114,7 +114,7 @@ export const RepaymentModal: React.FC<RepaymentModalProps> = ({
   };
 
   return (
-    <Modal show={show} onHide={onHide} centered backdrop="static">
+    <Modal show={show} onHide={onHide} centered backdrop="static" className="debt-back-managed">
       <Form onSubmit={handleSubmit}>
         <Modal.Header closeButton>
           <Modal.Title>{editTransaction ? 'Edit Repayment' : 'Record Repayment'}</Modal.Title>

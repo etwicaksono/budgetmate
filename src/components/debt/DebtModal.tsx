@@ -148,7 +148,7 @@ export const DebtModal: React.FC<DebtModalProps> = ({
   };
 
   return (
-    <Modal show={show} onHide={onHide} size="lg" centered backdrop="static">
+    <Modal show={show} onHide={onHide} size="lg" centered backdrop="static" className="debt-back-managed">
       <Form onSubmit={(e) => handleSubmit(e, false)}>
         <Modal.Header closeButton>
           <Modal.Title>{isEdit ? (type === DebtType.lend ? 'Edit Credit' : 'Edit Debit') : (type === DebtType.lend ? 'New Credit' : 'New Debit')}</Modal.Title>

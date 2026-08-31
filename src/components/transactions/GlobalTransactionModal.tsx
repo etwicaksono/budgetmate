@@ -11,6 +11,9 @@ import { logError } from '@/lib/logger';
 export const GlobalTransactionModal: React.FC = () => {
   const { isOpen, mode, initialData, closeModal, openAddModal } = useTransaction();
 
+  // Mobile back-button handling for this modal is provided globally by
+  // ModalBackCloseManager in AppLayout.
+
   const handleSave = useCallback(
     async (transactionData: Partial<Transaction>): Promise<void> => {
       try {

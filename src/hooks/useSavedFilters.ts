@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
 import { savedFilterService, type SavedFilter, type SavedFilterPayload } from '@/services/savedFilterService';
 import type { SavedFilterContext } from '@prisma/client';
-import type { SortValue, TransferOption, DebtOption, DraftOption } from '@/hooks/useFilterData';
+import type { SortValue, TransferOption, DebtOption, DraftOption, RecordTypeOption } from '@/hooks/useFilterData';
 import type { Category } from '@/services/categoryService';
 import type { Account } from '@/services/accountService';
 import { logError } from '@/lib/logger';
@@ -15,6 +15,7 @@ export interface FilterSnapshot {
    transferOption: string;
    debtOption: string;
    draftOption: string;
+   recordTypeOption?: string;
 }
 
 export interface LoadFilterCallback {
@@ -26,6 +27,7 @@ export interface LoadFilterCallback {
    setTransferOption: React.Dispatch<React.SetStateAction<TransferOption>>;
    setDebtOption: React.Dispatch<React.SetStateAction<DebtOption>>;
    setDraftOption: React.Dispatch<React.SetStateAction<DraftOption>>;
+   setRecordTypeOption?: React.Dispatch<React.SetStateAction<RecordTypeOption>>;
 }
 
 interface UseSavedFiltersOptions {
@@ -132,6 +134,7 @@ export function useSavedFilters({
             transferOption: current.transferOption,
             debtOption: current.debtOption,
             draftOption: current.draftOption,
+            ...(current.recordTypeOption ? { recordTypeOption: current.recordTypeOption } : {}),
          };
          try {
             const created = await savedFilterService.createSavedFilter({ name, context, filters });
@@ -175,6 +178,9 @@ export function useSavedFilters({
          }
          if (filters.draftOption) {
             dispatchers.setDraftOption(filters.draftOption as DraftOption);
+         }
+         if (filters.recordTypeOption) {
+            dispatchers.setRecordTypeOption?.(filters.recordTypeOption as RecordTypeOption);
          }
          setActiveFilterId(filter.id);
       },
@@ -225,6 +231,7 @@ export function useSavedFilters({
             transferOption: current.transferOption,
             debtOption: current.debtOption,
             draftOption: current.draftOption,
+            ...(current.recordTypeOption ? { recordTypeOption: current.recordTypeOption } : {}),
          };
          try {
             const updated = await savedFilterService.updateSavedFilter(id, { name, context, filters });
