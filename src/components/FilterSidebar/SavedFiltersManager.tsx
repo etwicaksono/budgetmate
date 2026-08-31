@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Dropdown, Form, Button, Modal, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import { FaFilter, FaSave, FaBookmark, FaInfoCircle, FaGripVertical } from 'react-icons/fa';
@@ -23,8 +23,7 @@ import { CSS } from '@dnd-kit/utilities';
 
 import { renderIcon } from './FilterSidebar.utils';
 import { ClearButton } from '@/components/common/ClearButton';
-import type { FilterSidebarProps, SortValue } from './FilterSidebar.types';
-import type { TransferOption, DebtOption } from '@/hooks/useFilterData';
+import type { FilterSidebarProps } from './FilterSidebar.types';
 import type { SavedFilter } from '@/services/savedFilterService';
 
 type SavedFiltersManagerProps = Pick<
@@ -39,28 +38,8 @@ type SavedFiltersManagerProps = Pick<
   | 'onRenameFilter'
   | 'onClearActiveFilter'
   | 'onReorderFilter'
-  | 'selectedCategories'
-  | 'selectedAccounts'
-  | 'selectedLabelIds'
-  | 'excludedLabelIds'
-  | 'selectedCurrencies'
-  | 'sortOption'
-  | 'transferOption'
-  | 'debtOption'
 > & {
   handleResetFilters: () => void;
-};
-
-// Snapshot of filter state at the moment a saved filter is loaded
-type FilterSnapshot = {
-  selectedCategories: string[];
-  selectedAccounts: string[];
-  selectedLabelIds: string[];
-  excludedLabelIds: string[];
-  selectedCurrencies: string[];
-  sortOption: SortValue;
-  transferOption: TransferOption;
-  debtOption: DebtOption;
 };
 
 export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
@@ -74,14 +53,6 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
   onRenameFilter = async () => ({ success: false, duplicateName: false }),
   onClearActiveFilter = () => {},
   onReorderFilter = () => {},
-  selectedCategories = [],
-  selectedAccounts = [],
-  selectedLabelIds = [],
-  excludedLabelIds = [],
-  selectedCurrencies = [],
-  sortOption = 'timeDesc',
-  transferOption = 'include',
-  debtOption = 'include',
   handleResetFilters,
 }) => {
   const [showSavedFilters, setShowSavedFilters] = useState(false);
@@ -95,53 +66,11 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
   const [saveModalError, setSaveModalError] = useState<string | null>(null);
   const [saveModalLoading, setSaveModalLoading] = useState(false);
 
-  const [loadedSnapshot, setLoadedSnapshot] = useState<FilterSnapshot | null>(null);
-
-  const captureSnapshot = (filter: SavedFilter) => ({
-    selectedCategories: filter.filters.selectedCategoryIds ?? [],
-    selectedAccounts: filter.filters.selectedAccountIds ?? [],
-    selectedLabelIds: filter.filters.selectedLabelIds ?? [],
-    excludedLabelIds: filter.filters.excludedLabelIds ?? [],
-    selectedCurrencies: filter.filters.selectedCurrencies ?? [],
-    sortOption: (filter.filters.sortOption as SortValue) ?? 'timeDesc',
-    transferOption: (filter.filters.transferOption as TransferOption) ?? 'include',
-    debtOption: (filter.filters.debtOption as DebtOption) ?? 'include',
-  });
-
-  const handleLoadFilter = (filter: SavedFilter) => {
-    onLoadFilter(filter);
-    setLoadedSnapshot(captureSnapshot(filter));
-  };
-
-  const hasFilterChanged = useMemo(() => {
-    if (!activeFilterId || !loadedSnapshot) return false;
-    const arrEq = (a: string[], b: string[]) =>
-      a.length === b.length && [...a].sort().every((v, i) => v === [...b].sort()[i]);
-    return (
-      !arrEq(selectedCategories, loadedSnapshot.selectedCategories) ||
-      !arrEq(selectedAccounts, loadedSnapshot.selectedAccounts) ||
-      !arrEq(selectedLabelIds, loadedSnapshot.selectedLabelIds) ||
-      !arrEq(excludedLabelIds, loadedSnapshot.excludedLabelIds) ||
-      !arrEq(selectedCurrencies, loadedSnapshot.selectedCurrencies) ||
-      sortOption !== loadedSnapshot.sortOption ||
-      transferOption !== loadedSnapshot.transferOption ||
-      debtOption !== loadedSnapshot.debtOption
-    );
-  }, [
-    activeFilterId,
-    loadedSnapshot,
-    selectedCategories,
-    selectedAccounts,
-    selectedLabelIds,
-    excludedLabelIds,
-    selectedCurrencies,
-    sortOption,
-    transferOption,
-    debtOption,
-  ]);
-
   const saveButtonEnabled = true;
-  const canUpdateFilter = !!activeFilterId && hasFilterChanged;
+  // Always allow updating the active filter: the update modal doubles as a
+  // rename dialog, and whether the filters "changed" is intentionally not
+  // tracked (tracking it broke across the desktop/mobile sidebar instances).
+  const canUpdateFilter = !!activeFilterId;
   const activeFilterName = activeFilterId
     ? savedFilters.find((f) => f.id === activeFilterId)?.name ?? ''
     : '';
@@ -202,7 +131,6 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                     onClick={() => {
                       handleResetFilters();
                       onClearActiveFilter();
-                      setLoadedSnapshot(null);
                     }}
                   />
                 </span>
@@ -228,9 +156,8 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                         if (isActive) {
                           handleResetFilters();
                           onClearActiveFilter();
-                          setLoadedSnapshot(null);
                         } else {
-                          handleLoadFilter(filter);
+                          onLoadFilter(filter);
                         }
                         setShowSavedFilters(false);
                       }}
@@ -481,16 +408,6 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                     setShowUpdateModal(false);
                     setSaveModalName('');
                     setSaveModalError(null);
-                    setLoadedSnapshot({
-                      selectedCategories,
-                      selectedAccounts,
-                      selectedLabelIds,
-                      excludedLabelIds,
-                      selectedCurrencies,
-                      sortOption,
-                      transferOption,
-                      debtOption,
-                    });
                   }
                 }
               }}
@@ -521,16 +438,6 @@ export const SavedFiltersManager: React.FC<SavedFiltersManagerProps> = ({
                 setShowUpdateModal(false);
                 setSaveModalName('');
                 setSaveModalError(null);
-                setLoadedSnapshot({
-                  selectedCategories,
-                  selectedAccounts,
-                  selectedLabelIds,
-                  excludedLabelIds,
-                  selectedCurrencies,
-                  sortOption,
-                  transferOption,
-                  debtOption,
-                });
               }
             }}
           >
