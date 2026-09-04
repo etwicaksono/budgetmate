@@ -71,3 +71,46 @@ export function dedupePairs<T>(rows: T[], key: (row: T) => string): T[] {
     return true;
   });
 }
+
+/**
+ * ID maps produced by the import route while importing an entity collection.
+ * Keys are the backup file's original IDs; values are the IDs rows were written to.
+ */
+export interface SavedFilterReferenceMaps {
+  categories: Map<string, string>;
+  accounts: Map<string, string>;
+  labels: Map<string, string>;
+}
+
+/**
+ * Rewrites the reference-ID arrays inside a saved filter's JSON payload.
+ *
+ * Saved filters denormalize the categories, accounts and labels they filter by.
+ * Import can mint fresh IDs (cross-user restore), so the backup's original IDs are
+ * remapped through the same maps the route used for those entities. IDs that no
+ * longer resolve are kept as-is — the app already treats dangling filter references
+ * as empty selections.
+ */
+export function remapSavedFilterReferences(
+  filters: Record<string, unknown>,
+  maps: SavedFilterReferenceMaps
+): Record<string, unknown> {
+  const remap = (ids: unknown): unknown => {
+    if (!Array.isArray(ids)) return ids;
+    return ids.map((id) => {
+      if (typeof id !== 'string') return id;
+      return (
+        maps.categories.get(id) ??
+        maps.accounts.get(id) ??
+        maps.labels.get(id) ??
+        id
+      );
+    });
+  };
+
+  const remapped: Record<string, unknown> = { ...filters };
+  for (const key of ['selectedCategoryIds', 'selectedAccountIds', 'selectedLabelIds', 'excludedLabelIds']) {
+    if (key in remapped) remapped[key] = remap(remapped[key]);
+  }
+  return remapped;
+}

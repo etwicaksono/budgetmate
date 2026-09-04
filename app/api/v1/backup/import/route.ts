@@ -9,11 +9,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
+import { SavedFilterContext } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { commonErrors } from '@/lib/api/response';
 import { BackupDataSchema, isVersionCompatible } from '@/lib/validation/backupSchemas';
-import { dedupePairs, resolveAnalyticFlag, resolveImportId } from '@/lib/api/backupImport';
+import {
+  dedupePairs,
+  remapSavedFilterReferences,
+  resolveAnalyticFlag,
+  resolveImportId,
+} from '@/lib/api/backupImport';
 import { createId } from '@paralleldrive/cuid2';
 import crypto from 'crypto';
 import { logError } from '@/lib/logger';
@@ -44,7 +51,8 @@ const PROGRESS_RANGES = {
   transfers: { start: 55, end: 65 },
   transactions: { start: 65, end: 88 },
   transactionLabels: { start: 88, end: 96 },
-  debtLabels: { start: 96, end: 100 },
+  debtLabels: { start: 96, end: 98 },
+  savedFilters: { start: 98, end: 100 },
 } as const;
 
 function calculateProgress(
@@ -67,6 +75,7 @@ const ENTITY_KEYS = [
   'labels',
   'transactionLabels',
   'debtLabels',
+  'savedFilters',
 ] as const;
 
 type EntityKey = (typeof ENTITY_KEYS)[number];
@@ -152,6 +161,10 @@ export async function POST(request: NextRequest) {
           // otherwise Zod's [] default would fake a mismatch on 1.0.x backups.
           ...(metadataCounts.debtLabels !== undefined
             ? { debtLabels: backupData.data.debtLabels.length }
+            : {}),
+          // Only compare savedFilters when the file declares it (1.2.0+).
+          ...(metadataCounts.savedFilters !== undefined
+            ? { savedFilters: backupData.data.savedFilters.length }
             : {}),
         };
 
@@ -256,6 +269,7 @@ export async function POST(request: NextRequest) {
               await tx.label.deleteMany({ where: { user_id: userId } });
               await tx.category.deleteMany({ where: { user_id: userId } });
               await tx.account.deleteMany({ where: { user_id: userId } });
+              await tx.savedFilter.deleteMany({ where: { user_id: userId } });
             });
             sendEvent({ progress: 5, step: 'cleared', message: 'Existing data cleared' });
           }
@@ -770,6 +784,94 @@ export async function POST(request: NextRequest) {
               step: 'debtLabels',
               done: Math.min((i + 1) * JUNCTION_CHUNK_SIZE, uniqueDebtLabels.length),
               total: uniqueDebtLabels.length,
+            });
+          }
+
+          // Step 11: Import Saved Filters (absent from exportVersion < 1.2.0 files)
+          // SavedFilter has no hard FK to the entities it references — its `filters`
+          // JSON stores their IDs denormalized — so references are remapped through
+          // the category/account/label maps instead of being skipped when unresolved.
+          const savedFilterChunks = chunkArray(backupData.data.savedFilters, CHUNK_SIZE);
+          for (const [i, chunk] of savedFilterChunks.entries()) {
+            await prisma.$transaction(async (tx) => {
+              const rows = await tx.savedFilter.findMany({
+                where: { id: { in: chunk.map((sf) => sf.id) } },
+                select: { id: true, user_id: true },
+              });
+              const owners = new Map(rows.map((r) => [r.id, r.user_id] as const));
+
+              // Rows are unique per (user, name, context), so look up existing
+              // matches for the file's pairs before deciding create vs. update.
+              const pairKeys = [
+                ...new Set(chunk.map((sf) => `${sf.name}\u0000${sf.context}`)),
+              ];
+              const keyedRows = await tx.savedFilter.findMany({
+                where: {
+                  user_id: userId,
+                  OR: pairKeys.map((pairKey) => {
+                    const separator = pairKey.indexOf('\u0000');
+                    return {
+                      name: pairKey.slice(0, separator),
+                      context: pairKey.slice(separator + 1) as SavedFilterContext,
+                    };
+                  }),
+                },
+                select: { id: true, name: true, context: true },
+              });
+              const keyed = new Map(
+                keyedRows.map((r) => [`${r.name}\u0000${r.context}`, r.id])
+              );
+
+              for (const savedFilter of chunk) {
+                const filters = remapSavedFilterReferences(savedFilter.filters, {
+                  categories: categoryIdMap,
+                  accounts: accountIdMap,
+                  labels: labelIdMap,
+                });
+                const data = {
+                  name: savedFilter.name,
+                  context: savedFilter.context,
+                  filters: filters as Prisma.InputJsonValue,
+                  sort_order: savedFilter.sort_order,
+                };
+
+                const pairKey = `${savedFilter.name}\u0000${savedFilter.context}`;
+                const existingByKey = keyed.get(pairKey);
+
+                // Prefer the unique (name, context) match: updating the row the
+                // preset was renamed to avoids colliding with a locally created
+                // filter that now holds that name.
+                if (existingByKey) {
+                  await tx.savedFilter.update({ where: { id: existingByKey }, data });
+                  counters.savedFilters.updated++;
+                  continue;
+                }
+
+                const { update, id } = resolveId(savedFilter.id, owners, userId);
+                if (update) {
+                  // Same row re-imported — restore its name/filters in place.
+                  await tx.savedFilter.update({ where: { id }, data });
+                  counters.savedFilters.updated++;
+                } else {
+                  await tx.savedFilter.create({
+                    data: { id, user_id: userId, ...data },
+                  });
+                  counters.savedFilters.created++;
+                }
+              }
+            });
+            sendEvent({
+              progress: calculateProgress(
+                'savedFilters',
+                (i + 1) * CHUNK_SIZE,
+                backupData.data.savedFilters.length
+              ),
+              step: 'savedFilters',
+              done: Math.min(
+                (i + 1) * CHUNK_SIZE,
+                backupData.data.savedFilters.length
+              ),
+              total: backupData.data.savedFilters.length,
             });
           }
 

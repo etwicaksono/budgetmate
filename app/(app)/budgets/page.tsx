@@ -9,6 +9,7 @@ import { categoryService, Category } from '@/services/categoryService';
 import { budgetService, CategoryBudget } from '@/services/budgetService';
 import { accountService } from '@/services/accountService';
 import type { Account } from '@/services/accountService';
+import { labelService, type Label } from '@/services/labelService';
 import { BudgetConfigModal } from '@/components/budgets/BudgetConfigModal';
 import { BudgetProgressBar } from '@/components/budgets/BudgetProgressBar';
 import CategoryTransactionsModal from '@/components/analytics/CategoryTransactionsModal';
@@ -53,9 +54,23 @@ function BudgetsPageContent(): React.ReactElement {
   const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [excludedLabelIds, setExcludedLabelIds] = useState<string[]>([]);
   const [draftOption, setDraftOption] = useState<DraftOption>('exclude');
   // Ref keeps latest accounts accessible inside callbacks without being a dep
   const accountsRef = useRef<Account[]>([]);
+
+  // Include and exclude must stay disjoint — a label present in both can never match.
+  const handleSelectedLabelIdsChange = (ids: string[]) => {
+    setSelectedLabelIds(ids);
+    setExcludedLabelIds((prev) => prev.filter((id) => !ids.includes(id)));
+  };
+
+  const handleExcludedLabelIdsChange = (ids: string[]) => {
+    setExcludedLabelIds(ids);
+    setSelectedLabelIds((prev) => prev.filter((id) => !ids.includes(id)));
+  };
 
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
@@ -91,6 +106,9 @@ function BudgetsPageContent(): React.ReactElement {
         ? accountsRef.current.filter(a => selectedAccounts.includes(a.name)).map(a => a.id).join(',')
         : undefined;
 
+      const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds.join(',') : undefined;
+      const excludeLabelIds = excludedLabelIds.length > 0 ? excludedLabelIds.join(',') : undefined;
+
       const [catRes, budRes] = await Promise.all([
         categoryService.fetchCategories({ is_active: true }),
         budgetService.fetchBudgets({ 
@@ -99,6 +117,8 @@ function BudgetsPageContent(): React.ReactElement {
           ...(startDateTime ? { start_date: startDateTime } : {}),
           ...(endDateTime ? { end_date: endDateTime } : {}),
           ...(accountIds ? { account_ids: accountIds } : {}),
+          ...(labelIds ? { label_ids: labelIds } : {}),
+          ...(excludeLabelIds ? { exclude_label_ids: excludeLabelIds } : {}),
           drafts: draftOption,
         })
       ]);
@@ -122,7 +142,7 @@ function BudgetsPageContent(): React.ReactElement {
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, selectedYear, selectedAccounts, draftOption, dateRange.start, dateRange.end]);
+  }, [selectedMonth, selectedYear, selectedAccounts, selectedLabelIds, excludedLabelIds, draftOption, dateRange.start, dateRange.end]);
 
   // Load accounts once on mount — separate from the main data loop
   useEffect(() => {
@@ -131,6 +151,13 @@ function BudgetsPageContent(): React.ReactElement {
         accountsRef.current = accRes;
         setAccounts(accRes);
       })
+      .catch(logError);
+  }, []);
+
+  // Load labels once on mount — powers the sidebar label filter
+  useEffect(() => {
+    labelService.fetchLabels()
+      .then(res => setLabels(res.data))
       .catch(logError);
   }, []);
 
@@ -145,12 +172,17 @@ function BudgetsPageContent(): React.ReactElement {
         ? accountsRef.current.filter(a => selectedAccounts.includes(a.name)).map(a => a.id).join(',')
         : undefined;
 
+      const labelIds = selectedLabelIds.length > 0 ? selectedLabelIds.join(',') : undefined;
+      const excludeLabelIds = excludedLabelIds.length > 0 ? excludedLabelIds.join(',') : undefined;
+
       const budRes = await budgetService.fetchBudgets({ 
         month: selectedMonth, 
         year: selectedYear,
         ...(startDateTime ? { start_date: startDateTime } : {}),
         ...(endDateTime ? { end_date: endDateTime } : {}),
         ...(accountIds ? { account_ids: accountIds } : {}),
+        ...(labelIds ? { label_ids: labelIds } : {}),
+        ...(excludeLabelIds ? { exclude_label_ids: excludeLabelIds } : {}),
         drafts: draftOption,
       });
       setBudgets(budRes);
@@ -166,7 +198,7 @@ function BudgetsPageContent(): React.ReactElement {
         showConfirmButton: false,
       });
     }
-  }, [selectedMonth, selectedYear, selectedAccounts, draftOption, dateRange.start, dateRange.end]);
+  }, [selectedMonth, selectedYear, selectedAccounts, selectedLabelIds, excludedLabelIds, draftOption, dateRange.start, dateRange.end]);
 
   useEffect(() => {
     loadData();
@@ -179,8 +211,8 @@ function BudgetsPageContent(): React.ReactElement {
     current: {
       selectedCategories: [],
       selectedAccounts,
-      selectedLabelIds: [],
-      excludedLabelIds: [],
+      selectedLabelIds,
+      excludedLabelIds,
       sortOption: sortBy as SortValue,
       transferOption: 'include',
       debtOption: 'include',
@@ -189,8 +221,8 @@ function BudgetsPageContent(): React.ReactElement {
     dispatchers: {
       setSelectedCategories: () => {},
       setSelectedAccounts,
-      setSelectedLabelIds: () => {},
-      setExcludedLabelIds: () => {},
+      setSelectedLabelIds,
+      setExcludedLabelIds,
       setSortOption: setSortBy as React.Dispatch<React.SetStateAction<SortValue>>,
       setTransferOption: () => {},
       setDebtOption: () => {},
@@ -764,6 +796,11 @@ function BudgetsPageContent(): React.ReactElement {
           accounts={accounts}
           selectedAccounts={selectedAccounts}
           onSelectedAccountsChange={setSelectedAccounts}
+          labels={labels}
+          selectedLabelIds={selectedLabelIds}
+          onSelectedLabelIdsChange={handleSelectedLabelIdsChange}
+          excludedLabelIds={excludedLabelIds}
+          onExcludedLabelIdsChange={handleExcludedLabelIdsChange}
           showProjections={showProjections}
           onShowProjectionsChange={setShowProjections}
           draftOption={draftOption}

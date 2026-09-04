@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/prisma';
 import { errorResponse } from '@/lib/api/response';
+import { buildLabelWhereConditions } from '@/lib/api/labelFilters';
 import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const endDateParam = searchParams.get('end_date');
   const accountIdsParam = searchParams.get('account_ids')?.split(',').filter(Boolean) ?? [];
   const draftsParam = searchParams.get('drafts') || 'exclude'; // 'include', 'exclude', 'only'
+  // Label include/exclude come back as separate AND entries so a single
+  // `labels` key can never overwrite the other (see buildLabelWhereConditions).
+  const labelConditions = buildLabelWhereConditions(
+    searchParams.get('label_ids'),
+    searchParams.get('exclude_label_ids')
+  );
 
   const now = new Date();
   const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
@@ -78,6 +85,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           date: { gte: monthlyStart, lte: monthlyEnd },
           ...accountFilter,
           ...draftFilter,
+          ...(labelConditions.length > 0 && { AND: labelConditions }),
         },
         _sum: { amount: true },
       }),
@@ -90,6 +98,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           date: { gte: annualStart, lte: annualEnd },
           ...accountFilter,
           ...draftFilter,
+          ...(labelConditions.length > 0 && { AND: labelConditions }),
         },
         _sum: { amount: true },
       })

@@ -32,6 +32,7 @@ export interface BackupData {
     labels: BackupLabel[];
     transactionLabels: BackupTransactionLabel[];
     debtLabels?: BackupDebtLabel[];
+    savedFilters?: BackupSavedFilter[];
   };
   metadata: {
     totalRecords: number;
@@ -46,6 +47,7 @@ export interface BackupData {
       labels: number;
       transactionLabels: number;
       debtLabels?: number;
+      savedFilters?: number;
     };
   };
 }
@@ -154,6 +156,17 @@ export interface BackupDebtLabel {
   label_id: string;
 }
 
+// Added in exportVersion 1.2.0 — saved filter presets (per context)
+export interface BackupSavedFilter {
+  id: string;
+  name: string;
+  context: string; // SavedFilterContext enum value
+  filters: Record<string, unknown>; // SavedFilterPayload JSON (references entity IDs)
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // =============================================================================
 // API Response Types
 // =============================================================================
@@ -173,6 +186,7 @@ export interface BackupRecordCounts {
   labels: number;
   transactionLabels: number;
   debtLabels: number;
+  savedFilters: number;
 }
 
 export interface ImportResponse {

@@ -6,7 +6,15 @@
  */
 
 import { z } from 'zod';
-import { AccountType, CategoryNature, CategoryType, DebtStatus, DebtType, TransactionType } from '@prisma/client';
+import {
+  AccountType,
+  CategoryNature,
+  CategoryType,
+  DebtStatus,
+  DebtType,
+  SavedFilterContext,
+  TransactionType,
+} from '@prisma/client';
 
 // =============================================================================
 // Entity Schemas
@@ -116,6 +124,18 @@ const BackupDebtLabelSchema = z.object({
   label_id: z.string(),
 });
 
+// Added in exportVersion 1.2.0 — saved filter presets, one row per context
+const BackupSavedFilterSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).max(100),
+  context: z.nativeEnum(SavedFilterContext),
+  // JSON payload: category/account/label IDs plus option strings
+  filters: z.record(z.string(), z.unknown()),
+  sort_order: z.number().int().optional().default(0),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime(),
+});
+
 // =============================================================================
 // Main Backup Data Schema
 // =============================================================================
@@ -144,6 +164,8 @@ export const BackupDataSchema = z.object({
     transactionLabels: z.array(BackupTransactionLabelSchema),
     // Added in exportVersion 1.1.0 — defaults to [] so 1.0.x backups still validate
     debtLabels: z.array(BackupDebtLabelSchema).optional().default([]),
+    // Added in exportVersion 1.2.0 — defaults to [] so older backups still validate
+    savedFilters: z.array(BackupSavedFilterSchema).optional().default([]),
   }),
   metadata: z.object({
     totalRecords: z.number().int().nonnegative(),
@@ -158,6 +180,7 @@ export const BackupDataSchema = z.object({
       labels: z.number().int().nonnegative(),
       transactionLabels: z.number().int().nonnegative(),
       debtLabels: z.number().int().nonnegative().optional(),
+      savedFilters: z.number().int().nonnegative().optional(),
     }),
   }),
 });
@@ -234,3 +257,4 @@ export type BackupTransfer = z.infer<typeof BackupTransferSchema>;
 export type BackupLabel = z.infer<typeof BackupLabelSchema>;
 export type BackupTransactionLabel = z.infer<typeof BackupTransactionLabelSchema>;
 export type BackupDebtLabel = z.infer<typeof BackupDebtLabelSchema>;
+export type BackupSavedFilter = z.infer<typeof BackupSavedFilterSchema>;

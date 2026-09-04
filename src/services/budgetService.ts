@@ -45,6 +45,8 @@ export interface BudgetFilterParams {
   start_date?: string;
   end_date?: string;
   account_ids?: string;
+  label_ids?: string;
+  exclude_label_ids?: string;
   drafts?: string;
 }
 
@@ -58,6 +60,8 @@ class BudgetService {
       if (params.start_date) q.append('start_date', params.start_date);
       if (params.end_date) q.append('end_date', params.end_date);
       if (params.account_ids) q.append('account_ids', params.account_ids);
+      if (params.label_ids) q.append('label_ids', params.label_ids);
+      if (params.exclude_label_ids) q.append('exclude_label_ids', params.exclude_label_ids);
       if (params.drafts) q.append('drafts', params.drafts);
       if (q.toString()) url += `?${q.toString()}`;
     }

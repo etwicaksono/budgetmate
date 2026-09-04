@@ -155,18 +155,18 @@ export function useSavedFilters({
    const loadFilter = useCallback(
       (filter: SavedFilter) => {
          const { filters } = filter;
-         if (filters.selectedCategoryIds) {
-            dispatchers.setSelectedCategories(categoryIdsToNames(filters.selectedCategoryIds));
-         }
-         if (filters.selectedAccountIds) {
-            dispatchers.setSelectedAccounts(accountIdsToNames(filters.selectedAccountIds));
-         }
-         if (filters.selectedLabelIds) {
-            dispatchers.setSelectedLabelIds(filters.selectedLabelIds);
-         }
-         if (filters.excludedLabelIds) {
-            dispatchers.setExcludedLabelIds(filters.excludedLabelIds);
-         }
+         // List fields reset to [] when the preset never stored them. A preset is a
+         // full snapshot of a page's filters, so a field absent from an older preset
+         // (e.g. one saved before label filtering existed) must clear — not keep —
+         // whatever the previous preset left selected.
+         dispatchers.setSelectedCategories(
+            categoryIdsToNames(filters.selectedCategoryIds ?? [])
+         );
+         dispatchers.setSelectedAccounts(
+            accountIdsToNames(filters.selectedAccountIds ?? [])
+         );
+         dispatchers.setSelectedLabelIds(filters.selectedLabelIds ?? []);
+         dispatchers.setExcludedLabelIds(filters.excludedLabelIds ?? []);
          if (filters.sortOption) {
             dispatchers.setSortOption(filters.sortOption as SortValue);
          }

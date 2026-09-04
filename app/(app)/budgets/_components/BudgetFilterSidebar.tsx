@@ -4,6 +4,8 @@
 import { Col, Offcanvas, Form, Card, Dropdown } from 'react-bootstrap';
 import { FaFileAlt, FaCheck } from 'react-icons/fa';
 import type { Account } from '@/services/accountService';
+import type { Label } from '@/services/labelService';
+import { LabelMultiSelect } from '@/components/transaction/LabelMultiSelect';
 import type { useSavedFilters } from '@/hooks/useSavedFilters';
 import { AccountDropdown } from '@/components/FilterSidebar/AccountDropdown';
 import { SavedFiltersManager } from '@/components/FilterSidebar/SavedFiltersManager';
@@ -15,10 +17,11 @@ import '@/components/FilterSidebar/FilterSidebar.css';
 
 // Only the filters this sidebar renders. "Display" (show projections) is a
 // display toggle rather than a filter, so it stays always visible.
-type BudgetFilterKey = 'accounts' | 'drafts';
+type BudgetFilterKey = 'accounts' | 'labels' | 'drafts';
 
 const VISIBILITY_ITEMS: ReadonlyArray<FilterVisibilityItem<BudgetFilterKey>> = [
   { id: 'accounts', label: 'Accounts' },
+  { id: 'labels', label: 'Labels' },
   { id: 'drafts', label: 'Drafts' },
 ];
 
@@ -26,6 +29,7 @@ const VISIBILITY_STORAGE_KEY = 'budget-filter-visibility';
 
 const VISIBILITY_DEFAULTS: Record<BudgetFilterKey, boolean> = {
   accounts: true,
+  labels: true,
   drafts: true,
 };
 
@@ -38,6 +42,12 @@ export interface BudgetFilterSidebarProps {
   accounts: Account[];
   selectedAccounts: string[];
   onSelectedAccountsChange: (names: string[]) => void;
+  // Label filter (include/exclude)
+  labels: Label[];
+  selectedLabelIds: string[];
+  onSelectedLabelIdsChange: (ids: string[]) => void;
+  excludedLabelIds: string[];
+  onExcludedLabelIdsChange: (ids: string[]) => void;
   // Projections
   showProjections: boolean;
   onShowProjectionsChange: (v: boolean) => void;
@@ -71,6 +81,11 @@ function BudgetFilterPanel({
   accounts,
   selectedAccounts,
   onSelectedAccountsChange,
+  labels,
+  selectedLabelIds,
+  onSelectedLabelIdsChange,
+  excludedLabelIds,
+  onExcludedLabelIdsChange,
   showProjections,
   onShowProjectionsChange,
   draftOption,
@@ -96,6 +111,8 @@ function BudgetFilterPanel({
 
   const handleReset = () => {
     onSelectedAccountsChange([]);
+    onSelectedLabelIdsChange([]);
+    onExcludedLabelIdsChange([]);
     onDraftOptionChange('exclude');
     clearActiveFilter();
   };
@@ -118,6 +135,8 @@ function BudgetFilterPanel({
     onClearActiveFilter: clearActiveFilter,
     onReorderFilter: reorderFilter,
     selectedAccounts,
+    selectedLabelIds,
+    excludedLabelIds,
   };
 
   return (
@@ -165,6 +184,31 @@ function BudgetFilterPanel({
               entityLabelPlural="accounts"
               searchPlaceholder="Search account"
               isSingleSelect={false}
+            />
+          </Form.Group>
+          )}
+
+          {/* Labels Filter — include and exclude share one visibility key */}
+          {visibility.labels && (
+          <Form.Group className="mb-3" controlId="budgetLabelFilter">
+            <Form.Label className="fw-semibold text-muted small">Labels</Form.Label>
+            <LabelMultiSelect
+              labels={labels}
+              selectedLabelIds={selectedLabelIds}
+              onChange={onSelectedLabelIdsChange}
+              placeholder="All labels"
+            />
+          </Form.Group>
+          )}
+
+          {visibility.labels && (
+          <Form.Group className="mb-4" controlId="budgetExcludeLabelFilter">
+            <Form.Label className="fw-semibold text-muted small">Exclude labels</Form.Label>
+            <LabelMultiSelect
+              labels={labels}
+              selectedLabelIds={excludedLabelIds}
+              onChange={onExcludedLabelIdsChange}
+              placeholder="No excluded labels"
             />
           </Form.Group>
           )}

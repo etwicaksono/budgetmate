@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch ALL user data with relations in a transaction
     const userData = await prisma.$transaction(async (tx) => {
-      const [accounts, categories, categoryBudgets, debts, transactions, transfers, labels, transactionLabels, debtLabels, user] =
+      const [accounts, categories, categoryBudgets, debts, transactions, transfers, labels, transactionLabels, debtLabels, savedFilters, user] =
         await Promise.all([
           // Accounts
           tx.account.findMany({
@@ -106,6 +106,12 @@ export async function GET(request: NextRequest) {
             where: { debt: { user_id: userId } },
           }),
 
+          // Saved filter presets (per context)
+          tx.savedFilter.findMany({
+            where: { user_id: userId },
+            orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }],
+          }),
+
           // User settings
           tx.user.findUnique({
             where: { id: userId },
@@ -130,6 +136,7 @@ export async function GET(request: NextRequest) {
         labels,
         transactionLabels,
         debtLabels,
+        savedFilters,
         user,
       };
     });
@@ -231,13 +238,23 @@ export async function GET(request: NextRequest) {
         debt_id: dl.debt_id,
         label_id: dl.label_id,
       })),
+      savedFilters: userData.savedFilters.map((sf) => ({
+        id: sf.id,
+        name: sf.name,
+        context: sf.context,
+        filters: sf.filters,
+        sort_order: sf.sort_order,
+        created_at: sf.created_at.toISOString(),
+        updated_at: sf.updated_at.toISOString(),
+      })),
     };
 
     // Build complete backup data structure
     const sanitizedData = {
       // 1.1.0 adds Account.order, Category.analytic_flag, Transaction.is_draft and
-      // the debtLabels collection. Major stays 1 so 1.0.x files remain importable.
-      exportVersion: '1.1.0',
+      // the debtLabels collection; 1.2.0 adds the savedFilters collection. Major
+      // stays 1 so 1.0.x and 1.1.x files remain importable.
+      exportVersion: '1.2.0',
       exportDate: new Date().toISOString(),
       appVersion: APP_VERSION,
       user: {
@@ -260,7 +277,8 @@ export async function GET(request: NextRequest) {
           userData.transfers.length +
           userData.labels.length +
           userData.transactionLabels.length +
-          userData.debtLabels.length,
+          userData.debtLabels.length +
+          userData.savedFilters.length,
         checksum: generateChecksum(sanitizedDataContent),
         recordCounts: {
           accounts: userData.accounts.length,
@@ -272,6 +290,7 @@ export async function GET(request: NextRequest) {
           labels: userData.labels.length,
           transactionLabels: userData.transactionLabels.length,
           debtLabels: userData.debtLabels.length,
+          savedFilters: userData.savedFilters.length,
         },
       },
     };

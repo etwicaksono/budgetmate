@@ -169,6 +169,7 @@ export function BackupSection(): React.ReactElement {
         { key: 'labels', label: 'labels' },
         { key: 'transactionLabels', label: 'transaction-label links' },
         { key: 'debtLabels', label: 'debt-label links' },
+        { key: 'savedFilters', label: 'saved filters' },
       ];
 
       const importedRows = ENTITY_LABELS.map(({ key, label }) => {

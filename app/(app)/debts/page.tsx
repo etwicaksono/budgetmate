@@ -458,7 +458,7 @@ export default function DebtsPage() {
                   >
                     <FaArrowCircleUp className="text-danger" />
                     <span className="text-danger" >Credit</span>
-                    {hasActiveFilter && activeTab !== 'lend' && (
+                    {hasActiveFilter && activeTab === 'lend' && (
                       <Badge bg="danger" pill style={{ fontSize: '10px' }}>filtered</Badge>
                     )}
                   </Nav.Link>
@@ -471,7 +471,7 @@ export default function DebtsPage() {
                   >
                     <FaArrowCircleDown className="text-success" />
                     <span className="text-success" >Debit</span>
-                    {hasActiveFilter && activeTab !== 'borrow' && (
+                    {hasActiveFilter && activeTab === 'borrow' && (
                       <Badge bg="success" pill style={{ fontSize: '10px' }}>filtered</Badge>
                     )}
                   </Nav.Link>
