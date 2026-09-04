@@ -1,0 +1,12 @@
+/*
+ * Collapsing desktop filter panel.
+ *
+ * overflow: hidden is the fallback for browsers without overflow: clip.
+ * overflow: clip clips during the width animation without turning the box
+ * into a scroll container, which would otherwise break position: sticky on
+ * the filter card inside (it would stick to the panel instead of the viewport).
+ */
+.analytics-filter-slide-panel {
+  overflow: hidden;
+  overflow: clip;
+}

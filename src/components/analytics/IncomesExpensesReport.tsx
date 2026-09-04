@@ -78,6 +78,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
   const [showPercentageDiff, setShowPercentageDiff] = useState(false);
+  const [showAverageColumn, setShowAverageColumn] = useState(false);
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const { formatCurrency } = useFormattedCurrency();
 
@@ -235,6 +236,12 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     return diff >= 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
   };
 
+  // Arithmetic mean across the displayed period columns.
+  const averageOf = useCallback((values: number[] | undefined): number => {
+    if (!values || values.length === 0) return 0;
+    return values.reduce((sum, value) => sum + (value || 0), 0) / values.length;
+  }, []);
+
   const renderCategoryRow = (
     category: CategoryReport,
     type: 'income' | 'expense',
@@ -302,6 +309,15 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
               </span>
             </td>
           ))}
+          {showAverageColumn && (
+            <td className="text-end">
+              {(() => {
+                const avg = averageOf(category.amounts);
+                const prefix = type === 'expense' ? (avg >= 0 ? '-' : '+') : (avg < 0 ? '-' : '');
+                return <>{prefix}{formatAmount(Math.abs(avg))}</>;
+              })()}
+            </td>
+          )}
         </tr>
         {hasChildren && isExpanded && (() => {
           const sortedSubs = sortCategories(category.subItems ?? []);
@@ -339,6 +355,9 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
             {monthNames.map((name, idx) => (
               <th key={idx} className="text-center">{getDisplayName(name)}</th>
             ))}
+            {showAverageColumn && (
+              <th className="text-center">Average</th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -355,6 +374,17 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 </td>
               );
             })}
+            {showAverageColumn && (() => {
+              const margins = reportData.totalIncomes.map(
+                (income, i) => income - (reportData.totalExpenses[i] || 0)
+              );
+              const avg = averageOf(margins);
+              return (
+                <td className="text-end" style={{ color: avg >= 0 ? '#198754' : '#dc3545' }}>
+                  {formatAmount(avg)}
+                </td>
+              );
+            })()}
           </tr>
 
           <tr className="total-row">
@@ -364,12 +394,20 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 {total < 0 ? '-' : ''}{formatAmount(Math.abs(total))}
               </td>
             ))}
+            {showAverageColumn && (() => {
+              const avg = averageOf(reportData.totalIncomes);
+              return (
+                <td className="text-end total-income">
+                  {avg < 0 ? '-' : ''}{formatAmount(Math.abs(avg))}
+                </td>
+              );
+            })()}
           </tr>
 
           {sortedIncomeCategories.map((category) => renderCategoryRow(category, 'income'))}
 
           <tr>
-            <td colSpan={monthNames.length + 1} style={{ height: '1rem', padding: 0, border: 'none' }}></td>
+            <td colSpan={monthNames.length + (showAverageColumn ? 2 : 1)} style={{ height: '1rem', padding: 0, border: 'none' }}></td>
           </tr>
 
           <tr className="total-row">
@@ -379,6 +417,14 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
                 {total >= 0 ? '-' : '+'}{formatAmount(Math.abs(total))}
               </td>
             ))}
+            {showAverageColumn && (() => {
+              const avg = averageOf(reportData.totalExpenses);
+              return (
+                <td className="text-end total-expense">
+                  {avg >= 0 ? '-' : '+'}{formatAmount(Math.abs(avg))}
+                </td>
+              );
+            })()}
           </tr>
 
           {sortedExpenseCategories.map((category) => renderCategoryRow(category, 'expense'))}
@@ -639,6 +685,16 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           onChange={() => setShowPercentageDiff(!showPercentageDiff)}
           style={{ fontSize: '14px' }}
         />
+
+        <Form.Check
+          type="switch"
+          id="show-average-column"
+          label="Show average column"
+          checked={showAverageColumn}
+          onChange={() => setShowAverageColumn(!showAverageColumn)}
+          style={{ fontSize: '14px', marginTop: '12px' }}
+        />
+
       </Dropdown.Menu>
     </Dropdown>
   );

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { Container, Row, Col, Nav, Dropdown, Button } from 'react-bootstrap';
+import { Container, Nav, Dropdown, Button } from 'react-bootstrap';
 import { FaFilter } from 'react-icons/fa';
 import { useFilterData } from '@/hooks/useFilterData';
 import type { TransferOption, DebtOption, SortValue } from '@/hooks/useFilterData';
@@ -43,6 +43,8 @@ function AnalyticsContent(): React.ReactElement {
   const activeTab: TabKey = VALID_TABS.includes(tabParam as TabKey) ? (tabParam as TabKey) : 'income-expense';
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  // Desktop sidebar can be hidden to give the reports more width, then re-shown.
+  const [showDesktopFilters, setShowDesktopFilters] = useState(true);
 
   const setActiveTab = useCallback((tab: TabKey) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -261,16 +263,20 @@ function AnalyticsContent(): React.ReactElement {
 
   return (
     <Container fluid>
-      <Row>
+      {/* Relative so the collapsed sidebar's floated reopen button can anchor to
+          this row (it does not reserve a column of its own). */}
+      <div className="d-flex align-items-stretch" style={{ position: 'relative' }}>
         <AnalyticsFilterSidebar
           filterData={filterData}
           savedFiltersData={savedFiltersData}
           showMobile={showMobileFilters}
           onHideMobile={() => setShowMobileFilters(false)}
+          showDesktop={showDesktopFilters}
+          onToggleDesktop={() => setShowDesktopFilters((v) => !v)}
         />
 
         {/* Main Content */}
-        <Col lg={9} className="p-0">
+        <div className="p-0 flex-grow-1" style={{ minWidth: 0 }}>
           {/* Mobile Page Title + Filter Toggle */}
           <div className="d-flex justify-content-between align-items-center mb-2 d-lg-none">
             <h2 className="page-mobile-title">Analytics</h2>
@@ -376,8 +382,8 @@ function AnalyticsContent(): React.ReactElement {
           <div className={activeTab === 'balance-trend' ? 'analytics-card-container mt-3' : 'analytics-content'}>
             {renderTabContent()}
           </div>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       {/* AI Chat — floating FAB, always visible across all tabs if user has access */}
       {user?.has_ai_access && (

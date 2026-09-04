@@ -1,7 +1,8 @@
 'use client';
 
-import { Button, Card, Col, Dropdown, Form, Offcanvas } from 'react-bootstrap';
-import { FaFileAlt, FaCheck, FaTags } from 'react-icons/fa';
+import { useEffect, useState } from 'react';
+import { Button, Card, Dropdown, Form, Offcanvas } from 'react-bootstrap';
+import { FaChevronLeft, FaChevronRight, FaFileAlt, FaCheck, FaTags } from 'react-icons/fa';
 import { AccountDropdown } from '@/components/FilterSidebar/AccountDropdown';
 import { CategoryDropdown } from '@/components/FilterSidebar/CategoryDropdown';
 import { SavedFiltersManager } from '@/components/FilterSidebar/SavedFiltersManager';
@@ -10,6 +11,7 @@ import type { FilterVisibilityItem } from '@/components/FilterSidebar/FilterVisi
 import { LabelMultiSelect } from '@/components/transaction/LabelMultiSelect';
 import { useFilterVisibility } from '@/hooks/useFilterVisibility';
 import '@/components/FilterSidebar/FilterSidebar.css';
+import './AnalyticsFilterSidebar.css';
 import type { useFilterData } from '@/hooks/useFilterData';
 import type { useSavedFilters } from '@/hooks/useSavedFilters';
 
@@ -34,6 +36,10 @@ const VISIBILITY_DEFAULTS: Record<AnalyticsFilterKey, boolean> = {
   drafts: true,
 };
 
+// Must match the desktop column's inline collapse transition below, so the
+// reopen button only shows once the panel has fully slid shut.
+const DESKTOP_COLLAPSE_MS = 500;
+
 interface AnalyticsFilterSidebarProps {
   /** Return value of useFilterData() */
   filterData: ReturnType<typeof useFilterData>;
@@ -43,11 +49,17 @@ interface AnalyticsFilterSidebarProps {
   showMobile: boolean;
   /** Mobile Offcanvas close handler */
   onHideMobile: () => void;
+  /** Whether the desktop filter column is visible (default: true) */
+  showDesktop?: boolean;
+  /** Toggles the desktop filter column from the always-visible left rail */
+  onToggleDesktop?: () => void;
 }
 
 function AnalyticsFilterPanel({
   filterData,
   savedFiltersData,
+  showDesktop = true,
+  onToggleDesktop,
 }: Omit<AnalyticsFilterSidebarProps, 'showMobile' | 'onHideMobile'>) {
   const {
     selectedAccounts,
@@ -140,11 +152,44 @@ function AnalyticsFilterPanel({
       {/* Header */}
       <Card.Header className="d-flex align-items-center justify-content-between bg-white border-bottom">
         <span className="h4 mb-0 fw-bold">Analytics</span>
-        <FilterVisibilityDropdown
-          items={VISIBILITY_ITEMS}
-          visibility={visibility}
-          onToggle={toggleVisibility}
-        />
+        <div className="d-flex align-items-center gap-2">
+          <FilterVisibilityDropdown
+            items={VISIBILITY_ITEMS}
+            visibility={visibility}
+            onToggle={toggleVisibility}
+          />
+          {/* Desktop only: collapse toggle next to the visibility gear. While the
+              filter column is open this is the only show/hide button visible; a
+              floating reopen button renders only once the column is hidden. */}
+          {showDesktop && onToggleDesktop && (
+            <button
+              type="button"
+              onClick={onToggleDesktop}
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(event) => {
+                event.currentTarget.style.backgroundColor = '#f3f4f6';
+              }}
+              onMouseLeave={(event) => {
+                event.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              title="Hide filters sidebar"
+              aria-label="Hide filters sidebar"
+            >
+              <FaChevronLeft size={18} color="#6b7280" />
+            </button>
+          )}
+        </div>
       </Card.Header>
 
       {/* Body */}
@@ -289,16 +334,79 @@ export function AnalyticsFilterSidebar({
   savedFiltersData,
   showMobile,
   onHideMobile,
+  showDesktop = true,
+  onToggleDesktop,
 }: AnalyticsFilterSidebarProps) {
+  // The reopen control appears only after the column has fully collapsed
+  // (its 500 ms width/visibility transition), never while the panel is still
+  // sliding shut.
+  const [expandVisible, setExpandVisible] = useState(false);
+  useEffect(() => {
+    if (showDesktop) {
+      setExpandVisible(false);
+      return;
+    }
+    const timer = setTimeout(() => setExpandVisible(true), DESKTOP_COLLAPSE_MS);
+    return () => clearTimeout(timer);
+  }, [showDesktop]);
+
   return (
     <>
-      {/* Desktop: sticky left column */}
-      <Col lg={3} className="mb-3 d-none d-lg-block">
-        <AnalyticsFilterPanel
-          filterData={filterData}
-          savedFiltersData={savedFiltersData}
-        />
-      </Col>
+      {/* Desktop reopen control: floated at the collapsed column's place. It is
+          absolutely positioned (against the page's relative flex wrapper) so it
+          never reserves a full-height 44px strip — the reports keep the whole
+          width the column vacated, and only this small button stays on top. */}
+      {!showDesktop && expandVisible && onToggleDesktop && (
+        <button
+          type="button"
+          className="btn btn-outline-secondary d-none d-lg-flex align-items-center justify-content-center"
+          onClick={onToggleDesktop}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            left: '6px',
+            zIndex: 5,
+            width: '32px',
+            height: '32px',
+            padding: 0,
+            borderRadius: '8px',
+            backgroundColor: '#fff',
+            boxShadow: '0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1)',
+          }}
+          title="Show filters sidebar"
+          aria-label="Show filters sidebar"
+        >
+          <FaChevronRight size={14} />
+        </button>
+      )}
+
+      {/* Desktop: sticky filter column. Always mounted so its width can be
+          transitioned — collapsing to 0 width (clipped) slides the panel out
+          and lets the reports expand smoothly; visibility hides it only after
+          the close transition finishes. */}
+      <div
+        className="analytics-filter-slide-panel d-none d-lg-block"
+        style={{
+          width: showDesktop ? 'min(340px, 25vw)' : '0px',
+          flexShrink: 0,
+          marginRight: showDesktop ? '12px' : '0px',
+          visibility: showDesktop ? 'visible' : 'hidden',
+          transition: showDesktop
+            ? 'width 500ms ease, margin-right 500ms ease'
+            : 'width 500ms ease, margin-right 500ms ease, visibility 0s linear 500ms',
+        }}
+      >
+        {/* Inner wrapper keeps a constant width so panel contents never reflow
+            while the outer box animates its width. */}
+        <div style={{ width: 'min(340px, 25vw)', flexShrink: 0 }}>
+          <AnalyticsFilterPanel
+            filterData={filterData}
+            savedFiltersData={savedFiltersData}
+            showDesktop={showDesktop}
+            {...(onToggleDesktop ? { onToggleDesktop } : {})}
+          />
+        </div>
+      </div>
 
       {/* Mobile: slide-in Offcanvas */}
       <Offcanvas
