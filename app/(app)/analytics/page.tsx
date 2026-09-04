@@ -325,13 +325,16 @@ function AnalyticsContent(): React.ReactElement {
               </Nav>
             </div>
 
-            {/* Mobile Sticky Controls Wrapper */}
+            {/* Mobile Sticky Controls Wrapper
+                z-index must exceed the analytics toolbar (--z-toolbar) and the
+                sticky report header (--z-sticky-table-header) so the open
+                period/date menu stays on top (see the :root scale in globals.css). */}
             <div
               className="d-flex flex-column d-md-none gap-2 pb-2"
               style={{
                 position: 'sticky',
                 top: 'var(--navbar-height)',
-                zIndex: 100,
+                zIndex: 'var(--z-sticky-nav)',
                 backgroundColor: 'var(--bs-body-bg)',
                 paddingTop: '8px',
                 marginTop: '-8px'

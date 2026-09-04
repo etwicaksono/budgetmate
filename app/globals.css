@@ -36,6 +36,18 @@
   --bs-btn-hover-border-color: #152b46;
 }
 
+/* Z-index scale — single source of truth for custom stacking layers.
+   Reference these variables instead of hard-coding numbers so raising one
+   layer does not require hunting down every sibling. Keep layers below the
+   app navbar (1030) unless they must deliberately overlay it. */
+:root {
+  --z-sticky-table-header: 1010; /* sticky table header (analytics report) */
+  --z-toolbar: 1015; /* sticky toolbar that must clear the table header */
+  --z-sticky-nav: 1020; /* sticky period/tab controls floating above the toolbar */
+  --z-floating-menu: 1025; /* open dropdown / calendar overlays */
+  --z-app-header: 1030; /* app navbar (matches Bootstrap navbar value) */
+}
+
 /* Override Bootstrap btn-primary */
 .btn-primary {
   --bs-btn-bg: var(--bs-primary);
@@ -116,6 +128,10 @@ body {
 
 .period-range-dropdown .dropdown-menu {
   min-width: 100%;
+  /* Keep the open calendar above the analytics report's sticky elements
+     (--z-toolbar and --z-sticky-table-header) while staying below the app
+     navbar (--z-app-header); see the :root scale above. */
+  z-index: var(--z-floating-menu);
 }
 
 @media (max-width: 1199.98px) {

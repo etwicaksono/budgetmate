@@ -119,17 +119,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where.is_draft = false;
     }
 
-    // Date range
+    // Date range — exact instants are honored as-is. Clients already send precise
+    // boundaries (e.g. 2026-06-30T16:59:59.000Z for a local end-of-day), so forcing
+    // UTC 23:59:59.999 would widen the window and leak transactions from the next
+    // period. Only a bare calendar date ("YYYY-MM-DD") is advanced to end-of-day.
     if (filters.start_date || filters.end_date) {
       where.date = {};
       if (filters.start_date) {
         where.date.gte = new Date(filters.start_date);
       }
       if (filters.end_date) {
-        // Advance to end-of-day (23:59:59.999 UTC) so the full calendar day is included
-        const endOfDay = new Date(filters.end_date);
-        endOfDay.setUTCHours(23, 59, 59, 999);
-        where.date.lte = endOfDay;
+        const end = new Date(filters.end_date);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(filters.end_date.trim())) {
+          end.setUTCHours(23, 59, 59, 999);
+        }
+        where.date.lte = end;
       }
     }
 

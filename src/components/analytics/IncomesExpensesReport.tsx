@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Card, Table, Dropdown, Form, Placeholder } from 'react-bootstrap';
 import { FaListUl, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import { RiListSettingsLine } from 'react-icons/ri';
@@ -52,6 +52,8 @@ interface SelectedCategory {
   monthStartDate: string;
   monthEndDate: string;
   accountIds?: string[];
+  labelIds?: string[];
+  excludedLabelIds?: string[];
 }
 
 const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
@@ -91,7 +93,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     [formatCurrency]
   );
 
-  const { data, loading, error } = useIncomeExpenseData({
+  const { data, loading, error, refresh } = useIncomeExpenseData({
     startDate,
     endDate,
     periodType,
@@ -109,6 +111,86 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
   });
 
   const reportData = data ?? null;
+
+  // Desktop table: keep the column header (month names) pinned below the navbar
+  // while the page scrolls. Bootstrap's `.table-responsive` wrapper would make the
+  // table its own scroll container and break a viewport-sticky header, so the
+  // wrapper only turns horizontally scrollable when the table is actually wider
+  // than its container (measured after render and re-checked on resize).
+  const tableScrollWrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = tableScrollWrapRef.current;
+    if (!el) return;
+    const table = el.querySelector('table');
+    if (!table) return;
+
+    const updateHorizontalFit = () => {
+      const fits = table.scrollWidth <= el.clientWidth + 1;
+      if (fits) el.setAttribute('data-h-fit', '');
+      else el.removeAttribute('data-h-fit');
+    };
+
+    updateHorizontalFit();
+    const observer = new ResizeObserver(updateHorizontalFit);
+    observer.observe(el);
+    observer.observe(table);
+    return () => observer.disconnect();
+  }, [loading, reportData, numberOfColumns, showAverageColumn]);
+
+  // After a transaction is edited elsewhere (e.g. the drill-down modal), silently
+  // refresh the aggregates. The save is applied optimistically then persisted in
+  // the background, so wait briefly; the refresh does not toggle the loading
+  // placeholder, so the table is updated in place instead of remounting whole.
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const scheduleSilentRefresh = () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+      refreshTimerRef.current = setTimeout(() => {
+        void refresh();
+      }, 900);
+    };
+
+    window.addEventListener('transaction-updated', scheduleSilentRefresh);
+    return () => {
+      window.removeEventListener('transaction-updated', scheduleSilentRefresh);
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, [refresh]);
+
+  // Parent categories that can expand into sub-categories — drives the toolbar's
+  // Expand/Collapse All toggle (same pattern as the budget page toolbar).
+  const expandableCategoryIds = useMemo(() => {
+    const ids = new Set<string>();
+    const collect = (categories: CategoryReport[]) => {
+      categories.forEach((category) => {
+        if (category.hasSubItems && category.subItems?.length) {
+          ids.add(category.id);
+          collect(category.subItems);
+        }
+      });
+    };
+    collect(reportData?.incomeCategories ?? []);
+    collect(reportData?.expenseCategories ?? []);
+    return ids;
+  }, [reportData]);
+
+  const hasExpandableCategories = expandableCategoryIds.size > 0;
+  const isAllCollapsed =
+    hasExpandableCategories &&
+    [...expandableCategoryIds].every((id) => !expandedCategories.has(id));
+  const handleExpandAll = () => {
+    if (!hasExpandableCategories) return;
+    setExpandedCategories(new Set(expandableCategoryIds));
+  };
+  const handleCollapseAll = () => {
+    setExpandedCategories(new Set());
+  };
 
   const toggleCategory = (categoryId: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -149,7 +231,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       periodStart = new Date(baseDate);
       periodStart.setMonth(periodStart.getMonth() - periodIndex);
       periodStart.setDate(1);
-      periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0, 23, 59, 59);
+      periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0, 23, 59, 59, 999);
     } else if (periodType === 'week') {
       const baseDate = startDate ? new Date(startDate) : now;
       const dayOfWeek = baseDate.getDay();
@@ -166,7 +248,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       const baseYear = startDate ? new Date(startDate).getFullYear() : now.getFullYear();
       const year = baseYear - periodIndex;
       periodStart = new Date(year, 0, 1, 0, 0, 0);
-      periodEnd = new Date(year, 11, 31, 23, 59, 59);
+      periodEnd = new Date(year, 11, 31, 23, 59, 59, 999);
     } else {
       const customStart = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
       const customEnd = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
@@ -190,6 +272,8 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
       monthStartDate: periodStart.toISOString(),
       monthEndDate: periodEnd.toISOString(),
       ...(selectedAccounts && selectedAccounts.length > 0 && { accountIds: selectedAccounts }),
+      ...(selectedLabelIds && selectedLabelIds.length > 0 && { labelIds: selectedLabelIds }),
+      ...(excludedLabelIds && excludedLabelIds.length > 0 && { excludedLabelIds }),
     });
     setShowModal(true);
   };
@@ -348,7 +432,8 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
     };
 
     return (
-      <Table responsive bordered hover>
+      <div className="table-sticky-scroll" ref={tableScrollWrapRef}>
+      <Table bordered hover>
         <thead>
           <tr>
             <th style={{ width: '30%' }}></th>
@@ -430,6 +515,7 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           {sortedExpenseCategories.map((category) => renderCategoryRow(category, 'expense'))}
         </tbody>
       </Table>
+      </div>
     );
   };
 
@@ -715,6 +801,20 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           padding: 0.75rem 1rem;
           vertical-align: middle;
         }
+        .incomes-expenses-report .table-sticky-scroll {
+          /* Fallback while the fit is being measured: keep wide tables scrollable. */
+          overflow-x: auto;
+        }
+        /* When the table fits its container the wrapper is not a scroll container,
+           so the sticky header can pin to the viewport while the page scrolls. */
+        .incomes-expenses-report .table-sticky-scroll[data-h-fit] {
+          overflow-x: visible;
+        }
+        .incomes-expenses-report .table-sticky-scroll thead th {
+          position: sticky;
+          top: calc(var(--navbar-height, 73px) - 1px);
+          z-index: var(--z-sticky-table-header);
+        }
         .incomes-expenses-report .total-row {
           background-color: #f8f9fa;
           font-weight: 600;
@@ -744,6 +844,11 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           onSearchTermChange={onSearchTermChange}
           sortOption={externalSortOption}
           onSortOptionChange={onSortOptionChange}
+          {...(hasExpandableCategories && {
+            isAllCollapsed,
+            onExpandAll: handleExpandAll,
+            onCollapseAll: handleCollapseAll,
+          })}
           rightSlot={settingsDropdown}
         />
       )}
@@ -766,6 +871,8 @@ const IncomesExpensesReport: React.FC<IncomesExpensesReportProps> = ({
           startDate={selectedCategory.monthStartDate}
           endDate={selectedCategory.monthEndDate}
           {...(selectedCategory.accountIds ? { accountIds: selectedCategory.accountIds } : {})}
+          {...(selectedCategory.labelIds ? { selectedLabelIds: selectedCategory.labelIds } : {})}
+          {...(selectedCategory.excludedLabelIds ? { excludedLabelIds: selectedCategory.excludedLabelIds } : {})}
         />
       )}
     </div>

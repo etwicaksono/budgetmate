@@ -147,7 +147,8 @@ export async function buildTransactionWhere(
     where.is_draft = false;
   }
 
-  // Date range — end_date is advanced to end-of-day so the full day is included
+  // Date range — exact instants are honored as-is; only a bare calendar date
+  // ("YYYY-MM-DD") is advanced to the last millisecond of its UTC day.
   const startDate = asString(f['start_date']);
   const endDate = asString(f['end_date']);
   if (startDate || endDate) {
@@ -156,9 +157,11 @@ export async function buildTransactionWhere(
       dateFilter.gte = new Date(startDate);
     }
     if (endDate) {
-      const endOfDay = new Date(endDate);
-      endOfDay.setUTCHours(23, 59, 59, 999);
-      dateFilter.lte = endOfDay;
+      const end = new Date(endDate);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(endDate.trim())) {
+        end.setUTCHours(23, 59, 59, 999);
+      }
+      dateFilter.lte = end;
     }
     where.date = dateFilter;
   }

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Dropdown, Badge, Form } from 'react-bootstrap';
 import { FaTimes, FaTags } from 'react-icons/fa';
+import { ClearButton } from '@/components/common/ClearButton';
 import type { Label } from '@/services/labelService';
 
 interface LabelMultiSelectProps {
@@ -45,8 +46,7 @@ export function LabelMultiSelect({
     onChange(selectedLabelIds.filter((id) => id !== labelId));
   };
 
-  const handleClearAll = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleClearAll = () => {
     onChange([]);
   };
 
@@ -119,13 +119,10 @@ export function LabelMultiSelect({
           )}
         </div>
         {selectedLabels.length > 0 && (
-          <span
-            className="text-primary small"
-            style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
+          <ClearButton
+            ariaLabel="Clear selected labels"
             onClick={handleClearAll}
-          >
-            Clear selected
-          </span>
+          />
         )}
       </Dropdown.Toggle>
 

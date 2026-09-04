@@ -38,6 +38,11 @@ export const EditableRecordsList: React.FC<EditableRecordsListProps> = ({
       category_id: record.category_id || '',
       ...(record.description && { description: record.description }),
       ...(record.payer && { payee: record.payer }),
+      ...(record.labels && record.labels.length > 0 && {
+        label_ids: record.labels
+          .map(label => label.id)
+          .filter((id): id is string => Boolean(id)),
+      }),
     };
     openEditModal(transactionData);
   }, [openEditModal]);

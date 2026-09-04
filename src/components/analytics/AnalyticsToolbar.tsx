@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { Dropdown, Form, Button } from 'react-bootstrap';
-import { FaSearch, FaTimes, FaSort, FaSortAmountDown, FaSortAmountUp, FaSortAlphaDown, FaSortAlphaUpAlt } from 'react-icons/fa';
+import { FaCompressAlt, FaExpandAlt, FaSearch, FaTimes, FaSort, FaSortAmountDown, FaSortAmountUp, FaSortAlphaDown, FaSortAlphaUpAlt } from 'react-icons/fa';
 import type { SortValue } from '@/hooks/useFilterData';
 
 // TODO: Consider extracting SORT_OPTIONS to a shared constants file (e.g.,
@@ -20,6 +20,10 @@ export interface AnalyticsToolbarProps {
   onSearchTermChange: (value: string) => void;
   sortOption: SortValue;
   onSortOptionChange: (value: SortValue) => void;
+  // Expand / Collapse all — optional; the toggle is hidden unless all three are set.
+  isAllCollapsed?: boolean;
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
   rightSlot?: ReactNode;
 }
 
@@ -28,15 +32,17 @@ export function AnalyticsToolbar({
   onSearchTermChange,
   sortOption,
   onSortOptionChange,
+  isAllCollapsed,
+  onExpandAll,
+  onCollapseAll,
   rightSlot,
 }: AnalyticsToolbarProps) {
   const [inputValue, setInputValue] = useState(searchTerm);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const activeSortTitle = useMemo(
-    () => SORT_OPTIONS.find(opt => opt.value === sortOption)?.title ?? 'Sort',
-    [sortOption]
-  );
+  // Toggle icon mirrors the selected option — same icons as the dropdown items.
+  const activeSort = SORT_OPTIONS.find(opt => opt.value === sortOption);
+  const ActiveSortIcon = activeSort?.icon ?? FaSort;
 
   // Sync local input with parent when searchTerm changes from outside (e.g., filter reset)
   useEffect(() => {
@@ -78,35 +84,14 @@ export function AnalyticsToolbar({
   };
 
   return (
+    // Must stack above the report's sticky table header (--z-sticky-table-header)
+    // so an open dropdown menu is never hidden behind it, yet stay below the app
+    // navbar (--z-app-header). Values live in the shared :root scale (globals.css).
     <div
       className="d-flex flex-wrap align-items-center gap-2 p-3 border-bottom bg-white rounded-top"
-      style={{ position: 'sticky', top: 0, zIndex: 10 }}
+      style={{ position: 'sticky', top: 0, zIndex: 'var(--z-toolbar)' }}
     >
       <div className="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
-        {/* Sort By */}
-        <Dropdown>
-          <Dropdown.Toggle variant="outline-secondary" size="sm" className="d-flex align-items-center gap-2" style={{ height: '36px' }}>
-            <FaSort size={12} />
-            <span className="d-none d-sm-inline">{activeSortTitle}</span>
-            <span className="d-inline d-sm-none">Sort</span>
-          </Dropdown.Toggle>
-          <Dropdown.Menu style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {SORT_OPTIONS.map(opt => {
-              const Icon = opt.icon;
-              return (
-                <Dropdown.Item
-                  key={opt.value}
-                  onClick={() => onSortOptionChange(opt.value)}
-                  active={sortOption === opt.value}
-                  className="d-flex align-items-center gap-2"
-                >
-                  <Icon size={12} /> {opt.title}
-                </Dropdown.Item>
-              );
-            })}
-          </Dropdown.Menu>
-        </Dropdown>
-
         {/* Search */}
         <div
           className="d-flex align-items-center bg-white rounded-1 px-2 border border-secondary"
@@ -132,11 +117,54 @@ export function AnalyticsToolbar({
             </Button>
           )}
         </div>
+
+        {/* Sort By */}
+        <Dropdown>
+          <Dropdown.Toggle
+            variant="outline-secondary"
+            size="sm"
+            className="d-flex align-items-center justify-content-center p-0"
+            style={{ width: '36px', height: '36px' }}
+            title="Sort By"
+            aria-label="Sort By"
+          >
+            <ActiveSortIcon size={12} />
+          </Dropdown.Toggle>
+          <Dropdown.Menu style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            {SORT_OPTIONS.map(opt => {
+              const Icon = opt.icon;
+              return (
+                <Dropdown.Item
+                  key={opt.value}
+                  onClick={() => onSortOptionChange(opt.value)}
+                  active={sortOption === opt.value}
+                  className="d-flex align-items-center gap-2"
+                >
+                  <Icon size={12} /> {opt.title}
+                </Dropdown.Item>
+              );
+            })}
+          </Dropdown.Menu>
+        </Dropdown>
+
       </div>
 
-      {/* Right slot — e.g. settings dropdown */}
-      {rightSlot && (
-        <div className="d-flex align-items-center gap-2">
+      {/* Right section — expand/collapse all + settings (e.g. Number of columns) */}
+      {(isAllCollapsed !== undefined || rightSlot) && (
+        <div className="d-flex align-items-center gap-2 flex-shrink-0">
+          {isAllCollapsed !== undefined && onExpandAll && onCollapseAll && (
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              className="d-flex align-items-center justify-content-center p-0"
+              style={{ width: '36px', height: '36px' }}
+              onClick={isAllCollapsed ? onExpandAll : onCollapseAll}
+              title={isAllCollapsed ? 'Expand All' : 'Collapse All'}
+              aria-label={isAllCollapsed ? 'Expand All' : 'Collapse All'}
+            >
+              {isAllCollapsed ? <FaExpandAlt size={12} /> : <FaCompressAlt size={12} />}
+            </Button>
+          )}
           {rightSlot}
         </div>
       )}

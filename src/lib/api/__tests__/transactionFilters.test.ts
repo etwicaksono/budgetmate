@@ -39,14 +39,23 @@ describe('buildTransactionWhere', () => {
     ).rejects.toBeInstanceOf(InvalidFilterError);
   });
 
-  it('advances end_date to the last millisecond of the UTC day', async () => {
+  it('honors an end_date timestamp as an exact boundary', async () => {
     const where = await buildTransactionWhere(USER_ID, {
-      start_date: '2026-01-01T00:00:00.000Z',
-      end_date: '2026-01-31T00:00:00.000Z'
+      start_date: '2026-06-01T00:00:00.000Z',
+      end_date: '2026-06-30T16:59:59.000Z'
     });
 
     const dateFilter = where.date as { gte: Date; lte: Date };
-    expect(dateFilter.gte.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+    expect(dateFilter.gte.toISOString()).toBe('2026-06-01T00:00:00.000Z');
+    expect(dateFilter.lte.toISOString()).toBe('2026-06-30T16:59:59.000Z');
+  });
+
+  it('advances a bare calendar date to the last millisecond of its UTC day', async () => {
+    const where = await buildTransactionWhere(USER_ID, {
+      end_date: '2026-01-31'
+    });
+
+    const dateFilter = where.date as { lte: Date };
     expect(dateFilter.lte.toISOString()).toBe('2026-01-31T23:59:59.999Z');
   });
 
